@@ -9,6 +9,14 @@ type Prefs = {
   show_completion_pct: boolean;
   show_collected_tracks: boolean;
   show_ratings: boolean;
+  show_followed_artists: boolean;
+};
+
+const LABELS: Record<keyof Prefs, string> = {
+  show_completion_pct: "Show my completion % publicly",
+  show_collected_tracks: "Show my collected tracks publicly",
+  show_ratings: "Show my ratings publicly",
+  show_followed_artists: "Show artists I follow publicly",
 };
 
 export default function SettingsPage() {
@@ -26,7 +34,7 @@ export default function SettingsPage() {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("show_completion_pct, show_collected_tracks, show_ratings")
+        .select("show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
         .eq("id", user.id)
         .single();
       if (data) setPrefs(data as Prefs);
@@ -66,39 +74,19 @@ export default function SettingsPage() {
 
       {prefs && (
         <div style={{ maxWidth: 520 }}>
-          <div style={rowStyle}>
-            <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>
-              Show my completion % publicly
-            </span>
-            <button
-              className={`tab ${prefs.show_completion_pct ? "active" : ""}`}
-              onClick={() => toggle("show_completion_pct")}
-            >
-              {prefs.show_completion_pct ? "on" : "off"}
-            </button>
-          </div>
-          <div style={rowStyle}>
-            <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>
-              Show my collected tracks publicly
-            </span>
-            <button
-              className={`tab ${prefs.show_collected_tracks ? "active" : ""}`}
-              onClick={() => toggle("show_collected_tracks")}
-            >
-              {prefs.show_collected_tracks ? "on" : "off"}
-            </button>
-          </div>
-          <div style={rowStyle}>
-            <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>
-              Show my ratings publicly
-            </span>
-            <button
-              className={`tab ${prefs.show_ratings ? "active" : ""}`}
-              onClick={() => toggle("show_ratings")}
-            >
-              {prefs.show_ratings ? "on" : "off"}
-            </button>
-          </div>
+          {(Object.keys(LABELS) as (keyof Prefs)[]).map((key) => (
+            <div key={key} style={rowStyle}>
+              <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>
+                {LABELS[key]}
+              </span>
+              <button
+                className={`tab ${prefs[key] ? "active" : ""}`}
+                onClick={() => toggle(key)}
+              >
+                {prefs[key] ? "on" : "off"}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

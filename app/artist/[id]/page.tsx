@@ -58,6 +58,8 @@ export default function ArtistPage() {
   const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [openRatingId, setOpenRatingId] = useState<string | null>(null);
   const [openCommentsId, setOpenCommentsId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -211,6 +213,33 @@ export default function ArtistPage() {
       return next;
     });
     setOpenRatingId(null);
+  }
+
+  useEffect(() => {
+    async function loadFollow() {
+      if (!user) { setIsFollowing(false); return; }
+      const { data } = await supabase
+        .from("follows")
+        .select("artist_id")
+        .eq("user_id", user.id)
+        .eq("artist_id", id)
+        .maybeSingle();
+      setIsFollowing(!!data);
+    }
+    loadFollow();
+  }, [user, id]);
+
+  async function toggleFollow() {
+    if (!user) { router.push("/login"); return; }
+    setFollowBusy(true);
+    if (isFollowing) {
+      await supabase.from("follows").delete().eq("user_id", user.id).eq("artist_id", id);
+      setIsFollowing(false);
+    } else {
+      await supabase.from("follows").insert({ user_id: user.id, artist_id: id });
+      setIsFollowing(true);
+    }
+    setFollowBusy(false);
   }
 
   async function toggleOwned(trackId: string) {
@@ -397,6 +426,14 @@ export default function ArtistPage() {
       {!error && artist && (
         <>
           <h1 className="detail-name">{artist.name}</h1>
+          <button
+            className={`tab ${isFollowing ? "active" : ""}`}
+            style={{ marginBottom: 14 }}
+            disabled={followBusy}
+            onClick={toggleFollow}
+          >
+            {isFollowing ? "✓ following" : "+ follow"}
+          </button>
           <div className="detail-meta">
             {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
             {user && ` · ${collectedCount} collected (${collectedPct}%)`}

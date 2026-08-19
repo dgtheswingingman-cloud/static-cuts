@@ -12,9 +12,40 @@ type Profile = {
   show_completion_pct: boolean;
   show_collected_tracks: boolean;
   show_ratings: boolean;
+  show_followed_artists: boolean;
 };
 type CollectedTrack = { track_id: string; tracks: { title: string; artist_id: string; artists: { name: string } | null } | null };
 type RatedTrack = { track_id: string; value: number; tracks: { title: string; artist_id: string; artists: { name: string } | null } | null };
+type FollowedArtist = { artist_id: string; artists: { name: string } | null };
+
+// A collapsed-by-default section: just a title + count until clicked open.
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div
+        className="section-label"
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+        onClick={() => setOpen(!open)}
+      >
+        <span>{title} ({count})</span>
+        <button className="tab" style={{ padding: "3px 10px", fontSize: "0.62rem" }}>
+          {open ? "hide" : "show"}
+        </button>
+      </div>
+      {open && count > 0 && children}
+      {open && count === 0 && <div className="empty-state" style={{ marginBottom: 14 }}>Nothing here yet.</div>}
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const params = useParams();
@@ -25,14 +56,15 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [stats, setStats] = useState<{ total_tracks: number; collected_tracks: number } | null>(null);
-  const [collected, setCollected] = useState<CollectedTrack[] | null>(null);
-  const [rated, setRated] = useState<RatedTrack[] | null>(null);
+  const [collected, setCollected] = useState<CollectedTrack[]>([]);
+  const [rated, setRated] = useState<RatedTrack[]>([]);
+  const [followedArtists, setFollowedArtists] = useState<FollowedArtist[]>([]);
 
   useEffect(() => {
     async function load() {
       const { data: profileRow, error } = await supabase
         .from("profiles")
-        .select("id, display_name, show_completion_pct, show_collected_tracks, show_ratings")
+        .select("id, display_name, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
         .eq("id", userId)
         .single();
       if (error || !profileRow) {
@@ -69,12 +101,26 @@ export default function ProfilePage() {
           .limit(100);
         setRated((data as any) ?? []);
       }
+
+      if (profileRow.show_followed_artists) {
+        const { data } = await supabase
+          .from("follows")
+          .select("artist_id, artists(name)")
+          .eq("user_id", userId)
+          .order("followed_at", { ascending: false });
+        setFollowedArtists((data as any) ?? []);
+      }
     }
     load();
   }, [userId]);
 
   const isOwnProfile = viewer?.id === userId;
   const pct = stats && stats.total_tracks > 0 ? Math.round((stats.collected_tracks / stats.total_tracks) * 100) : 0;
+  const nothingPublic =
+    !profile?.show_completion_pct &&
+    !profile?.show_collected_tracks &&
+    !profile?.show_ratings &&
+    !profile?.show_followed_artists;
 
   return (
     <div className="wrap">
@@ -93,7 +139,7 @@ export default function ProfilePage() {
           <h1 className="detail-name">{profile.display_name ?? "anonymous"}</h1>
 
           {isOwnProfile && (
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
+            <div className="detail-meta" style={{ marginBottom: 16 }}>
               This is your own profile — visitors only see what you&apos;ve turned on in{" "}
               <Link href="/settings" style={{ color: "var(--bone)" }}>
                 privacy settings
@@ -103,25 +149,24 @@ export default function ProfilePage() {
           )}
 
           {stats && (
-            <>
+            <div style={{ marginBottom: 20 }}>
               <div className="detail-meta">
                 {stats.collected_tracks} / {stats.total_tracks} tracks collected ({pct}%)
               </div>
-              <div className="bar-track" style={{ height: 4, marginBottom: 22 }}>
+              <div className="bar-track" style={{ height: 4 }}>
                 <div className="bar-fill" style={{ width: `${pct}%` }} />
               </div>
-            </>
+            </div>
           )}
 
-          {!stats && !profile.show_collected_tracks && !profile.show_ratings && (
+          {nothingPublic && (
             <div className="empty-state" style={{ marginTop: 16 }}>
               This user hasn&apos;t made anything public on their profile yet.
             </div>
           )}
 
-          {collected && collected.length > 0 && (
-            <>
-              <div className="section-label">Collected tracks</div>
+          {profile.show_collected_tracks && (
+            <Section title="Collected tracks" count={collected.length}>
               {collected.map((c) => (
                 <div key={c.track_id} className="track-row" style={{ cursor: "default" }}>
                   <span className="track-title">{c.tracks?.title ?? "unknown track"}</span>
@@ -132,12 +177,11 @@ export default function ProfilePage() {
                   )}
                 </div>
               ))}
-            </>
+            </Section>
           )}
 
-          {rated && rated.length > 0 && (
-            <>
-              <div className="section-label">Ratings</div>
+          {profile.show_ratings && (
+            <Section title="Ratings" count={rated.length}>
               {rated.map((r) => (
                 <div key={r.track_id} className="track-row" style={{ cursor: "default" }}>
                   <span className="track-title">{r.tracks?.title ?? "unknown track"}</span>
@@ -149,7 +193,21 @@ export default function ProfilePage() {
                   <span className="rating-chip rated">{r.value}/10</span>
                 </div>
               ))}
-            </>
+            </Section>
+          )}
+
+          {profile.show_followed_artists && (
+            <Section title="Following" count={followedArtists.length}>
+              <div className="grid" style={{ marginTop: 4 }}>
+                {followedArtists.map((f) => (
+                  <Link key={f.artist_id} href={`/artist/${f.artist_id}`} className="card">
+                    <div className="name" style={{ fontSize: "1.2rem" }}>
+                      {f.artists?.name ?? "unknown artist"}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Section>
           )}
         </>
       )}
