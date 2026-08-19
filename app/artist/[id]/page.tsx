@@ -18,6 +18,7 @@ type Track = {
 };
 type Artist = { id: string; name: string; status: string | null };
 type FilterKey = "all" | "main" | "featured" | "official" | "unreleased";
+type TrackSortKey = "title-asc" | "title-desc" | "collected-first" | "uncollected-first";
 
 function trackPasses(t: Track, filter: FilterKey) {
   if (filter === "all") return true;
@@ -39,6 +40,7 @@ export default function ArtistPage() {
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [sort, setSort] = useState<TrackSortKey>("title-asc");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -143,7 +145,25 @@ export default function ArtistPage() {
     }
   });
 
-  const filteredMain = mainTracks.filter((t) => trackPasses(t, filter));
+  const filteredMain = (() => {
+    const list = mainTracks.filter((t) => trackPasses(t, filter));
+    const sorted = [...list];
+    switch (sort) {
+      case "title-asc":
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "title-desc":
+        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case "collected-first":
+        sorted.sort((a, b) => Number(owned.has(b.id)) - Number(owned.has(a.id)));
+        break;
+      case "uncollected-first":
+        sorted.sort((a, b) => Number(owned.has(a.id)) - Number(owned.has(b.id)));
+        break;
+    }
+    return sorted;
+  })();
   const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
   const collectedCount = tracks?.filter((t) => owned.has(t.id)).length ?? 0;
   const collectedPct = tracks && tracks.length > 0 ? Math.round((collectedCount / tracks.length) * 100) : 0;
@@ -253,6 +273,19 @@ export default function ArtistPage() {
                 {f}
               </button>
             ))}
+          </div>
+
+          <div className="sort-row">
+            <select
+              className="sort-select"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as TrackSortKey)}
+            >
+              <option value="title-asc">Title (A–Z)</option>
+              <option value="title-desc">Title (Z–A)</option>
+              {user && <option value="collected-first">Collected first</option>}
+              {user && <option value="uncollected-first">Not collected first</option>}
+            </select>
           </div>
 
           {!tracks && <div className="empty-state">loading tracklist…</div>}

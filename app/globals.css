@@ -210,6 +210,25 @@ body {
   font-weight: 600;
 }
 
+.sort-select {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  padding: 7px 10px;
+  border: 1.5px solid var(--hair);
+  background: var(--surface);
+  color: var(--smoke);
+  cursor: pointer;
+}
+.sort-select:hover {
+  border-color: var(--hair-strong);
+  color: var(--bone);
+}
+.sort-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
 .track-row {
   display: flex;
   align-items: center;

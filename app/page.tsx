@@ -14,6 +14,8 @@ type Artist = {
   collectedCount: number;
 };
 
+type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc";
+
 type TrackResult = {
   id: string;
   title: string;
@@ -29,6 +31,7 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [trackResults, setTrackResults] = useState<TrackResult[]>([]);
   const [trackSearchLoading, setTrackSearchLoading] = useState(false);
+  const [artistSort, setArtistSort] = useState<ArtistSortKey>("name-asc");
 
   useEffect(() => {
     async function load() {
@@ -119,8 +122,34 @@ export default function HomePage() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  const matchedArtists =
-    artists?.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase())) ?? null;
+  const matchedArtists = (() => {
+    const list =
+      artists?.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase())) ?? null;
+    if (!list) return list;
+    const sorted = [...list];
+    const pct = (a: Artist) => (a.trackCount > 0 ? a.collectedCount / a.trackCount : 0);
+    switch (artistSort) {
+      case "name-asc":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        sorted.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case "count-desc":
+        sorted.sort((a, b) => b.trackCount - a.trackCount);
+        break;
+      case "count-asc":
+        sorted.sort((a, b) => a.trackCount - b.trackCount);
+        break;
+      case "pct-desc":
+        sorted.sort((a, b) => pct(b) - pct(a));
+        break;
+      case "pct-asc":
+        sorted.sort((a, b) => pct(a) - pct(b));
+        break;
+    }
+    return sorted;
+  })();
   const q = query.trim();
   const showTrackSection = q.length >= 2;
 
@@ -196,6 +225,21 @@ export default function HomePage() {
       )}
 
       <div className="section-label">In the archive</div>
+
+      <div className="sort-row">
+        <select
+          className="sort-select"
+          value={artistSort}
+          onChange={(e) => setArtistSort(e.target.value as ArtistSortKey)}
+        >
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+          <option value="count-desc">Most tracks logged</option>
+          <option value="count-asc">Fewest tracks logged</option>
+          {user && <option value="pct-desc">My completion % (high–low)</option>}
+          {user && <option value="pct-asc">My completion % (low–high)</option>}
+        </select>
+      </div>
 
       {error && (
         <div className="empty-state" style={{ borderColor: "#a33" }}>
