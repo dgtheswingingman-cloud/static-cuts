@@ -71,6 +71,10 @@ export default function ArtistPage() {
   const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string } | null>(null);
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
+  const [addingTrack, setAddingTrack] = useState(false);
+  const [newTrack, setNewTrack] = useState({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "" });
+  const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
+  const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
@@ -295,6 +299,26 @@ export default function ArtistPage() {
     });
     if (err) { alert(err.message); return; }
     setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
+  }
+
+  async function addTrack() {
+    if (!newTrack.title.trim()) { alert("Enter a title."); return; }
+    setAdminBusy(true);
+    const { error: err } = await supabase.rpc("admin_add_track", {
+      p_artist_id: id,
+      p_title: newTrack.title.trim(),
+      p_spotify_url: newTrack.spotify_url,
+      p_is_featured: newTrack.is_featured,
+      p_is_official: newTrack.is_official,
+      p_has_audio: newTrack.has_audio,
+      p_parent_track_id: newTrack.parent_track_id,
+    });
+    setAdminBusy(false);
+    if (err) { alert(err.message); return; }
+    setAddingTrack(false);
+    setNewTrack({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "" });
+    setNewTrackParentSearch("");
+    load();
   }
 
   async function flagLink(track: Track) {
@@ -637,9 +661,62 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
-          <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
-            + suggest a track
-          </a>
+          {!isAdmin && (
+            <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
+              + suggest a track
+            </a>
+          )}
+          {isAdmin && (
+            <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingTrack(!addingTrack)}>
+              {addingTrack ? "cancel add track" : "+ add track"}
+            </button>
+          )}
+          {addingTrack && isAdmin && (
+            <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
+              <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Title"
+                value={newTrack.title} onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })} />
+              <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Listen link (optional)"
+                value={newTrack.spotify_url} onChange={(e) => setNewTrack({ ...newTrack, spotify_url: e.target.value })} />
+              <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
+                <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
+                  <input type="checkbox" checked={newTrack.is_featured} onChange={(e) => setNewTrack({ ...newTrack, is_featured: e.target.checked })} /> featured
+                </label>
+                <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
+                  <input type="checkbox" checked={newTrack.is_official} onChange={(e) => setNewTrack({ ...newTrack, is_official: e.target.checked })} /> official
+                </label>
+                <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
+                  <input type="checkbox" checked={newTrack.has_audio} onChange={(e) => setNewTrack({ ...newTrack, has_audio: e.target.checked })} /> has audio
+                </label>
+              </div>
+              <div className="comments-count" style={{ marginBottom: 6 }}>Sub-version of (optional):</div>
+              <div style={{ position: "relative" }}>
+                <input
+                  className="search-input"
+                  style={{ width: "100%" }}
+                  placeholder="Type to search main tracks…"
+                  value={newTrackParentSearch}
+                  onChange={(e) => { setNewTrackParentSearch(e.target.value); setNewTrackParentOpen(true); if (!e.target.value) setNewTrack({ ...newTrack, parent_track_id: "" }); }}
+                  onFocus={() => setNewTrackParentOpen(true)}
+                />
+                {newTrackParentOpen && newTrackParentSearch.trim().length > 0 && (
+                  <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 200, overflowY: "auto", padding: "6px 4px" }}>
+                    {mainTracks
+                      .filter((mt) => mt.title.toLowerCase().includes(newTrackParentSearch.trim().toLowerCase()))
+                      .slice(0, 8)
+                      .map((mt) => (
+                        <div key={mt.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
+                          onClick={() => { setNewTrack({ ...newTrack, parent_track_id: mt.id }); setNewTrackParentSearch(mt.title); setNewTrackParentOpen(false); }}>
+                          <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+              <button className="comment-post-btn" disabled={adminBusy} onClick={addTrack} style={{ marginTop: 10 }}>
+                {adminBusy ? "…" : "add track"}
+              </button>
+            </div>
+          )}
           <div className="detail-meta">
             {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
             {user && ` · ${collectedCount} collected (${collectedPct}%)`}
