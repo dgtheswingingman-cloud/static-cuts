@@ -59,6 +59,9 @@ export default function ProfilePage() {
   const [collected, setCollected] = useState<CollectedTrack[]>([]);
   const [rated, setRated] = useState<RatedTrack[]>([]);
   const [followedArtists, setFollowedArtists] = useState<FollowedArtist[]>([]);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -115,6 +118,20 @@ export default function ProfilePage() {
   }, [userId]);
 
   const isOwnProfile = viewer?.id === userId;
+
+  async function saveName() {
+    if (!viewer) return;
+    const trimmed = nameDraft.trim();
+    if (!trimmed) return;
+    setSavingName(true);
+    const { error: err } = await supabase.from("profiles").update({ display_name: trimmed }).eq("id", viewer.id);
+    setSavingName(false);
+    if (!err) {
+      setProfile((prev) => (prev ? { ...prev, display_name: trimmed } : prev));
+      setEditingName(false);
+    }
+  }
+
   const pct = stats && stats.total_tracks > 0 ? Math.round((stats.collected_tracks / stats.total_tracks) * 100) : 0;
   const nothingPublic =
     !profile?.show_completion_pct &&
@@ -136,15 +153,43 @@ export default function ProfilePage() {
 
       {profile && (
         <>
-          <h1 className="detail-name">{profile.display_name ?? "anonymous"}</h1>
+          {editingName ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+              <input
+                autoFocus
+                className="search-input"
+                style={{ maxWidth: 260 }}
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
+              />
+              <button className="tab active" disabled={savingName} onClick={saveName}>
+                {savingName ? "…" : "save"}
+              </button>
+              <button className="tab" onClick={() => setEditingName(false)}>cancel</button>
+            </div>
+          ) : (
+            <h1 className="detail-name">{profile.display_name ?? "anonymous"}</h1>
+          )}
+
+          {isOwnProfile && !editingName && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              <button
+                className="tab"
+                onClick={() => { setNameDraft(profile.display_name ?? ""); setEditingName(true); }}
+              >
+                edit name
+              </button>
+              <Link href="/settings" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
+                privacy settings
+              </Link>
+            </div>
+          )}
 
           {isOwnProfile && (
             <div className="detail-meta" style={{ marginBottom: 16 }}>
-              This is your own profile — visitors only see what you&apos;ve turned on in{" "}
-              <Link href="/settings" style={{ color: "var(--bone)" }}>
-                privacy settings
-              </Link>
-              .
+              This is your own profile — visitors only see what you&apos;ve turned on in privacy
+              settings.
             </div>
           )}
 

@@ -3,6 +3,7 @@ import { Anton, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
+import { AdminViewProvider } from "./AdminViewContext";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -18,9 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${anton.variable} ${inter.variable} ${mono.variable}`}>
         <AuthProvider>
-          <StaticOverlay />
-          <div className="scanlines" />
-          {children}
+          <AdminViewProvider>
+            <StaticOverlay />
+            <div className="scanlines" />
+            {children}
+          </AdminViewProvider>
         </AuthProvider>
       </body>
     </html>

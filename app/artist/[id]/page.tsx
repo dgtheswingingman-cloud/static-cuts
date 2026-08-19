@@ -5,9 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin } from "../../useIsAdmin";
 import TrackComments from "./TrackComments";
-
-const ADMIN_EMAIL = "dg.theswingingman@gmail.com";
 
 type Track = {
   id: string;
@@ -50,7 +49,7 @@ export default function ArtistPage() {
   const router = useRouter();
   const id = params.id as string;
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = useIsAdmin();
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[] | null>(null);
