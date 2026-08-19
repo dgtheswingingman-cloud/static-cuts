@@ -463,7 +463,7 @@ export default function ArtistPage() {
               + alt version
             </a>
           )}
-          {user && (
+          {user && !isAdmin && (
             <a
               href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}`}
               className="listen-link"
