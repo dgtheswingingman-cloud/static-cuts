@@ -74,6 +74,8 @@ export default function ArtistPage() {
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
+  const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
+  const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
 
   useEffect(() => {
     load();
@@ -245,9 +247,41 @@ export default function ArtistPage() {
         (map[c.track_id] = map[c.track_id] || []).push(c);
       });
       setCandidatesByTrack(map);
+
+      const candidateIds = (data ?? []).map((c: any) => c.id);
+      if (candidateIds.length > 0) {
+        const { data: votes } = await supabase
+          .from("track_link_candidate_votes")
+          .select("candidate_id, user_id, vote")
+          .in("candidate_id", candidateIds);
+        const scores: Record<string, number> = {};
+        const mine: Record<string, 1 | -1> = {};
+        (votes ?? []).forEach((v: any) => {
+          scores[v.candidate_id] = (scores[v.candidate_id] ?? 0) + v.vote;
+          if (user && v.user_id === user.id) mine[v.candidate_id] = v.vote;
+        });
+        setCandidateScores(scores);
+        setMyCandidateVotes(mine);
+      }
     }
     loadCandidates();
-  }, [id]);
+  }, [id, user]);
+
+  async function voteOnCandidate(candidateId: string, value: 1 | -1) {
+    if (!user) { router.push("/login"); return; }
+    const current = myCandidateVotes[candidateId];
+    if (current === value) {
+      // Clicking the same direction again removes the vote.
+      await supabase.from("track_link_candidate_votes").delete().eq("candidate_id", candidateId).eq("user_id", user.id);
+      setMyCandidateVotes((prev) => { const n = { ...prev }; delete n[candidateId]; return n; });
+      setCandidateScores((prev) => ({ ...prev, [candidateId]: (prev[candidateId] ?? 0) - value }));
+    } else {
+      await supabase.from("track_link_candidate_votes").upsert({ candidate_id: candidateId, user_id: user.id, vote: value });
+      const delta = value - (current ?? 0);
+      setMyCandidateVotes((prev) => ({ ...prev, [candidateId]: value }));
+      setCandidateScores((prev) => ({ ...prev, [candidateId]: (prev[candidateId] ?? 0) + delta }));
+    }
+  }
 
   async function suggestCandidate(track: Track, candidateUrl: string) {
     if (!user) { router.push("/login"); return; }
@@ -409,10 +443,8 @@ export default function ArtistPage() {
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); deleteTrack(t, subs.length > 0); }}>delete</button>
             </>
           )}
-          {t.spotify_url ? (
+          {t.spotify_url && (
             <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>spotify</a>
-          ) : (
-            <a className="listen-link" href={`https://open.spotify.com/search/${encodeURIComponent(`${artist?.name ?? ""} ${t.title}`)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>search</a>
           )}
         </div>
         {isRatingOpen && (
@@ -435,25 +467,42 @@ export default function ArtistPage() {
               Unverified web search results — not confirmed links. Check one out, and if it&apos;s
               genuinely this track, suggest it below (goes through the normal review process).
             </div>
-            {(candidatesByTrack[t.id] ?? []).map((c) => {
-              const suggested = suggestedIds.has(t.id + c.url);
-              return (
-                <div key={c.id} className="comment-item">
-                  <div className="comment-body" style={{ fontSize: "0.8rem" }}>{c.title ?? c.url}</div>
-                  <div className="comment-meta">{c.source_domain}</div>
-                  <div className="comment-actions">
-                    <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
-                    {suggested ? (
-                      <span className="comment-action-btn voted">suggested ✓</span>
-                    ) : (
-                      <button className="comment-action-btn" onClick={() => suggestCandidate(t, c.url)}>
-                        suggest as link
+            {[...(candidatesByTrack[t.id] ?? [])]
+              .sort((a, b) => (candidateScores[b.id] ?? 0) - (candidateScores[a.id] ?? 0))
+              .map((c) => {
+                const suggested = suggestedIds.has(t.id + c.url);
+                const score = candidateScores[c.id] ?? 0;
+                const myVote = myCandidateVotes[c.id];
+                return (
+                  <div key={c.id} className="comment-item">
+                    <div className="comment-body" style={{ fontSize: "0.8rem" }}>{c.title ?? c.url}</div>
+                    <div className="comment-meta">{c.source_domain}</div>
+                    <div className="comment-actions">
+                      <button
+                        className={`comment-action-btn ${myVote === 1 ? "voted" : ""}`}
+                        onClick={() => voteOnCandidate(c.id, 1)}
+                      >
+                        ▲
                       </button>
-                    )}
+                      <span className="comment-meta" style={{ margin: 0 }}>{score}</span>
+                      <button
+                        className={`comment-action-btn ${myVote === -1 ? "voted" : ""}`}
+                        onClick={() => voteOnCandidate(c.id, -1)}
+                      >
+                        ▼
+                      </button>
+                      <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
+                      {suggested ? (
+                        <span className="comment-action-btn voted">suggested ✓</span>
+                      ) : (
+                        <button className="comment-action-btn" onClick={() => suggestCandidate(t, c.url)}>
+                          suggest as link
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>

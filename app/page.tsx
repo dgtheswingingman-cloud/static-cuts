@@ -211,10 +211,8 @@ export default function HomePage() {
                     {t.artists?.name ?? "unknown artist"}
                   </Link>
                   <span style={{ flex: 1 }} />
-                  {t.spotify_url ? (
+                  {t.spotify_url && (
                     <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer">spotify</a>
-                  ) : (
-                    <a className="listen-link" href={`https://open.spotify.com/search/${encodeURIComponent(`${t.artists?.name ?? ""} ${t.title}`)}`} target="_blank" rel="noopener noreferrer">search</a>
                   )}
                 </div>
               ))}
