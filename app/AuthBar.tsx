@@ -58,6 +58,17 @@ export default function AuthBar() {
     flexWrap: "wrap",
   };
 
+  const smallBtn: React.CSSProperties = {
+    background: "none",
+    border: "1px solid var(--hair)",
+    color: "var(--smoke)",
+    padding: "4px 10px",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    textDecoration: "none",
+  };
+
   if (!user) {
     return (
       <div style={barStyle}>
@@ -105,18 +116,7 @@ export default function AuthBar() {
         >
           {saving ? "…" : "save"}
         </button>
-        <button
-          onClick={() => setEditing(false)}
-          style={{
-            background: "none",
-            border: "1px solid var(--hair)",
-            color: "var(--smoke)",
-            padding: "4px 10px",
-            cursor: "pointer",
-            fontFamily: "inherit",
-            fontSize: "inherit",
-          }}
-        >
+        <button onClick={() => setEditing(false)} style={smallBtn}>
           cancel
         </button>
       </div>
@@ -126,35 +126,22 @@ export default function AuthBar() {
   return (
     <div style={barStyle}>
       <span>signed in as {displayName ?? user.email}</span>
+      <Link href={`/profile/${user.id}`} style={smallBtn}>
+        my profile
+      </Link>
+      <Link href="/settings" style={smallBtn}>
+        privacy
+      </Link>
       <button
         onClick={() => {
           setDraft(displayName ?? "");
           setEditing(true);
         }}
-        style={{
-          background: "none",
-          border: "1px solid var(--hair)",
-          color: "var(--smoke)",
-          padding: "4px 10px",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          fontSize: "inherit",
-        }}
+        style={smallBtn}
       >
         edit name
       </button>
-      <button
-        onClick={() => signOut()}
-        style={{
-          background: "none",
-          border: "1px solid var(--hair)",
-          color: "var(--smoke)",
-          padding: "4px 10px",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          fontSize: "inherit",
-        }}
-      >
+      <button onClick={() => signOut()} style={smallBtn}>
         log out
       </button>
     </div>
