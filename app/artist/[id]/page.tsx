@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import TrackComments from "./TrackComments";
 
 type Track = {
   id: string;
@@ -56,6 +57,7 @@ export default function ArtistPage() {
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
   const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [openRatingId, setOpenRatingId] = useState<string | null>(null);
+  const [openCommentsId, setOpenCommentsId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -299,6 +301,15 @@ export default function ArtistPage() {
           >
             {chipLabel}
           </button>
+          <button
+            className="rating-chip"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenCommentsId(openCommentsId === t.id ? null : t.id);
+            }}
+          >
+            comments
+          </button>
           {t.spotify_url ? (
             <a
               className="listen-link"
@@ -346,6 +357,11 @@ export default function ArtistPage() {
                 clear rating
               </button>
             )}
+          </div>
+        )}
+        {openCommentsId === t.id && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <TrackComments trackId={t.id} />
           </div>
         )}
       </div>
