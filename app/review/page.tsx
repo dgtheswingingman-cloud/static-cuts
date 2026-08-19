@@ -90,7 +90,11 @@ export default function ReviewPage() {
       return `New track for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}" (${s.payload.track_type}${flags ? ", " + flags : ""})`;
     }
     if (s.type === "new_version") return `New sub-entry for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"`;
-    if (s.type === "correction") return `Correction to track ${s.payload.track_id}`;
+    if (s.type === "correction") {
+      const flags = [s.payload.is_featured && "featured", s.payload.is_official && "official"].filter(Boolean).join(", ");
+      const linkPart = s.payload.spotify_url ? `link: ${s.payload.spotify_url}` : "no link";
+      return `Edit for "${s.payload.title}" — ${linkPart}${flags ? ", " + flags : ""}`;
+    }
     return s.type;
   }
 

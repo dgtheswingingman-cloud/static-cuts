@@ -5,20 +5,28 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 
-type SubmitType = "new_artist" | "new_track" | "new_version";
+type SubmitType = "new_artist" | "new_track" | "new_version" | "correction";
 
 function SubmitForm() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const typeParam = searchParams.get("type") as SubmitType | null;
   const prefilledArtistId = searchParams.get("artist_id") ?? "";
   const prefilledArtistName = searchParams.get("artist_name") ?? "";
   const prefillNewArtistName = searchParams.get("prefill_name") ?? "";
   const prefilledParentTrackId = searchParams.get("parent_track_id") ?? "";
   const prefilledParentTitle = searchParams.get("parent_title") ?? "";
+  const prefilledTrackId = searchParams.get("track_id") ?? "";
+  const prefilledTrackTitle = searchParams.get("track_title") ?? "";
+  const currentUrl = searchParams.get("current_url") ?? "";
+  const currentFeatured = searchParams.get("current_featured") === "true";
+  const currentOfficial = searchParams.get("current_official") === "true";
 
-  const initialType: SubmitType = prefilledParentTrackId
+  const initialType: SubmitType = typeParam
+    ? typeParam
+    : prefilledParentTrackId
     ? "new_version"
     : prefilledArtistId
     ? "new_track"
@@ -30,6 +38,13 @@ function SubmitForm() {
   const [versionTitle, setVersionTitle] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isOfficial, setIsOfficial] = useState(false);
+
+  // Correction-mode fields, prefilled from the track's current values
+  const [editTitle, setEditTitle] = useState(prefilledTrackTitle);
+  const [editUrl, setEditUrl] = useState(currentUrl);
+  const [editFeatured, setEditFeatured] = useState(currentFeatured);
+  const [editOfficial, setEditOfficial] = useState(currentOfficial);
+
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,8 +82,7 @@ function SubmitForm() {
           },
         });
         if (err) throw err;
-      } else {
-        // new_version -- an alternate take/demo/live version nested under an existing track
+      } else if (type === "new_version") {
         if (!prefilledParentTrackId || !prefilledArtistId) throw new Error("Missing the original track — go back and use \"suggest an alternate version\" from that track.");
         if (!versionTitle.trim()) throw new Error("Enter a title for this version.");
         const { error: err } = await supabase.from("submissions").insert({
@@ -82,6 +96,23 @@ function SubmitForm() {
             is_featured: false,
             is_official: false,
             has_audio: true,
+          },
+        });
+        if (err) throw err;
+      } else {
+        // correction -- suggest a link or metadata fix on an existing track
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"suggest edit\" from that track.");
+        if (!editTitle.trim()) throw new Error("Title can't be empty.");
+        const { error: err } = await supabase.from("submissions").insert({
+          type: "correction",
+          artist_id: prefilledArtistId,
+          submitted_by: user.id,
+          payload: {
+            track_id: prefilledTrackId,
+            title: editTitle.trim(),
+            spotify_url: editUrl.trim(),
+            is_featured: editFeatured,
+            is_official: editOfficial,
           },
         });
         if (err) throw err;
@@ -107,12 +138,17 @@ function SubmitForm() {
     );
   }
 
+  const titles: Record<SubmitType, string> = {
+    new_artist: "Suggest a new artist",
+    new_track: "Suggest a track",
+    new_version: "Suggest an alternate version",
+    correction: "Suggest an edit",
+  };
+
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>
-        {type === "new_version" ? "Suggest an alternate version" : type === "new_track" ? "Suggest a track" : "Suggest a new artist"}
-      </h1>
+      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>{titles[type]}</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Reviewed before it goes live — nothing you submit appears in the archive automatically.
       </div>
@@ -169,6 +205,36 @@ function SubmitForm() {
               onChange={(e) => setVersionTitle(e.target.value)}
               style={{ marginBottom: 12 }}
             />
+          </>
+        )}
+
+        {type === "correction" && (
+          <>
+            <div className="detail-meta" style={{ marginBottom: 10 }}>
+              Editing an existing track. Change whatever needs fixing — leave the rest as-is.
+            </div>
+            <input
+              className="search-input"
+              placeholder="Title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+            <input
+              className="search-input"
+              placeholder="Listen link (e.g. Spotify URL) — leave blank to remove"
+              value={editUrl}
+              onChange={(e) => setEditUrl(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+            <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
+                <input type="checkbox" checked={editFeatured} onChange={(e) => setEditFeatured(e.target.checked)} /> featured (guest artist)
+              </label>
+              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
+                <input type="checkbox" checked={editOfficial} onChange={(e) => setEditOfficial(e.target.checked)} /> official release
+              </label>
+            </div>
           </>
         )}
 
