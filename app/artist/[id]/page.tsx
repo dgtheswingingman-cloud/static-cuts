@@ -69,6 +69,8 @@ export default function ArtistPage() {
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string } | null>(null);
+  const [parentSearch, setParentSearch] = useState("");
+  const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
@@ -318,6 +320,9 @@ export default function ArtistPage() {
       has_audio: t.has_audio,
       parent_track_id: t.parent_track_id ?? "",
     });
+    const currentParent = t.parent_track_id ? mainTracks.find((mt) => mt.id === t.parent_track_id) : null;
+    setParentSearch(currentParent?.title ?? "");
+    setParentSuggestionsOpen(false);
   }
 
   async function saveEdit(trackId: string) {
@@ -441,17 +446,43 @@ export default function ArtistPage() {
             </label>
           </div>
           <div className="comments-count" style={{ marginBottom: 6 }}>Make this a sub-version of:</div>
-          <select
-            className="sort-select"
-            style={{ width: "100%", marginBottom: 10 }}
-            value={editDraft.parent_track_id}
-            onChange={(e) => setEditDraft({ ...editDraft, parent_track_id: e.target.value })}
-          >
-            <option value="">— none, this is a main track —</option>
-            {mainTracks.filter((mt) => mt.id !== t.id).map((mt) => (
-              <option key={mt.id} value={mt.id}>{mt.title}</option>
-            ))}
-          </select>
+          <div style={{ position: "relative" }}>
+            <input
+              className="search-input"
+              style={{ width: "100%", marginBottom: 4 }}
+              placeholder="Type to search main tracks…"
+              value={parentSearch}
+              onChange={(e) => { setParentSearch(e.target.value); setParentSuggestionsOpen(true); if (!e.target.value) setEditDraft({ ...editDraft, parent_track_id: "" }); }}
+              onFocus={() => setParentSuggestionsOpen(true)}
+            />
+            {parentSuggestionsOpen && parentSearch.trim().length > 0 && (
+              <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
+                {mainTracks
+                  .filter((mt) => mt.id !== t.id && mt.title.toLowerCase().includes(parentSearch.trim().toLowerCase()))
+                  .slice(0, 8)
+                  .map((mt) => (
+                    <div
+                      key={mt.id}
+                      className="comment-item"
+                      style={{ cursor: "pointer", padding: "8px 6px" }}
+                      onClick={() => {
+                        setEditDraft({ ...editDraft, parent_track_id: mt.id });
+                        setParentSearch(mt.title);
+                        setParentSuggestionsOpen(false);
+                      }}
+                    >
+                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
+                    </div>
+                  ))}
+                {mainTracks.filter((mt) => mt.id !== t.id && mt.title.toLowerCase().includes(parentSearch.trim().toLowerCase())).length === 0 && (
+                  <div className="comments-count">No matches.</div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="comments-count" style={{ marginBottom: 10, marginTop: 4 }}>
+            {editDraft.parent_track_id ? "Will become a sub-version." : "Clear the box to keep it a main track."}
+          </div>
           <button className="comment-post-btn" disabled={adminBusy} onClick={() => saveEdit(t.id)}>save</button>{" "}
           <button className="rating-clear" onClick={() => { setEditingId(null); setEditDraft(null); }}>cancel</button>
         </div>
@@ -492,7 +523,7 @@ export default function ArtistPage() {
           )}
           {user && !isAdmin && (
             <a
-              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}`}
+              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}`}
               className="listen-link"
               onClick={(e) => e.stopPropagation()}
               style={{ fontSize: "0.68rem" }}

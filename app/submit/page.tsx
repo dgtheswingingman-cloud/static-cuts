@@ -24,8 +24,11 @@ function SubmitForm() {
   const currentFeatured = searchParams.get("current_featured") === "true";
   const currentOfficial = searchParams.get("current_official") === "true";
   const currentParentId = searchParams.get("current_parent_id") ?? "";
+  const currentParentTitle = searchParams.get("current_parent_title") ?? "";
 
-  const [mainTrackOptions, setMainTrackOptions] = useState<{ id: string; title: string }[]>([]);
+  const [parentSearch, setParentSearch] = useState(currentParentTitle);
+  const [parentResults, setParentResults] = useState<{ id: string; title: string }[]>([]);
+  const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
 
   const initialType: SubmitType = typeParam
     ? typeParam
@@ -60,20 +63,22 @@ function SubmitForm() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    async function loadMainTracks() {
-      if (type !== "correction" || !prefilledArtistId) return;
+    if (type !== "correction" || !prefilledArtistId) return;
+    const q = parentSearch.trim();
+    if (q.length < 2) { setParentResults([]); return; }
+    const handle = setTimeout(async () => {
       const { data } = await supabase
         .from("tracks")
         .select("id, title")
         .eq("artist_id", prefilledArtistId)
         .is("parent_track_id", null)
         .neq("id", prefilledTrackId)
-        .order("title");
-      setMainTrackOptions(data ?? []);
-    }
-    loadMainTracks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, prefilledArtistId]);
+        .ilike("title", `%${q}%`)
+        .limit(8);
+      setParentResults(data ?? []);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [parentSearch, type, prefilledArtistId, prefilledTrackId]);
 
   // Checks for an existing track with a matching title (under the same
   // parent scope) or the same listen link, and asks for confirmation
@@ -346,17 +351,38 @@ function SubmitForm() {
               Should this be a sub-version of another track (e.g. a demo/alt-mix that got added
               as its own main track by mistake)?
             </div>
-            <select
-              className="sort-select"
-              style={{ width: "100%", marginBottom: 12 }}
-              value={editParentId}
-              onChange={(e) => setEditParentId(e.target.value)}
-            >
-              <option value="">— no, this is a main track —</option>
-              {mainTrackOptions.map((mt) => (
-                <option key={mt.id} value={mt.id}>{mt.title}</option>
-              ))}
-            </select>
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input
+                className="search-input"
+                style={{ width: "100%" }}
+                placeholder="Type to search main tracks…"
+                value={parentSearch}
+                onChange={(e) => { setParentSearch(e.target.value); setParentSuggestionsOpen(true); if (!e.target.value) setEditParentId(""); }}
+                onFocus={() => setParentSuggestionsOpen(true)}
+              />
+              {parentSuggestionsOpen && parentSearch.trim().length >= 2 && (
+                <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
+                  {parentResults.map((mt) => (
+                    <div
+                      key={mt.id}
+                      className="comment-item"
+                      style={{ cursor: "pointer", padding: "8px 6px" }}
+                      onClick={() => {
+                        setEditParentId(mt.id);
+                        setParentSearch(mt.title);
+                        setParentSuggestionsOpen(false);
+                      }}
+                    >
+                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
+                    </div>
+                  ))}
+                  {parentResults.length === 0 && <div className="comments-count">No matches.</div>}
+                </div>
+              )}
+            </div>
+            <div className="detail-meta" style={{ marginBottom: 12 }}>
+              {editParentId ? "Will become a sub-version." : "Clear the box to keep it a main track."}
+            </div>
           </>
         )}
 
