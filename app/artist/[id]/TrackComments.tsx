@@ -107,6 +107,17 @@ export default function TrackComments({ trackId }: { trackId: string }) {
     }
   }
 
+  async function deleteComment(commentId: string, hasReplies: boolean) {
+    if (!user) return;
+    const warning = hasReplies
+      ? "Delete this comment? Any replies underneath it will be deleted too."
+      : "Delete this comment?";
+    if (!window.confirm(warning)) return;
+    const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user.id);
+    if (error) { console.error(error); return; }
+    load();
+  }
+
   if (comments === null) {
     return <div className="comments-panel"><div className="comments-count">loading comments…</div></div>;
   }
@@ -142,6 +153,14 @@ export default function TrackComments({ trackId }: { trackId: string }) {
           >
             reply
           </button>
+          {user && c.user_id === user.id && (
+            <button
+              className="comment-action-btn"
+              onClick={() => deleteComment(c.id, replies.length > 0)}
+            >
+              delete
+            </button>
+          )}
         </div>
         {replyingTo === c.id && (
           <div style={{ marginTop: 8 }}>
