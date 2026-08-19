@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "../../AuthProvider";
 
 type Track = {
   id: string;
@@ -30,11 +31,14 @@ export default function ArtistPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user, loading: authLoading } = useAuth();
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [owned, setOwned] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -72,8 +76,64 @@ export default function ArtistPage() {
     load();
   }, [id]);
 
-  // Only top-level tracks show in the main list; sub-entries render nested
-  // underneath their parent.
+  // Load this user's collected tracks once we know both who they are and
+  // which tracks belong to this artist.
+  useEffect(() => {
+    async function loadOwned() {
+      if (!user || !tracks) {
+        setOwned(new Set());
+        return;
+      }
+      const trackIds = tracks.map((t) => t.id);
+      if (trackIds.length === 0) return;
+      const { data, error: ownedErr } = await supabase
+        .from("track_ownership")
+        .select("track_id")
+        .eq("user_id", user.id)
+        .in("track_id", trackIds);
+      if (ownedErr) {
+        console.error(ownedErr);
+        return;
+      }
+      setOwned(new Set((data ?? []).map((r) => r.track_id)));
+    }
+    loadOwned();
+  }, [user, tracks]);
+
+  async function toggleOwned(trackId: string) {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setTogglingId(trackId);
+    const isOwned = owned.has(trackId);
+    try {
+      if (isOwned) {
+        const { error: delErr } = await supabase
+          .from("track_ownership")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("track_id", trackId);
+        if (delErr) throw delErr;
+        setOwned((prev) => {
+          const next = new Set(prev);
+          next.delete(trackId);
+          return next;
+        });
+      } else {
+        const { error: insErr } = await supabase
+          .from("track_ownership")
+          .insert({ user_id: user.id, track_id: trackId });
+        if (insErr) throw insErr;
+        setOwned((prev) => new Set(prev).add(trackId));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   const mainTracks = tracks?.filter((t) => !t.parent_track_id) ?? [];
   const subsByParent: Record<string, Track[]> = {};
   (tracks ?? []).forEach((t) => {
@@ -84,13 +144,21 @@ export default function ArtistPage() {
 
   const filteredMain = mainTracks.filter((t) => trackPasses(t, filter));
   const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
+  const collectedCount = tracks?.filter((t) => owned.has(t.id)).length ?? 0;
+  const collectedPct = tracks && tracks.length > 0 ? Math.round((collectedCount / tracks.length) * 100) : 0;
 
   function trackRow(t: Track, isSub: boolean) {
+    const isOwned = owned.has(t.id);
+    const isToggling = togglingId === t.id;
     return (
       <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }}>
-        <div className="track-row">
-          <div className="sigil" />
-          <span className="track-title">{t.title}</span>
+        <div
+          className="track-row"
+          onClick={() => toggleOwned(t.id)}
+          style={{ opacity: isToggling ? 0.5 : 1 }}
+        >
+          <div className={`sigil ${isOwned ? "owned" : ""}`}>{isOwned ? "✓" : ""}</div>
+          <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
           {t.is_official ? (
             <span className="feature-tag">official</span>
@@ -143,7 +211,22 @@ export default function ArtistPage() {
           <h1 className="detail-name">{artist.name}</h1>
           <div className="detail-meta">
             {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
+            {user && ` · ${collectedCount} collected (${collectedPct}%)`}
           </div>
+          {user && (
+            <div className="bar-track" style={{ height: 4, marginBottom: 22 }}>
+              <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
+            </div>
+          )}
+
+          {!authLoading && !user && (
+            <div className="empty-state" style={{ marginBottom: 20 }}>
+              <a href="/login" style={{ color: "var(--bone)" }}>
+                Log in
+              </a>{" "}
+              to start tracking which of these you&apos;ve found.
+            </div>
+          )}
 
           <div className="tabs">
             {(["all", "main", "featured", "official", "unreleased"] as FilterKey[]).map((f) => (
@@ -176,11 +259,9 @@ export default function ArtistPage() {
           )}
 
           <div className="note">
-            <b>Overlapping filters</b> now match the real design: a track can be both{" "}
-            <b>Featured</b> and <b>Official</b> at once, not locked into one category. Sub-entries
-            (demos, alt versions) nest under their main track once submissions start adding them
-            — none exist yet since this is a fresh migration. Collected-track marking and ratings
-            still come with accounts, next.
+            <b>Your collection now syncs</b> — click any track to mark it collected; it saves
+            straight to your account and follows you across devices. What &quot;collected&quot;
+            means is up to you (heard it, found a link, own a copy — your call).
           </div>
         </>
       )}
