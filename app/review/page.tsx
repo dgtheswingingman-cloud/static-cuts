@@ -87,9 +87,13 @@ export default function ReviewPage() {
     if (s.type === "new_artist") return `New artist: "${s.payload.name}"`;
     if (s.type === "new_track") {
       const flags = [s.payload.is_featured && "featured", s.payload.is_official && "official"].filter(Boolean).join(", ");
-      return `New track for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}" (${s.payload.track_type}${flags ? ", " + flags : ""})`;
+      const linkPart = s.payload.spotify_url ? ` — link: ${s.payload.spotify_url}` : "";
+      return `New track for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"${flags ? " (" + flags + ")" : ""}${linkPart}`;
     }
-    if (s.type === "new_version") return `New sub-entry for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"`;
+    if (s.type === "new_version") {
+      const linkPart = s.payload.spotify_url ? ` — link: ${s.payload.spotify_url}` : "";
+      return `New sub-entry for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"${linkPart}`;
+    }
     if (s.type === "correction") {
       const flags = [s.payload.is_featured && "featured", s.payload.is_official && "official"].filter(Boolean).join(", ");
       const linkPart = s.payload.spotify_url ? `link: ${s.payload.spotify_url}` : "no link";
