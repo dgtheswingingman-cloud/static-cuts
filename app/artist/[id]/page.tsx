@@ -1,189 +1,137 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-type Track = {
-  id: string;
-  title: string;
-  spotify_url: string | null;
-  parent_track_id: string | null;
-  track_type: string;
-  is_featured: boolean;
-  is_official: boolean;
-  has_audio: boolean;
+const oauthButtonStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "12px",
+  marginTop: 10,
+  fontFamily: "var(--font-inter)",
+  fontSize: "0.9rem",
+  border: "1.5px solid var(--hair)",
+  background: "var(--surface)",
+  color: "var(--bone)",
+  cursor: "pointer",
+  textAlign: "center",
 };
-type Artist = { id: string; name: string; status: string | null };
-type FilterKey = "all" | "main" | "featured" | "official" | "unreleased";
 
-function trackPasses(t: Track, filter: FilterKey) {
-  if (filter === "all") return true;
-  if (filter === "main") return !t.is_featured;
-  if (filter === "featured") return t.is_featured;
-  if (filter === "official") return t.is_official;
-  if (filter === "unreleased") return !t.is_official;
-  return true;
-}
-
-export default function ArtistPage() {
-  const params = useParams();
+export default function LoginPage() {
+  const { signUp, signIn } = useAuth();
   const router = useRouter();
-  const id = params.id as string;
-
-  const [artist, setArtist] = useState<Artist | null>(null);
-  const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data: artistRow, error: artistErr } = await supabase
-          .from("artists")
-          .select("id, name, status")
-          .eq("id", id)
-          .single();
-        if (artistErr) throw artistErr;
-        setArtist(artistRow);
-
-        const PAGE_SIZE = 1000;
-        let all: Track[] = [];
-        let from = 0;
-        while (true) {
-          const { data: page, error: trackErr } = await supabase
-            .from("tracks")
-            .select(
-              "id, title, spotify_url, parent_track_id, track_type, is_featured, is_official, has_audio"
-            )
-            .eq("artist_id", id)
-            .range(from, from + PAGE_SIZE - 1);
-          if (trackErr) throw trackErr;
-          all = all.concat(page ?? []);
-          if (!page || page.length < PAGE_SIZE) break;
-          from += PAGE_SIZE;
-        }
-        all.sort((a, b) => a.title.localeCompare(b.title));
-        setTracks(all);
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
-      }
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    setBusy(true);
+    const result = mode === "signup" ? await signUp(email, password) : await signIn(email, password);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+    } else if (mode === "signup") {
+      setMessage("Check your email to confirm your account, then log in.");
+    } else {
+      router.push("/");
     }
-    load();
-  }, [id]);
+  }
 
-  // Only top-level tracks show in the main list; sub-entries render nested
-  // underneath their parent.
-  const mainTracks = tracks?.filter((t) => !t.parent_track_id) ?? [];
-  const subsByParent: Record<string, Track[]> = {};
-  (tracks ?? []).forEach((t) => {
-    if (t.parent_track_id) {
-      (subsByParent[t.parent_track_id] = subsByParent[t.parent_track_id] || []).push(t);
-    }
-  });
-
-  const filteredMain = mainTracks.filter((t) => trackPasses(t, filter));
-  const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
-
-  function trackRow(t: Track, isSub: boolean) {
-    return (
-      <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }}>
-        <div className="track-row">
-          <div className="sigil" />
-          <span className="track-title">{t.title}</span>
-          {t.is_featured && <span className="feature-tag">featured</span>}
-          {t.is_official ? (
-            <span className="feature-tag">official</span>
-          ) : (
-            <span className="feature-tag">unreleased</span>
-          )}
-          {!t.has_audio && <span className="feature-tag">no audio</span>}
-          {t.spotify_url ? (
-            <a
-              className="listen-link"
-              href={t.spotify_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              spotify
-            </a>
-          ) : (
-            <a
-              className="listen-link"
-              href={`https://open.spotify.com/search/${encodeURIComponent(
-                `${artist?.name ?? ""} ${t.title}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              search
-            </a>
-          )}
-        </div>
-      </div>
-    );
+  async function handleOAuth(provider: "google" | "spotify") {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setError(error.message);
+    // On success, Supabase redirects away to the provider automatically --
+    // nothing else to do here.
   }
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>
-        ← back to archive
-      </button>
+      <h1 className="detail-name">{mode === "login" ? "Log in" : "Sign up"}</h1>
+
+      <div className="search-shell" style={{ marginTop: 20, marginLeft: 0 }}>
+        <button onClick={() => handleOAuth("google")} style={oauthButtonStyle}>
+          Continue with Google
+        </button>
+        <button onClick={() => handleOAuth("spotify")} style={oauthButtonStyle}>
+          Continue with Spotify
+        </button>
+
+        <div
+          style={{
+            textAlign: "center",
+            color: "var(--smoke)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.68rem",
+            margin: "18px 0",
+            letterSpacing: "0.08em",
+          }}
+        >
+          OR USE EMAIL
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <input
+            className="search-input"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ marginBottom: 10 }}
+          />
+          <input
+            className="search-input"
+            type="password"
+            placeholder="Password (6+ characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="tab active"
+            style={{ marginTop: 14, width: "100%", padding: "12px", textAlign: "center" }}
+          >
+            {busy ? "…" : mode === "login" ? "Log in" : "Sign up"}
+          </button>
+        </form>
+      </div>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 18 }}>
-          Couldn&apos;t load this artist: <b>{error}</b>
+        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16, maxWidth: 520 }}>
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="empty-state" style={{ marginTop: 16, maxWidth: 520 }}>
+          {message}
         </div>
       )}
 
-      {!error && artist && (
-        <>
-          <h1 className="detail-name">{artist.name}</h1>
-          <div className="detail-meta">
-            {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
-          </div>
-
-          <div className="tabs">
-            {(["all", "main", "featured", "official", "unreleased"] as FilterKey[]).map((f) => (
-              <button
-                key={f}
-                className={`tab ${filter === f ? "active" : ""}`}
-                onClick={() => setFilter(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          {!tracks && <div className="empty-state">loading tracklist…</div>}
-
-          {tracks && (
-            <div>
-              {filteredMain.map((t) => (
-                <div key={t.id}>
-                  {trackRow(t, false)}
-                  {(subsByParent[t.id] ?? [])
-                    .filter((s) => trackPasses(s, filter))
-                    .map((s) => trackRow(s, true))}
-                </div>
-              ))}
-              {filteredMain.length === 0 && (
-                <div className="empty-state">Nothing here yet.</div>
-              )}
-            </div>
-          )}
-
-          <div className="note">
-            <b>Overlapping filters</b> now match the real design: a track can be both{" "}
-            <b>Featured</b> and <b>Official</b> at once, not locked into one category. Sub-entries
-            (demos, alt versions) nest under their main track once submissions start adding them
-            — none exist yet since this is a fresh migration. Collected-track marking and ratings
-            still come with accounts, next.
-          </div>
-        </>
-      )}
+      <button
+        className="back-btn"
+        style={{ marginTop: 20 }}
+        onClick={() => {
+          setMode(mode === "login" ? "signup" : "login");
+          setError(null);
+          setMessage(null);
+        }}
+      >
+        {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
+      </button>
     </div>
   );
 }
