@@ -106,6 +106,14 @@ function SubmitForm() {
     try {
       if (type === "new_artist") {
         if (!artistName.trim()) throw new Error("Enter an artist name.");
+        const { data: existingArtists } = await supabase
+          .from("artists")
+          .select("id, name")
+          .ilike("name", artistName.trim());
+        if ((existingArtists ?? []).length > 0) {
+          const ok = window.confirm(`"${existingArtists![0].name}" already exists in the archive. Submit anyway?`);
+          if (!ok) { setBusy(false); return; }
+        }
         const { error: err } = await supabase.from("submissions").insert({
           type: "new_artist",
           submitted_by: user.id,
