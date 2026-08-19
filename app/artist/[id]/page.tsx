@@ -71,6 +71,9 @@ export default function ArtistPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean } | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
+  const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
+  const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
+  const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     load();
@@ -230,6 +233,34 @@ export default function ArtistPage() {
     }
   }
 
+  useEffect(() => {
+    async function loadCandidates() {
+      const { data, error: candErr } = await supabase
+        .from("track_link_candidates")
+        .select("id, track_id, url, title, source_domain")
+        .eq("artist_id", id);
+      if (candErr) { console.error(candErr); return; }
+      const map: Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]> = {};
+      (data ?? []).forEach((c: any) => {
+        (map[c.track_id] = map[c.track_id] || []).push(c);
+      });
+      setCandidatesByTrack(map);
+    }
+    loadCandidates();
+  }, [id]);
+
+  async function suggestCandidate(track: Track, candidateUrl: string) {
+    if (!user) { router.push("/login"); return; }
+    const { error: err } = await supabase.from("submissions").insert({
+      type: "correction",
+      artist_id: id,
+      submitted_by: user.id,
+      payload: { track_id: track.id, new_spotify_url: candidateUrl },
+    });
+    if (err) { alert(err.message); return; }
+    setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
+  }
+
   function startEdit(t: Track) {
     setEditingId(t.id);
     setEditDraft({
@@ -364,6 +395,14 @@ export default function ArtistPage() {
               + alt version
             </a>
           )}
+          {!t.spotify_url && (candidatesByTrack[t.id]?.length ?? 0) > 0 && (
+            <button
+              className="rating-chip"
+              onClick={(e) => { e.stopPropagation(); setOpenCandidatesId(openCandidatesId === t.id ? null : t.id); }}
+            >
+              possible matches ({candidatesByTrack[t.id].length})
+            </button>
+          )}
           {isAdmin && (
             <>
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); startEdit(t); }}>edit</button>
@@ -389,6 +428,33 @@ export default function ArtistPage() {
         )}
         {openCommentsId === t.id && (
           <div onClick={(e) => e.stopPropagation()}><TrackComments trackId={t.id} /></div>
+        )}
+        {openCandidatesId === t.id && (
+          <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="comments-count" style={{ marginBottom: 8 }}>
+              Unverified web search results — not confirmed links. Check one out, and if it&apos;s
+              genuinely this track, suggest it below (goes through the normal review process).
+            </div>
+            {(candidatesByTrack[t.id] ?? []).map((c) => {
+              const suggested = suggestedIds.has(t.id + c.url);
+              return (
+                <div key={c.id} className="comment-item">
+                  <div className="comment-body" style={{ fontSize: "0.8rem" }}>{c.title ?? c.url}</div>
+                  <div className="comment-meta">{c.source_domain}</div>
+                  <div className="comment-actions">
+                    <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
+                    {suggested ? (
+                      <span className="comment-action-btn voted">suggested ✓</span>
+                    ) : (
+                      <button className="comment-action-btn" onClick={() => suggestCandidate(t, c.url)}>
+                        suggest as link
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     );
