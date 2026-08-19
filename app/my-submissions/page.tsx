@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -144,7 +146,7 @@ export default function MySubmissionsPage() {
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-        <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>My submissions</h1>
+        <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>My submissions (build check v2)</h1>
         {submissions && submissions.length > 0 && (
           <button className="tab" onClick={clearAll}>clear all</button>
         )}
