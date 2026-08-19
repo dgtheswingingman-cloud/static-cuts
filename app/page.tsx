@@ -14,11 +14,21 @@ type Artist = {
   collectedCount: number;
 };
 
+type TrackResult = {
+  id: string;
+  title: string;
+  artist_id: string;
+  spotify_url: string | null;
+  artists: { name: string } | null;
+};
+
 export default function HomePage() {
   const { user } = useAuth();
   const [artists, setArtists] = useState<Artist[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [trackResults, setTrackResults] = useState<TrackResult[]>([]);
+  const [trackSearchLoading, setTrackSearchLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -85,8 +95,34 @@ export default function HomePage() {
     load();
   }, [user]);
 
-  const filtered =
+  // Track search: debounced, server-side (22k rows is too much to ship to
+  // the browser just for search), only runs once there's a real query and
+  // it doesn't already match an artist name.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setTrackResults([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setTrackSearchLoading(true);
+      const { data, error: searchErr } = await supabase
+        .from("tracks")
+        .select("id, title, artist_id, spotify_url, artists(name)")
+        .ilike("title", `%${q}%`)
+        .limit(25);
+      setTrackSearchLoading(false);
+      if (!searchErr) {
+        setTrackResults((data as any) ?? []);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [query]);
+
+  const matchedArtists =
     artists?.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase())) ?? null;
+  const q = query.trim();
+  const showTrackSection = q.length >= 2;
 
   return (
     <div className="wrap">
@@ -100,12 +136,62 @@ export default function HomePage() {
           <input
             className="search-input"
             type="text"
-            placeholder="Search any artist — Playboi Carti, Ed Sheeran, anyone…"
+            placeholder="Search any artist or track — Playboi Carti, Location, anyone…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
       </div>
+
+      {showTrackSection && (
+        <>
+          <div className="section-label">Tracks matching &quot;{q}&quot;</div>
+          {trackSearchLoading && <div className="empty-state">searching…</div>}
+          {!trackSearchLoading && trackResults.length === 0 && (
+            <div className="empty-state">No tracks match &quot;{q}&quot;.</div>
+          )}
+          {!trackSearchLoading && trackResults.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              {trackResults.map((t) => (
+                <div key={t.id} className="track-row">
+                  <span className="track-title" style={{ flex: "0 1 auto" }}>
+                    {t.title}
+                  </span>
+                  <Link
+                    href={`/artist/${t.artist_id}`}
+                    className="feature-tag"
+                    style={{ textDecoration: "none" }}
+                  >
+                    {t.artists?.name ?? "unknown artist"}
+                  </Link>
+                  <span style={{ flex: 1 }} />
+                  {t.spotify_url ? (
+                    <a
+                      className="listen-link"
+                      href={t.spotify_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      spotify
+                    </a>
+                  ) : (
+                    <a
+                      className="listen-link"
+                      href={`https://open.spotify.com/search/${encodeURIComponent(
+                        `${t.artists?.name ?? ""} ${t.title}`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      search
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="section-label">In the archive</div>
 
@@ -121,8 +207,8 @@ export default function HomePage() {
 
       {!error && artists !== null && (
         <div className="grid">
-          {filtered && filtered.length > 0 ? (
-            filtered.map((a) => {
+          {matchedArtists && matchedArtists.length > 0 ? (
+            matchedArtists.map((a) => {
               const pct = a.trackCount > 0 ? Math.round((a.collectedCount / a.trackCount) * 100) : 0;
               return (
                 <Link key={a.id} href={`/artist/${a.id}`} className="card">
@@ -141,9 +227,10 @@ export default function HomePage() {
             })
           ) : (
             <div className="empty-state">
-              <b>{query}</b> isn&apos;t in the archive yet. Every artist here got added
-              because someone wanted to track them — you could be the one to start
-              theirs.
+              <b>{query}</b> isn&apos;t in the archive yet
+              {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."}{" "}
+              Every artist here got added because someone wanted to track them — you could
+              be the one to start theirs.
             </div>
           )}
         </div>
