@@ -278,7 +278,12 @@ export default function HomePage() {
               <b>{query}</b> isn&apos;t in the archive yet
               {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."} Every
               artist here got added because someone wanted to track them — you could be the one to
-              start theirs.
+              start theirs.{" "}
+              {user && (
+                <a href={`/submit?prefill_name=${encodeURIComponent(query)}`} style={{ color: "var(--bone)" }}>
+                  Suggest &quot;{query}&quot; as a new artist →
+                </a>
+              )}
             </div>
           ) : user ? (
             <div className="empty-state">

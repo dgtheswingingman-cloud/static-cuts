@@ -434,6 +434,13 @@ export default function ArtistPage() {
           >
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
+          <a
+            href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`}
+            className="tab"
+            style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}
+          >
+            + suggest a track
+          </a>
           <div className="detail-meta">
             {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
             {user && ` · ${collectedCount} collected (${collectedPct}%)`}

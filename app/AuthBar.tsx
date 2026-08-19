@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import { supabase } from "@/lib/supabase";
 
+// Bootstrapped reviewer -- same account hardcoded in the SQL functions.
+// Swap this out once real per-artist trust/reputation exists.
+const ADMIN_EMAIL = "dg.theswingingman@gmail.com";
+
 export default function AuthBar() {
   const { user, loading, signOut } = useAuth();
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -129,6 +133,14 @@ export default function AuthBar() {
       <Link href={`/profile/${user.id}`} style={smallBtn}>
         my profile
       </Link>
+      <Link href="/my-submissions" style={smallBtn}>
+        my submissions
+      </Link>
+      {user.email === ADMIN_EMAIL && (
+        <Link href="/review" style={smallBtn}>
+          review queue
+        </Link>
+      )}
       <Link href="/settings" style={smallBtn}>
         privacy
       </Link>
