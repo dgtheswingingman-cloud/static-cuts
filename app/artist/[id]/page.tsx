@@ -53,6 +53,9 @@ export default function ArtistPage() {
   const [collectedFilter, setCollectedFilter] = useState<CollectedFilter>("all");
   const [sort, setSort] = useState<TrackSortKey>("title-asc");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [myRatings, setMyRatings] = useState<Record<string, number>>({});
+  const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
+  const [openRatingId, setOpenRatingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -114,6 +117,100 @@ export default function ArtistPage() {
     loadOwned();
   }, [user, tracks]);
 
+  // Community averages: fetched via the public aggregate view, scoped to
+  // this artist so it stays a small query regardless of catalog size.
+  useEffect(() => {
+    async function loadAvgRatings() {
+      const { data, error: avgErr } = await supabase
+        .from("track_rating_stats")
+        .select("track_id, avg_rating, rating_count")
+        .eq("artist_id", id);
+      if (avgErr) {
+        console.error(avgErr);
+        return;
+      }
+      const map: Record<string, { avg: number; count: number }> = {};
+      (data ?? []).forEach((r: any) => {
+        map[r.track_id] = { avg: Number(r.avg_rating), count: r.rating_count };
+      });
+      setAvgRatings(map);
+    }
+    loadAvgRatings();
+  }, [id]);
+
+  // This user's own ratings, once we know both who they are and which
+  // tracks belong to this artist.
+  useEffect(() => {
+    async function loadMyRatings() {
+      if (!user || !tracks) {
+        setMyRatings({});
+        return;
+      }
+      const trackIds = tracks.map((t) => t.id);
+      if (trackIds.length === 0) return;
+      const { data, error: ratingErr } = await supabase
+        .from("ratings")
+        .select("track_id, value")
+        .eq("user_id", user.id)
+        .in("track_id", trackIds);
+      if (ratingErr) {
+        console.error(ratingErr);
+        return;
+      }
+      const map: Record<string, number> = {};
+      (data ?? []).forEach((r) => { map[r.track_id] = r.value; });
+      setMyRatings(map);
+    }
+    loadMyRatings();
+  }, [user, tracks]);
+
+  async function setRating(trackId: string, value: number) {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    const { error: rateErr } = await supabase
+      .from("ratings")
+      .upsert({ user_id: user.id, track_id: trackId, value, updated_at: new Date().toISOString() });
+    if (rateErr) {
+      console.error(rateErr);
+      return;
+    }
+    setMyRatings((prev) => ({ ...prev, [trackId]: value }));
+    // Refresh this track's community average since it just changed.
+    const { data } = await supabase
+      .from("track_rating_stats")
+      .select("avg_rating, rating_count")
+      .eq("track_id", trackId)
+      .maybeSingle();
+    if (data) {
+      setAvgRatings((prev) => ({
+        ...prev,
+        [trackId]: { avg: Number(data.avg_rating), count: data.rating_count },
+      }));
+    }
+    setOpenRatingId(null);
+  }
+
+  async function clearRating(trackId: string) {
+    if (!user) return;
+    const { error: delErr } = await supabase
+      .from("ratings")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("track_id", trackId);
+    if (delErr) {
+      console.error(delErr);
+      return;
+    }
+    setMyRatings((prev) => {
+      const next = { ...prev };
+      delete next[trackId];
+      return next;
+    });
+    setOpenRatingId(null);
+  }
+
   async function toggleOwned(trackId: string) {
     if (!user) {
       router.push("/login");
@@ -172,6 +269,11 @@ export default function ArtistPage() {
   function trackRow(t: Track, isSub: boolean) {
     const isOwned = owned.has(t.id);
     const isToggling = togglingId === t.id;
+    const myRating = myRatings[t.id];
+    const hasRated = myRating !== undefined;
+    const avg = avgRatings[t.id];
+    const chipLabel = hasRated ? `your rating: ${myRating}/10` : "rate";
+    const isRatingOpen = openRatingId === t.id;
     return (
       <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }}>
         <div
@@ -188,6 +290,15 @@ export default function ArtistPage() {
             <span className="feature-tag">unreleased</span>
           )}
           {!t.has_audio && <span className="feature-tag">no audio</span>}
+          <button
+            className={`rating-chip ${hasRated ? "rated" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenRatingId(isRatingOpen ? null : t.id);
+            }}
+          >
+            {chipLabel}
+          </button>
           {t.spotify_url ? (
             <a
               className="listen-link"
@@ -212,6 +323,31 @@ export default function ArtistPage() {
             </a>
           )}
         </div>
+        {isRatingOpen && (
+          <div className="rating-popover" onClick={(e) => e.stopPropagation()}>
+            <div className="rp-label">
+              {hasRated
+                ? avg
+                  ? `community avg: ${avg.avg}/10 (${avg.count} rating${avg.count === 1 ? "" : "s"})`
+                  : "no other ratings yet"
+                : "rate to see the community average"}
+            </div>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                className={`rating-num ${myRating === n ? "selected" : ""}`}
+                onClick={() => setRating(t.id, n)}
+              >
+                {n}
+              </button>
+            ))}
+            {hasRated && (
+              <button className="rating-clear" onClick={() => clearRating(t.id)}>
+                clear rating
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
