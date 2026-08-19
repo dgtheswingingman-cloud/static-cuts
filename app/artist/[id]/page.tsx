@@ -488,7 +488,7 @@ export default function ArtistPage() {
             </>
           )}
           {t.spotify_url && (
-            <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>spotify</a>
+            <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
           )}
         </div>
         {isRatingOpen && (

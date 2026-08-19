@@ -35,7 +35,9 @@ function SubmitForm() {
   const [type] = useState<SubmitType>(initialType);
   const [artistName, setArtistName] = useState(prefillNewArtistName);
   const [trackTitle, setTrackTitle] = useState("");
+  const [trackUrl, setTrackUrl] = useState("");
   const [versionTitle, setVersionTitle] = useState("");
+  const [versionUrl, setVersionUrl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isOfficial, setIsOfficial] = useState(false);
 
@@ -53,6 +55,50 @@ function SubmitForm() {
     if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
 
+  // Checks for an existing track with a matching title (under the same
+  // parent scope) or the same listen link, and asks for confirmation
+  // before submitting a likely duplicate. Returns true if it's OK to
+  // proceed.
+  async function checkForDuplicates(opts: {
+    artistId: string;
+    title: string;
+    url: string;
+    parentTrackId?: string | null;
+    excludeTrackId?: string;
+  }): Promise<boolean> {
+    const { artistId, title, url, parentTrackId, excludeTrackId } = opts;
+
+    let titleQuery = supabase
+      .from("tracks")
+      .select("id, title")
+      .eq("artist_id", artistId)
+      .ilike("title", title.trim());
+    if (parentTrackId) titleQuery = titleQuery.eq("parent_track_id", parentTrackId);
+    else titleQuery = titleQuery.is("parent_track_id", null);
+    const { data: titleMatches } = await titleQuery;
+    const realTitleMatches = (titleMatches ?? []).filter((t) => t.id !== excludeTrackId);
+    if (realTitleMatches.length > 0) {
+      if (!window.confirm(`A track named "${title.trim()}" already exists here. Submit anyway?`)) {
+        return false;
+      }
+    }
+
+    if (url.trim()) {
+      const { data: linkMatches } = await supabase
+        .from("tracks")
+        .select("id, title")
+        .eq("spotify_url", url.trim());
+      const realLinkMatches = (linkMatches ?? []).filter((t) => t.id !== excludeTrackId);
+      if (realLinkMatches.length > 0) {
+        if (!window.confirm(`That link is already attached to "${realLinkMatches[0].title}". Submit anyway?`)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   async function submit() {
     if (!user) return;
     setError(null);
@@ -69,12 +115,15 @@ function SubmitForm() {
       } else if (type === "new_track") {
         if (!prefilledArtistId) throw new Error("Missing artist — go to an artist's page and use \"suggest a track\" there.");
         if (!trackTitle.trim()) throw new Error("Enter a track title.");
+        const ok = await checkForDuplicates({ artistId: prefilledArtistId, title: trackTitle, url: trackUrl });
+        if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
           type: "new_track",
           artist_id: prefilledArtistId,
           submitted_by: user.id,
           payload: {
             title: trackTitle.trim(),
+            spotify_url: trackUrl.trim() || undefined,
             track_type: "studio",
             is_featured: isFeatured,
             is_official: isOfficial,
@@ -85,12 +134,20 @@ function SubmitForm() {
       } else if (type === "new_version") {
         if (!prefilledParentTrackId || !prefilledArtistId) throw new Error("Missing the original track — go back and use \"suggest an alternate version\" from that track.");
         if (!versionTitle.trim()) throw new Error("Enter a title for this version.");
+        const ok = await checkForDuplicates({
+          artistId: prefilledArtistId,
+          title: versionTitle,
+          url: versionUrl,
+          parentTrackId: prefilledParentTrackId,
+        });
+        if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
           type: "new_version",
           artist_id: prefilledArtistId,
           submitted_by: user.id,
           payload: {
             title: versionTitle.trim(),
+            spotify_url: versionUrl.trim() || undefined,
             parent_track_id: prefilledParentTrackId,
             track_type: "alternate_version",
             is_featured: false,
@@ -103,6 +160,13 @@ function SubmitForm() {
         // correction -- suggest a link or metadata fix on an existing track
         if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"suggest edit\" from that track.");
         if (!editTitle.trim()) throw new Error("Title can't be empty.");
+        const ok = await checkForDuplicates({
+          artistId: prefilledArtistId,
+          title: editTitle,
+          url: editUrl,
+          excludeTrackId: prefilledTrackId,
+        });
+        if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
           type: "correction",
           artist_id: prefilledArtistId,
@@ -176,6 +240,13 @@ function SubmitForm() {
               onChange={(e) => setTrackTitle(e.target.value)}
               style={{ marginBottom: 12 }}
             />
+            <input
+              className="search-input"
+              placeholder="Listen link, if you have one (optional)"
+              value={trackUrl}
+              onChange={(e) => setTrackUrl(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
             <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
               <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
                 <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} /> featured (guest artist)
@@ -203,6 +274,13 @@ function SubmitForm() {
               placeholder='e.g. "Demo", "Live at Radio City", "Alt Mix"'
               value={versionTitle}
               onChange={(e) => setVersionTitle(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+            <input
+              className="search-input"
+              placeholder="Listen link, if you have one (optional)"
+              value={versionUrl}
+              onChange={(e) => setVersionUrl(e.target.value)}
               style={{ marginBottom: 12 }}
             />
           </>

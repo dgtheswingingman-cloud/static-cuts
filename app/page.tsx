@@ -212,7 +212,7 @@ export default function HomePage() {
                   </Link>
                   <span style={{ flex: 1 }} />
                   {t.spotify_url && (
-                    <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer">spotify</a>
+                    <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer">listen</a>
                   )}
                 </div>
               ))}
