@@ -23,6 +23,9 @@ function SubmitForm() {
   const currentUrl = searchParams.get("current_url") ?? "";
   const currentFeatured = searchParams.get("current_featured") === "true";
   const currentOfficial = searchParams.get("current_official") === "true";
+  const currentParentId = searchParams.get("current_parent_id") ?? "";
+
+  const [mainTrackOptions, setMainTrackOptions] = useState<{ id: string; title: string }[]>([]);
 
   const initialType: SubmitType = typeParam
     ? typeParam
@@ -46,6 +49,7 @@ function SubmitForm() {
   const [editUrl, setEditUrl] = useState(currentUrl);
   const [editFeatured, setEditFeatured] = useState(currentFeatured);
   const [editOfficial, setEditOfficial] = useState(currentOfficial);
+  const [editParentId, setEditParentId] = useState(currentParentId);
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,22 @@ function SubmitForm() {
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    async function loadMainTracks() {
+      if (type !== "correction" || !prefilledArtistId) return;
+      const { data } = await supabase
+        .from("tracks")
+        .select("id, title")
+        .eq("artist_id", prefilledArtistId)
+        .is("parent_track_id", null)
+        .neq("id", prefilledTrackId)
+        .order("title");
+      setMainTrackOptions(data ?? []);
+    }
+    loadMainTracks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, prefilledArtistId]);
 
   // Checks for an existing track with a matching title (under the same
   // parent scope) or the same listen link, and asks for confirmation
@@ -185,6 +205,7 @@ function SubmitForm() {
             spotify_url: editUrl.trim(),
             is_featured: editFeatured,
             is_official: editOfficial,
+            parent_track_id: editParentId,
           },
         });
         if (err) throw err;
@@ -321,6 +342,21 @@ function SubmitForm() {
                 <input type="checkbox" checked={editOfficial} onChange={(e) => setEditOfficial(e.target.checked)} /> official release
               </label>
             </div>
+            <div className="detail-meta" style={{ marginBottom: 6 }}>
+              Should this be a sub-version of another track (e.g. a demo/alt-mix that got added
+              as its own main track by mistake)?
+            </div>
+            <select
+              className="sort-select"
+              style={{ width: "100%", marginBottom: 12 }}
+              value={editParentId}
+              onChange={(e) => setEditParentId(e.target.value)}
+            >
+              <option value="">— no, this is a main track —</option>
+              {mainTrackOptions.map((mt) => (
+                <option key={mt.id} value={mt.id}>{mt.title}</option>
+              ))}
+            </select>
           </>
         )}
 

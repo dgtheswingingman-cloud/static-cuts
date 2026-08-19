@@ -97,7 +97,13 @@ export default function ReviewPage() {
     if (s.type === "correction") {
       const flags = [s.payload.is_featured && "featured", s.payload.is_official && "official"].filter(Boolean).join(", ");
       const linkPart = s.payload.spotify_url ? `link: ${s.payload.spotify_url}` : "no link";
-      return `Edit for "${s.payload.title}" — ${linkPart}${flags ? ", " + flags : ""}`;
+      const parentPart = s.payload.parent_track_id !== undefined
+        ? (s.payload.parent_track_id ? " — make sub-version" : " — make main track")
+        : "";
+      return `Edit for "${s.payload.title}" — ${linkPart}${flags ? ", " + flags : ""}${parentPart}`;
+    }
+    if (s.type === "flag_link") {
+      return `Link flagged as broken/wrong${s.payload.reason ? `: "${s.payload.reason}"` : ""}`;
     }
     return s.type;
   }
@@ -107,7 +113,7 @@ export default function ReviewPage() {
   // don't exist yet, so there's nothing to jump to.
   function trackLink(s: Submission): string | null {
     if (!s.artist_id) return null;
-    if (s.type === "correction" && s.payload.track_id) {
+    if ((s.type === "correction" || s.type === "flag_link") && s.payload.track_id) {
       return `/artist/${s.artist_id}?highlight=${s.payload.track_id}`;
     }
     if (s.type === "new_version" && s.payload.parent_track_id) {
@@ -131,6 +137,7 @@ export default function ReviewPage() {
 
       {!error && submissions && submissions.map((s) => {
         const link = trackLink(s);
+        const isFlag = s.type === "flag_link";
         return (
           <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 260 }}>
@@ -145,10 +152,10 @@ export default function ReviewPage() {
               </Link>
             )}
             <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
-              approve
+              {isFlag ? "remove link" : "approve"}
             </button>
             <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
-              reject
+              {isFlag ? "keep link" : "reject"}
             </button>
           </div>
         );

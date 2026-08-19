@@ -68,7 +68,7 @@ export default function ArtistPage() {
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean } | null>(null);
+  const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string } | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
@@ -295,6 +295,19 @@ export default function ArtistPage() {
     setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
   }
 
+  async function flagLink(track: Track) {
+    if (!user) { router.push("/login"); return; }
+    const reason = window.prompt("What's wrong with this link? (optional)") ?? "";
+    const { error: err } = await supabase.from("submissions").insert({
+      type: "flag_link",
+      artist_id: id,
+      submitted_by: user.id,
+      payload: { track_id: track.id, reason },
+    });
+    if (err) { alert(err.message); return; }
+    alert("Thanks — flagged for review.");
+  }
+
   function startEdit(t: Track) {
     setEditingId(t.id);
     setEditDraft({
@@ -303,6 +316,7 @@ export default function ArtistPage() {
       is_featured: t.is_featured,
       is_official: t.is_official,
       has_audio: t.has_audio,
+      parent_track_id: t.parent_track_id ?? "",
     });
   }
 
@@ -316,6 +330,7 @@ export default function ArtistPage() {
       p_is_featured: editDraft.is_featured,
       p_is_official: editDraft.is_official,
       p_has_audio: editDraft.has_audio,
+      p_parent_track_id: editDraft.parent_track_id,
     });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
@@ -425,6 +440,18 @@ export default function ArtistPage() {
               <input type="checkbox" checked={editDraft.has_audio} onChange={(e) => setEditDraft({ ...editDraft, has_audio: e.target.checked })} /> has audio
             </label>
           </div>
+          <div className="comments-count" style={{ marginBottom: 6 }}>Make this a sub-version of:</div>
+          <select
+            className="sort-select"
+            style={{ width: "100%", marginBottom: 10 }}
+            value={editDraft.parent_track_id}
+            onChange={(e) => setEditDraft({ ...editDraft, parent_track_id: e.target.value })}
+          >
+            <option value="">— none, this is a main track —</option>
+            {mainTracks.filter((mt) => mt.id !== t.id).map((mt) => (
+              <option key={mt.id} value={mt.id}>{mt.title}</option>
+            ))}
+          </select>
           <button className="comment-post-btn" disabled={adminBusy} onClick={() => saveEdit(t.id)}>save</button>{" "}
           <button className="rating-clear" onClick={() => { setEditingId(null); setEditDraft(null); }}>cancel</button>
         </div>
@@ -465,7 +492,7 @@ export default function ArtistPage() {
           )}
           {user && !isAdmin && (
             <a
-              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}`}
+              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}`}
               className="listen-link"
               onClick={(e) => e.stopPropagation()}
               style={{ fontSize: "0.68rem" }}
@@ -488,7 +515,14 @@ export default function ArtistPage() {
             </>
           )}
           {t.spotify_url && (
-            <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
+            <>
+              <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
+              {user && (
+                <button className="listen-link" onClick={(e) => { e.stopPropagation(); flagLink(t); }}>
+                  flag link
+                </button>
+              )}
+            </>
           )}
         </div>
         {isRatingOpen && (
