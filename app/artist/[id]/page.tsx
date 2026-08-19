@@ -17,15 +17,24 @@ type Track = {
   has_audio: boolean;
 };
 type Artist = { id: string; name: string; status: string | null };
-type FilterKey = "all" | "main" | "featured" | "official" | "unreleased";
-type TrackSortKey = "title-asc" | "title-desc" | "collected-first" | "uncollected-first";
+type RoleFilter = "all" | "main" | "featured";
+type ReleaseFilter = "all" | "official" | "unreleased";
+type CollectedFilter = "all" | "collected" | "uncollected";
+type TrackSortKey = "title-asc" | "title-desc";
 
-function trackPasses(t: Track, filter: FilterKey) {
-  if (filter === "all") return true;
-  if (filter === "main") return !t.is_featured;
-  if (filter === "featured") return t.is_featured;
-  if (filter === "official") return t.is_official;
-  if (filter === "unreleased") return !t.is_official;
+function trackPasses(
+  t: Track,
+  owned: Set<string>,
+  role: RoleFilter,
+  release: ReleaseFilter,
+  collected: CollectedFilter
+) {
+  if (role === "main" && t.is_featured) return false;
+  if (role === "featured" && !t.is_featured) return false;
+  if (release === "official" && !t.is_official) return false;
+  if (release === "unreleased" && t.is_official) return false;
+  if (collected === "collected" && !owned.has(t.id)) return false;
+  if (collected === "uncollected" && owned.has(t.id)) return false;
   return true;
 }
 
@@ -39,7 +48,9 @@ export default function ArtistPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>("all");
+  const [collectedFilter, setCollectedFilter] = useState<CollectedFilter>("all");
   const [sort, setSort] = useState<TrackSortKey>("title-asc");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -146,22 +157,12 @@ export default function ArtistPage() {
   });
 
   const filteredMain = (() => {
-    const list = mainTracks.filter((t) => trackPasses(t, filter));
+    const list = mainTracks.filter((t) =>
+      trackPasses(t, owned, roleFilter, releaseFilter, collectedFilter)
+    );
     const sorted = [...list];
-    switch (sort) {
-      case "title-asc":
-        sorted.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-      case "title-desc":
-        sorted.sort((a, b) => b.title.localeCompare(a.title));
-        break;
-      case "collected-first":
-        sorted.sort((a, b) => Number(owned.has(b.id)) - Number(owned.has(a.id)));
-        break;
-      case "uncollected-first":
-        sorted.sort((a, b) => Number(owned.has(a.id)) - Number(owned.has(b.id)));
-        break;
-    }
+    if (sort === "title-desc") sorted.sort((a, b) => b.title.localeCompare(a.title));
+    else sorted.sort((a, b) => a.title.localeCompare(b.title));
     return sorted;
   })();
   const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
@@ -264,15 +265,39 @@ export default function ArtistPage() {
           )}
 
           <div className="tabs">
-            {(["all", "main", "featured", "official", "unreleased"] as FilterKey[]).map((f) => (
+            {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
               <button
                 key={f}
-                className={`tab ${filter === f ? "active" : ""}`}
-                onClick={() => setFilter(f)}
+                className={`tab ${roleFilter === f ? "active" : ""}`}
+                onClick={() => setRoleFilter(f)}
               >
                 {f}
               </button>
             ))}
+            <span style={{ width: 4 }} />
+            {(["all", "official", "unreleased"] as ReleaseFilter[]).map((f) => (
+              <button
+                key={f}
+                className={`tab ${releaseFilter === f ? "active" : ""}`}
+                onClick={() => setReleaseFilter(f)}
+              >
+                {f}
+              </button>
+            ))}
+            {user && (
+              <>
+                <span style={{ width: 4 }} />
+                {(["all", "collected", "uncollected"] as CollectedFilter[]).map((f) => (
+                  <button
+                    key={f}
+                    className={`tab ${collectedFilter === f ? "active" : ""}`}
+                    onClick={() => setCollectedFilter(f)}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
 
           <div className="sort-row">
@@ -283,8 +308,6 @@ export default function ArtistPage() {
             >
               <option value="title-asc">Title (A–Z)</option>
               <option value="title-desc">Title (Z–A)</option>
-              {user && <option value="collected-first">Collected first</option>}
-              {user && <option value="uncollected-first">Not collected first</option>}
             </select>
           </div>
 
@@ -296,7 +319,7 @@ export default function ArtistPage() {
                 <div key={t.id}>
                   {trackRow(t, false)}
                   {(subsByParent[t.id] ?? [])
-                    .filter((s) => trackPasses(s, filter))
+                    .filter((s) => trackPasses(s, owned, roleFilter, releaseFilter, collectedFilter))
                     .map((s) => trackRow(s, true))}
                 </div>
               ))}
