@@ -127,7 +127,7 @@ export default function HomePage() {
   return (
     <div className="wrap">
       <div className="hero">
-        <Link href="/" style={{ textDecoration: "none" }}>
+        <Link href="/" onClick={() => setQuery("")} style={{ textDecoration: "none" }}>
           <h1 className="wordmark">
             STATIC CUTS<span className="slash">//</span>
           </h1>
