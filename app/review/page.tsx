@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 
@@ -93,6 +94,20 @@ export default function ReviewPage() {
     return s.type;
   }
 
+  // Corrections and alt-version suggestions both point at an existing
+  // track -- link straight to it on the artist page. New tracks/artists
+  // don't exist yet, so there's nothing to jump to.
+  function trackLink(s: Submission): string | null {
+    if (!s.artist_id) return null;
+    if (s.type === "correction" && s.payload.track_id) {
+      return `/artist/${s.artist_id}?highlight=${s.payload.track_id}`;
+    }
+    if (s.type === "new_version" && s.payload.parent_track_id) {
+      return `/artist/${s.artist_id}?highlight=${s.payload.parent_track_id}`;
+    }
+    return null;
+  }
+
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
@@ -106,22 +121,30 @@ export default function ReviewPage() {
         <div className="empty-state">Nothing pending.</div>
       )}
 
-      {!error && submissions && submissions.map((s) => (
-        <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <div className="track-title">{describe(s)}</div>
-            <div className="comment-meta">
-              by {names[s.submitted_by] ?? "…"} · {new Date(s.created_at).toLocaleString()}
+      {!error && submissions && submissions.map((s) => {
+        const link = trackLink(s);
+        return (
+          <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div className="track-title">{describe(s)}</div>
+              <div className="comment-meta">
+                by {names[s.submitted_by] ?? "…"} · {new Date(s.created_at).toLocaleString()}
+              </div>
             </div>
+            {link && (
+              <Link href={link} className="listen-link" style={{ textDecoration: "none" }}>
+                view track
+              </Link>
+            )}
+            <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
+              approve
+            </button>
+            <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
+              reject
+            </button>
           </div>
-          <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
-            approve
-          </button>
-          <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
-            reject
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

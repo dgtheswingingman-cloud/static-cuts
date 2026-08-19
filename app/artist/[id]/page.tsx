@@ -75,6 +75,7 @@ export default function ArtistPage() {
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
   const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -360,6 +361,32 @@ export default function ArtistPage() {
   const collectedCount = tracks?.filter((t) => owned.has(t.id)).length ?? 0;
   const collectedPct = tracks && tracks.length > 0 ? Math.round((collectedCount / tracks.length) * 100) : 0;
 
+  // Jump-to-track support: /artist/[id]?highlight=trackId auto-expands
+  // that track's letter group and scrolls it into view -- used by the
+  // review queue's "view track" links.
+  useEffect(() => {
+    if (!tracks) return;
+    const params = new URLSearchParams(window.location.search);
+    const highlight = params.get("highlight");
+    if (!highlight) return;
+
+    const target = tracks.find((t) => t.id === highlight);
+    if (!target) return;
+
+    const anchorTitle = target.parent_track_id
+      ? tracks.find((t) => t.id === target.parent_track_id)?.title ?? target.title
+      : target.title;
+    const letter = letterOf(anchorTitle);
+
+    setOpenLetters((prev) => new Set(prev).add(letter));
+    setHighlightedId(highlight);
+
+    setTimeout(() => {
+      document.getElementById(`track-${highlight}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    setTimeout(() => setHighlightedId(null), 3500);
+  }, [tracks]);
+
   function toggleLetter(letter: string) {
     setOpenLetters((prev) => {
       const n = new Set(prev);
@@ -382,7 +409,7 @@ export default function ArtistPage() {
 
     if (isEditing && editDraft) {
       return (
-        <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }} className="comments-panel">
+        <div key={t.id} id={`track-${t.id}`} style={{ marginLeft: isSub ? 30 : 0 }} className="comments-panel">
           <input className="search-input" style={{ marginBottom: 8 }} value={editDraft.title}
             onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} placeholder="title" />
           <input className="search-input" style={{ marginBottom: 8 }} value={editDraft.spotify_url}
@@ -405,7 +432,15 @@ export default function ArtistPage() {
     }
 
     return (
-      <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }}>
+      <div
+        key={t.id}
+        id={`track-${t.id}`}
+        style={{
+          marginLeft: isSub ? 30 : 0,
+          background: highlightedId === t.id ? "rgba(255,255,255,0.08)" : "transparent",
+          transition: "background 1.2s ease",
+        }}
+      >
         <div className="track-row" onClick={() => toggleOwned(t.id)} style={{ opacity: isToggling ? 0.5 : 1 }}>
           <div className={`sigil ${isOwned ? "owned" : ""}`}>{isOwned ? "✓" : ""}</div>
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
