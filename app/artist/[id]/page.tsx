@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 
@@ -196,6 +197,20 @@ export default function ArtistPage() {
 
   return (
     <div className="wrap">
+      <Link
+        href="/"
+        style={{
+          textDecoration: "none",
+          fontFamily: "var(--font-anton)",
+          fontSize: "1.1rem",
+          letterSpacing: "0.01em",
+          color: "var(--bone)",
+          display: "block",
+          marginBottom: 14,
+        }}
+      >
+        STATIC CUTS<span style={{ color: "var(--smoke)" }}>//</span>
+      </Link>
       <button className="back-btn" onClick={() => router.push("/")}>
         ← back to archive
       </button>

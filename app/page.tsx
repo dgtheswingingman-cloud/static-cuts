@@ -127,9 +127,11 @@ export default function HomePage() {
   return (
     <div className="wrap">
       <div className="hero">
-        <h1 className="wordmark">
-          STATIC CUTS<span className="slash">//</span>
-        </h1>
+        <Link href="/" style={{ textDecoration: "none" }}>
+          <h1 className="wordmark">
+            STATIC CUTS<span className="slash">//</span>
+          </h1>
+        </Link>
         <div className="tagline">cut through the noise</div>
         <AuthBar />
         <div className="search-shell">
