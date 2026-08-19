@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import AuthBar from "./AuthBar";
 
 type Artist = {
   id: string;
@@ -25,9 +26,6 @@ export default function HomePage() {
           .order("name");
         if (artistErr) throw artistErr;
 
-        // Fetch just artist_id for every track (paginated past Supabase's
-        // 1000-row-per-query cap) and count client-side -- far fewer
-        // round trips than querying a count per artist individually.
         const PAGE_SIZE = 1000;
         let allArtistIds: string[] = [];
         let from = 0;
@@ -68,6 +66,7 @@ export default function HomePage() {
           STATIC CUTS<span className="slash">//</span>
         </h1>
         <div className="tagline">cut through the noise</div>
+        <AuthBar />
         <div className="search-shell">
           <input
             className="search-input"
@@ -103,7 +102,7 @@ export default function HomePage() {
                 <div className="bar-track">
                   <div className="bar-fill" style={{ width: "0%" }} />
                 </div>
-                <div className="pct">collection tracking coming with accounts</div>
+                <div className="pct">collection tracking coming soon</div>
               </Link>
             ))
           ) : (
@@ -117,10 +116,9 @@ export default function HomePage() {
       )}
 
       <div className="note">
-        <b>Live data</b> — this is your real Supabase database (35 artists, 22,158
-        tracks), fetched fresh on every page load. Personal collection tracking
-        isn&apos;t wired up yet in this rebuild — that comes back once accounts are
-        added.
+        <b>Live data</b> — 35 artists, 22,158 tracks, fetched fresh from Supabase on
+        every load. Accounts are live now — log in to get ready for collection
+        tracking and submissions, coming next.
       </div>
     </div>
   );

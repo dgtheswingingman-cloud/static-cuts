@@ -1,125 +1,189 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import AuthBar from "./AuthBar";
 
-type Artist = {
+type Track = {
   id: string;
-  name: string;
-  status: string | null;
-  trackCount: number;
+  title: string;
+  spotify_url: string | null;
+  parent_track_id: string | null;
+  track_type: string;
+  is_featured: boolean;
+  is_official: boolean;
+  has_audio: boolean;
 };
+type Artist = { id: string; name: string; status: string | null };
+type FilterKey = "all" | "main" | "featured" | "official" | "unreleased";
 
-export default function HomePage() {
-  const [artists, setArtists] = useState<Artist[] | null>(null);
+function trackPasses(t: Track, filter: FilterKey) {
+  if (filter === "all") return true;
+  if (filter === "main") return !t.is_featured;
+  if (filter === "featured") return t.is_featured;
+  if (filter === "official") return t.is_official;
+  if (filter === "unreleased") return !t.is_official;
+  return true;
+}
+
+export default function ArtistPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
+
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [tracks, setTracks] = useState<Track[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   useEffect(() => {
     async function load() {
       try {
-        const { data: artistRows, error: artistErr } = await supabase
+        const { data: artistRow, error: artistErr } = await supabase
           .from("artists")
           .select("id, name, status")
-          .order("name");
+          .eq("id", id)
+          .single();
         if (artistErr) throw artistErr;
+        setArtist(artistRow);
 
         const PAGE_SIZE = 1000;
-        let allArtistIds: string[] = [];
+        let all: Track[] = [];
         let from = 0;
         while (true) {
           const { data: page, error: trackErr } = await supabase
             .from("tracks")
-            .select("artist_id")
+            .select(
+              "id, title, spotify_url, parent_track_id, track_type, is_featured, is_official, has_audio"
+            )
+            .eq("artist_id", id)
             .range(from, from + PAGE_SIZE - 1);
           if (trackErr) throw trackErr;
-          allArtistIds = allArtistIds.concat((page ?? []).map((t) => t.artist_id));
+          all = all.concat(page ?? []);
           if (!page || page.length < PAGE_SIZE) break;
           from += PAGE_SIZE;
         }
-
-        const counts: Record<string, number> = {};
-        for (const id of allArtistIds) counts[id] = (counts[id] ?? 0) + 1;
-
-        setArtists(
-          (artistRows ?? []).map((a) => ({
-            ...a,
-            trackCount: counts[a.id] ?? 0,
-          }))
-        );
+        all.sort((a, b) => a.title.localeCompare(b.title));
+        setTracks(all);
       } catch (e: any) {
         setError(e?.message ?? String(e));
       }
     }
     load();
-  }, []);
+  }, [id]);
 
-  const filtered =
-    artists?.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase())) ?? null;
+  // Only top-level tracks show in the main list; sub-entries render nested
+  // underneath their parent.
+  const mainTracks = tracks?.filter((t) => !t.parent_track_id) ?? [];
+  const subsByParent: Record<string, Track[]> = {};
+  (tracks ?? []).forEach((t) => {
+    if (t.parent_track_id) {
+      (subsByParent[t.parent_track_id] = subsByParent[t.parent_track_id] || []).push(t);
+    }
+  });
+
+  const filteredMain = mainTracks.filter((t) => trackPasses(t, filter));
+  const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
+
+  function trackRow(t: Track, isSub: boolean) {
+    return (
+      <div key={t.id} style={{ marginLeft: isSub ? 30 : 0 }}>
+        <div className="track-row">
+          <div className="sigil" />
+          <span className="track-title">{t.title}</span>
+          {t.is_featured && <span className="feature-tag">featured</span>}
+          {t.is_official ? (
+            <span className="feature-tag">official</span>
+          ) : (
+            <span className="feature-tag">unreleased</span>
+          )}
+          {!t.has_audio && <span className="feature-tag">no audio</span>}
+          {t.spotify_url ? (
+            <a
+              className="listen-link"
+              href={t.spotify_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              spotify
+            </a>
+          ) : (
+            <a
+              className="listen-link"
+              href={`https://open.spotify.com/search/${encodeURIComponent(
+                `${artist?.name ?? ""} ${t.title}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              search
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="wrap">
-      <div className="hero">
-        <h1 className="wordmark">
-          STATIC CUTS<span className="slash">//</span>
-        </h1>
-        <div className="tagline">cut through the noise</div>
-        <AuthBar />
-        <div className="search-shell">
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Search any artist — Playboi Carti, Ed Sheeran, anyone…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="section-label">In the archive</div>
+      <button className="back-btn" onClick={() => router.push("/")}>
+        ← back to archive
+      </button>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33" }}>
-          Couldn&apos;t load the archive: <b>{error}</b>
+        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 18 }}>
+          Couldn&apos;t load this artist: <b>{error}</b>
         </div>
       )}
 
-      {!error && artists === null && (
-        <div className="empty-state">loading archive…</div>
-      )}
+      {!error && artist && (
+        <>
+          <h1 className="detail-name">{artist.name}</h1>
+          <div className="detail-meta">
+            {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
+          </div>
 
-      {!error && artists !== null && (
-        <div className="grid">
-          {filtered && filtered.length > 0 ? (
-            filtered.map((a) => (
-              <Link key={a.id} href={`/artist/${a.id}`} className="card">
-                <div className="count">
-                  {String(a.trackCount).padStart(4, "0")} TRACKS LOGGED
+          <div className="tabs">
+            {(["all", "main", "featured", "official", "unreleased"] as FilterKey[]).map((f) => (
+              <button
+                key={f}
+                className={`tab ${filter === f ? "active" : ""}`}
+                onClick={() => setFilter(f)}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {!tracks && <div className="empty-state">loading tracklist…</div>}
+
+          {tracks && (
+            <div>
+              {filteredMain.map((t) => (
+                <div key={t.id}>
+                  {trackRow(t, false)}
+                  {(subsByParent[t.id] ?? [])
+                    .filter((s) => trackPasses(s, filter))
+                    .map((s) => trackRow(s, true))}
                 </div>
-                <div className="name">{a.name}</div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: "0%" }} />
-                </div>
-                <div className="pct">collection tracking coming soon</div>
-              </Link>
-            ))
-          ) : (
-            <div className="empty-state">
-              <b>{query}</b> isn&apos;t in the archive yet. Every artist here got added
-              because someone wanted to track them — you could be the one to start
-              theirs.
+              ))}
+              {filteredMain.length === 0 && (
+                <div className="empty-state">Nothing here yet.</div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      <div className="note">
-        <b>Live data</b> — 35 artists, 22,158 tracks, fetched fresh from Supabase on
-        every load. Accounts are live now — log in to get ready for collection
-        tracking and submissions, coming next.
-      </div>
+          <div className="note">
+            <b>Overlapping filters</b> now match the real design: a track can be both{" "}
+            <b>Featured</b> and <b>Official</b> at once, not locked into one category. Sub-entries
+            (demos, alt versions) nest under their main track once submissions start adding them
+            — none exist yet since this is a fresh migration. Collected-track marking and ratings
+            still come with accounts, next.
+          </div>
+        </>
+      )}
     </div>
   );
 }
