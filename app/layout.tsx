@@ -4,6 +4,7 @@ import "./globals.css";
 import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
 import { AdminViewProvider } from "./AdminViewContext";
+import { ThemeProvider } from "./ThemeProvider";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -19,11 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${anton.variable} ${inter.variable} ${mono.variable}`}>
         <AuthProvider>
-          <AdminViewProvider>
-            <StaticOverlay />
-            <div className="scanlines" />
-            {children}
-          </AdminViewProvider>
+          <ThemeProvider>
+            <AdminViewProvider>
+              <StaticOverlay />
+              <div className="scanlines" />
+              {children}
+            </AdminViewProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

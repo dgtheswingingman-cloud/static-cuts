@@ -6,6 +6,7 @@ import { useAuth } from "./AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { useIsAdmin, useIsRealAdmin } from "./useIsAdmin";
 import { useAdminView } from "./AdminViewContext";
+import { useTheme } from "./ThemeProvider";
 
 export default function AuthBar() {
   const { user, loading, signOut } = useAuth();
@@ -13,6 +14,7 @@ export default function AuthBar() {
   const isAdmin = useIsAdmin();
   const isRealAdmin = useIsRealAdmin();
   const { viewAsNonAdmin, setViewAsNonAdmin } = useAdminView();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     async function loadProfile() {
@@ -54,6 +56,10 @@ export default function AuthBar() {
         <Link href="/login" style={{ color: "var(--smoke)" }}>
           log in / sign up
         </Link>
+        <select className="sort-select" value={theme} onChange={(e) => setTheme(e.target.value as any)} style={{ fontSize: "0.68rem" }}>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
       </div>
     );
   }
@@ -81,6 +87,11 @@ export default function AuthBar() {
         <button onClick={() => signOut()} style={smallBtn}>
           log out
         </button>
+        <select className="sort-select" value={theme} onChange={(e) => setTheme(e.target.value as any)} style={{ fontSize: "0.68rem" }}>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="personalized">Personalized</option>
+        </select>
       </div>
 
       {isRealAdmin && (

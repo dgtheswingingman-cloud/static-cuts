@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTheme } from "./ThemeProvider";
 
 // Real per-frame TV static, drawn at low resolution and scaled up (pixelated)
 // for a chunky, authentic old-TV texture. Verified working in the standalone
-// mockup -- ported as-is.
+// mockup -- ported as-is. Hidden in light theme -- this texture is part of
+// the underground/dark identity specifically, not a universal skin.
 export default function StaticOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,6 +43,8 @@ export default function StaticOverlay() {
     }
     return () => { if (interval) clearInterval(interval); };
   }, []);
+
+  if (theme === "light") return null;
 
   return <canvas id="staticCanvas" ref={canvasRef} />;
 }

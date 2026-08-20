@@ -6,6 +6,21 @@
   --smoke: #A3A3A3;
   --hair: #3A3A3A;
   --hair-strong: #565656;
+  --accent: var(--bone);
+}
+
+/* Light theme -- a genuine second palette, not just inverted dark mode.
+   No static/grain here; that texture is part of the underground identity
+   specifically, not a universal skin. */
+[data-theme="light"] {
+  --void: #F5F3EF;
+  --surface: #FFFFFF;
+  --surface2: #ECEAE4;
+  --bone: #17181A;
+  --smoke: #6B6B6B;
+  --hair: #D8D5CE;
+  --hair-strong: #B8B4AA;
+  --accent: var(--bone);
 }
 
 * {
@@ -136,8 +151,8 @@ body {
 }
 .bar-fill {
   height: 100%;
-  background: var(--bone);
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .card .pct {
   font-family: var(--font-mono), monospace;
@@ -204,9 +219,9 @@ body {
   color: var(--bone);
 }
 .tab.active {
-  border-color: #fff;
+  border-color: var(--accent);
   color: var(--void);
-  background: var(--bone);
+  background: var(--accent);
   font-weight: 600;
 }
 
@@ -384,9 +399,9 @@ body {
   transition: all 0.15s ease;
 }
 .sigil.owned {
-  border-color: #fff;
+  border-color: var(--accent);
   color: var(--void);
-  background: var(--bone);
+  background: var(--accent);
 }
 .track-title {
   font-family: var(--font-inter), sans-serif;
@@ -457,4 +472,7 @@ body {
     transparent 1px,
     transparent 3px
   );
+}
+[data-theme="light"] .scanlines {
+  display: none;
 }
