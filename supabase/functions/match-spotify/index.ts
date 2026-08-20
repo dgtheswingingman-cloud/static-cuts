@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       .from("tracks")
       .select("id, title, artist_id, artists(name)")
       .is("spotify_url", null)
+      .is("spotify_search_attempted_at", null)
       .limit(limit);
     if (error) throw error;
 
@@ -112,9 +113,15 @@ Deno.serve(async (req) => {
           items.find((i: any) => i.name.toLowerCase() === cleanedTitle.toLowerCase()) || items[0];
         const spotifyUrl = best?.external_urls?.spotify;
         if (spotifyUrl) {
-          await supabase.from("tracks").update({ spotify_url: spotifyUrl }).eq("id", track.id);
+          await supabase.from("tracks").update({ spotify_url: spotifyUrl, spotify_search_attempted_at: new Date().toISOString() }).eq("id", track.id);
           matched++;
+        } else {
+          await supabase.from("tracks").update({ spotify_search_attempted_at: new Date().toISOString() }).eq("id", track.id);
         }
+      } else {
+        // No results at all -- still record that we checked it, so it
+        // doesn't get re-searched again on every future run.
+        await supabase.from("tracks").update({ spotify_search_attempted_at: new Date().toISOString() }).eq("id", track.id);
       }
     }
 
