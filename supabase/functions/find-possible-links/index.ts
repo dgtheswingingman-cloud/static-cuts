@@ -13,11 +13,22 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BRAVE_API_KEY = Deno.env.get("BRAVE_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+// Restrict results to sites actually likely to identify an unreleased
+// track -- not the open web, which mostly returns irrelevant noise for
+// underground/leaked material.
+const MUSIC_SITES = ["genius.com", "soundcloud.com", "youtube.com", "bandcamp.com", "discogs.com"];
+const SITE_FILTER = MUSIC_SITES.map((s) => `site:${s}`).join(" OR ");
 
 function cleanTitle(title: string): string {
   return title.replace(/\*+$/, "").trim();
@@ -32,6 +43,9 @@ function domainOf(url: string): string {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   try {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "15");
@@ -46,6 +60,7 @@ Deno.serve(async (req) => {
       .from("tracks")
       .select("id, title, artist_id, artists(name)")
       .is("spotify_url", null)
+      .eq("is_official", false)
       .limit(limit * 3); // over-fetch since we filter already-searched client-side
     if (error) throw error;
 
@@ -53,7 +68,7 @@ Deno.serve(async (req) => {
 
     if (tracks.length === 0) {
       return new Response(JSON.stringify({ done: true, checked: 0, found: 0 }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -64,7 +79,7 @@ Deno.serve(async (req) => {
     for (const track of tracks) {
       checked++;
       const artistName = (track as any).artists?.name || "";
-      const q = `${artistName} ${cleanTitle(track.title)}`;
+      const q = `${artistName} ${cleanTitle(track.title)} (${SITE_FILTER})`;
       const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=3`;
 
       const sres = await fetch(searchUrl, {
@@ -97,7 +112,7 @@ Deno.serve(async (req) => {
           // Surface this instead of silently pretending it worked.
           return new Response(
             JSON.stringify({ error: "Database insert failed: " + insertErr.message, checked, found }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         found++;
@@ -108,12 +123,12 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ done: false, checked, found, rateLimited }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

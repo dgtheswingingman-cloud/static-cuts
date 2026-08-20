@@ -7,6 +7,7 @@ import { useAuth } from "../../AuthProvider";
 
 const MATCH_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/match-spotify";
 const VERIFY_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/verify-spotify-links";
+const LINKS_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/find-possible-links";
 
 function useRunner(functionUrl: string, limit: number) {
   const [running, setRunning] = useState(false);
@@ -19,7 +20,7 @@ function useRunner(functionUrl: string, limit: number) {
     setLog((prev) => [line, ...prev].slice(0, 200));
   }
 
-  async function run(secondaryKey: "matched" | "deadFound") {
+  async function run(secondaryKey: "matched" | "deadFound" | "found") {
     setRunning(true);
     stopRequested.current = false;
     setTotalChecked(0);
@@ -90,7 +91,7 @@ function RunnerPanel({
   secondaryLabel: string;
   functionUrl: string;
   limit: number;
-  secondaryKey: "matched" | "deadFound";
+  secondaryKey: "matched" | "deadFound" | "found";
 }) {
   const { running, totalChecked, totalSecondary, log, run, stop } = useRunner(functionUrl, limit);
 
@@ -139,7 +140,7 @@ export default function SpotifyMatcherPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Spotify Tools</h1>
+      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Link Discovery Tools</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
         Two separate systems. Keep this tab open while either runs — closing it stops the process,
         same as closing a terminal window would.
@@ -161,6 +162,15 @@ export default function SpotifyMatcherPage() {
         functionUrl={VERIFY_URL}
         limit={30}
         secondaryKey="deadFound"
+      />
+
+      <RunnerPanel
+        title="Find Possible Links"
+        description="Searches Genius, SoundCloud, YouTube, Bandcamp, and Discogs for unofficial/unreleased tracks with no confirmed link, storing results as unverified candidates for community review."
+        secondaryLabel="searches with results"
+        functionUrl={LINKS_URL}
+        limit={15}
+        secondaryKey="found"
       />
     </div>
   );

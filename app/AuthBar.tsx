@@ -75,7 +75,7 @@ export default function AuthBar() {
         )}
         {isAdmin && (
           <Link href="/admin/spotify-matcher" style={smallBtn}>
-            spotify matcher
+            link tools
           </Link>
         )}
         <button onClick={() => signOut()} style={smallBtn}>
