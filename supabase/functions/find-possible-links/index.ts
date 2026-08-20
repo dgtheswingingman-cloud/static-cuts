@@ -50,21 +50,14 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "15");
 
-    // Tracks with no confirmed link that haven't been searched yet.
-    const { data: alreadySearched } = await supabase
-      .from("track_link_candidates")
-      .select("track_id");
-    const searchedIds = new Set((alreadySearched ?? []).map((r: any) => r.track_id));
-
-    const { data: candidateTracks, error } = await supabase
+    const { data: tracks, error } = await supabase
       .from("tracks")
       .select("id, title, artist_id, artists(name)")
       .is("spotify_url", null)
       .eq("is_official", false)
-      .limit(limit * 3); // over-fetch since we filter already-searched client-side
+      .is("possible_links_attempted_at", null)
+      .limit(limit);
     if (error) throw error;
-
-    const tracks = (candidateTracks ?? []).filter((t: any) => !searchedIds.has(t.id)).slice(0, limit);
 
     if (tracks.length === 0) {
       return new Response(JSON.stringify({ done: true, checked: 0, found: 0 }), {
@@ -86,19 +79,33 @@ Deno.serve(async (req) => {
         headers: { Accept: "application/json", "X-Subscription-Token": BRAVE_API_KEY },
       });
 
-      if (sres.status === 429) {
+      if (!sres.ok) {
+        // Any failure -- rate limit, quota exhaustion, auth issue, etc --
+        // stop here instead of silently treating it as "zero results".
+        // Don't mark this track as attempted; it genuinely wasn't checked.
         rateLimited = true;
+        const header = sres.headers.get("Retry-After");
+        retryAfterSeconds = header ? parseInt(header, 10) : 3600;
         break;
       }
 
       const sdata = await sres.json();
+
+      if (!sdata || typeof sdata !== "object" || !("web" in sdata)) {
+        // Response doesn't look like a real Brave search result (e.g. an
+        // error body with a 200 status) -- treat as a failure, not a
+        // legitimate empty result, and don't mark the track as attempted.
+        rateLimited = true;
+        retryAfterSeconds = 3600;
+        break;
+      }
+
       const results = sdata?.web?.results ?? [];
 
       if (results.length === 0) {
-        // No results at all -- still record that we searched, with zero
-        // rows, by inserting a placeholder-free marker isn't possible with
-        // this schema, so we just skip; next run will retry it. Fine at
-        // this scale.
+        // No results at all -- still mark it checked, so it doesn't get
+        // re-searched again on every future run.
+        await supabase.from("tracks").update({ possible_links_attempted_at: new Date().toISOString() }).eq("id", track.id);
       } else {
         const rows = results.slice(0, 3).map((r: any) => ({
           track_id: track.id,
@@ -115,6 +122,7 @@ Deno.serve(async (req) => {
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        await supabase.from("tracks").update({ possible_links_attempted_at: new Date().toISOString() }).eq("id", track.id);
         found++;
       }
 

@@ -14,17 +14,19 @@ type Track = {
   title: string;
   spotify_url: string | null;
   parent_track_id: string | null;
-  track_type: string;
   is_featured: boolean;
   is_official: boolean;
-  has_audio: boolean;
   aliases: string | null;
-  track_number: number | null;
-  release_date: string | null;
-  producers: string | null;
-  featured_artists: string | null;
-  genre: string | null;
-  notes: string | null;
+  // Heavy fields -- undefined until this track's letter group (or search
+  // result) has actually been loaded on demand.
+  track_type?: string;
+  has_audio?: boolean;
+  track_number?: number | null;
+  release_date?: string | null;
+  producers?: string | null;
+  featured_artists?: string | null;
+  genre?: string | null;
+  notes?: string | null;
 };
 type Artist = { id: string; name: string; status: string | null };
 type RoleFilter = "all" | "main" | "featured";
@@ -93,6 +95,7 @@ export default function ArtistPage() {
   const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [loadedDetailIds, setLoadedDetailIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     load();
@@ -115,7 +118,7 @@ export default function ArtistPage() {
       while (true) {
         const { data: page, error: trackErr } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, track_type, is_featured, is_official, has_audio, aliases, track_number, release_date, producers, featured_artists, genre, notes")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases")
           .eq("artist_id", id)
           .range(from, from + PAGE_SIZE - 1);
         if (trackErr) throw trackErr;
@@ -227,6 +230,7 @@ export default function ArtistPage() {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     const letter = letterOf(pick.title);
     setOpenLetters((prev) => new Set(prev).add(letter));
+    ensureLetterLoaded(letter);
     setHighlightedId(pick.id);
     setTimeout(() => {
       document.getElementById(`track-${pick.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -268,37 +272,74 @@ export default function ArtistPage() {
     }
   }
 
-  useEffect(() => {
-    async function loadCandidates() {
-      const { data, error: candErr } = await supabase
+  // Fetches the heavy per-track data (verbose info fields + possible-match
+  // candidates) for a given set of track IDs, but only for ones we haven't
+  // already loaded -- called when a letter group expands, a search result
+  // includes new tracks, or Random Deep Cut jumps to one. This is what
+  // keeps a 3,796-track artist page fast: the initial load only fetches
+  // lightweight fields for everything, and this fills in the rest just for
+  // what's actually being looked at.
+  async function ensureTracksLoaded(trackIds: string[]) {
+    const idsToLoad = trackIds.filter((tid) => !loadedDetailIds.has(tid));
+    if (idsToLoad.length === 0) return;
+
+    const [detailsRes, candidatesRes] = await Promise.all([
+      supabase
+        .from("tracks")
+        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes")
+        .in("id", idsToLoad),
+      supabase
         .from("track_link_candidates")
         .select("id, track_id, url, title, source_domain")
-        .eq("artist_id", id);
-      if (candErr) { console.error(candErr); return; }
+        .in("track_id", idsToLoad),
+    ]);
+
+    if (detailsRes.data) {
+      const detailMap: Record<string, any> = {};
+      detailsRes.data.forEach((d: any) => { detailMap[d.id] = d; });
+      setTracks((prev) =>
+        prev
+          ? prev.map((t) => (detailMap[t.id] ? { ...t, ...detailMap[t.id] } : t))
+          : prev
+      );
+    }
+
+    if (candidatesRes.data && candidatesRes.data.length > 0) {
       const map: Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]> = {};
-      (data ?? []).forEach((c: any) => {
+      candidatesRes.data.forEach((c: any) => {
         (map[c.track_id] = map[c.track_id] || []).push(c);
       });
-      setCandidatesByTrack(map);
+      setCandidatesByTrack((prev) => ({ ...prev, ...map }));
 
-      const candidateIds = (data ?? []).map((c: any) => c.id);
-      if (candidateIds.length > 0) {
-        const { data: votes } = await supabase
-          .from("track_link_candidate_votes")
-          .select("candidate_id, user_id, vote")
-          .in("candidate_id", candidateIds);
-        const scores: Record<string, number> = {};
-        const mine: Record<string, 1 | -1> = {};
-        (votes ?? []).forEach((v: any) => {
-          scores[v.candidate_id] = (scores[v.candidate_id] ?? 0) + v.vote;
-          if (user && v.user_id === user.id) mine[v.candidate_id] = v.vote;
-        });
-        setCandidateScores(scores);
-        setMyCandidateVotes(mine);
-      }
+      const candidateIds = candidatesRes.data.map((c: any) => c.id);
+      const { data: votes } = await supabase
+        .from("track_link_candidate_votes")
+        .select("candidate_id, user_id, vote")
+        .in("candidate_id", candidateIds);
+      const scores: Record<string, number> = {};
+      const mine: Record<string, 1 | -1> = {};
+      (votes ?? []).forEach((v: any) => {
+        scores[v.candidate_id] = (scores[v.candidate_id] ?? 0) + v.vote;
+        if (user && v.user_id === user.id) mine[v.candidate_id] = v.vote;
+      });
+      setCandidateScores((prev) => ({ ...prev, ...scores }));
+      setMyCandidateVotes((prev) => ({ ...prev, ...mine }));
     }
-    loadCandidates();
-  }, [id, user]);
+
+    setLoadedDetailIds((prev) => {
+      const next = new Set(prev);
+      idsToLoad.forEach((tid) => next.add(tid));
+      return next;
+    });
+  }
+
+  // Convenience wrapper: load everything (main track + its sub-entries)
+  // belonging to one letter group.
+  function ensureLetterLoaded(letter: string) {
+    const group = letterGroups[letter] ?? [];
+    const ids = group.flatMap((t) => [t.id, ...(subsByParent[t.id] ?? []).map((s) => s.id)]);
+    ensureTracksLoaded(ids);
+  }
 
   async function voteOnCandidate(candidateId: string, value: 1 | -1) {
     if (!user) { router.push("/login"); return; }
@@ -390,7 +431,7 @@ export default function ArtistPage() {
       spotify_url: t.spotify_url ?? "",
       is_featured: t.is_featured,
       is_official: t.is_official,
-      has_audio: t.has_audio,
+      has_audio: t.has_audio ?? true,
       parent_track_id: t.parent_track_id ?? "",
       aliases: t.aliases ?? "",
       track_number: t.track_number?.toString() ?? "",
@@ -477,6 +518,14 @@ export default function ArtistPage() {
   const collectedCount = tracks?.filter((t) => owned.has(t.id)).length ?? 0;
   const collectedPct = tracks && tracks.length > 0 ? Math.round((collectedCount / tracks.length) * 100) : 0;
 
+  // Search results can span multiple (unexpanded) letter groups at once --
+  // load their details directly rather than requiring the group to open.
+  useEffect(() => {
+    if (!trackSearchResults || trackSearchResults.length === 0) return;
+    ensureTracksLoaded(trackSearchResults.map((t) => t.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackSearchQuery, tracks]);
+
   // Jump-to-track support: /artist/[id]?highlight=trackId auto-expands
   // that track's letter group and scrolls it into view -- used by the
   // review queue's "view track" links.
@@ -495,6 +544,7 @@ export default function ArtistPage() {
     const letter = letterOf(anchorTitle);
 
     setOpenLetters((prev) => new Set(prev).add(letter));
+    ensureLetterLoaded(letter);
     setHighlightedId(highlight);
 
     setTimeout(() => {
@@ -506,8 +556,12 @@ export default function ArtistPage() {
   function toggleLetter(letter: string) {
     setOpenLetters((prev) => {
       const n = new Set(prev);
-      if (n.has(letter)) n.delete(letter);
-      else n.add(letter);
+      if (n.has(letter)) {
+        n.delete(letter);
+      } else {
+        n.add(letter);
+        ensureLetterLoaded(letter);
+      }
       return n;
     });
   }
