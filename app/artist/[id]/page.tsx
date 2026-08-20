@@ -28,7 +28,7 @@ type Track = {
   genre?: string | null;
   notes?: string | null;
 };
-type Artist = { id: string; name: string; status: string | null; genre: string | null };
+type Artist = { id: string; name: string; status: string | null };
 type RoleFilter = "all" | "main" | "featured";
 type ReleaseFilter = "all" | "official" | "unreleased";
 type CollectedFilter = "all" | "collected" | "uncollected";
@@ -96,8 +96,6 @@ export default function ArtistPage() {
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [loadedDetailIds, setLoadedDetailIds] = useState<Set<string>>(new Set());
-  const [editingGenre, setEditingGenre] = useState(false);
-  const [genreDraft, setGenreDraft] = useState("");
 
   useEffect(() => {
     load();
@@ -108,7 +106,7 @@ export default function ArtistPage() {
     try {
       const { data: artistRow, error: artistErr } = await supabase
         .from("artists")
-        .select("id, name, status, genre")
+        .select("id, name, status")
         .eq("id", id)
         .single();
       if (artistErr) throw artistErr;
@@ -238,15 +236,6 @@ export default function ArtistPage() {
       document.getElementById(`track-${pick.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
     setTimeout(() => setHighlightedId(null), 3500);
-  }
-
-  async function saveGenre() {
-    setAdminBusy(true);
-    const { error: err } = await supabase.rpc("admin_set_artist_genre", { p_artist_id: id, p_genre: genreDraft });
-    setAdminBusy(false);
-    if (err) { alert(err.message); return; }
-    setArtist((prev) => (prev ? { ...prev, genre: genreDraft.trim() || null } : prev));
-    setEditingGenre(false);
   }
 
   async function toggleFollow() {
@@ -830,36 +819,6 @@ export default function ArtistPage() {
       {!error && artist && (
         <>
           <h1 className="detail-name">{artist.name}</h1>
-          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-            {editingGenre ? (
-              <>
-                <input
-                  autoFocus
-                  className="search-input"
-                  style={{ width: 200, padding: "6px 10px" }}
-                  value={genreDraft}
-                  onChange={(e) => setGenreDraft(e.target.value)}
-                  placeholder="e.g. rap, punk, electronic"
-                  onKeyDown={(e) => { if (e.key === "Enter") saveGenre(); if (e.key === "Escape") setEditingGenre(false); }}
-                />
-                <button className="tab active" disabled={adminBusy} onClick={saveGenre}>save</button>
-                <button className="tab" onClick={() => setEditingGenre(false)}>cancel</button>
-              </>
-            ) : (
-              <>
-                {artist.genre && <span className="feature-tag">{artist.genre}</span>}
-                {isAdmin && (
-                  <button
-                    className="rating-chip"
-                    style={{ fontSize: "0.62rem" }}
-                    onClick={() => { setGenreDraft(artist.genre ?? ""); setEditingGenre(true); }}
-                  >
-                    {artist.genre ? "edit genre" : "+ set genre"}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>

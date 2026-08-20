@@ -90,7 +90,6 @@ export default function AuthBar() {
         <select className="sort-select" value={theme} onChange={(e) => setTheme(e.target.value as any)} style={{ fontSize: "0.68rem" }}>
           <option value="dark">Dark</option>
           <option value="light">Light</option>
-          <option value="personalized">Personalized</option>
         </select>
       </div>
 
