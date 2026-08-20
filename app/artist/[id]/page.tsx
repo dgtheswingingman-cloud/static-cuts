@@ -207,6 +207,22 @@ export default function ArtistPage() {
     loadFollow();
   }, [user, id]);
 
+  function pickRandomDeepCut() {
+    const pool = mainTracks.filter((t) => !user || !owned.has(t.id));
+    if (pool.length === 0) {
+      alert(user ? "You've collected every track from this artist — nothing left to surprise you." : "No tracks found.");
+      return;
+    }
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const letter = letterOf(pick.title);
+    setOpenLetters((prev) => new Set(prev).add(letter));
+    setHighlightedId(pick.id);
+    setTimeout(() => {
+      document.getElementById(`track-${pick.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    setTimeout(() => setHighlightedId(null), 3500);
+  }
+
   async function toggleFollow() {
     if (!user) { router.push("/login"); return; }
     setFollowBusy(true);
@@ -660,6 +676,9 @@ export default function ArtistPage() {
           <h1 className="detail-name">{artist.name}</h1>
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
+          </button>
+          <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={pickRandomDeepCut}>
+            🎲 random deep cut
           </button>
           {!isAdmin && (
             <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
