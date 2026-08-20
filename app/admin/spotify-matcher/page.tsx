@@ -62,7 +62,7 @@ function useRunner(functionUrl: string, limit: number) {
         await new Promise((r) => setTimeout(r, wait * 1000));
       } else {
         consecutiveRateLimits = 0;
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 5000));
       }
     }
 

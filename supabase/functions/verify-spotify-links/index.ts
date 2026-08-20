@@ -11,6 +11,11 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
@@ -44,6 +49,9 @@ function extractSpotifyTrackId(url: string): string | null {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   try {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "30");
@@ -58,7 +66,7 @@ Deno.serve(async (req) => {
 
     if (!tracks || tracks.length === 0) {
       return new Response(JSON.stringify({ done: true, checked: 0, deadFound: 0 }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -68,7 +76,7 @@ Deno.serve(async (req) => {
     } catch (e: any) {
       return new Response(
         JSON.stringify({ done: false, checked: 0, deadFound: 0, rateLimited: true, retryAfterSeconds: e?.retryAfterSeconds || 60 }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -114,12 +122,12 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ done: false, checked, deadFound, rateLimited, retryAfterSeconds }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

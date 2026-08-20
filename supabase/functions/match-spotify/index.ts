@@ -13,6 +13,11 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
@@ -47,6 +52,9 @@ function cleanTitle(title: string): string {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   try {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "50");
@@ -56,12 +64,13 @@ Deno.serve(async (req) => {
       .select("id, title, artist_id, artists(name)")
       .is("spotify_url", null)
       .is("spotify_search_attempted_at", null)
+      .eq("is_official", true)
       .limit(limit);
     if (error) throw error;
 
     if (!tracks || tracks.length === 0) {
       return new Response(JSON.stringify({ done: true, checked: 0, matched: 0 }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -80,7 +89,7 @@ Deno.serve(async (req) => {
           rateLimited: true,
           retryAfterSeconds: e?.retryAfterSeconds || 60,
         }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     let matched = 0;
@@ -127,12 +136,12 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ done: false, checked, matched, rateLimited, retryAfterSeconds }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
