@@ -477,9 +477,6 @@ export default function ArtistPage() {
             <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
               <input type="checkbox" checked={editDraft.is_official} onChange={(e) => setEditDraft({ ...editDraft, is_official: e.target.checked })} /> official
             </label>
-            <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
-              <input type="checkbox" checked={editDraft.has_audio} onChange={(e) => setEditDraft({ ...editDraft, has_audio: e.target.checked })} /> has audio
-            </label>
           </div>
           <div className="comments-count" style={{ marginBottom: 6 }}>Make this a sub-version of:</div>
           <div style={{ position: "relative" }}>
@@ -540,7 +537,6 @@ export default function ArtistPage() {
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
           {t.is_official ? <span className="feature-tag">official</span> : <span className="feature-tag">unreleased</span>}
-          {!t.has_audio && <span className="feature-tag">no audio</span>}
           <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
             {chipLabel}
           </button>
@@ -695,9 +691,6 @@ export default function ArtistPage() {
                 </label>
                 <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
                   <input type="checkbox" checked={newTrack.is_official} onChange={(e) => setNewTrack({ ...newTrack, is_official: e.target.checked })} /> official
-                </label>
-                <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
-                  <input type="checkbox" checked={newTrack.has_audio} onChange={(e) => setNewTrack({ ...newTrack, has_audio: e.target.checked })} /> has audio
                 </label>
               </div>
               <div className="comments-count" style={{ marginBottom: 6 }}>Sub-version of (optional):</div>
