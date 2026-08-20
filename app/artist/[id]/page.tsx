@@ -18,6 +18,13 @@ type Track = {
   is_featured: boolean;
   is_official: boolean;
   has_audio: boolean;
+  aliases: string | null;
+  track_number: number | null;
+  release_date: string | null;
+  producers: string | null;
+  featured_artists: string | null;
+  genre: string | null;
+  notes: string | null;
 };
 type Artist = { id: string; name: string; status: string | null };
 type RoleFilter = "all" | "main" | "featured";
@@ -63,11 +70,15 @@ export default function ArtistPage() {
   const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [openRatingId, setOpenRatingId] = useState<string | null>(null);
   const [openCommentsId, setOpenCommentsId] = useState<string | null>(null);
+  const [openInfoId, setOpenInfoId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<{ title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string } | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string;
+    aliases: string; track_number: string; release_date: string; producers: string; featured_artists: string; genre: string; notes: string;
+  } | null>(null);
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
@@ -103,7 +114,7 @@ export default function ArtistPage() {
       while (true) {
         const { data: page, error: trackErr } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, track_type, is_featured, is_official, has_audio")
+          .select("id, title, spotify_url, parent_track_id, track_type, is_featured, is_official, has_audio, aliases, track_number, release_date, producers, featured_artists, genre, notes")
           .eq("artist_id", id)
           .range(from, from + PAGE_SIZE - 1);
         if (trackErr) throw trackErr;
@@ -336,6 +347,28 @@ export default function ArtistPage() {
     load();
   }
 
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text);
+  }
+
+  function buildInfoLines(t: Track): [string, string][] {
+    const lines: [string, string][] = [["Track Name", t.title]];
+    if (t.aliases) lines.push(["Aliases", t.aliases]);
+    if (artist) lines.push(["Artist", artist.name]);
+    if (t.track_number) lines.push(["Track Number", String(t.track_number)]);
+    if (t.release_date) lines.push(["Release Date", t.release_date]);
+    if (t.producers) lines.push(["Producers", t.producers]);
+    if (t.featured_artists) lines.push(["Featured Artists", t.featured_artists]);
+    if (t.genre) lines.push(["Genre", t.genre]);
+    if (t.notes) lines.push(["Notes", t.notes]);
+    return lines;
+  }
+
+  function copyAllInfo(t: Track) {
+    const text = buildInfoLines(t).map(([label, value]) => `${label}: ${value}`).join("\n");
+    copyText(text);
+  }
+
   async function flagLink(track: Track) {
     if (!user) { router.push("/login"); return; }
     const reason = window.prompt("What's wrong with this link? (optional)") ?? "";
@@ -358,6 +391,13 @@ export default function ArtistPage() {
       is_official: t.is_official,
       has_audio: t.has_audio,
       parent_track_id: t.parent_track_id ?? "",
+      aliases: t.aliases ?? "",
+      track_number: t.track_number?.toString() ?? "",
+      release_date: t.release_date ?? "",
+      producers: t.producers ?? "",
+      featured_artists: t.featured_artists ?? "",
+      genre: t.genre ?? "",
+      notes: t.notes ?? "",
     });
     const currentParent = t.parent_track_id ? mainTracks.find((mt) => mt.id === t.parent_track_id) : null;
     setParentSearch(currentParent?.title ?? "");
@@ -375,6 +415,13 @@ export default function ArtistPage() {
       p_is_official: editDraft.is_official,
       p_has_audio: editDraft.has_audio,
       p_parent_track_id: editDraft.parent_track_id,
+      p_aliases: editDraft.aliases,
+      p_track_number: editDraft.track_number ? parseInt(editDraft.track_number, 10) : null,
+      p_release_date: editDraft.release_date || null,
+      p_producers: editDraft.producers,
+      p_featured_artists: editDraft.featured_artists,
+      p_genre: editDraft.genre,
+      p_notes: editDraft.notes,
     });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
@@ -516,6 +563,25 @@ export default function ArtistPage() {
           <div className="comments-count" style={{ marginBottom: 10, marginTop: 4 }}>
             {editDraft.parent_track_id ? "Will become a sub-version." : "Clear the box to keep it a main track."}
           </div>
+
+          <div className="comments-count" style={{ marginBottom: 6, marginTop: 8 }}>Verbose info (optional)</div>
+          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"
+            value={editDraft.aliases} onChange={(e) => setEditDraft({ ...editDraft, aliases: e.target.value })} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+              value={editDraft.track_number} onChange={(e) => setEditDraft({ ...editDraft, track_number: e.target.value })} />
+            <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+              value={editDraft.release_date} onChange={(e) => setEditDraft({ ...editDraft, release_date: e.target.value })} />
+          </div>
+          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
+            value={editDraft.producers} onChange={(e) => setEditDraft({ ...editDraft, producers: e.target.value })} />
+          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Featured artists"
+            value={editDraft.featured_artists} onChange={(e) => setEditDraft({ ...editDraft, featured_artists: e.target.value })} />
+          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Genre"
+            value={editDraft.genre} onChange={(e) => setEditDraft({ ...editDraft, genre: e.target.value })} />
+          <textarea className="comment-textarea" style={{ marginBottom: 10 }} placeholder="Notes"
+            value={editDraft.notes} onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value })} />
+
           <button className="comment-post-btn" disabled={adminBusy} onClick={() => saveEdit(t.id)}>save</button>{" "}
           <button className="rating-clear" onClick={() => { setEditingId(null); setEditDraft(null); }}>cancel</button>
         </div>
@@ -542,6 +608,9 @@ export default function ArtistPage() {
           </button>
           <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
             comments
+          </button>
+          <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenInfoId(openInfoId === t.id ? null : t.id); }}>
+            info
           </button>
           {!isSub && (
             <a
@@ -601,6 +670,23 @@ export default function ArtistPage() {
         )}
         {openCommentsId === t.id && (
           <div onClick={(e) => e.stopPropagation()}><TrackComments trackId={t.id} /></div>
+        )}
+        {openInfoId === t.id && (
+          <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="comments-header">
+              <div className="comments-count">Track info</div>
+              <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
+            </div>
+            {buildInfoLines(t).map(([label, value]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
+                <div style={{ flex: 1 }}>
+                  <div className="comment-meta" style={{ marginBottom: 2 }}>{label}</div>
+                  <div className="comment-body" style={{ fontSize: "0.82rem" }}>{value}</div>
+                </div>
+                <button className="comment-action-btn" onClick={() => copyText(value)}>copy</button>
+              </div>
+            ))}
+          </div>
         )}
         {openCandidatesId === t.id && (
           <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
