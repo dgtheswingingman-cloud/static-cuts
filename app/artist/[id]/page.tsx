@@ -471,6 +471,14 @@ export default function ArtistPage() {
     setTargetTrackResults([]);
   }
 
+  async function createArtistOnTheFly(name: string): Promise<{ id: string; name: string } | null> {
+    setAdminBusy(true);
+    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name });
+    setAdminBusy(false);
+    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return null; }
+    return { id: newId as string, name };
+  }
+
   // Admin found a matching existing entry -- merge (delete the duplicate,
   // link this canonical track in its place).
   async function mergeIntoExisting(track: Track, duplicateTrackId: string) {
@@ -517,14 +525,20 @@ export default function ArtistPage() {
   }, [newTrackMainArtistSearch]);
 
   // Parses free-text featured-artist names (comma/and/& separated) and
-  // links any that match a real existing artist -- best effort, since
-  // free text can't be perfectly parsed, but covers the common case.
+  // links each one -- creating the artist on the fly if they're not
+  // already in the archive, since this runs unattended after track
+  // creation rather than as an interactive search.
   async function autoLinkFeaturedArtists(trackId: string, text: string) {
     const names = text.split(/,|&| and /i).map((s) => s.trim()).filter(Boolean);
     for (const name of names) {
       const { data: matches } = await supabase.from("artists").select("id").ilike("name", name).limit(1);
-      if (matches && matches.length > 0) {
-        await supabase.rpc("admin_add_track_appearance", { p_track_id: trackId, p_artist_id: matches[0].id });
+      let targetArtistId = matches && matches.length > 0 ? matches[0].id : null;
+      if (!targetArtistId) {
+        const { data: createdId } = await supabase.rpc("admin_create_artist", { p_name: name });
+        targetArtistId = createdId as string | null;
+      }
+      if (targetArtistId) {
+        await supabase.rpc("admin_add_track_appearance", { p_track_id: trackId, p_artist_id: targetArtistId });
       }
     }
   }
@@ -558,6 +572,10 @@ export default function ArtistPage() {
       if (newTrack.is_featured) {
         // Link back to the (actually featured) artist whose page we added this from.
         await supabase.rpc("admin_add_track_appearance", { p_track_id: newTrackId as string, p_artist_id: id });
+        // Plus any OTHER featured artists on a multi-way collab.
+        if (newTrack.featured_artists_text.trim()) {
+          await autoLinkFeaturedArtists(newTrackId as string, newTrack.featured_artists_text);
+        }
       } else if (newTrack.featured_artists_text.trim()) {
         // Main track with named guests -- auto-link any that match a real artist.
         await autoLinkFeaturedArtists(newTrackId as string, newTrack.featured_artists_text);
@@ -1036,7 +1054,14 @@ export default function ArtistPage() {
                     <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
                   </div>
                 ))}
-                {artistResults.length === 0 && <div className="comments-count">No matches.</div>}
+                {artistResults.length === 0 && (
+                  <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={async () => {
+                    const created = await createArtistOnTheFly(artistSearch.trim());
+                    if (created) chooseLinkArtist(created);
+                  }}>
+                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{artistSearch.trim()}&quot;</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1147,15 +1172,29 @@ export default function ArtistPage() {
                             <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
                           </div>
                         ))}
-                        {newTrackMainArtistResults.length === 0 && <div className="comments-count">No matches.</div>}
+                        {newTrackMainArtistResults.length === 0 && (
+                          <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={async () => {
+                            const created = await createArtistOnTheFly(newTrackMainArtistSearch.trim());
+                            if (created) { setNewTrackMainArtistId(created.id); setNewTrackMainArtistSearch(created.name); }
+                          }}>
+                            <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{newTrackMainArtistSearch.trim()}&quot;</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                   {newTrackMainArtistId && (
-                    <div className="comments-count" style={{ marginTop: 4 }}>
+                    <div className="comments-count" style={{ marginTop: 4, marginBottom: 8 }}>
                       Will be added under {newTrackMainArtistSearch}, and linked here as a feature.
                     </div>
                   )}
+                  <input
+                    className="search-input"
+                    style={{ width: "100%" }}
+                    placeholder="Any other featured artists on this one? (comma separated, optional)"
+                    value={newTrack.featured_artists_text}
+                    onChange={(e) => setNewTrack({ ...newTrack, featured_artists_text: e.target.value })}
+                  />
                 </div>
               ) : (
                 <input
