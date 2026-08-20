@@ -89,9 +89,6 @@ export default function ArtistPage() {
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
-  const [addingFeature, setAddingFeature] = useState(false);
-  const [featureSearch, setFeatureSearch] = useState("");
-  const [featureResults, setFeatureResults] = useState<{ id: string; title: string; artist_id: string; artist_name: string }[]>([]);
   const [newTrack, setNewTrack] = useState({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "" });
   const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
   const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
@@ -408,33 +405,58 @@ export default function ArtistPage() {
     setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
   }
 
-  // Global track search (across every artist, not just this one) -- used
-  // to find an existing track and link it here as a cross-artist feature.
+  // Per-track linking: search for the ARTIST to link this specific track
+  // to (not another track -- the track is already chosen by which row you
+  // clicked from). Before linking, checks whether the target artist
+  // already has a same-titled track sitting there as an independent
+  // duplicate (common given the original per-artist Notion import) and
+  // offers to merge instead of creating a visible double-up.
+  const [linkingTrackId, setLinkingTrackId] = useState<string | null>(null);
+  const [artistSearch, setArtistSearch] = useState("");
+  const [artistResults, setArtistResults] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
-    const q = featureSearch.trim();
-    if (q.length < 2) { setFeatureResults([]); return; }
+    const q = artistSearch.trim();
+    if (q.length < 2) { setArtistResults([]); return; }
     const handle = setTimeout(async () => {
       const { data } = await supabase
-        .from("tracks")
-        .select("id, title, artist_id, artists(name)")
-        .ilike("title", `%${q}%`)
-        .neq("artist_id", id)
+        .from("artists")
+        .select("id, name")
+        .ilike("name", `%${q}%`)
+        .neq("id", id)
         .limit(8);
-      setFeatureResults(
-        (data ?? []).map((t: any) => ({ id: t.id, title: t.title, artist_id: t.artist_id, artist_name: t.artists?.name ?? "unknown artist" }))
-      );
+      setArtistResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
-  }, [featureSearch, id]);
+  }, [artistSearch, id]);
 
-  async function linkFeature(trackId: string) {
+  async function linkTrackToArtist(track: Track, targetArtistId: string, targetArtistName: string) {
     setAdminBusy(true);
-    const { error: err } = await supabase.rpc("admin_add_track_appearance", { p_track_id: trackId, p_artist_id: id });
+
+    // Check for an existing duplicate under the target artist first.
+    const { data: possibleDupes } = await supabase
+      .from("tracks")
+      .select("id, title")
+      .eq("artist_id", targetArtistId)
+      .ilike("title", track.title);
+
+    if (possibleDupes && possibleDupes.length > 0) {
+      const proceed = window.confirm(
+        `"${track.title}" already exists as its own separate entry under ${targetArtistName}. ` +
+        `Merge them (deletes that duplicate, links this one instead)? Cancel to leave both alone.`
+      );
+      if (!proceed) { setAdminBusy(false); return; }
+      for (const dupe of possibleDupes) {
+        await supabase.rpc("admin_delete_track", { p_track_id: dupe.id });
+      }
+    }
+
+    const { error: err } = await supabase.rpc("admin_add_track_appearance", { p_track_id: track.id, p_artist_id: targetArtistId });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
-    setAddingFeature(false);
-    setFeatureSearch("");
-    setFeatureResults([]);
+    setLinkingTrackId(null);
+    setArtistSearch("");
+    setArtistResults([]);
     load();
   }
 
@@ -789,6 +811,12 @@ export default function ArtistPage() {
             <>
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); startEdit(t); }}>edit</button>
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); deleteTrack(t, subs.length > 0); }}>delete</button>
+              <button
+                className="listen-link"
+                onClick={(e) => { e.stopPropagation(); setLinkingTrackId(linkingTrackId === t.id ? null : t.id); setArtistSearch(""); }}
+              >
+                link track
+              </button>
             </>
           )}
           {t.isCrossAppearance && (
@@ -894,6 +922,38 @@ export default function ArtistPage() {
               })}
           </div>
         )}
+        {linkingTrackId === t.id && (
+          <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="comments-count" style={{ marginBottom: 8 }}>
+              Search for the artist to link &quot;{t.title}&quot; onto as a feature. If a same-titled
+              track already exists as a separate entry there, you&apos;ll be offered a merge instead
+              of a duplicate.
+            </div>
+            <input
+              className="search-input"
+              style={{ width: "100%" }}
+              placeholder="Search artists…"
+              value={artistSearch}
+              onChange={(e) => setArtistSearch(e.target.value)}
+              autoFocus
+            />
+            {artistSearch.trim().length >= 2 && (
+              <div style={{ marginTop: 8 }}>
+                {artistResults.map((a) => (
+                  <div
+                    key={a.id}
+                    className="comment-item"
+                    style={{ cursor: "pointer", padding: "8px 6px" }}
+                    onClick={() => linkTrackToArtist(t, a.id, a.name)}
+                  >
+                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
+                  </div>
+                ))}
+                {artistResults.length === 0 && <div className="comments-count">No matches.</div>}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -926,37 +986,6 @@ export default function ArtistPage() {
             <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingTrack(!addingTrack)}>
               {addingTrack ? "cancel add track" : "+ add track"}
             </button>
-          )}
-          {isAdmin && (
-            <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingFeature(!addingFeature)}>
-              {addingFeature ? "cancel link feature" : "+ link featured track"}
-            </button>
-          )}
-          {addingFeature && isAdmin && (
-            <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
-              <div className="detail-meta" style={{ marginBottom: 8 }}>
-                Search for a track that already exists under another artist, to link it here as a
-                feature. Same track everywhere — same link, ratings, and comments.
-              </div>
-              <input
-                className="search-input"
-                style={{ width: "100%" }}
-                placeholder="Search any track by title…"
-                value={featureSearch}
-                onChange={(e) => setFeatureSearch(e.target.value)}
-              />
-              {featureSearch.trim().length >= 2 && (
-                <div style={{ marginTop: 8 }}>
-                  {featureResults.map((r) => (
-                    <div key={r.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => linkFeature(r.id)}>
-                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{r.title}</span>
-                      <div className="comment-meta">from {r.artist_name}</div>
-                    </div>
-                  ))}
-                  {featureResults.length === 0 && <div className="comments-count">No matches.</div>}
-                </div>
-              )}
-            </div>
           )}
           {addingTrack && isAdmin && (
             <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
