@@ -27,6 +27,11 @@ type Track = {
   featured_artists?: string | null;
   genre?: string | null;
   notes?: string | null;
+  // Client-only, not from DB: set when this track is shown here via a
+  // cross-artist appearance rather than being native to this artist.
+  isCrossAppearance?: boolean;
+  homeArtistId?: string;
+  homeArtistName?: string;
 };
 type Artist = { id: string; name: string; status: string | null };
 type RoleFilter = "all" | "main" | "featured";
@@ -84,6 +89,9 @@ export default function ArtistPage() {
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
+  const [addingFeature, setAddingFeature] = useState(false);
+  const [featureSearch, setFeatureSearch] = useState("");
+  const [featureResults, setFeatureResults] = useState<{ id: string; title: string; artist_id: string; artist_name: string }[]>([]);
   const [newTrack, setNewTrack] = useState({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "" });
   const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
   const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
@@ -126,6 +134,37 @@ export default function ArtistPage() {
         if (!page || page.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
       }
+
+      // Cross-artist appearances: tracks whose "home" is a different
+      // artist, but that have been linked to also show up here as a
+      // feature. Same canonical track -- just tagged distinctly and
+      // pointed back at its real home.
+      const { data: appearances } = await supabase
+        .from("track_appearances")
+        .select("track_id")
+        .eq("artist_id", id);
+      const appearanceTrackIds = (appearances ?? []).map((a) => a.track_id);
+      if (appearanceTrackIds.length > 0) {
+        const { data: crossTracks } = await supabase
+          .from("tracks")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, artist_id")
+          .in("id", appearanceTrackIds);
+        const homeArtistIds = Array.from(new Set((crossTracks ?? []).map((t: any) => t.artist_id)));
+        const { data: homeArtists } = await supabase.from("artists").select("id, name").in("id", homeArtistIds);
+        const homeNameMap: Record<string, string> = {};
+        (homeArtists ?? []).forEach((a: any) => { homeNameMap[a.id] = a.name; });
+
+        (crossTracks ?? []).forEach((t: any) => {
+          all.push({
+            ...t,
+            is_featured: true, // always shows as featured on a page that isn't its home
+            isCrossAppearance: true,
+            homeArtistId: t.artist_id,
+            homeArtistName: homeNameMap[t.artist_id] ?? "unknown artist",
+          });
+        });
+      }
+
       all.sort((a, b) => a.title.localeCompare(b.title));
       setTracks(all);
     } catch (e: any) {
@@ -367,6 +406,45 @@ export default function ArtistPage() {
     });
     if (err) { alert(err.message); return; }
     setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
+  }
+
+  // Global track search (across every artist, not just this one) -- used
+  // to find an existing track and link it here as a cross-artist feature.
+  useEffect(() => {
+    const q = featureSearch.trim();
+    if (q.length < 2) { setFeatureResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from("tracks")
+        .select("id, title, artist_id, artists(name)")
+        .ilike("title", `%${q}%`)
+        .neq("artist_id", id)
+        .limit(8);
+      setFeatureResults(
+        (data ?? []).map((t: any) => ({ id: t.id, title: t.title, artist_id: t.artist_id, artist_name: t.artists?.name ?? "unknown artist" }))
+      );
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [featureSearch, id]);
+
+  async function linkFeature(trackId: string) {
+    setAdminBusy(true);
+    const { error: err } = await supabase.rpc("admin_add_track_appearance", { p_track_id: trackId, p_artist_id: id });
+    setAdminBusy(false);
+    if (err) { alert(err.message); return; }
+    setAddingFeature(false);
+    setFeatureSearch("");
+    setFeatureResults([]);
+    load();
+  }
+
+  async function unlinkFeature(trackId: string) {
+    if (!window.confirm("Remove this track from this artist's page? (The track itself won't be deleted, just this cross-reference.)")) return;
+    setAdminBusy(true);
+    const { error: err } = await supabase.rpc("admin_remove_track_appearance", { p_track_id: trackId, p_artist_id: id });
+    setAdminBusy(false);
+    if (err) { alert(err.message); return; }
+    load();
   }
 
   async function addTrack() {
@@ -707,10 +785,27 @@ export default function ArtistPage() {
               possible matches ({candidatesByTrack[t.id].length})
             </button>
           )}
-          {isAdmin && (
+          {isAdmin && !t.isCrossAppearance && (
             <>
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); startEdit(t); }}>edit</button>
               <button className="listen-link" onClick={(e) => { e.stopPropagation(); deleteTrack(t, subs.length > 0); }}>delete</button>
+            </>
+          )}
+          {t.isCrossAppearance && (
+            <>
+              <Link
+                href={`/artist/${t.homeArtistId}`}
+                className="feature-tag"
+                style={{ textDecoration: "none" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                featured via {t.homeArtistName}
+              </Link>
+              {isAdmin && (
+                <button className="listen-link" onClick={(e) => { e.stopPropagation(); unlinkFeature(t.id); }}>
+                  remove from this page
+                </button>
+              )}
             </>
           )}
           {t.spotify_url && (
@@ -831,6 +926,37 @@ export default function ArtistPage() {
             <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingTrack(!addingTrack)}>
               {addingTrack ? "cancel add track" : "+ add track"}
             </button>
+          )}
+          {isAdmin && (
+            <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingFeature(!addingFeature)}>
+              {addingFeature ? "cancel link feature" : "+ link featured track"}
+            </button>
+          )}
+          {addingFeature && isAdmin && (
+            <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
+              <div className="detail-meta" style={{ marginBottom: 8 }}>
+                Search for a track that already exists under another artist, to link it here as a
+                feature. Same track everywhere — same link, ratings, and comments.
+              </div>
+              <input
+                className="search-input"
+                style={{ width: "100%" }}
+                placeholder="Search any track by title…"
+                value={featureSearch}
+                onChange={(e) => setFeatureSearch(e.target.value)}
+              />
+              {featureSearch.trim().length >= 2 && (
+                <div style={{ marginTop: 8 }}>
+                  {featureResults.map((r) => (
+                    <div key={r.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => linkFeature(r.id)}>
+                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{r.title}</span>
+                      <div className="comment-meta">from {r.artist_name}</div>
+                    </div>
+                  ))}
+                  {featureResults.length === 0 && <div className="comments-count">No matches.</div>}
+                </div>
+              )}
+            </div>
           )}
           {addingTrack && isAdmin && (
             <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
