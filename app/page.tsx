@@ -133,7 +133,7 @@ export default function HomePage() {
       setTrackSearchLoading(true);
       const { data, error: searchErr } = await supabase
         .from("tracks")
-        .select("id, title, artist_id, spotify_url, artists(name)")
+        .select("id, title, artist_id, spotify_url, artists!artist_id(name)")
         .or(`title.ilike.%${q}%,aliases.ilike.%${q}%`)
         .limit(25);
       setTrackSearchLoading(false);

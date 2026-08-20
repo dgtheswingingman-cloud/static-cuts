@@ -90,7 +90,7 @@ export default function ProfilePage() {
       if (profileRow.show_collected_tracks) {
         const { data } = await supabase
           .from("track_ownership")
-          .select("track_id, tracks(title, artist_id, artists(name))")
+          .select("track_id, tracks(title, artist_id, artists!artist_id(name))")
           .eq("user_id", userId)
           .order("collected_at", { ascending: false })
           .limit(100);
@@ -100,7 +100,7 @@ export default function ProfilePage() {
       if (profileRow.show_ratings) {
         const { data } = await supabase
           .from("ratings")
-          .select("track_id, value, tracks(title, artist_id, artists(name))")
+          .select("track_id, value, tracks(title, artist_id, artists!artist_id(name))")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false })
           .limit(100);
@@ -110,7 +110,7 @@ export default function ProfilePage() {
       if (profileRow.show_followed_artists) {
         const { data } = await supabase
           .from("follows")
-          .select("artist_id, artists(name)")
+          .select("artist_id, artists!artist_id(name)")
           .eq("user_id", userId)
           .order("followed_at", { ascending: false });
         setFollowedArtists((data as any) ?? []);

@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const { data: tracks, error } = await supabase
       .from("tracks")
-      .select("id, title, artist_id, artists(name)")
+      .select("id, title, artist_id, artists!artist_id(name)")
       .is("spotify_url", null)
       .eq("is_official", false)
       .is("possible_links_attempted_at", null)
