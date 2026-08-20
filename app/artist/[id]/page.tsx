@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import TrackComments from "./TrackComments";
+import ArtistChangelog from "./ArtistChangelog";
 
 type Track = {
   id: string;
@@ -813,6 +814,14 @@ export default function ArtistPage() {
               {filteredMain.length === 0 && <div className="empty-state">Nothing here yet.</div>}
             </div>
           )}
+
+          <div className="section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Changelog</span>
+            <Link href={`/artist/${id}/changelog`} className="tab" style={{ padding: "3px 10px", fontSize: "0.62rem", textDecoration: "none" }}>
+              view all
+            </Link>
+          </div>
+          <ArtistChangelog artistId={id} limit={10} />
 
           <div className="note">
             <b>Your collection now syncs</b> — click any track to mark it collected; it saves
