@@ -677,9 +677,6 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
-          <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={pickRandomDeepCut}>
-            🎲 random deep cut
-          </button>
           {!isAdmin && (
             <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
               + suggest a track
@@ -818,6 +815,28 @@ export default function ArtistPage() {
             alphabetically — click a letter to expand it. Alternate versions (demos, live takes,
             alt mixes) nest under their original track instead of appearing as separate entries.
           </div>
+
+          <button
+            onClick={pickRandomDeepCut}
+            style={{
+              position: "fixed",
+              bottom: 24,
+              right: 24,
+              zIndex: 40,
+              background: "var(--bone)",
+              color: "var(--void)",
+              border: "none",
+              borderRadius: 999,
+              padding: "14px 20px",
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.5)",
+            }}
+          >
+            🎲 random deep cut
+          </button>
         </>
       )}
     </div>
