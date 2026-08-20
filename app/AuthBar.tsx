@@ -73,6 +73,11 @@ export default function AuthBar() {
             review queue
           </Link>
         )}
+        {isAdmin && (
+          <Link href="/admin/spotify-matcher" style={smallBtn}>
+            spotify matcher
+          </Link>
+        )}
         <button onClick={() => signOut()} style={smallBtn}>
           log out
         </button>
