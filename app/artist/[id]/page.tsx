@@ -22,7 +22,6 @@ type Artist = { id: string; name: string; status: string | null };
 type RoleFilter = "all" | "main" | "featured";
 type ReleaseFilter = "all" | "official" | "unreleased";
 type CollectedFilter = "all" | "collected" | "uncollected";
-type TrackSortKey = "title-asc" | "title-desc";
 
 function trackPasses(
   t: Track,
@@ -58,7 +57,6 @@ export default function ArtistPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>("all");
   const [collectedFilter, setCollectedFilter] = useState<CollectedFilter>("all");
-  const [sort, setSort] = useState<TrackSortKey>("title-asc");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
   const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
@@ -404,10 +402,7 @@ export default function ArtistPage() {
 
   const filteredMain = (() => {
     const list = mainTracks.filter((t) => trackPasses(t, owned, roleFilter, releaseFilter, collectedFilter));
-    const sorted = [...list];
-    if (sort === "title-desc") sorted.sort((a, b) => b.title.localeCompare(a.title));
-    else sorted.sort((a, b) => a.title.localeCompare(b.title));
-    return sorted;
+    return [...list].sort((a, b) => a.title.localeCompare(b.title));
   })();
 
   const letterGroups: Record<string, Track[]> = {};
@@ -782,15 +777,9 @@ export default function ArtistPage() {
               )}
             </div>
 
-            <div className="sort-row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
-                <button className="sort-select" onClick={() => setOpenLetters(new Set())}>collapse all</button>
-              </div>
-              <select className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as TrackSortKey)}>
-                <option value="title-asc">Title (A–Z)</option>
-                <option value="title-desc">Title (Z–A)</option>
-              </select>
+            <div className="sort-row" style={{ marginBottom: 8 }}>
+              <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
+              <button className="sort-select" style={{ marginLeft: 6 }} onClick={() => setOpenLetters(new Set())}>collapse all</button>
             </div>
           </div>
 
