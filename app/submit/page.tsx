@@ -25,6 +25,13 @@ function SubmitForm() {
   const currentOfficial = searchParams.get("current_official") === "true";
   const currentParentId = searchParams.get("current_parent_id") ?? "";
   const currentParentTitle = searchParams.get("current_parent_title") ?? "";
+  const currentAliases = searchParams.get("current_aliases") ?? "";
+  const currentTrackNumber = searchParams.get("current_track_number") ?? "";
+  const currentReleaseDate = searchParams.get("current_release_date") ?? "";
+  const currentProducers = searchParams.get("current_producers") ?? "";
+  const currentFeaturedArtists = searchParams.get("current_featured_artists") ?? "";
+  const currentGenre = searchParams.get("current_genre") ?? "";
+  const currentNotes = searchParams.get("current_notes") ?? "";
 
   const [parentSearch, setParentSearch] = useState(currentParentTitle);
   const [parentResults, setParentResults] = useState<{ id: string; title: string }[]>([]);
@@ -53,6 +60,13 @@ function SubmitForm() {
   const [editFeatured, setEditFeatured] = useState(currentFeatured);
   const [editOfficial, setEditOfficial] = useState(currentOfficial);
   const [editParentId, setEditParentId] = useState(currentParentId);
+  const [editAliases, setEditAliases] = useState(currentAliases);
+  const [editTrackNumber, setEditTrackNumber] = useState(currentTrackNumber);
+  const [editReleaseDate, setEditReleaseDate] = useState(currentReleaseDate);
+  const [editProducers, setEditProducers] = useState(currentProducers);
+  const [editFeaturedArtists, setEditFeaturedArtists] = useState(currentFeaturedArtists);
+  const [editGenre, setEditGenre] = useState(currentGenre);
+  const [editNotes, setEditNotes] = useState(currentNotes);
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,6 +225,13 @@ function SubmitForm() {
             is_featured: editFeatured,
             is_official: editOfficial,
             parent_track_id: editParentId,
+            aliases: editAliases.trim(),
+            track_number: editTrackNumber.trim(),
+            release_date: editReleaseDate.trim(),
+            producers: editProducers.trim(),
+            featured_artists: editFeaturedArtists.trim(),
+            genre: editGenre.trim(),
+            notes: editNotes.trim(),
           },
         });
         if (err) throw err;
@@ -383,6 +404,24 @@ function SubmitForm() {
             <div className="detail-meta" style={{ marginBottom: 12 }}>
               {editParentId ? "Will become a sub-version." : "Clear the box to keep it a main track."}
             </div>
+
+            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
+              value={editAliases} onChange={(e) => setEditAliases(e.target.value)} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+                value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />
+              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+                value={editReleaseDate} onChange={(e) => setEditReleaseDate(e.target.value)} />
+            </div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
+              value={editProducers} onChange={(e) => setEditProducers(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Featured artists"
+              value={editFeaturedArtists} onChange={(e) => setEditFeaturedArtists(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
+              value={editGenre} onChange={(e) => setEditGenre(e.target.value)} />
+            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
+              value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
           </>
         )}
 
