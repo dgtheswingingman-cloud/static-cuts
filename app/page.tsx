@@ -205,16 +205,27 @@ export default function HomePage() {
           {!trackSearchLoading && trackResults.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               {trackResults.map((t) => (
-                <div key={t.id} className="track-row">
+                <Link
+                  key={t.id}
+                  href={`/artist/${t.artist_id}?highlight=${t.id}`}
+                  className="track-row"
+                  style={{ textDecoration: "none" }}
+                >
                   <span className="track-title" style={{ flex: "0 1 auto" }}>{t.title}</span>
-                  <Link href={`/artist/${t.artist_id}`} className="feature-tag" style={{ textDecoration: "none" }}>
-                    {t.artists?.name ?? "unknown artist"}
-                  </Link>
+                  <span className="feature-tag">{t.artists?.name ?? "unknown artist"}</span>
                   <span style={{ flex: 1 }} />
                   {t.spotify_url && (
-                    <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer">listen</a>
+                    <a
+                      className="listen-link"
+                      href={t.spotify_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      listen
+                    </a>
                   )}
-                </div>
+                </Link>
               ))}
             </div>
           )}

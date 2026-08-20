@@ -88,6 +88,7 @@ export default function ArtistPage() {
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
+  const [trackSearchQuery, setTrackSearchQuery] = useState("");
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
   const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
@@ -459,6 +460,18 @@ export default function ArtistPage() {
     (letterGroups[letter] = letterGroups[letter] || []).push(t);
   });
   const sortedLetters = Object.keys(letterGroups).sort();
+
+  // When actively searching within this artist, show a flat, alphabetized
+  // list across main tracks AND sub-entries (matching title or aliases)
+  // instead of the letter-grouped view.
+  const trackSearchResults = (() => {
+    const q = trackSearchQuery.trim().toLowerCase();
+    if (!q || !tracks) return null;
+    return tracks
+      .filter((t) => trackPasses(t, owned, roleFilter, releaseFilter, collectedFilter))
+      .filter((t) => t.title.toLowerCase().includes(q) || (t.aliases ?? "").toLowerCase().includes(q))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  })();
 
   const confirmedCount = tracks?.filter((t) => t.spotify_url).length ?? 0;
   const collectedCount = tracks?.filter((t) => owned.has(t.id)).length ?? 0;
@@ -839,6 +852,13 @@ export default function ArtistPage() {
               borderBottom: "1px solid var(--hair)",
             }}
           >
+            <input
+              className="search-input"
+              style={{ width: "100%", marginBottom: 10 }}
+              placeholder="Search tracks on this page…"
+              value={trackSearchQuery}
+              onChange={(e) => setTrackSearchQuery(e.target.value)}
+            />
             <div className="tabs">
               {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
                 <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
@@ -865,7 +885,16 @@ export default function ArtistPage() {
 
           {!tracks && <div className="empty-state">loading tracklist…</div>}
 
-          {tracks && (
+          {tracks && trackSearchResults !== null && (
+            <div>
+              {trackSearchResults.map((t) => trackRow(t, !!t.parent_track_id))}
+              {trackSearchResults.length === 0 && (
+                <div className="empty-state">No tracks match &quot;{trackSearchQuery}&quot;.</div>
+              )}
+            </div>
+          )}
+
+          {tracks && trackSearchResults === null && (
             <div>
               {sortedLetters.map((letter) => {
                 const isOpen = openLetters.has(letter);
