@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 
@@ -137,7 +138,10 @@ export default function TrackComments({ trackId }: { trackId: string }) {
     return (
       <div key={c.id} className={`comment-item ${depth > 0 ? "reply" : ""}`}>
         <div className="comment-meta">
-          {names[c.user_id] ?? "anonymous"} · {new Date(c.created_at).toLocaleDateString()}
+          <Link href={`/profile/${c.user_id}`} style={{ color: "var(--bone)" }}>
+            {names[c.user_id] ?? "anonymous"}
+          </Link>{" "}
+          · {new Date(c.created_at).toLocaleDateString()}
         </div>
         <div className="comment-body">{c.body}</div>
         <div className="comment-actions">
