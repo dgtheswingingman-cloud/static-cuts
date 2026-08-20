@@ -749,33 +749,49 @@ export default function ArtistPage() {
             </div>
           )}
 
-          <div className="tabs">
-            {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
-              <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
-            ))}
-            <span style={{ width: 4 }} />
-            {(["all", "official", "unreleased"] as ReleaseFilter[]).map((f) => (
-              <button key={f} className={`tab ${releaseFilter === f ? "active" : ""}`} onClick={() => setReleaseFilter(f)}>{f}</button>
-            ))}
-            {user && (
-              <>
-                <span style={{ width: 4 }} />
-                {(["all", "collected", "uncollected"] as CollectedFilter[]).map((f) => (
-                  <button key={f} className={`tab ${collectedFilter === f ? "active" : ""}`} onClick={() => setCollectedFilter(f)}>{f}</button>
-                ))}
-              </>
-            )}
-          </div>
-
-          <div className="sort-row" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
-              <button className="sort-select" onClick={() => setOpenLetters(new Set())}>collapse all</button>
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 20,
+              background: "var(--void)",
+              paddingTop: 10,
+              paddingBottom: 4,
+              marginLeft: -20,
+              marginRight: -20,
+              paddingLeft: 20,
+              paddingRight: 20,
+              borderBottom: "1px solid var(--hair)",
+            }}
+          >
+            <div className="tabs">
+              {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
+                <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
+              ))}
+              <span style={{ width: 4 }} />
+              {(["all", "official", "unreleased"] as ReleaseFilter[]).map((f) => (
+                <button key={f} className={`tab ${releaseFilter === f ? "active" : ""}`} onClick={() => setReleaseFilter(f)}>{f}</button>
+              ))}
+              {user && (
+                <>
+                  <span style={{ width: 4 }} />
+                  {(["all", "collected", "uncollected"] as CollectedFilter[]).map((f) => (
+                    <button key={f} className={`tab ${collectedFilter === f ? "active" : ""}`} onClick={() => setCollectedFilter(f)}>{f}</button>
+                  ))}
+                </>
+              )}
             </div>
-            <select className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as TrackSortKey)}>
-              <option value="title-asc">Title (A–Z)</option>
-              <option value="title-desc">Title (Z–A)</option>
-            </select>
+
+            <div className="sort-row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
+                <button className="sort-select" onClick={() => setOpenLetters(new Set())}>collapse all</button>
+              </div>
+              <select className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as TrackSortKey)}>
+                <option value="title-asc">Title (A–Z)</option>
+                <option value="title-desc">Title (Z–A)</option>
+              </select>
+            </div>
           </div>
 
           {!tracks && <div className="empty-state">loading tracklist…</div>}
