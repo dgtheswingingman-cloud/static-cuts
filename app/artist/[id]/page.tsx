@@ -449,7 +449,7 @@ export default function ArtistPage() {
         .from("tracks")
         .select("id, title")
         .eq("artist_id", linkTargetArtist.id)
-        .ilike("title", `%${q}%`)
+        .or(`title.ilike.%${q}%,aliases.ilike.%${q}%`)
         .limit(8);
       setTargetTrackResults(data ?? []);
     }, 300);
@@ -483,7 +483,11 @@ export default function ArtistPage() {
   // link this canonical track in its place).
   async function mergeIntoExisting(track: Track, duplicateTrackId: string) {
     if (!linkTargetArtist) return;
-    if (!window.confirm(`Delete the duplicate entry and link "${track.title}" here instead?`)) return;
+    const proceed = window.confirm(
+      `Delete the duplicate entry and link "${track.title}" here instead? ` +
+      `Any ratings or comments on that duplicate will be lost — only the version you're linking keeps its own.`
+    );
+    if (!proceed) return;
     setAdminBusy(true);
     await supabase.rpc("admin_delete_track", { p_track_id: duplicateTrackId });
     const { error: err } = await supabase.rpc("admin_add_track_appearance", { p_track_id: track.id, p_artist_id: linkTargetArtist.id });
@@ -672,15 +676,27 @@ export default function ArtistPage() {
     });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
+    if (editDraft.featured_artists.trim()) {
+      await autoLinkFeaturedArtists(trackId, editDraft.featured_artists);
+    }
     setEditingId(null);
     setEditDraft(null);
     load();
   }
 
   async function deleteTrack(t: Track, hasSubs: boolean) {
-    const warning = hasSubs
-      ? `Delete "${t.title}"? Its alternate versions will be deleted too.`
-      : `Delete "${t.title}"?`;
+    const { data: appearances } = await supabase
+      .from("track_appearances")
+      .select("artist_id, artists!artist_id(name)")
+      .eq("track_id", t.id);
+    const appearanceCount = appearances?.length ?? 0;
+    const appearanceNames = (appearances ?? []).map((a: any) => a.artists?.name).filter(Boolean).join(", ");
+
+    let warning = `Delete "${t.title}"?`;
+    if (hasSubs) warning += " Its alternate versions will be deleted too.";
+    if (appearanceCount > 0) {
+      warning += ` It's also linked as a feature on ${appearanceCount} other artist page${appearanceCount === 1 ? "" : "s"} (${appearanceNames}) — deleting it removes it from those too, not just here.`;
+    }
     if (!window.confirm(warning)) return;
     setAdminBusy(true);
     const { error: err } = await supabase.rpc("admin_delete_track", { p_track_id: t.id });
