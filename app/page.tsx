@@ -31,6 +31,7 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [trackResults, setTrackResults] = useState<TrackResult[]>([]);
   const [trackSearchLoading, setTrackSearchLoading] = useState(false);
+  const [trackSearchError, setTrackSearchError] = useState<string | null>(null);
   const [artistSort, setArtistSort] = useState<ArtistSortKey>("name-asc");
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
@@ -136,7 +137,12 @@ export default function HomePage() {
         .or(`title.ilike.%${q}%,aliases.ilike.%${q}%`)
         .limit(25);
       setTrackSearchLoading(false);
-      if (!searchErr) {
+      if (searchErr) {
+        console.error("track search failed:", searchErr);
+        setTrackSearchError(searchErr.message);
+        setTrackResults([]);
+      } else {
+        setTrackSearchError(null);
         setTrackResults((data as any) ?? []);
       }
     }, 300);
@@ -199,7 +205,12 @@ export default function HomePage() {
         <>
           <div className="section-label">Tracks matching &quot;{q}&quot;</div>
           {trackSearchLoading && <div className="empty-state">searching…</div>}
-          {!trackSearchLoading && trackResults.length === 0 && (
+          {trackSearchError && (
+            <div className="empty-state" style={{ borderColor: "#a33" }}>
+              Search failed: <b>{trackSearchError}</b>
+            </div>
+          )}
+          {!trackSearchLoading && !trackSearchError && trackResults.length === 0 && (
             <div className="empty-state">No tracks match &quot;{q}&quot;.</div>
           )}
           {!trackSearchLoading && trackResults.length > 0 && (
