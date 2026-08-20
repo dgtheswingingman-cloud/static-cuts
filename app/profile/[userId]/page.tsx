@@ -9,6 +9,8 @@ import { useAuth } from "../../AuthProvider";
 type Profile = {
   id: string;
   display_name: string | null;
+  avatar_url: string | null;
+  about: string | null;
   show_completion_pct: boolean;
   show_collected_tracks: boolean;
   show_ratings: boolean;
@@ -67,7 +69,7 @@ export default function ProfilePage() {
     async function load() {
       const { data: profileRow, error } = await supabase
         .from("profiles")
-        .select("id, display_name, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
+        .select("id, display_name, avatar_url, about, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
         .eq("id", userId)
         .single();
       if (error || !profileRow) {
@@ -169,7 +171,23 @@ export default function ProfilePage() {
               <button className="tab" onClick={() => setEditingName(false)}>cancel</button>
             </div>
           ) : (
-            <h1 className="detail-name">{profile.display_name ?? "anonymous"}</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
+              {profile.avatar_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--hair)" }}
+                />
+              )}
+              <h1 className="detail-name" style={{ margin: 0 }}>{profile.display_name ?? "anonymous"}</h1>
+            </div>
+          )}
+
+          {profile.about && (
+            <div style={{ fontFamily: "var(--font-inter)", fontSize: "0.88rem", color: "var(--smoke)", maxWidth: 480, marginBottom: 16, lineHeight: 1.5 }}>
+              {profile.about}
+            </div>
           )}
 
           {isOwnProfile && !editingName && (
@@ -181,7 +199,7 @@ export default function ProfilePage() {
                 edit name
               </button>
               <Link href="/settings" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
-                privacy settings
+                edit profile / privacy
               </Link>
             </div>
           )}
