@@ -27,6 +27,7 @@ type Track = {
   featured_artists?: string | null;
   genre?: string | null;
   notes?: string | null;
+  album?: string | null;
   // Client-only, not from DB: set when this track is shown here via a
   // cross-artist appearance rather than being native to this artist.
   isCrossAppearance?: boolean;
@@ -84,7 +85,7 @@ export default function ArtistPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string;
-    aliases: string; track_number: string; release_date: string; producers: string; featured_artists: string; genre: string; notes: string;
+    aliases: string; track_number: string; release_date: string; producers: string; featured_artists: string; genre: string; notes: string; album: string;
   } | null>(null);
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
@@ -322,7 +323,7 @@ export default function ArtistPage() {
     const [detailsRes, candidatesRes] = await Promise.all([
       supabase
         .from("tracks")
-        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes")
+        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album")
         .in("id", idsToLoad),
       supabase
         .from("track_link_candidates")
@@ -497,6 +498,7 @@ export default function ArtistPage() {
     const lines: [string, string][] = [["Track Name", t.title]];
     if (t.aliases) lines.push(["Aliases", t.aliases]);
     if (artist) lines.push(["Artist", artist.name]);
+    if (t.album) lines.push(["Album", t.album]);
     if (t.track_number) lines.push(["Track Number", String(t.track_number)]);
     if (t.release_date) lines.push(["Release Date", t.release_date]);
     if (t.producers) lines.push(["Producers", t.producers]);
@@ -540,6 +542,7 @@ export default function ArtistPage() {
       featured_artists: t.featured_artists ?? "",
       genre: t.genre ?? "",
       notes: t.notes ?? "",
+      album: t.album ?? "",
     });
     const currentParent = t.parent_track_id ? mainTracks.find((mt) => mt.id === t.parent_track_id) : null;
     setParentSearch(currentParent?.title ?? "");
@@ -564,6 +567,7 @@ export default function ArtistPage() {
       p_featured_artists: editDraft.featured_artists,
       p_genre: editDraft.genre,
       p_notes: editDraft.notes,
+      p_album: editDraft.album,
     });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
@@ -734,6 +738,8 @@ export default function ArtistPage() {
           <div className="comments-count" style={{ marginBottom: 6, marginTop: 8 }}>Verbose info (optional)</div>
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"
             value={editDraft.aliases} onChange={(e) => setEditDraft({ ...editDraft, aliases: e.target.value })} />
+          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
+            value={editDraft.album} onChange={(e) => setEditDraft({ ...editDraft, album: e.target.value })} />
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
               value={editDraft.track_number} onChange={(e) => setEditDraft({ ...editDraft, track_number: e.target.value })} />
@@ -791,7 +797,7 @@ export default function ArtistPage() {
           )}
           {user && !isAdmin && (
             <a
-              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artists=${encodeURIComponent(t.featured_artists ?? "")}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}`}
+              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artists=${encodeURIComponent(t.featured_artists ?? "")}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
               className="listen-link"
               onClick={(e) => e.stopPropagation()}
               style={{ fontSize: "0.68rem" }}

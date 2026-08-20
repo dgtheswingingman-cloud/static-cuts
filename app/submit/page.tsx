@@ -32,6 +32,7 @@ function SubmitForm() {
   const currentFeaturedArtists = searchParams.get("current_featured_artists") ?? "";
   const currentGenre = searchParams.get("current_genre") ?? "";
   const currentNotes = searchParams.get("current_notes") ?? "";
+  const currentAlbum = searchParams.get("current_album") ?? "";
 
   const [parentSearch, setParentSearch] = useState(currentParentTitle);
   const [parentResults, setParentResults] = useState<{ id: string; title: string }[]>([]);
@@ -67,6 +68,7 @@ function SubmitForm() {
   const [editFeaturedArtists, setEditFeaturedArtists] = useState(currentFeaturedArtists);
   const [editGenre, setEditGenre] = useState(currentGenre);
   const [editNotes, setEditNotes] = useState(currentNotes);
+  const [editAlbum, setEditAlbum] = useState(currentAlbum);
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,6 +234,7 @@ function SubmitForm() {
             featured_artists: editFeaturedArtists.trim(),
             genre: editGenre.trim(),
             notes: editNotes.trim(),
+            album: editAlbum.trim(),
           },
         });
         if (err) throw err;
@@ -408,6 +411,8 @@ function SubmitForm() {
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
               value={editAliases} onChange={(e) => setEditAliases(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
+              value={editAlbum} onChange={(e) => setEditAlbum(e.target.value)} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
                 value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />
