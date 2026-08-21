@@ -102,6 +102,11 @@ export default function ArtistPage() {
   const [newTrackMainArtistId, setNewTrackMainArtistId] = useState("");
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
+  // Real cross-artist links for a track, derived from track_appearances --
+  // this is what the info panel shows as "Featured Artists", NOT the raw
+  // free-text field, so the display always matches reality regardless of
+  // whether the text was ever typed/edited to match.
+  const [linkedFeaturedArtists, setLinkedFeaturedArtists] = useState<Record<string, string[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
   const [trackSearchQuery, setTrackSearchQuery] = useState("");
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
@@ -356,7 +361,7 @@ export default function ArtistPage() {
     const idsToLoad = force ? trackIds : trackIds.filter((tid) => !loadedDetailIds.has(tid));
     if (idsToLoad.length === 0) return;
 
-    const [detailsRes, candidatesRes] = await Promise.all([
+    const [detailsRes, candidatesRes, appearancesRes] = await Promise.all([
       supabase
         .from("tracks")
         .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album")
@@ -365,7 +370,21 @@ export default function ArtistPage() {
         .from("track_link_candidates")
         .select("id, track_id, url, title, source_domain")
         .in("track_id", idsToLoad),
+      supabase
+        .from("track_appearances")
+        .select("track_id, artists!artist_id(name)")
+        .in("track_id", idsToLoad),
     ]);
+
+    if (appearancesRes.data) {
+      const map: Record<string, string[]> = {};
+      appearancesRes.data.forEach((a: any) => {
+        const name = a.artists?.name;
+        if (!name) return;
+        (map[a.track_id] = map[a.track_id] || []).push(name);
+      });
+      setLinkedFeaturedArtists((prev) => ({ ...prev, ...map }));
+    }
 
     if (detailsRes.data) {
       const detailMap: Record<string, any> = {};
@@ -627,12 +646,20 @@ export default function ArtistPage() {
   function buildInfoLines(t: Track): [string, string][] {
     const lines: [string, string][] = [["Track Name", t.title]];
     if (t.aliases) lines.push(["Aliases", t.aliases]);
-    if (artist) lines.push(["Artist", artist.name]);
+    // Always the track's true home artist, not whichever page it's being
+    // viewed from -- for a cross-artist appearance, that's the artist it
+    // was originally linked FROM, not the current page.
+    const homeArtistName = t.isCrossAppearance ? t.homeArtistName : artist?.name;
+    if (homeArtistName) lines.push(["Artist", homeArtistName]);
     if (t.album) lines.push(["Album", t.album]);
     if (t.track_number) lines.push(["Track Number", String(t.track_number)]);
     if (t.release_date) lines.push(["Release Date", t.release_date]);
     if (t.producers) lines.push(["Producers", t.producers]);
-    if (t.featured_artists) lines.push(["Featured Artists", t.featured_artists]);
+    // Real linked artists (from track_appearances), not the raw free-text
+    // field -- that text is just an input for triggering auto-links, not
+    // the source of truth for what's actually displayed.
+    const realFeatured = linkedFeaturedArtists[t.id];
+    if (realFeatured && realFeatured.length > 0) lines.push(["Featured Artists", realFeatured.join(", ")]);
     if (t.genre) lines.push(["Genre", t.genre]);
     if (t.notes) lines.push(["Notes", t.notes]);
     return lines;
@@ -660,7 +687,7 @@ export default function ArtistPage() {
       track_number: t.track_number?.toString() ?? "",
       release_date: t.release_date ?? "",
       producers: t.producers ?? "",
-      featured_artists: t.featured_artists ?? "",
+      featured_artists: (linkedFeaturedArtists[t.id] ?? []).join(", ") || (t.featured_artists ?? ""),
       genre: t.genre ?? "",
       notes: t.notes ?? "",
       album: t.album ?? "",
