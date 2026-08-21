@@ -106,7 +106,7 @@ export default function ArtistPage() {
   // this is what the info panel shows as "Featured Artists", NOT the raw
   // free-text field, so the display always matches reality regardless of
   // whether the text was ever typed/edited to match.
-  const [linkedFeaturedArtists, setLinkedFeaturedArtists] = useState<Record<string, string[]>>({});
+  const [linkedFeaturedArtists, setLinkedFeaturedArtists] = useState<Record<string, { id: string; name: string }[]>>({});
   const [openCandidatesId, setOpenCandidatesId] = useState<string | null>(null);
   const [trackSearchQuery, setTrackSearchQuery] = useState("");
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
@@ -372,16 +372,16 @@ export default function ArtistPage() {
         .in("track_id", idsToLoad),
       supabase
         .from("track_appearances")
-        .select("track_id, artists!artist_id(name)")
+        .select("track_id, artist_id, artists!artist_id(name)")
         .in("track_id", idsToLoad),
     ]);
 
     if (appearancesRes.data) {
-      const map: Record<string, string[]> = {};
+      const map: Record<string, { id: string; name: string }[]> = {};
       appearancesRes.data.forEach((a: any) => {
         const name = a.artists?.name;
         if (!name) return;
-        (map[a.track_id] = map[a.track_id] || []).push(name);
+        (map[a.track_id] = map[a.track_id] || []).push({ id: a.artist_id, name });
       });
       setLinkedFeaturedArtists((prev) => ({ ...prev, ...map }));
     }
@@ -468,11 +468,42 @@ export default function ArtistPage() {
   // duplicate (common given the original per-artist Notion import) and
   // offers to merge instead of creating a visible double-up.
   const [linkingTrackId, setLinkingTrackId] = useState<string | null>(null);
+  const [editFeaturedTags, setEditFeaturedTags] = useState<{ id: string; name: string }[]>([]);
+  const [editFeaturedSearch, setEditFeaturedSearch] = useState("");
+  const [editFeaturedResults, setEditFeaturedResults] = useState<{ id: string; name: string }[]>([]);
   const [linkTargetArtist, setLinkTargetArtist] = useState<{ id: string; name: string } | null>(null);
   const [artistSearch, setArtistSearch] = useState("");
   const [artistResults, setArtistResults] = useState<{ id: string; name: string }[]>([]);
   const [targetTrackSearch, setTargetTrackSearch] = useState("");
   const [targetTrackResults, setTargetTrackResults] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    const q = editFeaturedSearch.trim();
+    if (q.length < 2) { setEditFeaturedResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
+      setEditFeaturedResults((data ?? []).filter((a) => !editFeaturedTags.some((t) => t.id === a.id)));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [editFeaturedSearch, id, editFeaturedTags]);
+
+  function addFeaturedTag(a: { id: string; name: string }) {
+    setEditFeaturedTags((prev) => [...prev, a]);
+    setEditFeaturedSearch("");
+    setEditFeaturedResults([]);
+  }
+
+  function removeFeaturedTag(artistId: string) {
+    setEditFeaturedTags((prev) => prev.filter((a) => a.id !== artistId));
+  }
+
+  async function addFeaturedTagCreated() {
+    const name = editFeaturedSearch.trim();
+    if (!name) return;
+    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name });
+    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return; }
+    addFeaturedTag({ id: newId as string, name });
+  }
 
   useEffect(() => {
     const q = artistSearch.trim();
@@ -659,7 +690,7 @@ export default function ArtistPage() {
     // field -- that text is just an input for triggering auto-links, not
     // the source of truth for what's actually displayed.
     const realFeatured = linkedFeaturedArtists[t.id];
-    if (realFeatured && realFeatured.length > 0) lines.push(["Featured Artists", realFeatured.join(", ")]);
+    if (realFeatured && realFeatured.length > 0) lines.push(["Featured Artists", realFeatured.map((a) => a.name).join(", ")]);
     if (t.genre) lines.push(["Genre", t.genre]);
     if (t.notes) lines.push(["Notes", t.notes]);
     return lines;
@@ -676,6 +707,9 @@ export default function ArtistPage() {
 
   function startEdit(t: Track) {
     setEditingId(t.id);
+    setEditFeaturedTags(linkedFeaturedArtists[t.id] ?? []);
+    setEditFeaturedSearch("");
+    setEditFeaturedResults([]);
     setEditDraft({
       title: t.title,
       spotify_url: t.spotify_url ?? "",
@@ -687,7 +721,7 @@ export default function ArtistPage() {
       track_number: t.track_number?.toString() ?? "",
       release_date: t.release_date ?? "",
       producers: t.producers ?? "",
-      featured_artists: (linkedFeaturedArtists[t.id] ?? []).join(", ") || (t.featured_artists ?? ""),
+      featured_artists: "",
       genre: t.genre ?? "",
       notes: t.notes ?? "",
       album: t.album ?? "",
@@ -700,6 +734,7 @@ export default function ArtistPage() {
   async function saveEdit(trackId: string) {
     if (!editDraft) return;
     setAdminBusy(true);
+
     const { error: err } = await supabase.rpc("admin_update_track", {
       p_track_id: trackId,
       p_title: editDraft.title,
@@ -712,16 +747,25 @@ export default function ArtistPage() {
       p_track_number: editDraft.track_number ? parseInt(editDraft.track_number, 10) : null,
       p_release_date: editDraft.release_date || null,
       p_producers: editDraft.producers,
-      p_featured_artists: editDraft.featured_artists,
+      p_featured_artists: editFeaturedTags.map((a) => a.name).join(", "),
       p_genre: editDraft.genre,
       p_notes: editDraft.notes,
       p_album: editDraft.album,
     });
+
+    if (err) { setAdminBusy(false); alert(err.message); return; }
+
+    // Real tag picks, not text parsing -- diff against what was actually
+    // linked before, and apply exactly the add/remove operations needed.
+    const original = linkedFeaturedArtists[trackId] ?? [];
+    const toAdd = editFeaturedTags.filter((a) => !original.some((o) => o.id === a.id));
+    const toRemove = original.filter((o) => !editFeaturedTags.some((a) => a.id === o.id));
+    await Promise.all([
+      ...toAdd.map((a) => supabase.rpc("admin_add_track_appearance", { p_track_id: trackId, p_artist_id: a.id })),
+      ...toRemove.map((o) => supabase.rpc("admin_remove_track_appearance", { p_track_id: trackId, p_artist_id: o.id })),
+    ]);
+
     setAdminBusy(false);
-    if (err) { alert(err.message); return; }
-    if (editDraft.featured_artists.trim()) {
-      await autoLinkFeaturedArtists(trackId, editDraft.featured_artists);
-    }
     setEditingId(null);
     setEditDraft(null);
     load();
@@ -908,8 +952,40 @@ export default function ArtistPage() {
           </div>
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
             value={editDraft.producers} onChange={(e) => setEditDraft({ ...editDraft, producers: e.target.value })} />
-          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Featured artists"
-            value={editDraft.featured_artists} onChange={(e) => setEditDraft({ ...editDraft, featured_artists: e.target.value })} />
+
+          <div className="comments-count" style={{ marginBottom: 4 }}>Featured artists</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            {editFeaturedTags.map((a) => (
+              <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {a.name}
+                <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeFeaturedTag(a.id)}>✕</span>
+              </span>
+            ))}
+          </div>
+          <div style={{ position: "relative", marginBottom: 6 }}>
+            <input
+              className="search-input"
+              style={{ width: "100%" }}
+              placeholder="Search artists to add…"
+              value={editFeaturedSearch}
+              onChange={(e) => setEditFeaturedSearch(e.target.value)}
+            />
+            {editFeaturedSearch.trim().length >= 2 && (
+              <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+                {editFeaturedResults.map((a) => (
+                  <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => addFeaturedTag(a)}>
+                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
+                  </div>
+                ))}
+                {editFeaturedResults.length === 0 && (
+                  <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={addFeaturedTagCreated}>
+                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{editFeaturedSearch.trim()}&quot;</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Genre"
             value={editDraft.genre} onChange={(e) => setEditDraft({ ...editDraft, genre: e.target.value })} />
           <textarea className="comment-textarea" style={{ marginBottom: 10 }} placeholder="Notes"
