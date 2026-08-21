@@ -173,11 +173,13 @@ export default function ArtistPage() {
       // loaded (an expanded letter, an edited track, etc), that data would
       // otherwise silently vanish until a full page reload. Re-fetch it
       // for exactly those tracks right after setting the fresh light data.
+      // Forced, since loadedDetailIds can't be relied on here -- clearing
+      // it and immediately reading it back in the same tick would still
+      // see the old value, React state updates aren't synchronous.
       const previouslyLoaded = Array.from(loadedDetailIds);
-      setLoadedDetailIds(new Set());
       setTracks(all);
       if (previouslyLoaded.length > 0) {
-        await ensureTracksLoaded(previouslyLoaded);
+        await ensureTracksLoaded(previouslyLoaded, true);
       }
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -330,8 +332,8 @@ export default function ArtistPage() {
   // keeps a 3,796-track artist page fast: the initial load only fetches
   // lightweight fields for everything, and this fills in the rest just for
   // what's actually being looked at.
-  async function ensureTracksLoaded(trackIds: string[]) {
-    const idsToLoad = trackIds.filter((tid) => !loadedDetailIds.has(tid));
+  async function ensureTracksLoaded(trackIds: string[], force = false) {
+    const idsToLoad = force ? trackIds : trackIds.filter((tid) => !loadedDetailIds.has(tid));
     if (idsToLoad.length === 0) return;
 
     const [detailsRes, candidatesRes] = await Promise.all([
