@@ -39,7 +39,22 @@ export default function HomePage() {
   const [trackSearchError, setTrackSearchError] = useState<string | null>(null);
   const [artistSort, setArtistSort] = useState<ArtistSortKey>("name-asc");
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
+  const [pinBusyId, setPinBusyId] = useState<string | null>(null);
+  const [pickingRandom, setPickingRandom] = useState(false);
+
+  const SORT_STORAGE_KEY = "static_cuts_artist_sort";
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SORT_STORAGE_KEY) as ArtistSortKey | null;
+    if (stored) setArtistSort(stored);
+  }, []);
+
+  function updateArtistSort(sort: ArtistSortKey) {
+    setArtistSort(sort);
+    localStorage.setItem(SORT_STORAGE_KEY, sort);
+  }
 
   useEffect(() => {
     async function load() {
@@ -108,12 +123,37 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadFollowed() {
-      if (!user) { setFollowedIds(new Set()); return; }
-      const { data } = await supabase.from("follows").select("artist_id").eq("user_id", user.id);
+      if (!user) { setFollowedIds(new Set()); setPinnedIds(new Set()); return; }
+      const { data } = await supabase.from("follows").select("artist_id, pinned").eq("user_id", user.id);
       setFollowedIds(new Set((data ?? []).map((r) => r.artist_id)));
+      setPinnedIds(new Set((data ?? []).filter((r) => r.pinned).map((r) => r.artist_id)));
     }
     loadFollowed();
   }, [user]);
+
+  async function togglePin(artistId: string) {
+    if (!user) return;
+    setPinBusyId(artistId);
+    const nowPinned = !pinnedIds.has(artistId);
+    await supabase.from("follows").update({ pinned: nowPinned }).eq("user_id", user.id).eq("artist_id", artistId);
+    setPinnedIds((prev) => {
+      const n = new Set(prev);
+      if (nowPinned) n.add(artistId); else n.delete(artistId);
+      return n;
+    });
+    setPinBusyId(null);
+  }
+
+  async function pickRandomArtist() {
+    setPickingRandom(true);
+    // Fetch all ids and pick one client-side -- fine at this catalog size
+    // (a few dozen artists), and avoids any quirks with server-side random().
+    const { data, error: err } = await supabase.from("artists").select("id");
+    setPickingRandom(false);
+    if (err || !data || data.length === 0) { alert("Couldn't pick a random artist."); return; }
+    const pick = data[Math.floor(Math.random() * data.length)];
+    router.push(`/artist/${pick.id}`);
+  }
 
   async function toggleFollow(artistId: string) {
     if (!user) { window.location.href = "/login"; return; }
@@ -180,6 +220,10 @@ export default function HomePage() {
       case "pct-desc": sorted.sort((a, b) => pct(b) - pct(a)); break;
       case "pct-asc": sorted.sort((a, b) => pct(a) - pct(b)); break;
     }
+    // Pinned artists always float to the top, regardless of the sort
+    // above -- pinning is about "always show me this first", not just
+    // another sort criterion.
+    sorted.sort((a, b) => Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id)));
     return sorted;
   })();
 
@@ -260,15 +304,20 @@ export default function HomePage() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
-        {isAdmin && (
-          <button className="tab" disabled={creatingArtist} onClick={createArtist}>
-            {creatingArtist ? "…" : "+ add artist"}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
+            {pickingRandom ? "…" : "🎲 random artist"}
           </button>
-        )}
+          {isAdmin && (
+            <button className="tab" disabled={creatingArtist} onClick={createArtist}>
+              {creatingArtist ? "…" : "+ add artist"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="sort-row">
-        <select className="sort-select" value={artistSort} onChange={(e) => setArtistSort(e.target.value as ArtistSortKey)}>
+        <select className="sort-select" value={artistSort} onChange={(e) => updateArtistSort(e.target.value as ArtistSortKey)}>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
           <option value="count-desc">Most tracks logged</option>
@@ -296,16 +345,29 @@ export default function HomePage() {
                 <Link key={a.id} href={`/artist/${a.id}`} className="card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
-                    {user && (
-                      <button
-                        className={`rating-chip ${following ? "rated" : ""}`}
-                        style={{ fontSize: "0.6rem", padding: "3px 7px" }}
-                        disabled={followBusyId === a.id}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFollow(a.id); }}
-                      >
-                        {following ? "✓ following" : "+ follow"}
-                      </button>
-                    )}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {user && following && (
+                        <button
+                          className={`rating-chip ${pinnedIds.has(a.id) ? "rated" : ""}`}
+                          style={{ fontSize: "0.6rem", padding: "3px 7px" }}
+                          disabled={pinBusyId === a.id}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(a.id); }}
+                          title={pinnedIds.has(a.id) ? "Unpin" : "Pin to top"}
+                        >
+                          📌
+                        </button>
+                      )}
+                      {user && (
+                        <button
+                          className={`rating-chip ${following ? "rated" : ""}`}
+                          style={{ fontSize: "0.6rem", padding: "3px 7px" }}
+                          disabled={followBusyId === a.id}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFollow(a.id); }}
+                        >
+                          {following ? "✓ following" : "+ follow"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="name">{a.name}</div>
                   <div className="bar-track">
