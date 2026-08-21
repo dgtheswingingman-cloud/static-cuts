@@ -1005,7 +1005,7 @@ export default function ArtistPage() {
           {t.spotify_url && (
             <>
               <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
-              {user && (
+              {user && !isAdmin && (
                 <a
                   href={`/submit?type=flag_link&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url)}`}
                   className="listen-link"
@@ -1016,7 +1016,7 @@ export default function ArtistPage() {
               )}
             </>
           )}
-          {user && !t.isCrossAppearance && (
+          {user && !isAdmin && !t.isCrossAppearance && (
             <a
               href={`/submit?type=flag_deletion&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}`}
               className="listen-link"
