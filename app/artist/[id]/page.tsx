@@ -631,19 +631,9 @@ export default function ArtistPage() {
     copyText(text);
   }
 
-  async function flagLink(track: Track) {
-    if (!user) { router.push("/login"); return; }
-    const reason = window.prompt("What's wrong with this link? (optional)") ?? "";
-    const replacement = window.prompt("Know the correct link? Paste it here (optional, leave blank if not):") ?? "";
-    const { error: err } = await supabase.from("submissions").insert({
-      type: "flag_link",
-      artist_id: id,
-      submitted_by: user.id,
-      payload: { track_id: track.id, reason, suggested_replacement_url: replacement.trim() || undefined },
-    });
-    if (err) { alert(err.message); return; }
-    alert("Thanks — flagged for review.");
-  }
+  // Flagging a link now happens on its own page (see /submit?type=flag_link)
+  // rather than blocking native prompts -- those get dismissed if you tab
+  // away to go copy the correct link, which defeats the whole point.
 
   function startEdit(t: Track) {
     setEditingId(t.id);
@@ -977,9 +967,13 @@ export default function ArtistPage() {
             <>
               <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
               {user && (
-                <button className="listen-link" onClick={(e) => { e.stopPropagation(); flagLink(t); }}>
+                <a
+                  href={`/submit?type=flag_link&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url)}`}
+                  className="listen-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   flag link
-                </button>
+                </a>
               )}
             </>
           )}

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 
-type SubmitType = "new_artist" | "new_track" | "new_version" | "correction";
+type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link";
 
 function SubmitForm() {
   const { user, loading: authLoading } = useAuth();
@@ -69,6 +69,8 @@ function SubmitForm() {
   const [editGenre, setEditGenre] = useState(currentGenre);
   const [editNotes, setEditNotes] = useState(currentNotes);
   const [editAlbum, setEditAlbum] = useState(currentAlbum);
+  const [flagReason, setFlagReason] = useState("");
+  const [flagReplacement, setFlagReplacement] = useState("");
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +207,7 @@ function SubmitForm() {
           },
         });
         if (err) throw err;
-      } else {
+      } else if (type === "correction") {
         // correction -- suggest a link or metadata fix on an existing track
         if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"suggest edit\" from that track.");
         if (!editTitle.trim()) throw new Error("Title can't be empty.");
@@ -238,6 +240,20 @@ function SubmitForm() {
           },
         });
         if (err) throw err;
+      } else if (type === "flag_link") {
+        // flag_link -- report a dead/wrong link, optionally with a known replacement
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"flag link\" from that track.");
+        const { error: err } = await supabase.from("submissions").insert({
+          type: "flag_link",
+          artist_id: prefilledArtistId,
+          submitted_by: user.id,
+          payload: {
+            track_id: prefilledTrackId,
+            reason: flagReason.trim(),
+            suggested_replacement_url: flagReplacement.trim() || undefined,
+          },
+        });
+        if (err) throw err;
       }
       setSubmitted(true);
     } catch (e: any) {
@@ -265,6 +281,7 @@ function SubmitForm() {
     new_track: "Suggest a track",
     new_version: "Suggest an alternate version",
     correction: "Suggest an edit",
+    flag_link: "Flag a broken link",
   };
 
   return (
@@ -427,6 +444,33 @@ function SubmitForm() {
               value={editGenre} onChange={(e) => setEditGenre(e.target.value)} />
             <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
               value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+          </>
+        )}
+
+        {type === "flag_link" && (
+          <>
+            <div className="detail-meta" style={{ marginBottom: 10 }}>
+              Flagging the link on <b style={{ color: "var(--bone)" }}>{prefilledTrackTitle}</b>.
+              Current link: <span style={{ wordBreak: "break-all" }}>{currentUrl}</span>
+            </div>
+            <textarea
+              className="comment-textarea"
+              placeholder="What's wrong with it? (optional)"
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+            <div className="detail-meta" style={{ marginBottom: 6 }}>
+              Know the correct link? Paste it below — feel free to switch tabs to go find it first,
+              this page will still be here when you get back.
+            </div>
+            <input
+              className="search-input"
+              placeholder="Correct link (optional)"
+              value={flagReplacement}
+              onChange={(e) => setFlagReplacement(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
           </>
         )}
 
