@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { autoLinkFeaturedArtists } from "@/lib/autoLinkFeaturedArtists";
 
 type Submission = {
   id: string;
@@ -123,10 +124,20 @@ export default function ReviewPage() {
   }
 
   async function approve(id: string) {
+    const sub = submissions?.find((s) => s.id === id);
     setBusyId(id);
-    const { error: err } = await supabase.rpc("approve_submission", { submission_id: id });
+    const { data: resultingId, error: err } = await supabase.rpc("approve_submission", { submission_id: id });
     setBusyId(null);
     if (err) { alert(err.message); return; }
+
+    // If this created/updated a track and named featured artists, link
+    // them the same way admin's direct add/edit flows do -- otherwise the
+    // text just sits there with no real link, which is exactly the
+    // inconsistency this was meant to close.
+    if (sub && (sub.type === "new_track" || sub.type === "new_version" || sub.type === "correction") && sub.payload.featured_artists?.trim() && resultingId) {
+      await autoLinkFeaturedArtists(resultingId as string, sub.payload.featured_artists);
+    }
+
     load();
   }
 

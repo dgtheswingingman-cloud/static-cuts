@@ -54,6 +54,17 @@ function SubmitForm() {
   const [versionUrl, setVersionUrl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isOfficial, setIsOfficial] = useState(false);
+  const [mainArtistSearch, setMainArtistSearch] = useState("");
+  const [mainArtistResults, setMainArtistResults] = useState<{ id: string; name: string }[]>([]);
+  const [mainArtistId, setMainArtistId] = useState("");
+  const [newAliases, setNewAliases] = useState("");
+  const [newAlbum, setNewAlbum] = useState("");
+  const [newTrackNumber, setNewTrackNumber] = useState("");
+  const [newReleaseDate, setNewReleaseDate] = useState("");
+  const [newProducers, setNewProducers] = useState("");
+  const [newFeaturedArtists, setNewFeaturedArtists] = useState("");
+  const [newGenre, setNewGenre] = useState("");
+  const [newNotes, setNewNotes] = useState("");
 
   // Correction-mode fields, prefilled from the track's current values
   const [editTitle, setEditTitle] = useState(prefilledTrackTitle);
@@ -142,6 +153,16 @@ function SubmitForm() {
     return true;
   }
 
+  useEffect(() => {
+    const q = mainArtistSearch.trim();
+    if (q.length < 2) { setMainArtistResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).limit(8);
+      setMainArtistResults(data ?? []);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [mainArtistSearch]);
+
   async function submit() {
     if (!user) return;
     setError(null);
@@ -166,6 +187,7 @@ function SubmitForm() {
       } else if (type === "new_track") {
         if (!prefilledArtistId) throw new Error("Missing artist — go to an artist's page and use \"suggest a track\" there.");
         if (!trackTitle.trim()) throw new Error("Enter a track title.");
+        if (isFeatured && !mainArtistId) throw new Error("Since this is marked featured, select who the actual main artist is first.");
         const ok = await checkForDuplicates({ artistId: prefilledArtistId, title: trackTitle, url: trackUrl });
         if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
@@ -179,6 +201,15 @@ function SubmitForm() {
             is_featured: isFeatured,
             is_official: isOfficial,
             has_audio: true,
+            main_artist_id: isFeatured ? mainArtistId : undefined,
+            aliases: newAliases.trim(),
+            album: newAlbum.trim(),
+            track_number: newTrackNumber.trim(),
+            release_date: newReleaseDate.trim(),
+            producers: newProducers.trim(),
+            featured_artists: isFeatured ? undefined : newFeaturedArtists.trim(),
+            genre: newGenre.trim(),
+            notes: newNotes.trim(),
           },
         });
         if (err) throw err;
@@ -204,6 +235,14 @@ function SubmitForm() {
             is_featured: false,
             is_official: false,
             has_audio: true,
+            aliases: newAliases.trim(),
+            album: newAlbum.trim(),
+            track_number: newTrackNumber.trim(),
+            release_date: newReleaseDate.trim(),
+            producers: newProducers.trim(),
+            featured_artists: newFeaturedArtists.trim(),
+            genre: newGenre.trim(),
+            notes: newNotes.trim(),
           },
         });
         if (err) throw err;
@@ -324,12 +363,72 @@ function SubmitForm() {
             />
             <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
               <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
-                <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} /> featured (guest artist)
+                <input type="checkbox" checked={isFeatured} onChange={(e) => { setIsFeatured(e.target.checked); setMainArtistId(""); setMainArtistSearch(""); }} /> featured (guest artist)
               </label>
               <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
                 <input type="checkbox" checked={isOfficial} onChange={(e) => setIsOfficial(e.target.checked)} /> official release
               </label>
             </div>
+
+            {isFeatured ? (
+              <div style={{ marginBottom: 12 }}>
+                <div className="detail-meta" style={{ marginBottom: 6 }}>
+                  Since {prefilledArtistName} is just featured here, who&apos;s the actual main artist?
+                </div>
+                <div style={{ position: "relative" }}>
+                  <input
+                    className="search-input"
+                    style={{ width: "100%" }}
+                    placeholder="Search artists…"
+                    value={mainArtistSearch}
+                    onChange={(e) => { setMainArtistSearch(e.target.value); setMainArtistId(""); }}
+                  />
+                  {mainArtistSearch.trim().length >= 2 && !mainArtistId && (
+                    <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+                      {mainArtistResults.map((a) => (
+                        <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
+                          onClick={() => { setMainArtistId(a.id); setMainArtistSearch(a.name); }}>
+                          <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
+                        </div>
+                      ))}
+                      {mainArtistResults.length === 0 && <div className="comments-count">No matches — try the exact name, or ask an admin to add them first.</div>}
+                    </div>
+                  )}
+                </div>
+                {mainArtistId && (
+                  <div className="detail-meta" style={{ marginTop: 4 }}>
+                    Will be added under {mainArtistSearch}, and linked here as a feature.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                className="search-input"
+                placeholder="Featured artists, if any (comma separated, optional)"
+                value={newFeaturedArtists}
+                onChange={(e) => setNewFeaturedArtists(e.target.value)}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+
+            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
+              value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
+              value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+                value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
+              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+                value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
+            </div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
+              value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
+              value={newGenre} onChange={(e) => setNewGenre(e.target.value)} />
+            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
+              value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
+
             <div className="detail-meta">
               Got a demo, live version, or alt take of a track that&apos;s already listed? Go to that
               track and use &quot;suggest an alternate version&quot; instead of adding it here as a new
@@ -358,6 +457,26 @@ function SubmitForm() {
               onChange={(e) => setVersionUrl(e.target.value)}
               style={{ marginBottom: 12 }}
             />
+
+            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
+              value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
+              value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+                value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
+              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+                value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
+            </div>
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
+              value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Featured artists, if any (comma separated)"
+              value={newFeaturedArtists} onChange={(e) => setNewFeaturedArtists(e.target.value)} />
+            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
+              value={newGenre} onChange={(e) => setNewGenre(e.target.value)} />
+            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
+              value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
           </>
         )}
 
