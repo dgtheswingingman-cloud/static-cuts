@@ -342,9 +342,12 @@ export default function HomePage() {
               const pct = a.trackCount > 0 ? Math.round((a.collectedCount / a.trackCount) * 100) : 0;
               const following = followedIds.has(a.id);
               return (
-                <Link key={a.id} href={`/artist/${a.id}`} className="card">
+                <Link key={a.id} href={`/artist/${a.id}`} className={`card ${pinnedIds.has(a.id) ? "pinned" : ""}`}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
+                      {pinnedIds.has(a.id) && <span className="feature-tag">📌 pinned</span>}
+                    </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       {user && following && (
                         <button
@@ -354,7 +357,7 @@ export default function HomePage() {
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(a.id); }}
                           title={pinnedIds.has(a.id) ? "Unpin" : "Pin to top"}
                         >
-                          📌
+                          {pinnedIds.has(a.id) ? "📌 pinned" : "📌 pin"}
                         </button>
                       )}
                       {user && (

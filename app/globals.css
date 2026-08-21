@@ -129,6 +129,15 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
 }
+.card.pinned {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+.card.pinned:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 10px 28px rgba(0, 0, 0, 0.65);
+}
 .card .count {
   font-family: var(--font-mono), monospace;
   font-size: 0.64rem;
