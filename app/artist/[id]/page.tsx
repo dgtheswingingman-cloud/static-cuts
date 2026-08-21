@@ -8,7 +8,6 @@ import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
-import { autoLinkFeaturedArtists } from "@/lib/autoLinkFeaturedArtists";
 
 type Track = {
   id: string;
@@ -100,6 +99,9 @@ export default function ArtistPage() {
   const [newTrackMainArtistSearch, setNewTrackMainArtistSearch] = useState("");
   const [newTrackMainArtistResults, setNewTrackMainArtistResults] = useState<{ id: string; name: string }[]>([]);
   const [newTrackMainArtistId, setNewTrackMainArtistId] = useState("");
+  const [newTrackFeaturedTags, setNewTrackFeaturedTags] = useState<{ id: string; name: string }[]>([]);
+  const [newTrackFeaturedSearch, setNewTrackFeaturedSearch] = useState("");
+  const [newTrackFeaturedResults, setNewTrackFeaturedResults] = useState<{ id: string; name: string }[]>([]);
   const [adminBusy, setAdminBusy] = useState(false);
   const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
   // Real cross-artist links for a track, derived from track_appearances --
@@ -615,6 +617,34 @@ export default function ArtistPage() {
   }
 
   useEffect(() => {
+    const q = newTrackFeaturedSearch.trim();
+    if (q.length < 2) { setNewTrackFeaturedResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
+      setNewTrackFeaturedResults((data ?? []).filter((a) => !newTrackFeaturedTags.some((t) => t.id === a.id)));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [newTrackFeaturedSearch, id, newTrackFeaturedTags]);
+
+  function addNewTrackFeaturedTag(a: { id: string; name: string }) {
+    setNewTrackFeaturedTags((prev) => [...prev, a]);
+    setNewTrackFeaturedSearch("");
+    setNewTrackFeaturedResults([]);
+  }
+
+  function removeNewTrackFeaturedTag(artistId: string) {
+    setNewTrackFeaturedTags((prev) => prev.filter((a) => a.id !== artistId));
+  }
+
+  async function addNewTrackFeaturedTagCreated() {
+    const name = newTrackFeaturedSearch.trim();
+    if (!name) return;
+    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name });
+    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return; }
+    addNewTrackFeaturedTag({ id: newId as string, name });
+  }
+
+  useEffect(() => {
     const q = newTrackMainArtistSearch.trim();
     if (q.length < 2) { setNewTrackMainArtistResults([]); return; }
     const handle = setTimeout(async () => {
@@ -623,6 +653,44 @@ export default function ArtistPage() {
     }, 300);
     return () => clearTimeout(handle);
   }, [newTrackMainArtistSearch]);
+
+  function newTrackFeaturedTagPicker() {
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+          {newTrackFeaturedTags.map((a) => (
+            <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              {a.name}
+              <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeNewTrackFeaturedTag(a.id)}>✕</span>
+            </span>
+          ))}
+        </div>
+        <div style={{ position: "relative" }}>
+          <input
+            className="search-input"
+            style={{ width: "100%" }}
+            placeholder="Search artists to add…"
+            value={newTrackFeaturedSearch}
+            onChange={(e) => setNewTrackFeaturedSearch(e.target.value)}
+          />
+          {newTrackFeaturedSearch.trim().length >= 2 && (
+            <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+              {newTrackFeaturedResults.map((a) => (
+                <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => addNewTrackFeaturedTag(a)}>
+                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
+                </div>
+              ))}
+              {newTrackFeaturedResults.length === 0 && (
+                <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={addNewTrackFeaturedTagCreated}>
+                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{newTrackFeaturedSearch.trim()}&quot;</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   async function addTrack() {
     if (!newTrack.title.trim()) { alert("Enter a title."); return; }
@@ -650,7 +718,7 @@ export default function ArtistPage() {
       p_track_number: newTrack.track_number ? parseInt(newTrack.track_number, 10) : null,
       p_release_date: newTrack.release_date || null,
       p_producers: newTrack.producers,
-      p_featured_artists: newTrack.featured_artists_text,
+      p_featured_artists: newTrackFeaturedTags.map((a) => a.name).join(", "),
       p_genre: newTrack.genre,
       p_notes: newTrack.notes,
     });
@@ -661,17 +729,16 @@ export default function ArtistPage() {
       if (newTrack.is_featured) {
         // Link back to the (actually featured) artist whose page we added this from.
         await supabase.rpc("admin_add_track_appearance", { p_track_id: newTrackId as string, p_artist_id: id });
-        // Plus any OTHER featured artists on a multi-way collab.
-        if (newTrack.featured_artists_text.trim()) {
-          await autoLinkFeaturedArtists(newTrackId as string, newTrack.featured_artists_text);
-        }
-      } else if (newTrack.featured_artists_text.trim()) {
-        // Main track with named guests -- auto-link any that match a real artist.
-        await autoLinkFeaturedArtists(newTrackId as string, newTrack.featured_artists_text);
       }
+      // Any other named featured artists -- real tag picks, link directly.
+      await Promise.all(
+        newTrackFeaturedTags.map((a) => supabase.rpc("admin_add_track_appearance", { p_track_id: newTrackId as string, p_artist_id: a.id }))
+      );
     }
 
     setAdminBusy(false);
+    setNewTrackFeaturedTags([]);
+    setNewTrackFeaturedSearch("");
     setAddingTrack(false);
     setNewTrack({
       title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
@@ -1046,7 +1113,7 @@ export default function ArtistPage() {
           )}
           {user && !isAdmin && (
             <a
-              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artists=${encodeURIComponent(t.featured_artists ?? "")}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
+              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artist_tags=${encodeURIComponent(JSON.stringify(linkedFeaturedArtists[t.id] ?? []))}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
               className="listen-link"
               onClick={(e) => e.stopPropagation()}
               style={{ fontSize: "0.68rem" }}
@@ -1139,7 +1206,23 @@ export default function ArtistPage() {
               <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
                 <div style={{ flex: 1 }}>
                   <div className="comment-meta" style={{ marginBottom: 2 }}>{label}</div>
-                  <div className="comment-body" style={{ fontSize: "0.82rem" }}>{value}</div>
+                  {label === "Featured Artists" && linkedFeaturedArtists[t.id] ? (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {linkedFeaturedArtists[t.id].map((a) => (
+                        <Link
+                          key={a.id}
+                          href={`/artist/${a.id}`}
+                          className="feature-tag"
+                          style={{ textDecoration: "none" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {a.name}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="comment-body" style={{ fontSize: "0.82rem" }}>{value}</div>
+                  )}
                 </div>
                 <button className="comment-action-btn" onClick={() => copyText(value)}>copy</button>
               </div>
@@ -1298,18 +1381,18 @@ export default function ArtistPage() {
               <button className="tab" onClick={() => setEditingArtistName(false)}>cancel</button>
             </div>
           ) : (
-            <h1 className="detail-name" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-              {artist.name}
+            <>
+              <h1 className="detail-name">{artist.name}</h1>
               {isAdmin && (
                 <button
                   className="rating-chip"
-                  style={{ fontSize: "0.6rem", verticalAlign: "middle" }}
+                  style={{ fontSize: "0.6rem", marginTop: -8, marginBottom: 10, display: "inline-block" }}
                   onClick={() => { setArtistNameDraft(artist.name); setEditingArtistName(true); }}
                 >
                   edit name
                 </button>
               )}
-            </h1>
+            </>
           )}
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
@@ -1385,22 +1468,14 @@ export default function ArtistPage() {
                       Will be added under {newTrackMainArtistSearch}, and linked here as a feature.
                     </div>
                   )}
-                  <input
-                    className="search-input"
-                    style={{ width: "100%" }}
-                    placeholder="Any other featured artists on this one? (comma separated, optional)"
-                    value={newTrack.featured_artists_text}
-                    onChange={(e) => setNewTrack({ ...newTrack, featured_artists_text: e.target.value })}
-                  />
+                  <div className="comments-count" style={{ marginBottom: 4 }}>Any other featured artists on this one? (optional)</div>
+                  {newTrackFeaturedTagPicker()}
                 </div>
               ) : (
-                <input
-                  className="search-input"
-                  style={{ width: "100%", marginBottom: 10 }}
-                  placeholder="Featured artists, if any (comma separated) — auto-links if they're in the archive"
-                  value={newTrack.featured_artists_text}
-                  onChange={(e) => setNewTrack({ ...newTrack, featured_artists_text: e.target.value })}
-                />
+                <div style={{ marginBottom: 10 }}>
+                  <div className="comments-count" style={{ marginBottom: 4 }}>Featured artists, if any (optional)</div>
+                  {newTrackFeaturedTagPicker()}
+                </div>
               )}
               <div className="comments-count" style={{ marginBottom: 6 }}>Sub-version of (optional):</div>
               <div style={{ position: "relative" }}>

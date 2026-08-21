@@ -29,7 +29,11 @@ function SubmitForm() {
   const currentTrackNumber = searchParams.get("current_track_number") ?? "";
   const currentReleaseDate = searchParams.get("current_release_date") ?? "";
   const currentProducers = searchParams.get("current_producers") ?? "";
-  const currentFeaturedArtists = searchParams.get("current_featured_artists") ?? "";
+  const currentFeaturedArtistTags: { id: string; name: string }[] = (() => {
+    const raw = searchParams.get("current_featured_artist_tags");
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch { return []; }
+  })();
   const currentGenre = searchParams.get("current_genre") ?? "";
   const currentNotes = searchParams.get("current_notes") ?? "";
   const currentAlbum = searchParams.get("current_album") ?? "";
@@ -62,7 +66,6 @@ function SubmitForm() {
   const [newTrackNumber, setNewTrackNumber] = useState("");
   const [newReleaseDate, setNewReleaseDate] = useState("");
   const [newProducers, setNewProducers] = useState("");
-  const [newFeaturedArtists, setNewFeaturedArtists] = useState("");
   const [newGenre, setNewGenre] = useState("");
   const [newNotes, setNewNotes] = useState("");
 
@@ -76,7 +79,12 @@ function SubmitForm() {
   const [editTrackNumber, setEditTrackNumber] = useState(currentTrackNumber);
   const [editReleaseDate, setEditReleaseDate] = useState(currentReleaseDate);
   const [editProducers, setEditProducers] = useState(currentProducers);
-  const [editFeaturedArtists, setEditFeaturedArtists] = useState(currentFeaturedArtists);
+  const [newFeaturedTags, setNewFeaturedTags] = useState<{ id: string; name: string }[]>([]);
+  const [newFeaturedSearch, setNewFeaturedSearch] = useState("");
+  const [newFeaturedResults, setNewFeaturedResults] = useState<{ id: string; name: string }[]>([]);
+  const [editFeaturedTags, setEditFeaturedTags] = useState<{ id: string; name: string }[]>(currentFeaturedArtistTags);
+  const [editFeaturedSearch, setEditFeaturedSearch] = useState("");
+  const [editFeaturedResults, setEditFeaturedResults] = useState<{ id: string; name: string }[]>([]);
   const [editGenre, setEditGenre] = useState(currentGenre);
   const [editNotes, setEditNotes] = useState(currentNotes);
   const [editAlbum, setEditAlbum] = useState(currentAlbum);
@@ -164,6 +172,78 @@ function SubmitForm() {
     return () => clearTimeout(handle);
   }, [mainArtistSearch]);
 
+  useEffect(() => {
+    const q = newFeaturedSearch.trim();
+    if (q.length < 2) { setNewFeaturedResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
+      setNewFeaturedResults((data ?? []).filter((a) => !newFeaturedTags.some((t) => t.id === a.id)));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [newFeaturedSearch, prefilledArtistId, newFeaturedTags]);
+
+  useEffect(() => {
+    const q = editFeaturedSearch.trim();
+    if (q.length < 2) { setEditFeaturedResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).limit(8);
+      setEditFeaturedResults((data ?? []).filter((a) => !editFeaturedTags.some((t) => t.id === a.id)));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [editFeaturedSearch, editFeaturedTags]);
+
+  // Shared render for both tag pickers -- no "create on the fly" here,
+  // since regular users can't create artists directly; if someone's
+  // missing, they use the separate "suggest a new artist" flow instead.
+  function featuredTagPicker(
+    tags: { id: string; name: string }[],
+    setTags: (t: { id: string; name: string }[]) => void,
+    search: string,
+    setSearch: (s: string) => void,
+    results: { id: string; name: string }[]
+  ) {
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+          {tags.map((a) => (
+            <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              {a.name}
+              <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => setTags(tags.filter((t) => t.id !== a.id))}>✕</span>
+            </span>
+          ))}
+        </div>
+        <div style={{ position: "relative" }}>
+          <input
+            className="search-input"
+            style={{ width: "100%" }}
+            placeholder="Search artists to add…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search.trim().length >= 2 && (
+            <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+              {results.map((a) => (
+                <div
+                  key={a.id}
+                  className="comment-item"
+                  style={{ cursor: "pointer", padding: "8px 6px" }}
+                  onClick={() => { setTags([...tags, a]); setSearch(""); }}
+                >
+                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
+                </div>
+              ))}
+              {results.length === 0 && (
+                <div className="comments-count" style={{ padding: "8px 6px" }}>
+                  Not found — if they&apos;re not in the archive yet, suggest them as a new artist separately.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   async function submit() {
     if (!user) return;
     setError(null);
@@ -208,7 +288,7 @@ function SubmitForm() {
             track_number: newTrackNumber.trim(),
             release_date: newReleaseDate.trim(),
             producers: newProducers.trim(),
-            featured_artists: isFeatured ? undefined : newFeaturedArtists.trim(),
+            featured_artist_ids: isFeatured ? [] : newFeaturedTags.map((a) => a.id),
             genre: newGenre.trim(),
             notes: newNotes.trim(),
           },
@@ -241,7 +321,7 @@ function SubmitForm() {
             track_number: newTrackNumber.trim(),
             release_date: newReleaseDate.trim(),
             producers: newProducers.trim(),
-            featured_artists: newFeaturedArtists.trim(),
+            featured_artist_ids: newFeaturedTags.map((a) => a.id),
             genre: newGenre.trim(),
             notes: newNotes.trim(),
           },
@@ -273,7 +353,7 @@ function SubmitForm() {
             track_number: editTrackNumber.trim(),
             release_date: editReleaseDate.trim(),
             producers: editProducers.trim(),
-            featured_artists: editFeaturedArtists.trim(),
+            featured_artist_ids: editFeaturedTags.map((a) => a.id),
             genre: editGenre.trim(),
             notes: editNotes.trim(),
             album: editAlbum.trim(),
@@ -415,13 +495,10 @@ function SubmitForm() {
                 )}
               </div>
             ) : (
-              <input
-                className="search-input"
-                placeholder="Featured artists, if any (comma separated, optional)"
-                value={newFeaturedArtists}
-                onChange={(e) => setNewFeaturedArtists(e.target.value)}
-                style={{ marginBottom: 12 }}
-              />
+              <div style={{ marginBottom: 4 }}>
+                <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists, if any (optional)</div>
+                {featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}
+              </div>
             )}
 
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
@@ -484,8 +561,8 @@ function SubmitForm() {
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
               value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Featured artists, if any (comma separated)"
-              value={newFeaturedArtists} onChange={(e) => setNewFeaturedArtists(e.target.value)} />
+            <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists, if any (optional)</div>
+            {featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
               value={newGenre} onChange={(e) => setNewGenre(e.target.value)} />
             <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
@@ -570,8 +647,8 @@ function SubmitForm() {
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
               value={editProducers} onChange={(e) => setEditProducers(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Featured artists"
-              value={editFeaturedArtists} onChange={(e) => setEditFeaturedArtists(e.target.value)} />
+            <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists</div>
+            {featuredTagPicker(editFeaturedTags, setEditFeaturedTags, editFeaturedSearch, setEditFeaturedSearch, editFeaturedResults)}
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
               value={editGenre} onChange={(e) => setEditGenre(e.target.value)} />
             <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"

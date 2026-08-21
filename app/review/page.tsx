@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { autoLinkFeaturedArtists } from "@/lib/autoLinkFeaturedArtists";
 
 type Submission = {
   id: string;
@@ -131,12 +130,31 @@ export default function ReviewPage() {
     setBusyId(null);
     if (err) { alert(err.message); return; }
 
-    // If this created/updated a track and named featured artists, link
-    // them the same way admin's direct add/edit flows do -- otherwise the
-    // text just sits there with no real link, which is exactly the
-    // inconsistency this was meant to close.
-    if (sub && (sub.type === "new_track" || sub.type === "new_version" || sub.type === "correction") && sub.payload.featured_artists?.trim() && resultingId) {
-      await autoLinkFeaturedArtists(resultingId as string, sub.payload.featured_artists);
+    // Featured-artist picks are now real artist IDs chosen via the tag
+    // picker, not free text -- link them directly. Guard on the key
+    // actually being present so older pending submissions from before
+    // this change (no featured_artist_ids at all) are left untouched
+    // rather than misread as "link nothing".
+    if (sub && resultingId && "featured_artist_ids" in sub.payload) {
+      const desiredIds: string[] = sub.payload.featured_artist_ids ?? [];
+
+      if (sub.type === "new_track" || sub.type === "new_version") {
+        // Nothing existed before this -- just link everything requested.
+        await Promise.all(
+          desiredIds.map((aid) => supabase.rpc("admin_add_track_appearance", { p_track_id: resultingId, p_artist_id: aid }))
+        );
+      } else if (sub.type === "correction") {
+        // Diff against what's actually linked right now, so approving
+        // only applies the real change, not a blind overwrite.
+        const { data: current } = await supabase.from("track_appearances").select("artist_id").eq("track_id", resultingId as string);
+        const currentIds = (current ?? []).map((a: any) => a.artist_id);
+        const toAdd = desiredIds.filter((aid) => !currentIds.includes(aid));
+        const toRemove = currentIds.filter((aid) => !desiredIds.includes(aid));
+        await Promise.all([
+          ...toAdd.map((aid) => supabase.rpc("admin_add_track_appearance", { p_track_id: resultingId, p_artist_id: aid })),
+          ...toRemove.map((aid) => supabase.rpc("admin_remove_track_appearance", { p_track_id: resultingId, p_artist_id: aid })),
+        ]);
+      }
     }
 
     load();
@@ -189,6 +207,10 @@ export default function ReviewPage() {
       if (wasSubVersion !== willBeSubVersion) {
         lines.push(["Sub-version status", wasSubVersion ? "was a sub-version" : "was a main track", willBeSubVersion ? "becomes a sub-version" : "becomes a main track"]);
       }
+    }
+    if ("featured_artist_ids" in s.payload) {
+      const count = (s.payload.featured_artist_ids ?? []).length;
+      lines.push(["Featured Artists", "(see approval)", `${count} artist${count === 1 ? "" : "s"} selected — applied automatically on approval`]);
     }
     return lines;
   }
