@@ -634,11 +634,12 @@ export default function ArtistPage() {
   async function flagLink(track: Track) {
     if (!user) { router.push("/login"); return; }
     const reason = window.prompt("What's wrong with this link? (optional)") ?? "";
+    const replacement = window.prompt("Know the correct link? Paste it here (optional, leave blank if not):") ?? "";
     const { error: err } = await supabase.from("submissions").insert({
       type: "flag_link",
       artist_id: id,
       submitted_by: user.id,
-      payload: { track_id: track.id, reason },
+      payload: { track_id: track.id, reason, suggested_replacement_url: replacement.trim() || undefined },
     });
     if (err) { alert(err.message); return; }
     alert("Thanks — flagged for review.");

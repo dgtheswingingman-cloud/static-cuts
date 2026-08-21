@@ -146,7 +146,8 @@ export default function ReviewPage() {
       return `New sub-entry for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"${linkPart}`;
     }
     if (s.type === "flag_link") {
-      return `Link flagged as broken/wrong${s.payload.reason ? `: "${s.payload.reason}"` : ""}`;
+      const replacement = s.payload.suggested_replacement_url;
+      return `Link flagged as broken/wrong${s.payload.reason ? `: "${s.payload.reason}"` : ""}${replacement ? ` — suggested replacement: ${replacement}` : ""}`;
     }
     return s.type;
   }
@@ -192,6 +193,8 @@ export default function ReviewPage() {
     const isCorrection = s.type === "correction";
     const diffs = isCorrection ? diffLines(s) : [];
 
+    const hasReplacement = isFlag && !!s.payload.suggested_replacement_url;
+
     return (
       <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 260 }}>
@@ -218,7 +221,7 @@ export default function ReviewPage() {
           </Link>
         )}
         <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
-          {isFlag ? "remove link" : "approve"}
+          {isFlag ? (hasReplacement ? "apply replacement" : "remove link") : "approve"}
         </button>
         <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
           {isFlag ? "keep link" : "reject"}
