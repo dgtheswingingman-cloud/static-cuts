@@ -53,6 +53,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
   { key: "new_versions", label: "New Versions (Alt Takes)", types: ["new_version"] },
   { key: "new_artists", label: "New Artists", types: ["new_artist"] },
   { key: "flags", label: "Flagged Links", types: ["flag_link"] },
+  { key: "deletions", label: "Flagged for Deletion", types: ["flag_deletion"] },
 ];
 
 export default function ReviewPage() {
@@ -108,7 +109,7 @@ export default function ReviewPage() {
     const contextTrackIds = Array.from(
       new Set(
         (data ?? [])
-          .filter((s) => (s.type === "correction" || s.type === "flag_link") && s.payload.track_id)
+          .filter((s) => (s.type === "correction" || s.type === "flag_link" || s.type === "flag_deletion") && s.payload.track_id)
           .map((s) => s.payload.track_id)
       )
     );
@@ -236,6 +237,7 @@ export default function ReviewPage() {
   function renderEntry(s: Submission) {
     const link = trackLink(s);
     const isFlag = s.type === "flag_link";
+    const isDeletion = s.type === "flag_deletion";
     const isCorrection = s.type === "correction";
     const isNewTrackLike = s.type === "new_track" || s.type === "new_version";
     const diffs = isCorrection ? diffLines(s) : [];
@@ -262,6 +264,14 @@ export default function ReviewPage() {
                   <b style={{ color: "var(--bone)" }}>{label}:</b> {oldVal} → <b style={{ color: "var(--bone)" }}>{newVal}</b>
                 </div>
               ))}
+            </>
+          ) : isDeletion ? (
+            <>
+              <div className="track-title" style={{ marginBottom: 6, color: "#e88" }}>Flagged for deletion</div>
+              {currentTrack && (
+                <div style={{ marginBottom: 8, maxWidth: 260 }}>{trackPreviewCard(currentTrack, "Track")}</div>
+              )}
+              {s.payload.reason && <div className="comment-meta">Reason: {s.payload.reason}</div>}
             </>
           ) : isFlag ? (
             <>
@@ -309,10 +319,10 @@ export default function ReviewPage() {
           </Link>
         )}
         <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
-          {isFlag ? (hasReplacement ? "apply replacement" : "remove link") : "approve"}
+          {isDeletion ? "delete track" : isFlag ? (hasReplacement ? "apply replacement" : "remove link") : "approve"}
         </button>
         <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
-          {isFlag ? "keep link" : "reject"}
+          {isDeletion ? "keep track" : isFlag ? "keep link" : "reject"}
         </button>
       </div>
     );

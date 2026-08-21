@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 
-type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link";
+type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link" | "flag_deletion";
 
 function SubmitForm() {
   const { user, loading: authLoading } = useAuth();
@@ -82,6 +82,7 @@ function SubmitForm() {
   const [editAlbum, setEditAlbum] = useState(currentAlbum);
   const [flagReason, setFlagReason] = useState("");
   const [flagReplacement, setFlagReplacement] = useState("");
+  const [deletionReason, setDeletionReason] = useState("");
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -293,6 +294,17 @@ function SubmitForm() {
           },
         });
         if (err) throw err;
+      } else if (type === "flag_deletion") {
+        // flag_deletion -- report a track that shouldn't exist (duplicate, wrong artist, etc)
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"flag for deletion\" from that track.");
+        if (!deletionReason.trim()) throw new Error("Say why it should be removed — this one's permanent, so admin needs the reason.");
+        const { error: err } = await supabase.from("submissions").insert({
+          type: "flag_deletion",
+          artist_id: prefilledArtistId,
+          submitted_by: user.id,
+          payload: { track_id: prefilledTrackId, reason: deletionReason.trim() },
+        });
+        if (err) throw err;
       }
       setSubmitted(true);
     } catch (e: any) {
@@ -321,6 +333,7 @@ function SubmitForm() {
     new_version: "Suggest an alternate version",
     correction: "Suggest an edit",
     flag_link: "Flag a broken link",
+    flag_deletion: "Flag a track for deletion",
   };
 
   return (
@@ -588,6 +601,22 @@ function SubmitForm() {
               placeholder="Correct link (optional)"
               value={flagReplacement}
               onChange={(e) => setFlagReplacement(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
+
+        {type === "flag_deletion" && (
+          <>
+            <div className="detail-meta" style={{ marginBottom: 10 }}>
+              Flagging <b style={{ color: "var(--bone)" }}>{prefilledTrackTitle}</b> for removal.
+              If approved, this deletes it entirely — permanent, so be specific about why.
+            </div>
+            <textarea
+              className="comment-textarea"
+              placeholder="Why should this be removed? e.g. duplicate of another entry, doesn't belong to this artist, doesn't exist"
+              value={deletionReason}
+              onChange={(e) => setDeletionReason(e.target.value)}
               style={{ marginBottom: 12 }}
             />
           </>

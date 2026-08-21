@@ -989,6 +989,15 @@ export default function ArtistPage() {
               )}
             </>
           )}
+          {user && !t.isCrossAppearance && (
+            <a
+              href={`/submit?type=flag_deletion&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}`}
+              className="listen-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              flag for deletion
+            </a>
+          )}
         </div>
         {isRatingOpen && (
           <div className="rating-popover" onClick={(e) => e.stopPropagation()}>
