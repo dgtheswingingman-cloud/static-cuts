@@ -867,7 +867,7 @@ export default function ArtistPage() {
               onFocus={() => setParentSuggestionsOpen(true)}
             />
             {parentSuggestionsOpen && parentSearch.trim().length > 0 && (
-              <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
+              <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
                 {mainTracks
                   .filter((mt) => mt.id !== t.id && mt.title.toLowerCase().includes(parentSearch.trim().toLowerCase()))
                   .slice(0, 8)
@@ -1247,7 +1247,7 @@ export default function ArtistPage() {
                       onChange={(e) => { setNewTrackMainArtistSearch(e.target.value); setNewTrackMainArtistId(""); }}
                     />
                     {newTrackMainArtistSearch.trim().length >= 2 && !newTrackMainArtistId && (
-                      <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+                      <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
                         {newTrackMainArtistResults.map((a) => (
                           <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
                             onClick={() => { setNewTrackMainArtistId(a.id); setNewTrackMainArtistSearch(a.name); }}>
@@ -1298,7 +1298,7 @@ export default function ArtistPage() {
                   onFocus={() => setNewTrackParentOpen(true)}
                 />
                 {newTrackParentOpen && newTrackParentSearch.trim().length > 0 && (
-                  <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 200, overflowY: "auto", padding: "6px 4px" }}>
+                  <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 200, overflowY: "auto", padding: "6px 4px" }}>
                     {mainTracks
                       .filter((mt) => mt.title.toLowerCase().includes(newTrackParentSearch.trim().toLowerCase()))
                       .slice(0, 8)

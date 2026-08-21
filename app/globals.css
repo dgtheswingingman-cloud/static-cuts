@@ -303,6 +303,15 @@ body {
   border-top: 1px dashed var(--hair);
   margin-top: 4px;
 }
+/* Dedicated style for floating autosuggest dropdowns -- needs a solid
+   background since it's absolutely positioned over other content,
+   unlike .comments-panel which was designed for inline use. */
+.autosuggest-dropdown {
+  background: var(--surface2);
+  border: 1px solid var(--hair-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
 .comments-header {
   display: flex;
   justify-content: space-between;

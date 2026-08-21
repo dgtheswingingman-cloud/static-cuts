@@ -397,7 +397,7 @@ function SubmitForm() {
                     onChange={(e) => { setMainArtistSearch(e.target.value); setMainArtistId(""); }}
                   />
                   {mainArtistSearch.trim().length >= 2 && !mainArtistId && (
-                    <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+                    <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
                       {mainArtistResults.map((a) => (
                         <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
                           onClick={() => { setMainArtistId(a.id); setMainArtistSearch(a.name); }}>
@@ -534,7 +534,7 @@ function SubmitForm() {
                 onFocus={() => setParentSuggestionsOpen(true)}
               />
               {parentSuggestionsOpen && parentSearch.trim().length >= 2 && (
-                <div className="comments-panel" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
+                <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
                   {parentResults.map((mt) => (
                     <div
                       key={mt.id}
