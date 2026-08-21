@@ -90,7 +90,10 @@ export default function ArtistPage() {
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
-  const [newTrack, setNewTrack] = useState({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "" });
+  const [newTrack, setNewTrack] = useState({
+    title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
+    aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "",
+  });
   const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
   const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
   const [newTrackMainArtistSearch, setNewTrackMainArtistSearch] = useState("");
@@ -581,6 +584,14 @@ export default function ArtistPage() {
       p_is_official: newTrack.is_official,
       p_has_audio: newTrack.has_audio,
       p_parent_track_id: newTrack.parent_track_id,
+      p_aliases: newTrack.aliases,
+      p_album: newTrack.album,
+      p_track_number: newTrack.track_number ? parseInt(newTrack.track_number, 10) : null,
+      p_release_date: newTrack.release_date || null,
+      p_producers: newTrack.producers,
+      p_featured_artists: newTrack.featured_artists_text,
+      p_genre: newTrack.genre,
+      p_notes: newTrack.notes,
     });
 
     if (err) { setAdminBusy(false); alert(err.message); return; }
@@ -601,7 +612,10 @@ export default function ArtistPage() {
 
     setAdminBusy(false);
     setAddingTrack(false);
-    setNewTrack({ title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "" });
+    setNewTrack({
+      title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
+      aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "",
+    });
     setNewTrackParentSearch("");
     setNewTrackMainArtistId("");
     setNewTrackMainArtistSearch("");
@@ -1253,6 +1267,25 @@ export default function ArtistPage() {
                   </div>
                 )}
               </div>
+
+              <div className="comments-count" style={{ marginBottom: 6, marginTop: 10 }}>Verbose info (optional)</div>
+              <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"
+                value={newTrack.aliases} onChange={(e) => setNewTrack({ ...newTrack, aliases: e.target.value })} />
+              <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
+                value={newTrack.album} onChange={(e) => setNewTrack({ ...newTrack, album: e.target.value })} />
+              <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+                  value={newTrack.track_number} onChange={(e) => setNewTrack({ ...newTrack, track_number: e.target.value })} />
+                <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+                  value={newTrack.release_date} onChange={(e) => setNewTrack({ ...newTrack, release_date: e.target.value })} />
+              </div>
+              <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
+                value={newTrack.producers} onChange={(e) => setNewTrack({ ...newTrack, producers: e.target.value })} />
+              <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Genre"
+                value={newTrack.genre} onChange={(e) => setNewTrack({ ...newTrack, genre: e.target.value })} />
+              <textarea className="comment-textarea" style={{ marginBottom: 10 }} placeholder="Notes"
+                value={newTrack.notes} onChange={(e) => setNewTrack({ ...newTrack, notes: e.target.value })} />
+
               <button className="comment-post-btn" disabled={adminBusy} onClick={addTrack} style={{ marginTop: 10 }}>
                 {adminBusy ? "…" : "add track"}
               </button>
