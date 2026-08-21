@@ -294,6 +294,22 @@ export default function ArtistPage() {
     setTimeout(() => setHighlightedId(null), 3500);
   }
 
+  async function deleteArtist() {
+    if (!artist) return;
+    const typed = window.prompt(
+      `This permanently deletes ${artist.name} and their entire catalog — every track, rating, comment, and cross-link. This cannot be undone.\n\nType the artist's name exactly to confirm:`
+    );
+    if (typed !== artist.name) {
+      if (typed !== null) alert("Name didn't match — nothing was deleted.");
+      return;
+    }
+    setAdminBusy(true);
+    const { error: err } = await supabase.rpc("admin_delete_artist", { p_artist_id: id });
+    setAdminBusy(false);
+    if (err) { alert(err.message); return; }
+    router.push("/");
+  }
+
   async function toggleFollow() {
     if (!user) { router.push("/login"); return; }
     setFollowBusy(true);
@@ -1173,6 +1189,16 @@ export default function ArtistPage() {
           {isAdmin && (
             <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingTrack(!addingTrack)}>
               {addingTrack ? "cancel add track" : "+ add track"}
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className="tab"
+              style={{ marginBottom: 14, marginLeft: 8, borderColor: "#a33", color: "#e88" }}
+              disabled={adminBusy}
+              onClick={deleteArtist}
+            >
+              delete artist
             </button>
           )}
           {addingTrack && isAdmin && (
