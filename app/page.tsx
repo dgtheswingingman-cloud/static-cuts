@@ -135,13 +135,17 @@ export default function HomePage() {
     if (!user) return;
     setPinBusyId(artistId);
     const nowPinned = !pinnedIds.has(artistId);
-    await supabase.from("follows").update({ pinned: nowPinned }).eq("user_id", user.id).eq("artist_id", artistId);
+    const { error: err } = await supabase.from("follows").update({ pinned: nowPinned }).eq("user_id", user.id).eq("artist_id", artistId);
+    setPinBusyId(null);
+    if (err) {
+      alert("Couldn't update pin: " + err.message);
+      return;
+    }
     setPinnedIds((prev) => {
       const n = new Set(prev);
       if (nowPinned) n.add(artistId); else n.delete(artistId);
       return n;
     });
-    setPinBusyId(null);
   }
 
   async function pickRandomArtist() {
@@ -343,12 +347,9 @@ export default function HomePage() {
               const following = followedIds.has(a.id);
               return (
                 <Link key={a.id} href={`/artist/${a.id}`} className={`card ${pinnedIds.has(a.id) ? "pinned" : ""}`}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
-                      {pinnedIds.has(a.id) && <span className="feature-tag">📌 pinned</span>}
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
+                    <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {user && following && (
                         <button
                           className={`rating-chip ${pinnedIds.has(a.id) ? "rated" : ""}`}
