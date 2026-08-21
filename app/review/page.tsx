@@ -102,15 +102,20 @@ export default function ReviewPage() {
       setArtistNames(map);
     }
 
-    // Fetch "before" state for every correction, so we can show a real diff.
-    const correctionTrackIds = Array.from(
-      new Set((data ?? []).filter((s) => s.type === "correction" && s.payload.track_id).map((s) => s.payload.track_id))
+    // Fetch "before" state for every correction and flag -- so we can show
+    // a real diff/preview without needing to leave this page.
+    const contextTrackIds = Array.from(
+      new Set(
+        (data ?? [])
+          .filter((s) => (s.type === "correction" || s.type === "flag_link") && s.payload.track_id)
+          .map((s) => s.payload.track_id)
+      )
     );
-    if (correctionTrackIds.length > 0) {
+    if (contextTrackIds.length > 0) {
       const { data: tracks } = await supabase
         .from("tracks")
         .select("id, title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, featured_artists, genre, notes")
-        .in("id", correctionTrackIds);
+        .in("id", contextTrackIds);
       const map: Record<string, CurrentTrack> = {};
       (tracks ?? []).forEach((t: any) => { map[t.id] = t; });
       setCurrentTracks(map);
@@ -176,6 +181,36 @@ export default function ReviewPage() {
     return lines;
   }
 
+  // Applies a correction's payload on top of the track's current state, so
+  // we can show exactly what it'll look like post-approval -- not just a
+  // list of changed fields, but the whole resulting card.
+  function buildAfterState(current: CurrentTrack, payload: any): CurrentTrack {
+    const after = { ...current };
+    Object.keys(FIELD_LABELS).forEach((key) => {
+      if (key in payload) (after as any)[key] = payload[key];
+    });
+    if ("parent_track_id" in payload) after.parent_track_id = payload.parent_track_id || null;
+    return after;
+  }
+
+  // Compact, reusable card for showing a track's state -- same visual
+  // language as the real track rows, so it's instantly recognizable.
+  function trackPreviewCard(t: CurrentTrack | null, label: string) {
+    if (!t) return null;
+    return (
+      <div style={{ border: "1px solid var(--hair)", borderRadius: 4, padding: "8px 10px", background: "var(--surface2)", flex: 1, minWidth: 180 }}>
+        <div className="comment-meta" style={{ marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.62rem" }}>{label}</div>
+        <div className="track-title" style={{ fontSize: "0.86rem", marginBottom: 4 }}>{t.title}</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {t.is_featured && <span className="feature-tag">featured</span>}
+          <span className="feature-tag">{t.is_official ? "official" : "unreleased"}</span>
+          <span className="feature-tag">{t.spotify_url ? "has link" : "no link"}</span>
+          {t.parent_track_id && <span className="feature-tag">sub-version</span>}
+        </div>
+      </div>
+    );
+  }
+
   function trackLink(s: Submission): string | null {
     if (!s.artist_id) return null;
     if ((s.type === "correction" || s.type === "flag_link") && s.payload.track_id) {
@@ -191,7 +226,10 @@ export default function ReviewPage() {
     const link = trackLink(s);
     const isFlag = s.type === "flag_link";
     const isCorrection = s.type === "correction";
+    const isNewTrackLike = s.type === "new_track" || s.type === "new_version";
     const diffs = isCorrection ? diffLines(s) : [];
+    const currentTrack = s.payload.track_id ? currentTracks[s.payload.track_id] : undefined;
+    const afterTrack = isCorrection && currentTrack ? buildAfterState(currentTrack, s.payload) : null;
 
     const hasReplacement = isFlag && !!s.payload.suggested_replacement_url;
 
@@ -200,13 +238,52 @@ export default function ReviewPage() {
         <div style={{ flex: 1, minWidth: 260 }}>
           {isCorrection ? (
             <>
-              <div className="track-title">Edit for &quot;{s.payload.title}&quot;</div>
+              <div className="track-title" style={{ marginBottom: 6 }}>Edit for &quot;{s.payload.title}&quot;</div>
+              {currentTrack && afterTrack && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+                  {trackPreviewCard(currentTrack, "Currently")}
+                  {trackPreviewCard(afterTrack, "After approval")}
+                </div>
+              )}
               {diffs.length === 0 && <div className="comment-meta">No field changes detected.</div>}
               {diffs.map(([label, oldVal, newVal]) => (
                 <div key={label} className="comment-meta" style={{ marginTop: 2 }}>
                   <b style={{ color: "var(--bone)" }}>{label}:</b> {oldVal} → <b style={{ color: "var(--bone)" }}>{newVal}</b>
                 </div>
               ))}
+            </>
+          ) : isFlag ? (
+            <>
+              <div className="track-title" style={{ marginBottom: 6 }}>Link flagged</div>
+              {currentTrack && (
+                <div style={{ marginBottom: 8, maxWidth: 260 }}>{trackPreviewCard(currentTrack, "Track")}</div>
+              )}
+              {s.payload.reason && <div className="comment-meta">Reason: {s.payload.reason}</div>}
+              {hasReplacement && (
+                <div className="comment-meta" style={{ marginTop: 2, wordBreak: "break-all" }}>
+                  Suggested replacement: <b style={{ color: "var(--bone)" }}>{s.payload.suggested_replacement_url}</b>
+                </div>
+              )}
+            </>
+          ) : isNewTrackLike ? (
+            <>
+              <div className="track-title" style={{ marginBottom: 6 }}>
+                {s.type === "new_track" ? "New track" : "New alternate version"} for {artistNames[s.artist_id ?? ""] ?? s.artist_id}
+              </div>
+              <div style={{ maxWidth: 260, marginBottom: 4 }}>
+                {trackPreviewCard(
+                  {
+                    id: "",
+                    title: s.payload.title,
+                    spotify_url: s.payload.spotify_url || null,
+                    is_featured: !!s.payload.is_featured,
+                    is_official: !!s.payload.is_official,
+                    parent_track_id: s.payload.parent_track_id || null,
+                    aliases: null, track_number: null, release_date: null, producers: null, featured_artists: null, genre: null, notes: null,
+                  },
+                  "Will be added as"
+                )}
+              </div>
             </>
           ) : (
             <div className="track-title">{describeSimple(s)}</div>
@@ -217,7 +294,7 @@ export default function ReviewPage() {
         </div>
         {link && (
           <Link href={link} className="listen-link" style={{ textDecoration: "none" }}>
-            view track
+            view live page
           </Link>
         )}
         <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
