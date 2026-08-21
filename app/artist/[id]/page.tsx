@@ -167,7 +167,18 @@ export default function ArtistPage() {
       }
 
       all.sort((a, b) => a.title.localeCompare(b.title));
+
+      // load() replaces the whole tracks array with light-only data (no
+      // verbose fields) -- if any tracks already had their heavy details
+      // loaded (an expanded letter, an edited track, etc), that data would
+      // otherwise silently vanish until a full page reload. Re-fetch it
+      // for exactly those tracks right after setting the fresh light data.
+      const previouslyLoaded = Array.from(loadedDetailIds);
+      setLoadedDetailIds(new Set());
       setTracks(all);
+      if (previouslyLoaded.length > 0) {
+        await ensureTracksLoaded(previouslyLoaded);
+      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
