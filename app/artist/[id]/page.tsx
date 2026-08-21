@@ -300,6 +300,19 @@ export default function ArtistPage() {
     setTimeout(() => setHighlightedId(null), 3500);
   }
 
+  const [editingArtistName, setEditingArtistName] = useState(false);
+  const [artistNameDraft, setArtistNameDraft] = useState("");
+
+  async function saveArtistName() {
+    if (!artistNameDraft.trim()) { alert("Name can't be empty."); return; }
+    setAdminBusy(true);
+    const { error: err } = await supabase.rpc("admin_update_artist", { p_artist_id: id, p_name: artistNameDraft.trim() });
+    setAdminBusy(false);
+    if (err) { alert(err.message); return; }
+    setArtist((prev) => (prev ? { ...prev, name: artistNameDraft.trim() } : prev));
+    setEditingArtistName(false);
+  }
+
   async function deleteArtist() {
     if (!artist) return;
     const typed = window.prompt(
@@ -1271,7 +1284,33 @@ export default function ArtistPage() {
 
       {!error && artist && (
         <>
-          <h1 className="detail-name">{artist.name}</h1>
+          {editingArtistName ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <input
+                autoFocus
+                className="search-input"
+                style={{ fontSize: "1.4rem", padding: "6px 10px", width: 320 }}
+                value={artistNameDraft}
+                onChange={(e) => setArtistNameDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveArtistName(); if (e.key === "Escape") setEditingArtistName(false); }}
+              />
+              <button className="tab active" disabled={adminBusy} onClick={saveArtistName}>save</button>
+              <button className="tab" onClick={() => setEditingArtistName(false)}>cancel</button>
+            </div>
+          ) : (
+            <h1 className="detail-name" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              {artist.name}
+              {isAdmin && (
+                <button
+                  className="rating-chip"
+                  style={{ fontSize: "0.6rem", verticalAlign: "middle" }}
+                  onClick={() => { setArtistNameDraft(artist.name); setEditingArtistName(true); }}
+                >
+                  edit name
+                </button>
+              )}
+            </h1>
+          )}
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
