@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
+import { useIsAdmin } from "./useIsAdmin";
 
 type Artist = {
   id: string;
@@ -26,6 +28,9 @@ type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pc
 
 export default function HomePage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const isAdmin = useIsAdmin();
+  const [creatingArtist, setCreatingArtist] = useState(false);
   const [artists, setArtists] = useState<Artist[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -180,6 +185,16 @@ export default function HomePage() {
 
   const sectionLabel = q ? "Search results" : user ? "Artists you follow" : "In the archive";
 
+  async function createArtist() {
+    const name = window.prompt("Artist name:");
+    if (!name || !name.trim()) return;
+    setCreatingArtist(true);
+    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name.trim() });
+    setCreatingArtist(false);
+    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return; }
+    router.push(`/artist/${newId}`);
+  }
+
   return (
     <div className="wrap">
       <div className="hero">
@@ -243,7 +258,14 @@ export default function HomePage() {
         </>
       )}
 
-      <div className="section-label">{sectionLabel}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
+        {isAdmin && (
+          <button className="tab" disabled={creatingArtist} onClick={createArtist}>
+            {creatingArtist ? "…" : "+ add artist"}
+          </button>
+        )}
+      </div>
 
       <div className="sort-row">
         <select className="sort-select" value={artistSort} onChange={(e) => setArtistSort(e.target.value as ArtistSortKey)}>
