@@ -73,6 +73,20 @@ export default function ArtistPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>("all");
   const [collectedFilter, setCollectedFilter] = useState<CollectedFilter>("all");
+  const [hideSubVersions, setHideSubVersions] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("static_cuts_hide_subversions");
+    if (stored === "true") setHideSubVersions(true);
+  }, []);
+
+  function toggleHideSubVersions() {
+    setHideSubVersions((prev) => {
+      const next = !prev;
+      localStorage.setItem("static_cuts_hide_subversions", String(next));
+      return next;
+    });
+  }
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
   const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
@@ -898,6 +912,7 @@ export default function ArtistPage() {
     if (!q || !tracks) return null;
     return tracks
       .filter((t) => trackPasses(t, owned, roleFilter, releaseFilter, collectedFilter))
+      .filter((t) => !hideSubVersions || !t.parent_track_id)
       .filter((t) => t.title.toLowerCase().includes(q) || (t.aliases ?? "").toLowerCase().includes(q))
       .sort((a, b) => a.title.localeCompare(b.title));
   })();
@@ -1589,6 +1604,13 @@ export default function ArtistPage() {
             <div className="sort-row" style={{ marginBottom: 8 }}>
               <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
               <button className="sort-select" style={{ marginLeft: 6 }} onClick={() => setOpenLetters(new Set())}>collapse all</button>
+              <button
+                className={`sort-select ${hideSubVersions ? "active" : ""}`}
+                style={{ marginLeft: 6 }}
+                onClick={toggleHideSubVersions}
+              >
+                {hideSubVersions ? "☑ sub-versions hidden" : "☐ hide sub-versions"}
+              </button>
             </div>
           </div>
 
@@ -1620,7 +1642,7 @@ export default function ArtistPage() {
                     {isOpen && letterGroups[letter].map((t) => (
                       <div key={t.id}>
                         {trackRow(t, false)}
-                        {(subsByParent[t.id] ?? [])
+                        {!hideSubVersions && (subsByParent[t.id] ?? [])
                           .filter((s) => trackPasses(s, owned, roleFilter, releaseFilter, collectedFilter))
                           .map((s) => trackRow(s, true))}
                       </div>
