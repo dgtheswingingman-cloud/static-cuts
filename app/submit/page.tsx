@@ -507,9 +507,9 @@ function SubmitForm() {
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
               value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+              <input className="search-input" style={{ flex: 1 }} type="number" id="new-version-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+              <input className="search-input" style={{ flex: 2 }} type="date" id="new-version-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
                 value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
@@ -554,9 +554,9 @@ function SubmitForm() {
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
               value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+              <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+              <input className="search-input" style={{ flex: 2 }} type="date" id="new-track-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
                 value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
@@ -640,9 +640,9 @@ function SubmitForm() {
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
               value={editAlbum} onChange={(e) => setEditAlbum(e.target.value)} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+              <input className="search-input" style={{ flex: 1 }} type="number" id="correction-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+              <input className="search-input" style={{ flex: 2 }} type="date" id="correction-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
                 value={editReleaseDate} onChange={(e) => setEditReleaseDate(e.target.value)} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"

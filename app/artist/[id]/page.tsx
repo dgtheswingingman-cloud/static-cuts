@@ -1037,9 +1037,9 @@ export default function ArtistPage() {
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
             value={editDraft.album} onChange={(e) => setEditDraft({ ...editDraft, album: e.target.value })} />
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-            <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+            <input className="search-input" style={{ flex: 1 }} type="number" id="edit-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
               value={editDraft.track_number} onChange={(e) => setEditDraft({ ...editDraft, track_number: e.target.value })} />
-            <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+            <input className="search-input" style={{ flex: 2 }} type="date" id="edit-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
               value={editDraft.release_date} onChange={(e) => setEditDraft({ ...editDraft, release_date: e.target.value })} />
           </div>
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
@@ -1525,9 +1525,9 @@ export default function ArtistPage() {
               <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
                 value={newTrack.album} onChange={(e) => setNewTrack({ ...newTrack, album: e.target.value })} />
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <input className="search-input" style={{ flex: 1 }} type="number" placeholder="Track #"
+                <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                   value={newTrack.track_number} onChange={(e) => setNewTrack({ ...newTrack, track_number: e.target.value })} />
-                <input className="search-input" style={{ flex: 2 }} type="date" placeholder="Release date"
+                <input className="search-input" style={{ flex: 2 }} type="date" id="new-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
                   value={newTrack.release_date} onChange={(e) => setNewTrack({ ...newTrack, release_date: e.target.value })} />
               </div>
               <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
