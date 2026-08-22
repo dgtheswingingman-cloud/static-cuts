@@ -73,18 +73,13 @@ export default function ArtistPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>("all");
   const [collectedFilter, setCollectedFilter] = useState<CollectedFilter>("all");
-  const [hideSubVersions, setHideSubVersions] = useState(false);
+  const [openSubsFor, setOpenSubsFor] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const stored = localStorage.getItem("static_cuts_hide_subversions");
-    if (stored === "true") setHideSubVersions(true);
-  }, []);
-
-  function toggleHideSubVersions() {
-    setHideSubVersions((prev) => {
-      const next = !prev;
-      localStorage.setItem("static_cuts_hide_subversions", String(next));
-      return next;
+  function toggleSubsFor(trackId: string) {
+    setOpenSubsFor((prev) => {
+      const n = new Set(prev);
+      if (n.has(trackId)) n.delete(trackId); else n.add(trackId);
+      return n;
     });
   }
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -912,7 +907,6 @@ export default function ArtistPage() {
     if (!q || !tracks) return null;
     return tracks
       .filter((t) => trackPasses(t, owned, roleFilter, releaseFilter, collectedFilter))
-      .filter((t) => !hideSubVersions || !t.parent_track_id)
       .filter((t) => t.title.toLowerCase().includes(q) || (t.aliases ?? "").toLowerCase().includes(q))
       .sort((a, b) => a.title.localeCompare(b.title));
   })();
@@ -948,6 +942,9 @@ export default function ArtistPage() {
 
     setOpenLetters((prev) => new Set(prev).add(letter));
     ensureLetterLoaded(letter);
+    if (target.parent_track_id) {
+      setOpenSubsFor((prev) => new Set(prev).add(target.parent_track_id as string));
+    }
     setHighlightedId(highlight);
 
     setTimeout(() => {
@@ -1604,13 +1601,6 @@ export default function ArtistPage() {
             <div className="sort-row" style={{ marginBottom: 8 }}>
               <button className="sort-select" onClick={() => setOpenLetters(new Set(sortedLetters))}>expand all</button>
               <button className="sort-select" style={{ marginLeft: 6 }} onClick={() => setOpenLetters(new Set())}>collapse all</button>
-              <button
-                className={`sort-select ${hideSubVersions ? "active" : ""}`}
-                style={{ marginLeft: 6 }}
-                onClick={toggleHideSubVersions}
-              >
-                {hideSubVersions ? "☑ sub-versions hidden" : "☐ hide sub-versions"}
-              </button>
             </div>
           </div>
 
@@ -1639,14 +1629,25 @@ export default function ArtistPage() {
                       <span>{letter} ({letterGroups[letter].length})</span>
                       <button className="tab" style={{ padding: "3px 10px", fontSize: "0.62rem" }}>{isOpen ? "hide" : "show"}</button>
                     </div>
-                    {isOpen && letterGroups[letter].map((t) => (
-                      <div key={t.id}>
-                        {trackRow(t, false)}
-                        {!hideSubVersions && (subsByParent[t.id] ?? [])
-                          .filter((s) => trackPasses(s, owned, roleFilter, releaseFilter, collectedFilter))
-                          .map((s) => trackRow(s, true))}
-                      </div>
-                    ))}
+                    {isOpen && letterGroups[letter].map((t) => {
+                      const passingSubs = (subsByParent[t.id] ?? []).filter((s) => trackPasses(s, owned, roleFilter, releaseFilter, collectedFilter));
+                      const subsOpen = openSubsFor.has(t.id);
+                      return (
+                        <div key={t.id}>
+                          {trackRow(t, false)}
+                          {passingSubs.length > 0 && (
+                            <div
+                              className="comment-meta"
+                              style={{ marginLeft: 30, marginBottom: 4, cursor: "pointer" }}
+                              onClick={() => toggleSubsFor(t.id)}
+                            >
+                              {subsOpen ? "▾" : "▸"} {passingSubs.length} version{passingSubs.length === 1 ? "" : "s"}
+                            </div>
+                          )}
+                          {subsOpen && passingSubs.map((s) => trackRow(s, true))}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
