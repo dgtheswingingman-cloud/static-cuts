@@ -1093,12 +1093,16 @@ export default function ArtistPage() {
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
           {t.is_official ? <span className="feature-tag">official</span> : <span className="feature-tag">unreleased</span>}
-          <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
-            {chipLabel}
-          </button>
-          <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
-            comments
-          </button>
+          {!isAdmin && (
+            <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
+              {chipLabel}
+            </button>
+          )}
+          {!isAdmin && (
+            <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
+              comments
+            </button>
+          )}
           <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenInfoId(openInfoId === t.id ? null : t.id); }}>
             info
           </button>
