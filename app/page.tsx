@@ -14,6 +14,8 @@ type Artist = {
   status: string | null;
   trackCount: number;
   collectedCount: number;
+  avgRating: number | null;
+  ratingCount: number;
 };
 
 type TrackResult = {
@@ -24,7 +26,7 @@ type TrackResult = {
   artists: { name: string } | null;
 };
 
-type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc";
+type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc" | "rating-desc" | "rating-asc";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -107,11 +109,19 @@ export default function HomePage() {
           });
         }
 
+        const { data: ratingStats } = await supabase.from("artist_rating_stats").select("artist_id, avg_rating, rating_count");
+        const ratingMap: Record<string, { avg: number; count: number }> = {};
+        (ratingStats ?? []).forEach((r: any) => {
+          ratingMap[r.artist_id] = { avg: r.avg_rating, count: r.rating_count };
+        });
+
         setArtists(
           (artistRows ?? []).map((a) => ({
             ...a,
             trackCount: counts[a.id] ?? 0,
             collectedCount: collectedCounts[a.id] ?? 0,
+            avgRating: ratingMap[a.id]?.avg ?? null,
+            ratingCount: ratingMap[a.id]?.count ?? 0,
           }))
         );
       } catch (e: any) {
@@ -223,6 +233,22 @@ export default function HomePage() {
       case "count-asc": sorted.sort((a, b) => a.trackCount - b.trackCount); break;
       case "pct-desc": sorted.sort((a, b) => pct(b) - pct(a)); break;
       case "pct-asc": sorted.sort((a, b) => pct(a) - pct(b)); break;
+      case "rating-desc":
+        sorted.sort((a, b) => {
+          if (a.avgRating === null && b.avgRating === null) return 0;
+          if (a.avgRating === null) return 1; // unrated always last
+          if (b.avgRating === null) return -1;
+          return b.avgRating - a.avgRating;
+        });
+        break;
+      case "rating-asc":
+        sorted.sort((a, b) => {
+          if (a.avgRating === null && b.avgRating === null) return 0;
+          if (a.avgRating === null) return 1; // unrated always last
+          if (b.avgRating === null) return -1;
+          return a.avgRating - b.avgRating;
+        });
+        break;
     }
     // Pinned artists always float to the top, regardless of the sort
     // above -- pinning is about "always show me this first", not just
@@ -328,6 +354,8 @@ export default function HomePage() {
           <option value="count-asc">Fewest tracks logged</option>
           {user && <option value="pct-desc">My completion % (high–low)</option>}
           {user && <option value="pct-asc">My completion % (low–high)</option>}
+          <option value="rating-desc">Community rating (high–low)</option>
+          <option value="rating-asc">Community rating (low–high)</option>
         </select>
       </div>
 
@@ -378,6 +406,11 @@ export default function HomePage() {
                     <div className="bar-fill" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="pct">{user ? `${pct}% collected` : "log in to track your collection"}</div>
+                  {a.avgRating !== null && (
+                    <div className="pct" style={{ marginTop: 2 }}>
+                      ★ {a.avgRating.toFixed(1)}/10 community ({a.ratingCount} rating{a.ratingCount === 1 ? "" : "s"})
+                    </div>
+                  )}
                 </Link>
               );
             })
