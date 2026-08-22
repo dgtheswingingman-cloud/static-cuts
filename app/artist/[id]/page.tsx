@@ -1085,6 +1085,7 @@ export default function ArtistPage() {
           marginLeft: isSub ? 30 : 0,
           background: highlightedId === t.id ? "rgba(255,255,255,0.08)" : "transparent",
           transition: "background 1.2s ease",
+          position: "relative",
         }}
       >
         <div className="track-row" onClick={() => toggleOwned(t.id)} style={{ opacity: isToggling ? 0.5 : 1 }}>
