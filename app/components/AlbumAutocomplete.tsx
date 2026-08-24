@@ -46,6 +46,7 @@ export default function AlbumAutocomplete({
         style={{ width: "100%" }}
         id={`${idPrefix}-album`}
         name={`${idPrefix}-album`}
+        autoComplete="off"
         aria-label="Album"
         placeholder="Album"
         value={value}
