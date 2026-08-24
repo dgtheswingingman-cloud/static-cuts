@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import DateDropdownPicker from "../../components/DateDropdownPicker";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
@@ -1039,8 +1040,11 @@ export default function ArtistPage() {
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input className="search-input" style={{ flex: 1 }} type="number" id="edit-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
               value={editDraft.track_number} onChange={(e) => setEditDraft({ ...editDraft, track_number: e.target.value })} />
-            <input className="search-input" style={{ flex: 2 }} type="date" id="edit-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
-              value={editDraft.release_date} onChange={(e) => setEditDraft({ ...editDraft, release_date: e.target.value })} />
+            <DateDropdownPicker
+              idPrefix="edit-release-date"
+              value={editDraft.release_date}
+              onChange={(v) => setEditDraft({ ...editDraft, release_date: v })}
+            />
           </div>
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
             value={editDraft.producers} onChange={(e) => setEditDraft({ ...editDraft, producers: e.target.value })} />
@@ -1527,8 +1531,11 @@ export default function ArtistPage() {
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                 <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                   value={newTrack.track_number} onChange={(e) => setNewTrack({ ...newTrack, track_number: e.target.value })} />
-                <input className="search-input" style={{ flex: 2 }} type="date" id="new-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
-                  value={newTrack.release_date} onChange={(e) => setNewTrack({ ...newTrack, release_date: e.target.value })} />
+                <DateDropdownPicker
+                  idPrefix="new-track-release-date"
+                  value={newTrack.release_date}
+                  onChange={(v) => setNewTrack({ ...newTrack, release_date: v })}
+                />
               </div>
               <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Producers"
                 value={newTrack.producers} onChange={(e) => setNewTrack({ ...newTrack, producers: e.target.value })} />

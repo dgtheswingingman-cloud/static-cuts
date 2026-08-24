@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import DateDropdownPicker from "../components/DateDropdownPicker";
 
 type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link" | "flag_deletion";
 
@@ -509,8 +510,7 @@ function SubmitForm() {
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="new-version-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" id="new-version-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
-                value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
+              <DateDropdownPicker idPrefix="new-version-release-date" value={newReleaseDate} onChange={setNewReleaseDate} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
               value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
@@ -556,8 +556,7 @@ function SubmitForm() {
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" id="new-track-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
-                value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} />
+              <DateDropdownPicker idPrefix="new-track-release-date" value={newReleaseDate} onChange={setNewReleaseDate} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
               value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
@@ -642,8 +641,7 @@ function SubmitForm() {
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="correction-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />
-              <input className="search-input" style={{ flex: 2 }} type="date" id="correction-release-date" name="release-date" aria-label="Release date" placeholder="Release date"
-                value={editReleaseDate} onChange={(e) => setEditReleaseDate(e.target.value)} />
+              <DateDropdownPicker idPrefix="correction-release-date" value={editReleaseDate} onChange={setEditReleaseDate} />
             </div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
               value={editProducers} onChange={(e) => setEditProducers(e.target.value)} />
