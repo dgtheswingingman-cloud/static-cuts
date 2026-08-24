@@ -659,11 +659,11 @@ export default function ArtistPage() {
     const q = newTrackMainArtistSearch.trim();
     if (q.length < 2) { setNewTrackMainArtistResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
       setNewTrackMainArtistResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
-  }, [newTrackMainArtistSearch]);
+  }, [newTrackMainArtistSearch, id]);
 
   function newTrackFeaturedTagPicker() {
     return (

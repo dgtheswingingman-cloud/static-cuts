@@ -168,11 +168,11 @@ function SubmitForm() {
     const q = mainArtistSearch.trim();
     if (q.length < 2) { setMainArtistResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
       setMainArtistResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
-  }, [mainArtistSearch]);
+  }, [mainArtistSearch, prefilledArtistId]);
 
   useEffect(() => {
     const q = newFeaturedSearch.trim();
@@ -188,11 +188,11 @@ function SubmitForm() {
     const q = editFeaturedSearch.trim();
     if (q.length < 2) { setEditFeaturedResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
       setEditFeaturedResults((data ?? []).filter((a) => !editFeaturedTags.some((t) => t.id === a.id)));
     }, 300);
     return () => clearTimeout(handle);
-  }, [editFeaturedSearch, editFeaturedTags]);
+  }, [editFeaturedSearch, editFeaturedTags, prefilledArtistId]);
 
   // Shared render for both tag pickers -- no "create on the fly" here,
   // since regular users can't create artists directly; if someone's
