@@ -770,7 +770,15 @@ export default function ArtistPage() {
     setNewTrackParentSearch("");
     setNewTrackMainArtistId("");
     setNewTrackMainArtistSearch("");
-    load();
+    await load();
+    // A brand-new track was never in loadedDetailIds before now, so
+    // load()'s "restore previously-loaded heavy details" pass has no way
+    // to know it needs fetching -- load it explicitly so the info panel
+    // (including featured-artist links) is correct immediately, not just
+    // after a manual refresh.
+    if (newTrackId) {
+      await ensureTracksLoaded([newTrackId as string], true);
+    }
   }
 
   function copyText(text: string) {
