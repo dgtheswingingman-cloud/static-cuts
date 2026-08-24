@@ -632,10 +632,22 @@ export default function ArtistPage() {
     if (q.length < 2) { setNewTrackFeaturedResults([]); return; }
     const handle = setTimeout(async () => {
       const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
-      setNewTrackFeaturedResults((data ?? []).filter((a) => !newTrackFeaturedTags.some((t) => t.id === a.id)));
+      setNewTrackFeaturedResults(
+        (data ?? [])
+          .filter((a) => !newTrackFeaturedTags.some((t) => t.id === a.id))
+          .filter((a) => a.id !== newTrackMainArtistId)
+      );
     }, 300);
     return () => clearTimeout(handle);
-  }, [newTrackFeaturedSearch, id, newTrackFeaturedTags]);
+  }, [newTrackFeaturedSearch, id, newTrackFeaturedTags, newTrackMainArtistId]);
+
+  // If the main artist gets picked after a tag was already added, strip
+  // that tag out -- the search exclusion above only prevents adding it
+  // going forward, this catches the reverse order.
+  useEffect(() => {
+    if (!newTrackMainArtistId) return;
+    setNewTrackFeaturedTags((prev) => prev.filter((t) => t.id !== newTrackMainArtistId));
+  }, [newTrackMainArtistId]);
 
   function addNewTrackFeaturedTag(a: { id: string; name: string }) {
     setNewTrackFeaturedTags((prev) => [...prev, a]);
