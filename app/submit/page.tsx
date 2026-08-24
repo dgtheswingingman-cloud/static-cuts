@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import DateDropdownPicker from "../components/DateDropdownPicker";
+import AlbumAutocomplete from "../components/AlbumAutocomplete";
 
 type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link" | "flag_deletion";
 
@@ -505,8 +506,14 @@ function SubmitForm() {
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
               value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
-              value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
+            <div style={{ marginBottom: 8 }}>
+              <AlbumAutocomplete
+                idPrefix="new-track"
+                artistId={isFeatured ? (mainArtistId || null) : prefilledArtistId}
+                value={newAlbum}
+                onChange={setNewAlbum}
+              />
+            </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="new-version-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
@@ -551,8 +558,9 @@ function SubmitForm() {
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
               value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
-              value={newAlbum} onChange={(e) => setNewAlbum(e.target.value)} />
+            <div style={{ marginBottom: 8 }}>
+              <AlbumAutocomplete idPrefix="new-version" artistId={prefilledArtistId} value={newAlbum} onChange={setNewAlbum} />
+            </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
@@ -636,8 +644,9 @@ function SubmitForm() {
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
               value={editAliases} onChange={(e) => setEditAliases(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Album"
-              value={editAlbum} onChange={(e) => setEditAlbum(e.target.value)} />
+            <div style={{ marginBottom: 8 }}>
+              <AlbumAutocomplete idPrefix="correction" artistId={prefilledArtistId} value={editAlbum} onChange={setEditAlbum} />
+            </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="search-input" style={{ flex: 1 }} type="number" id="correction-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                 value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />

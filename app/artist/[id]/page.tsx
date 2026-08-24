@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import DateDropdownPicker from "../../components/DateDropdownPicker";
+import AlbumAutocomplete from "../../components/AlbumAutocomplete";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
@@ -1035,8 +1036,14 @@ export default function ArtistPage() {
           <div className="comments-count" style={{ marginBottom: 6, marginTop: 8 }}>Verbose info (optional)</div>
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"
             value={editDraft.aliases} onChange={(e) => setEditDraft({ ...editDraft, aliases: e.target.value })} />
-          <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
-            value={editDraft.album} onChange={(e) => setEditDraft({ ...editDraft, album: e.target.value })} />
+          <div style={{ marginBottom: 6 }}>
+            <AlbumAutocomplete
+              idPrefix="edit"
+              artistId={id}
+              value={editDraft.album}
+              onChange={(v) => setEditDraft({ ...editDraft, album: v })}
+            />
+          </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input className="search-input" style={{ flex: 1 }} type="number" id="edit-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
               value={editDraft.track_number} onChange={(e) => setEditDraft({ ...editDraft, track_number: e.target.value })} />
@@ -1526,8 +1533,14 @@ export default function ArtistPage() {
               <div className="comments-count" style={{ marginBottom: 6, marginTop: 10 }}>Verbose info (optional)</div>
               <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"
                 value={newTrack.aliases} onChange={(e) => setNewTrack({ ...newTrack, aliases: e.target.value })} />
-              <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Album"
-                value={newTrack.album} onChange={(e) => setNewTrack({ ...newTrack, album: e.target.value })} />
+              <div style={{ marginBottom: 6 }}>
+                <AlbumAutocomplete
+                  idPrefix="new-track"
+                  artistId={newTrack.is_featured ? (newTrackMainArtistId || null) : id}
+                  value={newTrack.album}
+                  onChange={(v) => setNewTrack({ ...newTrack, album: v })}
+                />
+              </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                 <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
                   value={newTrack.track_number} onChange={(e) => setNewTrack({ ...newTrack, track_number: e.target.value })} />
