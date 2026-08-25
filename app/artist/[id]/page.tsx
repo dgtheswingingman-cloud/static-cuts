@@ -652,12 +652,16 @@ export default function ArtistPage() {
     if (!linkTargetArtist) return;
     const proceed = window.confirm(
       `Delete the duplicate entry and link "${track.title}" here instead? ` +
-      `Any ratings or comments on that duplicate will be lost — only the version you're linking keeps its own.`
+      `Any ratings or comments on that duplicate will be lost — only the version you're linking keeps its own. ` +
+      `Old links to the duplicate will still work, redirecting here automatically.`
     );
     if (!proceed) return;
     setAdminBusy(true);
-    await supabase.rpc("admin_delete_track", { p_track_id: duplicateTrackId });
-    const { error: err } = await supabase.rpc("admin_add_track_appearance", { p_track_id: track.id, p_artist_id: linkTargetArtist.id });
+    const { error: err } = await supabase.rpc("admin_merge_track", {
+      p_duplicate_track_id: duplicateTrackId,
+      p_survivor_track_id: track.id,
+      p_appearance_artist_id: linkTargetArtist.id,
+    });
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
     resetLinkPanel();
@@ -1005,32 +1009,50 @@ export default function ArtistPage() {
 
   // Jump-to-track support: /artist/[id]?highlight=trackId auto-expands
   // that track's letter group and scrolls it into view -- used by the
-  // review queue's "view track" links.
+  // review queue's "view track" links. If the id isn't found directly, it
+  // may have been merged away -- check for a redirect before giving up,
+  // so old shared links don't just dead-end.
   useEffect(() => {
     if (!tracks) return;
     const params = new URLSearchParams(window.location.search);
     const highlight = params.get("highlight");
     if (!highlight) return;
 
-    const target = tracks.find((t) => t.id === highlight);
-    if (!target) return;
+    async function resolveAndHighlight(trackId: string) {
+      let target = tracks!.find((t) => t.id === trackId);
 
-    const anchorTitle = target.parent_track_id
-      ? tracks.find((t) => t.id === target.parent_track_id)?.title ?? target.title
-      : target.title;
-    const letter = letterOf(anchorTitle);
+      if (!target) {
+        const { data: redirect } = await supabase
+          .from("track_redirects")
+          .select("new_track_id")
+          .eq("old_track_id", trackId)
+          .maybeSingle();
+        if (redirect?.new_track_id && redirect.new_track_id !== trackId) {
+          router.replace(`/artist/${id}?highlight=${redirect.new_track_id}`);
+          return;
+        }
+        return; // genuinely doesn't exist, nothing to redirect to
+      }
 
-    setOpenLetters((prev) => new Set(prev).add(letter));
-    ensureLetterLoaded(letter);
-    if (target.parent_track_id) {
-      setOpenSubsFor((prev) => new Set(prev).add(target.parent_track_id as string));
+      const anchorTitle = target.parent_track_id
+        ? tracks!.find((t) => t.id === target!.parent_track_id)?.title ?? target.title
+        : target.title;
+      const letter = letterOf(anchorTitle);
+
+      setOpenLetters((prev) => new Set(prev).add(letter));
+      ensureLetterLoaded(letter);
+      if (target.parent_track_id) {
+        setOpenSubsFor((prev) => new Set(prev).add(target!.parent_track_id as string));
+      }
+      setHighlightedId(trackId);
+
+      setTimeout(() => {
+        document.getElementById(`track-${trackId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+      setTimeout(() => setHighlightedId(null), 3500);
     }
-    setHighlightedId(highlight);
 
-    setTimeout(() => {
-      document.getElementById(`track-${highlight}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 150);
-    setTimeout(() => setHighlightedId(null), 3500);
+    resolveAndHighlight(highlight);
   }, [tracks]);
 
   function toggleLetter(letter: string) {
