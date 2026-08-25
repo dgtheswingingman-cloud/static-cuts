@@ -63,6 +63,9 @@ function SubmitForm() {
   const [mainArtistSearch, setMainArtistSearch] = useState("");
   const [mainArtistResults, setMainArtistResults] = useState<{ id: string; name: string }[]>([]);
   const [mainArtistId, setMainArtistId] = useState("");
+  const [subVersionSearch, setSubVersionSearch] = useState("");
+  const [subVersionResults, setSubVersionResults] = useState<{ id: string; title: string }[]>([]);
+  const [subVersionParentId, setSubVersionParentId] = useState("");
   const [newAliases, setNewAliases] = useState("");
   const [newAlbum, setNewAlbum] = useState("");
   const [newTrackNumber, setNewTrackNumber] = useState("");
@@ -174,6 +177,28 @@ function SubmitForm() {
     return () => clearTimeout(handle);
   }, [mainArtistSearch, prefilledArtistId]);
 
+  // Inline "is this a version of something that already exists?" search
+  // for the new_track form -- searches whichever artist is actually going
+  // to be the home (the featured main artist if picked, otherwise the
+  // page this was submitted from), only matching main tracks, not other
+  // sub-versions, to avoid nesting.
+  useEffect(() => {
+    const q = subVersionSearch.trim();
+    const homeArtist = isFeatured ? mainArtistId : prefilledArtistId;
+    if (q.length < 2 || !homeArtist) { setSubVersionResults([]); return; }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from("tracks")
+        .select("id, title")
+        .eq("artist_id", homeArtist)
+        .is("parent_track_id", null)
+        .ilike("title", `%${q}%`)
+        .limit(8);
+      setSubVersionResults(data ?? []);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [subVersionSearch, isFeatured, mainArtistId, prefilledArtistId]);
+
   useEffect(() => {
     const q = newFeaturedSearch.trim();
     if (q.length < 2) { setNewFeaturedResults([]); return; }
@@ -280,11 +305,12 @@ function SubmitForm() {
           payload: {
             title: trackTitle.trim(),
             spotify_url: trackUrl.trim() || undefined,
-            track_type: "studio",
+            track_type: subVersionParentId ? "alternate_version" : "studio",
             is_featured: isFeatured,
             is_official: isOfficial,
             has_audio: true,
             main_artist_id: isFeatured ? mainArtistId : undefined,
+            parent_track_id: subVersionParentId || undefined,
             aliases: newAliases.trim(),
             album: newAlbum.trim(),
             track_number: newTrackNumber.trim(),
@@ -502,6 +528,38 @@ function SubmitForm() {
                 {featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}
               </div>
             )}
+
+            <div style={{ marginBottom: 12 }}>
+              <div className="detail-meta" style={{ marginBottom: 6 }}>
+                Is this a version of a track that already exists? (optional — if you're not sure, leave this blank)
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  className="search-input"
+                  style={{ width: "100%" }}
+                  placeholder="Search this artist's existing tracks…"
+                  value={subVersionSearch}
+                  onChange={(e) => { setSubVersionSearch(e.target.value); setSubVersionParentId(""); }}
+                />
+                {subVersionSearch.trim().length >= 2 && !subVersionParentId && (
+                  <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
+                    {subVersionResults.map((t) => (
+                      <div key={t.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
+                        onClick={() => { setSubVersionParentId(t.id); setSubVersionSearch(t.title); }}>
+                        <span className="comment-body" style={{ fontSize: "0.82rem" }}>{t.title}</span>
+                      </div>
+                    ))}
+                    {subVersionResults.length === 0 && <div className="comments-count">No matches.</div>}
+                  </div>
+                )}
+              </div>
+              {subVersionParentId && (
+                <div className="detail-meta" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                  Will be added as an alternate version of &quot;{subVersionSearch}&quot;
+                  <button className="rating-clear" onClick={() => { setSubVersionParentId(""); setSubVersionSearch(""); }}>clear</button>
+                </div>
+              )}
+            </div>
 
             <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
             <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
