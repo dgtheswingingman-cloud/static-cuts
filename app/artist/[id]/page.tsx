@@ -69,6 +69,10 @@ export default function ArtistPage() {
   const isAdmin = useIsAdmin();
 
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
+  const [genreTagsOpen, setGenreTagsOpen] = useState(false);
+  const [genreTagInput, setGenreTagInput] = useState("");
+  const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -324,6 +328,60 @@ export default function ArtistPage() {
     if (err) { alert(err.message); return; }
     setArtist((prev) => (prev ? { ...prev, name: artistNameDraft.trim() } : prev));
     setEditingArtistName(false);
+  }
+
+  async function loadGenreTags() {
+    const { data: stats } = await supabase.from("artist_genre_tag_stats").select("id, tag, vote_count").eq("artist_id", id);
+    let myVoteIds = new Set<string>();
+    if (user && stats && stats.length > 0) {
+      const { data: myVotes } = await supabase
+        .from("artist_genre_tag_votes")
+        .select("tag_id")
+        .eq("user_id", user.id)
+        .in("tag_id", stats.map((s: any) => s.id));
+      myVoteIds = new Set((myVotes ?? []).map((v: any) => v.tag_id));
+    }
+    setGenreTags(
+      (stats ?? [])
+        .map((s: any) => ({ id: s.id, tag: s.tag, vote_count: s.vote_count, my_vote: myVoteIds.has(s.id) }))
+        .sort((a, b) => b.vote_count - a.vote_count)
+    );
+  }
+
+  useEffect(() => {
+    loadGenreTags();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
+
+  async function toggleGenreTagVote(tagId: string, currentlyVoted: boolean) {
+    if (!user) { router.push("/login"); return; }
+    setGenreTagBusy(true);
+    if (currentlyVoted) {
+      await supabase.rpc("remove_genre_tag_vote", { p_tag_id: tagId });
+    } else {
+      await supabase.rpc("add_or_vote_genre_tag", { p_artist_id: id, p_tag: genreTags.find((t) => t.id === tagId)?.tag ?? "" });
+    }
+    setGenreTagBusy(false);
+    loadGenreTags();
+  }
+
+  async function submitGenreTag() {
+    if (!user) { router.push("/login"); return; }
+    const tag = genreTagInput.trim();
+    if (!tag) return;
+    setGenreTagBusy(true);
+    const { error: err } = await supabase.rpc("add_or_vote_genre_tag", { p_artist_id: id, p_tag: tag });
+    setGenreTagBusy(false);
+    if (err) { alert(err.message); return; }
+    setGenreTagInput("");
+    loadGenreTags();
+  }
+
+  async function deleteGenreTag(tagId: string) {
+    if (!window.confirm("Remove this tag entirely? This deletes it for everyone, not just your vote.")) return;
+    const { error: err } = await supabase.rpc("admin_delete_genre_tag", { p_tag_id: tagId });
+    if (err) { alert(err.message); return; }
+    loadGenreTags();
   }
 
   async function deleteArtist() {
@@ -1445,6 +1503,15 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
+          {genreTags.length > 0 && (
+            <span style={{ marginLeft: 10 }}>
+              {genreTags.slice(0, 3).map((t) => (
+                <span key={t.id} className="feature-tag" style={{ marginRight: 6 }}>
+                  {t.tag} ({t.vote_count})
+                </span>
+              ))}
+            </span>
+          )}
           {!isAdmin && (
             <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
               + suggest a track
@@ -1589,6 +1656,50 @@ export default function ArtistPage() {
           {user && (
             <div className="bar-track" style={{ height: 4, marginBottom: 22 }}>
               <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
+            </div>
+          )}
+
+          <button className="tab" style={{ marginBottom: 12 }} onClick={() => setGenreTagsOpen(!genreTagsOpen)}>
+            {genreTagsOpen ? "hide genre tags" : "genre tags"}
+          </button>
+          {genreTagsOpen && (
+            <div className="comments-panel" style={{ marginBottom: 20 }}>
+              <div className="comments-count" style={{ marginBottom: 8 }}>
+                Community-suggested genres, voted up or down. Click a tag to add or remove your vote.
+                {user && " You can suggest up to 3 new tags per artist."}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                {genreTags.map((t) => (
+                  <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <button
+                      className={`rating-chip ${t.my_vote ? "rated" : ""}`}
+                      disabled={genreTagBusy}
+                      onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
+                    >
+                      {t.tag} ({t.vote_count})
+                    </button>
+                    {isAdmin && (
+                      <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
+                    )}
+                  </span>
+                ))}
+                {genreTags.length === 0 && <div className="comments-count">No genre tags yet — be the first to suggest one.</div>}
+              </div>
+              {user ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    className="search-input"
+                    style={{ flex: 1 }}
+                    placeholder="Suggest a genre tag…"
+                    value={genreTagInput}
+                    onChange={(e) => setGenreTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitGenreTag(); }}
+                  />
+                  <button className="comment-post-btn" disabled={genreTagBusy} onClick={submitGenreTag}>add</button>
+                </div>
+              ) : (
+                <div className="comments-count"><a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to suggest or vote on genre tags.</div>
+              )}
             </div>
           )}
 
