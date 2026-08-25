@@ -70,7 +70,6 @@ export default function ArtistPage() {
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
-  const [genreTagsOpen, setGenreTagsOpen] = useState(false);
   const [genreTagInput, setGenreTagInput] = useState("");
   const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
@@ -1525,15 +1524,6 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
-          {genreTags.length > 0 && (
-            <span style={{ marginLeft: 10 }}>
-              {genreTags.slice(0, 3).map((t) => (
-                <span key={t.id} className="feature-tag" style={{ marginRight: 6 }}>
-                  {t.tag} ({t.vote_count})
-                </span>
-              ))}
-            </span>
-          )}
           {!isAdmin && (
             <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
               + suggest a track
@@ -1681,49 +1671,44 @@ export default function ArtistPage() {
             </div>
           )}
 
-          <button className="tab" style={{ marginBottom: 12 }} onClick={() => setGenreTagsOpen(!genreTagsOpen)}>
-            {genreTagsOpen ? "hide genre tags" : "genre tags"}
-          </button>
-          {genreTagsOpen && (
-            <div className="comments-panel" style={{ marginBottom: 20 }}>
-              <div className="comments-count" style={{ marginBottom: 8 }}>
-                Community-suggested genres, voted up or down. Click a tag to add or remove your vote.
-                {user && " You can suggest up to 3 new tags per artist."}
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                {genreTags.map((t) => (
-                  <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <button
-                      className={`rating-chip ${t.my_vote ? "rated" : ""}`}
-                      disabled={genreTagBusy}
-                      onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
-                    >
-                      {t.tag} ({t.vote_count})
-                    </button>
-                    {isAdmin && (
-                      <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
-                    )}
-                  </span>
-                ))}
-                {genreTags.length === 0 && <div className="comments-count">No genre tags yet — be the first to suggest one.</div>}
-              </div>
-              {user ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    className="search-input"
-                    style={{ flex: 1 }}
-                    placeholder="Suggest a genre tag…"
-                    value={genreTagInput}
-                    onChange={(e) => setGenreTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitGenreTag(); }}
-                  />
-                  <button className="comment-post-btn" disabled={genreTagBusy} onClick={submitGenreTag}>add</button>
-                </div>
-              ) : (
-                <div className="comments-count"><a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to suggest or vote on genre tags.</div>
-              )}
+          <div style={{ marginBottom: 20 }}>
+            <div className="comments-count" style={{ marginBottom: 8 }}>
+              Genre tags — click one to vote, or add your own.
+              {user && " You can suggest up to 3 new tags per artist."}
             </div>
-          )}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              {genreTags.map((t) => (
+                <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <button
+                    className={`rating-chip ${t.my_vote ? "rated" : ""}`}
+                    disabled={genreTagBusy}
+                    onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
+                  >
+                    {t.tag} ({t.vote_count})
+                  </button>
+                  {isAdmin && (
+                    <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
+                  )}
+                </span>
+              ))}
+              {genreTags.length === 0 && <div className="comments-count">No genre tags yet — be the first to suggest one.</div>}
+            </div>
+            {user ? (
+              <div style={{ display: "flex", gap: 8, maxWidth: 400 }}>
+                <input
+                  className="search-input"
+                  style={{ flex: 1 }}
+                  placeholder="Suggest a genre tag…"
+                  value={genreTagInput}
+                  onChange={(e) => setGenreTagInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") submitGenreTag(); }}
+                />
+                <button className="comment-post-btn" disabled={genreTagBusy} onClick={submitGenreTag}>add</button>
+              </div>
+            ) : (
+              <div className="comments-count"><a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to suggest or vote on genre tags.</div>
+            )}
+          </div>
 
           {!authLoading && !user && (
             <div className="empty-state" style={{ marginBottom: 20 }}>
