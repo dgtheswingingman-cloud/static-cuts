@@ -64,6 +64,15 @@ export default function ReviewPage() {
   const [currentTracks, setCurrentTracks] = useState<Record<string, CurrentTrack>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [excludedFields, setExcludedFields] = useState<Record<string, Set<string>>>({});
+
+  function toggleFieldExcluded(submissionId: string, key: string) {
+    setExcludedFields((prev) => {
+      const current = new Set(prev[submissionId] ?? []);
+      if (current.has(key)) current.delete(key); else current.add(key);
+      return { ...prev, [submissionId]: current };
+    });
+  }
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
@@ -125,8 +134,23 @@ export default function ReviewPage() {
 
   async function approve(id: string) {
     const sub = submissions?.find((s) => s.id === id);
+    const excluded = Array.from(excludedFields[id] ?? []);
+
+    let note: string | null = "";
+    if (excluded.length > 0) {
+      const labels = excluded.map((k) => FIELD_LABELS[k] ?? k).join(", ");
+      note = window.prompt(
+        `Approving everything except: ${labels}. Add a note explaining why for the submitter? (optional, leave blank to skip)`
+      );
+      if (note === null) return; // cancelled
+    }
+
     setBusyId(id);
-    const { data: resultingId, error: err } = await supabase.rpc("approve_submission", { submission_id: id });
+    const { data: resultingId, error: err } = await supabase.rpc("approve_submission", {
+      submission_id: id,
+      p_excluded_fields: excluded,
+      p_note: note || null,
+    });
     setBusyId(null);
     if (err) { alert(err.message); return; }
 
@@ -134,8 +158,9 @@ export default function ReviewPage() {
     // picker, not free text -- link them directly. Guard on the key
     // actually being present so older pending submissions from before
     // this change (no featured_artist_ids at all) are left untouched
-    // rather than misread as "link nothing".
-    if (sub && resultingId && "featured_artist_ids" in sub.payload) {
+    // rather than misread as "link nothing". Also skip entirely if that
+    // specific field was excluded from this approval.
+    if (sub && resultingId && "featured_artist_ids" in sub.payload && !excluded.includes("featured_artist_ids")) {
       const desiredIds: string[] = sub.payload.featured_artist_ids ?? [];
 
       if (sub.type === "new_track" || sub.type === "new_version") {
@@ -157,6 +182,7 @@ export default function ReviewPage() {
       }
     }
 
+    setExcludedFields((prev) => { const n = { ...prev }; delete n[id]; return n; });
     load();
   }
 
@@ -189,28 +215,28 @@ export default function ReviewPage() {
 
   // Real before/after diff for corrections -- only shows fields that
   // actually changed, so a small tweak doesn't drown in unchanged fields.
-  function diffLines(s: Submission): [string, string, string][] {
+  function diffLines(s: Submission): [string, string, string, string][] {
     const current = s.payload.track_id ? currentTracks[s.payload.track_id] : undefined;
     if (!current) return [];
-    const lines: [string, string, string][] = [];
+    const lines: [string, string, string, string][] = [];
     Object.keys(FIELD_LABELS).forEach((key) => {
       if (!(key in s.payload)) return;
       const oldRaw = (current as any)[key];
       const newRaw = s.payload[key];
       const oldVal = oldRaw === null || oldRaw === undefined || oldRaw === "" ? "(none)" : String(oldRaw);
       const newVal = newRaw === null || newRaw === undefined || newRaw === "" ? "(none)" : String(newRaw);
-      if (oldVal !== newVal) lines.push([FIELD_LABELS[key], oldVal, newVal]);
+      if (oldVal !== newVal) lines.push([key, FIELD_LABELS[key], oldVal, newVal]);
     });
     if ("parent_track_id" in s.payload) {
       const wasSubVersion = !!current.parent_track_id;
       const willBeSubVersion = !!s.payload.parent_track_id;
       if (wasSubVersion !== willBeSubVersion) {
-        lines.push(["Sub-version status", wasSubVersion ? "was a sub-version" : "was a main track", willBeSubVersion ? "becomes a sub-version" : "becomes a main track"]);
+        lines.push(["parent_track_id", "Sub-version status", wasSubVersion ? "was a sub-version" : "was a main track", willBeSubVersion ? "becomes a sub-version" : "becomes a main track"]);
       }
     }
     if ("featured_artist_ids" in s.payload) {
       const count = (s.payload.featured_artist_ids ?? []).length;
-      lines.push(["Featured Artists", "(see approval)", `${count} artist${count === 1 ? "" : "s"} selected — applied automatically on approval`]);
+      lines.push(["featured_artist_ids", "Featured Artists", "(see approval)", `${count} artist${count === 1 ? "" : "s"} selected — applied automatically on approval`]);
     }
     return lines;
   }
@@ -281,11 +307,32 @@ export default function ReviewPage() {
                 </div>
               )}
               {diffs.length === 0 && <div className="comment-meta">No field changes detected.</div>}
-              {diffs.map(([label, oldVal, newVal]) => (
-                <div key={label} className="comment-meta" style={{ marginTop: 2 }}>
-                  <b style={{ color: "var(--bone)" }}>{label}:</b> {oldVal} → <b style={{ color: "var(--bone)" }}>{newVal}</b>
+              {diffs.length > 0 && (
+                <div className="comment-meta" style={{ marginTop: 4, marginBottom: 2, fontStyle: "italic" }}>
+                  Uncheck anything you don't want applied — approving still goes through, just without those fields.
                 </div>
-              ))}
+              )}
+              {diffs.map(([key, label, oldVal, newVal]) => {
+                const isExcluded = (excludedFields[s.id] ?? new Set()).has(key);
+                return (
+                  <label
+                    key={key}
+                    className="comment-meta"
+                    style={{ marginTop: 2, display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer", opacity: isExcluded ? 0.5 : 1 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!isExcluded}
+                      onChange={() => toggleFieldExcluded(s.id, key)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <b style={{ color: "var(--bone)" }}>{label}:</b> {oldVal} → <b style={{ color: "var(--bone)" }}>{newVal}</b>
+                      {isExcluded && " (won't be applied)"}
+                    </span>
+                  </label>
+                );
+              })}
             </>
           ) : isDeletion ? (
             <>
@@ -341,7 +388,13 @@ export default function ReviewPage() {
           </Link>
         )}
         <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
-          {isDeletion ? "delete track" : isFlag ? (hasReplacement ? "apply replacement" : "remove link") : "approve"}
+          {isDeletion
+            ? "delete track"
+            : isFlag
+            ? (hasReplacement ? "apply replacement" : "remove link")
+            : isCorrection && (excludedFields[s.id]?.size ?? 0) > 0
+            ? "approve (partial)"
+            : "approve"}
         </button>
         <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
           {isDeletion ? "keep track" : isFlag ? "keep link" : "reject"}
