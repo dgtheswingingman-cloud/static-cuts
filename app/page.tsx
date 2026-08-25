@@ -441,6 +441,11 @@ export default function HomePage() {
         <b>Live data</b> — 35 artists, 22,158 tracks, fetched fresh from Supabase on every
         load. {user ? "Your home feed only shows artists you follow — search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}
       </div>
+      <div style={{ textAlign: "center", marginTop: 16, marginBottom: 20 }}>
+        <Link href="/legal" style={{ color: "var(--smoke)", fontSize: "0.75rem", textDecoration: "underline" }}>
+          Privacy &amp; Terms
+        </Link>
+      </div>
     </div>
   );
 }
