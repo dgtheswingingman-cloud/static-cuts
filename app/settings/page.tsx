@@ -134,22 +134,35 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    // Listen for the actual sign-in event completing, rather than reacting
-    // to `user` becoming truthy -- that can happen before Supabase has
-    // finished processing the OAuth callback and attaching the fresh
-    // provider_token, causing the import to run against a stale session.
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Spotify import — auth event:", event, "provider_token present:", !!session?.provider_token);
-      if (
-        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
-        localStorage.getItem("static_cuts_spotify_import_pending") === "true" &&
-        session?.provider_token
-      ) {
+    // Don't depend on catching one specific auth event at exactly the
+    // right moment -- that proved unreliable when the OAuth round-trip
+    // completes near-instantly (already-authorized, silent re-auth).
+    // Instead, actively poll for the token to actually show up.
+    if (localStorage.getItem("static_cuts_spotify_import_pending") !== "true") return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    async function poll() {
+      if (cancelled) return;
+      attempts++;
+      const { data } = await supabase.auth.getSession();
+      console.log(`Spotify import — poll attempt ${attempts}, provider_token present:`, !!data.session?.provider_token);
+      if (data.session?.provider_token) {
         localStorage.removeItem("static_cuts_spotify_import_pending");
         runSpotifyImport();
+        return;
       }
-    });
-    return () => sub.subscription.unsubscribe();
+      if (attempts < 15) {
+        setTimeout(poll, 400);
+      } else {
+        localStorage.removeItem("static_cuts_spotify_import_pending");
+        setImportError("Couldn't detect a valid Spotify session after waiting — try clicking the button again.");
+      }
+    }
+    poll();
+
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
