@@ -64,6 +64,10 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editingAbout, setEditingAbout] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState("");
+  const [savingAbout, setSavingAbout] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -134,6 +138,35 @@ export default function ProfilePage() {
     }
   }
 
+  async function uploadAvatar(file: File) {
+    if (!viewer) return;
+    const MAX_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (!ALLOWED_TYPES.includes(file.type)) { alert("Please upload a PNG, JPEG, WEBP, or GIF image."); return; }
+    if (file.size > MAX_SIZE) { alert("Image is too large — 5MB max."); return; }
+
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${viewer.id}/avatar.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadErr) { alert(uploadErr.message); setUploading(false); return; }
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    const freshUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ avatar_url: freshUrl }).eq("id", viewer.id);
+    setProfile((prev) => (prev ? { ...prev, avatar_url: freshUrl } : prev));
+    setUploading(false);
+  }
+
+  async function saveAbout() {
+    if (!viewer) return;
+    setSavingAbout(true);
+    const trimmed = aboutDraft.trim();
+    await supabase.from("profiles").update({ about: trimmed }).eq("id", viewer.id);
+    setSavingAbout(false);
+    setProfile((prev) => (prev ? { ...prev, about: trimmed } : prev));
+    setEditingAbout(false);
+  }
+
   const pct = stats && stats.total_tracks > 0 ? Math.round((stats.collected_tracks / stats.total_tracks) * 100) : 0;
   const nothingPublic =
     !profile?.show_completion_pct &&
@@ -172,22 +205,73 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
-              {profile.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--hair)" }}
-                />
-              )}
+              <div style={{ position: "relative" }}>
+                {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--hair)" }}
+                  />
+                ) : isOwnProfile ? (
+                  <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--surface)", border: "1.5px solid var(--hair)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ color: "var(--smoke)", fontFamily: "var(--font-mono)", fontSize: "0.6rem" }}>none</span>
+                  </div>
+                ) : null}
+                {isOwnProfile && (
+                  <>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="avatarInput"
+                      style={{ display: "none" }}
+                      onChange={(e) => { if (e.target.files?.[0]) uploadAvatar(e.target.files[0]); }}
+                    />
+                    <label
+                      htmlFor="avatarInput"
+                      className="tab"
+                      style={{ position: "absolute", bottom: -6, right: -6, cursor: "pointer", padding: "2px 5px", fontSize: "0.55rem" }}
+                    >
+                      {uploading ? "…" : "edit"}
+                    </label>
+                  </>
+                )}
+              </div>
               <h1 className="detail-name" style={{ margin: 0 }}>{profile.display_name ?? "anonymous"}</h1>
             </div>
           )}
 
-          {profile.about && (
-            <div style={{ fontFamily: "var(--font-inter)", fontSize: "0.88rem", color: "var(--smoke)", maxWidth: 480, marginBottom: 16, lineHeight: 1.5 }}>
-              {profile.about}
+          {editingAbout ? (
+            <div style={{ maxWidth: 480, marginBottom: 16 }}>
+              <textarea
+                className="comment-textarea"
+                autoFocus
+                value={aboutDraft}
+                onChange={(e) => setAboutDraft(e.target.value)}
+                placeholder="A short bio, what you're into, whatever you want…"
+                maxLength={500}
+                style={{ marginBottom: 8 }}
+              />
+              <button className="tab active" disabled={savingAbout} onClick={saveAbout}>
+                {savingAbout ? "…" : "save"}
+              </button>{" "}
+              <button className="tab" onClick={() => setEditingAbout(false)}>cancel</button>
             </div>
+          ) : (
+            (profile.about || isOwnProfile) && (
+              <div style={{ fontFamily: "var(--font-inter)", fontSize: "0.88rem", color: "var(--smoke)", maxWidth: 480, marginBottom: 16, lineHeight: 1.5 }}>
+                {profile.about ?? (isOwnProfile ? "No about yet." : "")}
+                {isOwnProfile && (
+                  <button
+                    className="tab"
+                    style={{ marginLeft: 10, fontSize: "0.6rem", padding: "2px 6px" }}
+                    onClick={() => { setAboutDraft(profile.about ?? ""); setEditingAbout(true); }}
+                  >
+                    edit
+                  </button>
+                )}
+              </div>
+            )
           )}
 
           {isOwnProfile && !editingName && (
@@ -199,7 +283,7 @@ export default function ProfilePage() {
                 edit name
               </button>
               <Link href="/settings" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
-                edit profile / privacy
+                settings
               </Link>
             </div>
           )}
