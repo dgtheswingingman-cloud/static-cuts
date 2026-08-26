@@ -71,6 +71,7 @@ export default function ArtistPage() {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
   const [genreTagInput, setGenreTagInput] = useState("");
+  const [genreTagsExpanded, setGenreTagsExpanded] = useState(false);
   const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
@@ -1672,12 +1673,8 @@ export default function ArtistPage() {
           )}
 
           <div style={{ marginBottom: 20 }}>
-            <div className="comments-count" style={{ marginBottom: 8 }}>
-              Genre tags — click one to vote, or add your own.
-              {user && " You can suggest up to 3 new tags per artist."}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-              {genreTags.map((t) => (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {(genreTagsExpanded ? genreTags : genreTags.slice(0, 3)).map((t) => (
                 <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <button
                     className={`rating-chip ${t.my_vote ? "rated" : ""}`}
@@ -1686,27 +1683,35 @@ export default function ArtistPage() {
                   >
                     {t.tag} ({t.vote_count})
                   </button>
-                  {isAdmin && (
+                  {isAdmin && genreTagsExpanded && (
                     <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
                   )}
                 </span>
               ))}
-              {genreTags.length === 0 && <div className="comments-count">No genre tags yet — be the first to suggest one.</div>}
+              {genreTags.length === 0 && <div className="comments-count">No genre tags yet.</div>}
+              <span
+                style={{ fontSize: "0.68rem", color: "var(--smoke)", cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => setGenreTagsExpanded(!genreTagsExpanded)}
+              >
+                {genreTagsExpanded ? "show less" : genreTags.length > 3 ? "+ more / suggest a tag" : "+ suggest a tag"}
+              </span>
             </div>
-            {user ? (
-              <div style={{ display: "flex", gap: 8, maxWidth: 400 }}>
-                <input
-                  className="search-input"
-                  style={{ flex: 1 }}
-                  placeholder="Suggest a genre tag…"
-                  value={genreTagInput}
-                  onChange={(e) => setGenreTagInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitGenreTag(); }}
-                />
-                <button className="comment-post-btn" disabled={genreTagBusy} onClick={submitGenreTag}>add</button>
-              </div>
-            ) : (
-              <div className="comments-count"><a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to suggest or vote on genre tags.</div>
+            {genreTagsExpanded && (
+              user ? (
+                <div style={{ display: "flex", gap: 8, maxWidth: 400, marginTop: 8 }}>
+                  <input
+                    className="search-input"
+                    style={{ flex: 1 }}
+                    placeholder="Suggest a genre tag…"
+                    value={genreTagInput}
+                    onChange={(e) => setGenreTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitGenreTag(); }}
+                  />
+                  <button className="comment-post-btn" disabled={genreTagBusy} onClick={submitGenreTag}>add</button>
+                </div>
+              ) : (
+                <div className="comments-count" style={{ marginTop: 8 }}><a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to suggest or vote on genre tags.</div>
+              )
             )}
           </div>
 
