@@ -127,13 +127,24 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    if (!user) return;
-    if (localStorage.getItem("static_cuts_spotify_import_pending") === "true") {
-      localStorage.removeItem("static_cuts_spotify_import_pending");
-      runSpotifyImport();
-    }
+    // Listen for the actual sign-in event completing, rather than reacting
+    // to `user` becoming truthy -- that can happen before Supabase has
+    // finished processing the OAuth callback and attaching the fresh
+    // provider_token, causing the import to run against a stale session.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Spotify import — auth event:", event, "provider_token present:", !!session?.provider_token);
+      if (
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
+        localStorage.getItem("static_cuts_spotify_import_pending") === "true" &&
+        session?.provider_token
+      ) {
+        localStorage.removeItem("static_cuts_spotify_import_pending");
+        runSpotifyImport();
+      }
+    });
+    return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
