@@ -71,6 +71,9 @@ export default function AuthBar() {
         <Link href={`/profile/${user.id}`} style={smallBtn}>
           my profile
         </Link>
+        <Link href="/settings" style={smallBtn}>
+          settings
+        </Link>
         {!isAdmin && (
           <Link href="/my-submissions" style={smallBtn}>
             my submissions

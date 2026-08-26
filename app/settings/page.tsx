@@ -218,9 +218,10 @@ export default function SettingsPage() {
         ← back to archive
       </button>
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>
-        Profile
+        Settings
       </h1>
 
+      <div className="section-label">Profile</div>
       <div style={{ maxWidth: 520, marginBottom: 30 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div
@@ -272,9 +273,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>
-        Import from Spotify
-      </h1>
+      <div className="section-label">Import from Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 16, maxWidth: 520 }}>
         Checks your actual Spotify library against tracks Static Cuts already has a confirmed link
         for, and marks any matches as collected. Exact ID matching, not a title guess — but it can
@@ -295,9 +294,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>
-        Privacy
-      </h1>
+      <div className="section-label">Privacy</div>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Nothing here is public until you turn it on. Your profile URL is{" "}
         {user ? `/profile/${user.id}` : "…"}.
