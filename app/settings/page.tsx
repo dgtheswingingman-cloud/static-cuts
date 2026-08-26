@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saving, setSaving] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  const [importProgress, setImportProgress] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<{ checked: number; matched: number; newlyCollected: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export default function SettingsPage() {
     setImportBusy(true);
     setImportError(null);
     setImportResult(null);
+    setImportProgress(0);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -86,6 +88,7 @@ export default function SettingsPage() {
           const sid = item.track?.id;
           if (sid && idMap[sid]) matchedTrackIds.add(idMap[sid]);
         }
+        setImportProgress(checked);
         next = data.next;
       }
 
@@ -108,6 +111,7 @@ export default function SettingsPage() {
       setImportError(e?.message ?? String(e));
     } finally {
       setImportBusy(false);
+      setImportProgress(null);
     }
   }
 
@@ -118,10 +122,15 @@ export default function SettingsPage() {
     // in the local session and would short-circuit past the scope request
     // entirely, silently reusing insufficient access every time.
     localStorage.setItem("static_cuts_spotify_import_pending", "true");
-    await supabase.auth.signInWithOAuth({
+    const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
       options: { redirectTo: window.location.origin + "/settings", scopes: "user-library-read" },
     });
+    console.log("Spotify import — signInWithOAuth result:", { data, error: err });
+    if (err) {
+      localStorage.removeItem("static_cuts_spotify_import_pending");
+      setImportError(err.message);
+    }
   }
 
   useEffect(() => {
@@ -200,8 +209,17 @@ export default function SettingsPage() {
         official-release collection, not unreleased or leaked material.
       </div>
       <button className="comment-post-btn" disabled={importBusy} onClick={startSpotifyImport} style={{ marginBottom: 12 }}>
-        {importBusy ? "checking your library…" : "import from Spotify"}
+        {importBusy
+          ? importProgress !== null
+            ? `checking your library… (${importProgress} so far)`
+            : "starting…"
+          : "import from Spotify"}
       </button>
+      {importBusy && importProgress !== null && (
+        <div className="bar-track" style={{ height: 4, maxWidth: 520, marginBottom: 12 }}>
+          <div className="bar-fill" style={{ width: importProgress > 0 ? "100%" : "8%", transition: "width 0.3s" }} />
+        </div>
+      )}
       {importError && (
         <div className="empty-state" style={{ borderColor: "#a33", maxWidth: 520, marginBottom: 20 }}>{importError}</div>
       )}
