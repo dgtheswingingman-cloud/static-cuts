@@ -42,6 +42,7 @@ export default function SettingsPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const providerToken = sessionData.session?.provider_token;
+      console.log("Spotify import — provider_token present:", !!providerToken, providerToken ? `(length ${providerToken.length})` : "");
       if (!providerToken) {
         throw new Error("Your Spotify session expired — click the button again to reconnect.");
       }
@@ -71,10 +72,15 @@ export default function SettingsPage() {
       let checked = 0;
       const matchedTrackIds = new Set<string>();
       let next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
+      let pageCount = 0;
       while (next) {
         const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${providerToken}` } });
-        if (!res.ok) throw new Error(`Spotify API error (${res.status}) — try reconnecting.`);
         const data: any = await res.json();
+        pageCount++;
+        console.log(`Spotify import — page ${pageCount}, status ${res.status}:`, data);
+        if (!res.ok) {
+          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"} — check the browser console for the full response.`);
+        }
         for (const item of data.items ?? []) {
           checked++;
           const sid = item.track?.id;
