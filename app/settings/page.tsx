@@ -112,13 +112,11 @@ export default function SettingsPage() {
   }
 
   async function startSpotifyImport() {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session?.provider_token) {
-      // Already have a live Spotify token from this session -- just try
-      // it directly first, no need to force a fresh re-auth every time.
-      runSpotifyImport();
-      return;
-    }
+    // Always go through a fresh re-auth requesting the scope explicitly --
+    // trying to reuse an existing session token first was the actual bug:
+    // a stale token from before (even one Spotify-side revoked) still sits
+    // in the local session and would short-circuit past the scope request
+    // entirely, silently reusing insufficient access every time.
     localStorage.setItem("static_cuts_spotify_import_pending", "true");
     await supabase.auth.signInWithOAuth({
       provider: "spotify",
