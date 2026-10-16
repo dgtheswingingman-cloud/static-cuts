@@ -436,6 +436,11 @@ export default function ReviewPage() {
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Review queue</h1>
+      <div style={{ marginBottom: 14 }}>
+        <Link href="/review/duplicates" className="listen-link" style={{ textDecoration: "none" }}>
+          clean up possible duplicates →
+        </Link>
+      </div>
 
       {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}
       {!error && user && <Discoveries onPromoted={load} />}
