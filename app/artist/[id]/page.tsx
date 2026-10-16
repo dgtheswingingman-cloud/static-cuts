@@ -60,6 +60,8 @@ function trackPasses(
 
 // Tag shown on each track: its release status (rumored, teased, snippet,
 // leaked, announced, released, removed), falling back to official/unreleased.
+const RELEASE_STATUSES = ["rumored", "teased", "snippet", "leaked", "announced", "released", "removed"] as const;
+
 function releaseLabel(t: Track) {
   if (t.release_status) return t.release_status;
   return t.is_official ? "released" : "unreleased";
@@ -109,13 +111,14 @@ export default function ArtistPage() {
   const [editDraft, setEditDraft] = useState<{
     title: string; spotify_url: string; is_featured: boolean; is_official: boolean; has_audio: boolean; parent_track_id: string;
     aliases: string; track_number: string; release_date: string; producers: string; featured_artists: string; genre: string; notes: string; album: string;
+    release_status: string;
   } | null>(null);
   const [parentSearch, setParentSearch] = useState("");
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
   const [newTrack, setNewTrack] = useState({
     title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
-    aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "",
+    aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "leaked",
   });
   const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
   const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
@@ -803,7 +806,7 @@ export default function ArtistPage() {
       p_title: newTrack.title.trim(),
       p_spotify_url: newTrack.spotify_url,
       p_is_featured: false, // a track is always non-featured on its own home page, by definition
-      p_is_official: newTrack.is_official,
+      p_is_official: newTrack.release_status === "released",
       p_has_audio: newTrack.has_audio,
       p_parent_track_id: newTrack.parent_track_id,
       p_aliases: newTrack.aliases,
@@ -819,6 +822,7 @@ export default function ArtistPage() {
     if (err) { setAdminBusy(false); alert(err.message); return; }
 
     if (newTrackId) {
+      await supabase.rpc("admin_set_release_status", { p_track_id: newTrackId as string, p_status: newTrack.release_status });
       if (newTrack.is_featured) {
         // Link back to the (actually featured) artist whose page we added this from.
         await supabase.rpc("admin_add_track_appearance", { p_track_id: newTrackId as string, p_artist_id: id });
@@ -835,7 +839,7 @@ export default function ArtistPage() {
     setAddingTrack(false);
     setNewTrack({
       title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
-      aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "",
+      aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "leaked",
     });
     setNewTrackParentSearch("");
     setNewTrackMainArtistId("");
@@ -906,6 +910,7 @@ export default function ArtistPage() {
       genre: t.genre ?? "",
       notes: t.notes ?? "",
       album: t.album ?? "",
+      release_status: t.release_status ?? (t.is_official ? "released" : "leaked"),
     });
     const currentParent = t.parent_track_id ? mainTracks.find((mt) => mt.id === t.parent_track_id) : null;
     setParentSearch(currentParent?.title ?? "");
@@ -921,7 +926,7 @@ export default function ArtistPage() {
       p_title: editDraft.title,
       p_spotify_url: editDraft.spotify_url,
       p_is_featured: editDraft.is_featured,
-      p_is_official: editDraft.is_official,
+      p_is_official: editDraft.release_status === "released",
       p_has_audio: editDraft.has_audio,
       p_parent_track_id: editDraft.parent_track_id,
       p_aliases: editDraft.aliases,
@@ -935,6 +940,12 @@ export default function ArtistPage() {
     });
 
     if (err) { setAdminBusy(false); alert(err.message); return; }
+
+    const { error: statusErr } = await supabase.rpc("admin_set_release_status", {
+      p_track_id: trackId,
+      p_status: editDraft.release_status,
+    });
+    if (statusErr) { setAdminBusy(false); alert(statusErr.message); return; }
 
     // Real tag picks, not text parsing -- diff against what was actually
     // linked before, and apply exactly the add/remove operations needed.
@@ -1098,8 +1109,14 @@ export default function ArtistPage() {
             <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
               <input type="checkbox" checked={editDraft.is_featured} onChange={(e) => setEditDraft({ ...editDraft, is_featured: e.target.checked })} /> featured
             </label>
-            <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
-              <input type="checkbox" checked={editDraft.is_official} onChange={(e) => setEditDraft({ ...editDraft, is_official: e.target.checked })} /> official
+            <label style={{ fontSize: "0.8rem", color: "var(--smoke)", display: "flex", alignItems: "center", gap: 6 }}>
+              status
+              <select
+                value={editDraft.release_status}
+                onChange={(e) => setEditDraft({ ...editDraft, release_status: e.target.value, is_official: e.target.value === "released" })}
+              >
+                {RELEASE_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+              </select>
             </label>
           </div>
           <div className="comments-count" style={{ marginBottom: 6 }}>Make this a sub-version of:</div>
@@ -1564,7 +1581,13 @@ export default function ArtistPage() {
                   <input type="checkbox" checked={newTrack.is_featured} onChange={(e) => setNewTrack({ ...newTrack, is_featured: e.target.checked })} /> featured
                 </label>
                 <label style={{ fontSize: "0.8rem", color: "var(--smoke)" }}>
-                  <input type="checkbox" checked={newTrack.is_official} onChange={(e) => setNewTrack({ ...newTrack, is_official: e.target.checked })} /> official
+                  status{" "}
+                  <select
+                    value={newTrack.release_status}
+                    onChange={(e) => setNewTrack({ ...newTrack, release_status: e.target.value, is_official: e.target.value === "released" })}
+                  >
+                    {RELEASE_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
                 </label>
               </div>
               {newTrack.is_featured ? (
