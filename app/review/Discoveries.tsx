@@ -33,7 +33,13 @@ type Discovery = {
   corroboration_count: number;
   first_seen_at: string;
   last_seen_at: string;
+  main_artist_id: string | null;
+  main_artist_name: string | null;
+  featured_artist_ids: string[] | null;
+  parent_track_id: string | null;
   artists: { name: string } | null;
+  main: { name: string } | null;
+  parent: { title: string } | null;
   discovery_evidence: Evidence[];
 };
 
@@ -48,12 +54,13 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [featNames, setFeatNames] = useState<Record<string, string>>({});
 
   async function load() {
     const { data, error: err } = await supabase
       .from("discoveries")
       .select(
-        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, confidence, corroboration_count, first_seen_at, last_seen_at, artists!artist_id(name), discovery_evidence(source_url, source_layer, official_listening_url, unofficial_listening_url, notes, created_at)"
+        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, confidence, corroboration_count, first_seen_at, last_seen_at, main_artist_id, main_artist_name, featured_artist_ids, parent_track_id, artists!artist_id(name), main:artists!main_artist_id(name), parent:tracks!parent_track_id(title), discovery_evidence(source_url, source_layer, official_listening_url, unofficial_listening_url, notes, created_at)"
       )
       .eq("state", "open")
       .order("corroboration_count", { ascending: false })
@@ -66,7 +73,15 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
       return;
     }
     setError(null);
-    setItems((data as any) ?? []);
+    const rows = ((data as any) ?? []) as Discovery[];
+    setItems(rows);
+    const ids = Array.from(new Set(rows.flatMap((r) => r.featured_artist_ids ?? [])));
+    if (ids.length > 0) {
+      const { data: arts } = await supabase.from("artists").select("id, name").in("id", ids);
+      const map: Record<string, string> = {};
+      (arts ?? []).forEach((a: any) => { map[a.id] = a.name; });
+      setFeatNames(map);
+    }
   }
 
   useEffect(() => {
@@ -129,6 +144,21 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
                 <span className="feature-tag">{d.development_type.toLowerCase().replace(/_/g, " ")}</span>
                 {isChange && d.to_status && (
                   <span className="feature-tag">{d.from_status ?? "?"} → {d.to_status}</span>
+                )}
+                {d.main_artist_name && (
+                  <span className="feature-tag">
+                    {d.main_artist_id
+                      ? `feature on ${d.main?.name ?? d.main_artist_name}'s song`
+                      : `feature on ${d.main_artist_name}'s song (not in archive)`}
+                  </span>
+                )}
+                {d.parent_track_id && (
+                  <span className="feature-tag">version of &quot;{d.parent?.title ?? d.parent_track_id}&quot;</span>
+                )}
+                {(d.featured_artist_ids ?? []).length > 0 && (
+                  <span className="feature-tag">
+                    feat. {(d.featured_artist_ids ?? []).map((id) => featNames[id] ?? id).join(", ")}
+                  </span>
                 )}
                 {d.official_status && <span className="feature-tag">{d.official_status}</span>}
                 <span className="feature-tag">
