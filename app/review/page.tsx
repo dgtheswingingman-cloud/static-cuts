@@ -273,7 +273,7 @@ export default function ReviewPage() {
         <div className="track-title" style={{ fontSize: "0.86rem", marginBottom: 4 }}>{t.title}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {t.is_featured && <span className="feature-tag">featured</span>}
-          <span className="feature-tag">{t.is_official ? "official" : "unreleased"}</span>
+          <span className="feature-tag">{(t as any).release_status ?? (t.is_official ? "released" : "unreleased")}</span>
           <span className="feature-tag">{t.spotify_url ? "has link" : "no link"}</span>
           {t.parent_track_id && <span className="feature-tag">sub-version</span>}
         </div>
@@ -394,7 +394,8 @@ export default function ReviewPage() {
                     is_official: !!s.payload.is_official,
                     parent_track_id: s.payload.parent_track_id || null,
                     aliases: null, track_number: null, release_date: null, producers: null, featured_artists: null, genre: null, notes: null,
-                  },
+                    ...(s.payload.release_status ? { release_status: s.payload.release_status } : {}),
+                  } as CurrentTrack,
                   "Will be added as"
                 )}
               </div>

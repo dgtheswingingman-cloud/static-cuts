@@ -19,6 +19,7 @@ type Track = {
   is_featured: boolean;
   is_official: boolean;
   aliases: string | null;
+  release_status?: string | null;
   // Heavy fields -- undefined until this track's letter group (or search
   // result) has actually been loaded on demand.
   track_type?: string;
@@ -55,6 +56,13 @@ function trackPasses(
   if (collected === "collected" && !owned.has(t.id)) return false;
   if (collected === "uncollected" && owned.has(t.id)) return false;
   return true;
+}
+
+// Tag shown on each track: its release status (rumored, teased, snippet,
+// leaked, announced, released, removed), falling back to official/unreleased.
+function releaseLabel(t: Track) {
+  if (t.release_status) return t.release_status;
+  return t.is_official ? "released" : "unreleased";
 }
 
 function letterOf(title: string) {
@@ -153,7 +161,7 @@ export default function ArtistPage() {
       while (true) {
         const { data: page, error: trackErr } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status")
           .eq("artist_id", id)
           .range(from, from + PAGE_SIZE - 1);
         if (trackErr) throw trackErr;
@@ -174,7 +182,7 @@ export default function ArtistPage() {
       if (appearanceTrackIds.length > 0) {
         const { data: crossTracks } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, artist_id")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, artist_id")
           .in("id", appearanceTrackIds);
         const homeArtistIds = Array.from(new Set((crossTracks ?? []).map((t: any) => t.artist_id)));
         const { data: homeArtists } = await supabase.from("artists").select("id, name").in("id", homeArtistIds);
@@ -1215,7 +1223,7 @@ export default function ArtistPage() {
           <div className={`sigil ${isOwned ? "owned" : ""}`}>{isOwned ? "✓" : ""}</div>
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
-          {t.is_official ? <span className="feature-tag">official</span> : <span className="feature-tag">unreleased</span>}
+          <span className="feature-tag">{releaseLabel(t)}</span>
           {!isAdmin && (
             <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
               {chipLabel}
