@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 type Evidence = {
   source_url: string;
   source_layer: string | null;
+  spotify_url: string | null;
   official_listening_url: string | null;
   unofficial_listening_url: string | null;
   notes: string | null;
@@ -60,7 +61,7 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
     const { data, error: err } = await supabase
       .from("discoveries")
       .select(
-        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, confidence, corroboration_count, first_seen_at, last_seen_at, main_artist_id, main_artist_name, featured_artist_ids, parent_track_id, artists!artist_id(name), main:artists!main_artist_id(name), parent:tracks!parent_track_id(title), discovery_evidence(source_url, source_layer, official_listening_url, unofficial_listening_url, notes, created_at)"
+        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, confidence, corroboration_count, first_seen_at, last_seen_at, main_artist_id, main_artist_name, featured_artist_ids, parent_track_id, artists!artist_id(name), main:artists!main_artist_id(name), parent:tracks!parent_track_id(title), discovery_evidence(source_url, source_layer, spotify_url, official_listening_url, unofficial_listening_url, notes, created_at)"
       )
       .eq("state", "open")
       .order("corroboration_count", { ascending: false })
@@ -171,6 +172,9 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
                 <div key={e.source_url} className="comment-meta" style={{ marginTop: 2, wordBreak: "break-all" }}>
                   <b style={{ color: "var(--bone)" }}>{LAYER_LABEL[e.source_layer ?? ""] ?? "source"}:</b>{" "}
                   <a href={e.source_url} target="_blank" rel="noopener noreferrer">{e.source_url}</a>
+                  {e.spotify_url && (
+                    <> · <a href={e.spotify_url} target="_blank" rel="noopener noreferrer">spotify</a></>
+                  )}
                   {e.official_listening_url && (
                     <> · <a href={e.official_listening_url} target="_blank" rel="noopener noreferrer">listen (official)</a></>
                   )}

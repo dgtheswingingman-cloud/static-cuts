@@ -84,3 +84,25 @@ Shown on `/settings` too.
 Automatic promotion rules, skipping artists for everyone once enough routines
 have checked them, trust scores, contributor credits, notification settings,
 and a backend fallback for artists no routine covers.
+
+## Links and duplicate cleanup
+
+Added in `20261016180000_links_and_duplicates.sql`.
+
+- Titles match ignoring spaces as well as case and punctuation, so
+  "GLOOM ROOM" and "GLOOMROOM" are the same song.
+- A collab already on a collaborator's page is matched and linked instead of
+  being added again.
+- Approved discoveries get a listen link: the Spotify track link if the
+  routine found one, otherwise the best official link (Apple Music, YouTube,
+  Bandcamp). Leak uploads become link suggestions on the artist page.
+- `/review/duplicates` lists likely duplicates: the same title twice on one
+  artist's page, or on two artists who share at least 5 titles and 10% of the
+  smaller catalogue (or are already linked). Generic titles like Intro or
+  Untitled are left out. Routines judge groups with `report_duplicate`;
+  "different" verdicts hide a group, "same" verdicts sort it to the top.
+- Merging (`admin_merge_duplicates`) moves collections, ratings, comments,
+  sub-versions and link suggestions to the kept track, keeps the furthest
+  release status and any missing details, links the other artists, then uses
+  `admin_merge_track` so the old titles become aliases and the old pages
+  redirect.
