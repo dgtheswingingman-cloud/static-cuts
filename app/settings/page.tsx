@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import ChatGPTRoutine from "./ChatGPTRoutine";
 
 type Prefs = {
   show_completion_pct: boolean;
@@ -243,6 +244,8 @@ export default function SettingsPage() {
           {importResult.matched > importResult.newlyCollected && ` (${importResult.matched - importResult.newlyCollected} were already marked)`}.
         </div>
       )}
+
+      {user && <ChatGPTRoutine userId={user.id} />}
 
       <div className="section-label">Privacy</div>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
