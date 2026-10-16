@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+
+// Where to go after logging in. Only same-site paths, so ?next= can't be
+// used to bounce people to another website.
+function nextPath(): string {
+  if (typeof window === "undefined") return "/";
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
 import { useRouter } from "next/navigation";
 import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -40,7 +48,7 @@ export default function LoginPage() {
     } else if (mode === "signup") {
       setMessage("Check your email to confirm your account, then log in.");
     } else {
-      router.push("/");
+      router.push(nextPath());
     }
   }
 
@@ -48,7 +56,7 @@ export default function LoginPage() {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin + nextPath() },
     });
     if (error) setError(error.message);
     // On success, Supabase redirects away to the provider automatically --
