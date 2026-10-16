@@ -70,7 +70,8 @@ export default function ArtistChangelog({ artistId, limit }: { artistId: string;
   function describeSubmission(s: Submission) {
     if (s.type === "new_track") return `New track suggested: "${s.payload.title}"`;
     if (s.type === "new_version") return `Alt version suggested: "${s.payload.title}"`;
-    if (s.type === "correction") return `Edit suggested for "${s.payload.title}"`;
+    if (s.type === "correction") return s.payload.title ? `Edit suggested for "${s.payload.title}"` : "Edit suggested";
+    if (s.type === "status_change") return `Status change suggested: ${s.payload.from_status ?? "?"} → ${s.payload.to_status}`;
     if (s.type === "flag_link") return `Link flagged as broken/wrong`;
     return s.type;
   }

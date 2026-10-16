@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import Discoveries from "./Discoveries";
 
 type Submission = {
   id: string;
@@ -47,6 +48,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const CATEGORIES: { key: string; label: string; types: string[] }[] = [
+  { key: "status_changes", label: "Status Changes", types: ["status_change"] },
   { key: "corrections", label: "Edits & Corrections", types: ["correction"] },
   { key: "new_tracks", label: "New Tracks", types: ["new_track"] },
   { key: "new_versions", label: "New Versions (Alt Takes)", types: ["new_version"] },
@@ -117,7 +119,7 @@ export default function ReviewPage() {
     const contextTrackIds = Array.from(
       new Set(
         (data ?? [])
-          .filter((s) => (s.type === "correction" || s.type === "flag_link" || s.type === "flag_deletion") && s.payload.track_id)
+          .filter((s) => (s.type === "correction" || s.type === "flag_link" || s.type === "flag_deletion" || s.type === "status_change") && s.payload.track_id)
           .map((s) => s.payload.track_id)
       )
     );
@@ -146,6 +148,14 @@ export default function ReviewPage() {
     }
 
     setBusyId(id);
+    if (sub?.type === "status_change") {
+      // Status changes from ChatGPT routines have their own approve function.
+      const { error: err } = await supabase.rpc("approve_status_change", { submission_id: id, p_note: note || null });
+      setBusyId(null);
+      if (err) { alert(err.message); return; }
+      load();
+      return;
+    }
     const { data: resultingId, error: err } = await supabase.rpc("approve_submission", {
       submission_id: id,
       p_excluded_fields: excluded,
@@ -273,7 +283,7 @@ export default function ReviewPage() {
 
   function trackLink(s: Submission): string | null {
     if (!s.artist_id) return null;
-    if ((s.type === "correction" || s.type === "flag_link") && s.payload.track_id) {
+    if ((s.type === "correction" || s.type === "flag_link" || s.type === "status_change") && s.payload.track_id) {
       return `/artist/${s.artist_id}?highlight=${s.payload.track_id}`;
     }
     if (s.type === "new_version" && s.payload.parent_track_id) {
@@ -288,6 +298,8 @@ export default function ReviewPage() {
     const isDeletion = s.type === "flag_deletion";
     const isCorrection = s.type === "correction";
     const isNewTrackLike = s.type === "new_track" || s.type === "new_version";
+    const isStatusChange = s.type === "status_change";
+    const fromRoutine = !!s.payload.discovery_id;
     const diffs = isCorrection ? diffLines(s) : [];
     const currentTrack = s.payload.track_id ? currentTracks[s.payload.track_id] : undefined;
     const afterTrack = isCorrection && currentTrack ? buildAfterState(currentTrack, s.payload) : null;
@@ -297,7 +309,19 @@ export default function ReviewPage() {
     return (
       <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 260 }}>
-          {isCorrection ? (
+          {isStatusChange ? (
+            <>
+              <div className="track-title" style={{ marginBottom: 6 }}>
+                Status change for &quot;{currentTrack?.title ?? s.payload.track_id}&quot;
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                <span className="feature-tag">{s.payload.from_status ?? "?"}</span>
+                <span className="comment-meta">→</span>
+                <span className="feature-tag">{s.payload.to_status}</span>
+                {s.payload.release_date && <span className="feature-tag">release {s.payload.release_date}</span>}
+              </div>
+            </>
+          ) : isCorrection ? (
             <>
               <div className="track-title" style={{ marginBottom: 6 }}>Edit for &quot;{s.payload.title}&quot;</div>
               {currentTrack && afterTrack && (
@@ -378,8 +402,13 @@ export default function ReviewPage() {
           ) : (
             <div className="track-title">{describeSimple(s)}</div>
           )}
+          {fromRoutine && s.payload.notes && (
+            <div className="comment-meta" style={{ marginTop: 4, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+              {s.payload.notes}
+            </div>
+          )}
           <div className="comment-meta" style={{ marginTop: 4 }}>
-            by {names[s.submitted_by] ?? "…"} · {new Date(s.created_at).toLocaleString()}
+            by {names[s.submitted_by] ?? "…"}{fromRoutine ? " (via ChatGPT routine)" : ""} · {new Date(s.created_at).toLocaleString()}
           </div>
         </div>
         {link && (
@@ -409,6 +438,7 @@ export default function ReviewPage() {
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Review queue</h1>
 
       {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}
+      {!error && user && <Discoveries onPromoted={load} />}
       {!error && submissions === null && <div className="empty-state">loading…</div>}
       {!error && submissions && submissions.length === 0 && (
         <div className="empty-state">Nothing pending.</div>

@@ -70,7 +70,7 @@ export default function MySubmissionsPage() {
   }
 
   function referencedTrackId(s: Submission): string | null {
-    if (s.type === "correction" || s.type === "flag_link") return s.payload.track_id ?? null;
+    if (s.type === "correction" || s.type === "flag_link" || s.type === "status_change") return s.payload.track_id ?? null;
     if (s.type === "new_version") return s.payload.parent_track_id ?? null;
     if (s.type === "new_track" && s.resulting_id) return s.resulting_id;
     return null;
@@ -78,6 +78,7 @@ export default function MySubmissionsPage() {
 
   function describe(s: Submission) {
     if (s.type === "new_artist") return `New artist: "${s.payload.name}"`;
+    if (s.type === "status_change") return `Status change: ${s.payload.from_status ?? "?"} → ${s.payload.to_status}`;
     if (s.type === "new_track") return `New track for ${artistNames[s.artist_id ?? ""] ?? "…"}: "${s.payload.title}"`;
     if (s.type === "new_version") {
       const parentTitle = s.payload.parent_track_id ? trackTitles[s.payload.parent_track_id] : null;
