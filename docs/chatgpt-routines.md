@@ -106,3 +106,29 @@ Added in `20261016180000_links_and_duplicates.sql`.
   release status and any missing details, links the other artists, then uses
   `admin_merge_track` so the old titles become aliases and the old pages
   redirect.
+
+## Status, link suggestions and clean-up tools
+
+Added in `20261017190000_status_links_cleanup.sql`.
+
+- **Unconfirmed** is the starting status for songs with no evidence. Songs that
+  were only "leaked" because the old data had no status became unconfirmed;
+  titles with "(Demo)", "(Reference)", "[V2]" etc. became leaked and
+  "(Snippet)"/"(Preview)" became snippet. Tracklist and cover art finds are
+  "announced".
+- **Spotify matcher** (`supabase/functions/match-spotify`) now checks every
+  song, only accepts the same title by one of the song's own artists, and on a
+  match sets the link, marks the song released and fills album and release
+  date. Redeploy it, then run `run-spotify-matching.ps1`.
+- **ChatGPT link suggestions:** "find links with ChatGPT" on artist pages opens
+  ChatGPT with a short prompt. The connector's `get_songs_needing_links`,
+  `suggest_link` and `mark_checked` tools add suggestions to each song's
+  possible matches (tagged "via ChatGPT", with a suggested status, album and
+  date). "Suggest as link" turns one into a correction for review.
+- **Status checks in routines:** the research plan includes `needs_status`, up
+  to 10 unconfirmed songs per artist; routines report what they can prove and
+  mark the rest checked.
+- **One-tap approve** on routine discoveries (`approve_discovery`), with
+  "edit first" to send one to the queue instead.
+- **Quick merge** on `/review/duplicates` for identical copies on one artist's
+  page (same title, status and details, nothing collected, rated or commented).
