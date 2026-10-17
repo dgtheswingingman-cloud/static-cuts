@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import DateDropdownPicker from "../../components/DateDropdownPicker";
+import FeaturedArtistPicker from "../../components/FeaturedArtistPicker";
+import ParentTrackPicker from "../../components/ParentTrackPicker";
 import AlbumAutocomplete from "../../components/AlbumAutocomplete";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
@@ -60,11 +62,33 @@ function trackPasses(
 
 // Tag shown on each track: its release status (rumored, teased, snippet,
 // leaked, announced, released, removed), falling back to official/unreleased.
-const RELEASE_STATUSES = ["rumored", "teased", "snippet", "leaked", "announced", "released", "removed"] as const;
+type LinkCandidate = {
+  id: string;
+  url: string;
+  title: string | null;
+  source_domain: string | null;
+  source?: string | null;
+  link_kind?: string | null;
+  suggested_status?: string | null;
+  album?: string | null;
+  release_date?: string | null;
+  notes?: string | null;
+};
+
+const RELEASE_STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released", "removed"] as const;
+
+// Opens ChatGPT with a short prompt; the connector's get_songs_needing_links
+// tool returns the songs and the detailed instructions.
+function chatGptLinksUrl(artistId: string, artistName: string) {
+  const prompt =
+    `Use the Static Cuts connector to find listen links for ${artistName}'s songs: ` +
+    `call get_songs_needing_links with artist_id "${artistId}" and follow its instructions.`;
+  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+}
 
 function releaseLabel(t: Track) {
   if (t.release_status) return t.release_status;
-  return t.is_official ? "released" : "unreleased";
+  return t.is_official ? "released" : "unconfirmed";
 }
 
 function letterOf(title: string) {
@@ -113,23 +137,19 @@ export default function ArtistPage() {
     aliases: string; track_number: string; release_date: string; producers: string; featured_artists: string; genre: string; notes: string; album: string;
     release_status: string;
   } | null>(null);
-  const [parentSearch, setParentSearch] = useState("");
-  const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
   const [addingTrack, setAddingTrack] = useState(false);
   const [newTrack, setNewTrack] = useState({
     title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
-    aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "leaked",
+    aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "unconfirmed",
   });
-  const [newTrackParentSearch, setNewTrackParentSearch] = useState("");
-  const [newTrackParentOpen, setNewTrackParentOpen] = useState(false);
+  // Bumped after adding a track so the parent picker starts empty again.
+  const [newTrackPickerKey, setNewTrackPickerKey] = useState(0);
   const [newTrackMainArtistSearch, setNewTrackMainArtistSearch] = useState("");
   const [newTrackMainArtistResults, setNewTrackMainArtistResults] = useState<{ id: string; name: string }[]>([]);
   const [newTrackMainArtistId, setNewTrackMainArtistId] = useState("");
   const [newTrackFeaturedTags, setNewTrackFeaturedTags] = useState<{ id: string; name: string }[]>([]);
-  const [newTrackFeaturedSearch, setNewTrackFeaturedSearch] = useState("");
-  const [newTrackFeaturedResults, setNewTrackFeaturedResults] = useState<{ id: string; name: string }[]>([]);
   const [adminBusy, setAdminBusy] = useState(false);
-  const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]>>({});
+  const [candidatesByTrack, setCandidatesByTrack] = useState<Record<string, LinkCandidate[]>>({});
   // Real cross-artist links for a track, derived from track_appearances --
   // this is what the info panel shows as "Featured Artists", NOT the raw
   // free-text field, so the display always matches reality regardless of
@@ -463,7 +483,7 @@ export default function ArtistPage() {
         .in("id", idsToLoad),
       supabase
         .from("track_link_candidates")
-        .select("id, track_id, url, title, source_domain")
+        .select("id, track_id, url, title, source_domain, source, link_kind, suggested_status, album, release_date, notes")
         .in("track_id", idsToLoad),
       supabase
         .from("track_appearances")
@@ -492,7 +512,7 @@ export default function ArtistPage() {
     }
 
     if (candidatesRes.data && candidatesRes.data.length > 0) {
-      const map: Record<string, { id: string; url: string; title: string | null; source_domain: string | null }[]> = {};
+      const map: Record<string, LinkCandidate[]> = {};
       candidatesRes.data.forEach((c: any) => {
         (map[c.track_id] = map[c.track_id] || []).push(c);
       });
@@ -544,13 +564,20 @@ export default function ArtistPage() {
     }
   }
 
-  async function suggestCandidate(track: Track, candidateUrl: string) {
+  async function suggestCandidate(track: Track, candidate: LinkCandidate) {
     if (!user) { router.push("/login"); return; }
+    const candidateUrl = candidate.url;
+    // "spotify_url" is the field approve_submission applies (the old
+    // "new_spotify_url" key was silently ignored on approval).
+    const payload: Record<string, unknown> = { track_id: track.id, title: track.title, spotify_url: candidateUrl };
+    if (candidate.suggested_status && candidate.suggested_status !== track.release_status) payload.release_status = candidate.suggested_status;
+    if (candidate.album && !track.album) payload.album = candidate.album;
+    if (candidate.release_date && !track.release_date) payload.release_date = candidate.release_date;
     const { error: err } = await supabase.from("submissions").insert({
       type: "correction",
       artist_id: id,
       submitted_by: user.id,
-      payload: { track_id: track.id, new_spotify_url: candidateUrl },
+      payload,
     });
     if (err) { alert(err.message); return; }
     setSuggestedIds((prev) => new Set(prev).add(track.id + candidateUrl));
@@ -564,41 +591,11 @@ export default function ArtistPage() {
   // offers to merge instead of creating a visible double-up.
   const [linkingTrackId, setLinkingTrackId] = useState<string | null>(null);
   const [editFeaturedTags, setEditFeaturedTags] = useState<{ id: string; name: string }[]>([]);
-  const [editFeaturedSearch, setEditFeaturedSearch] = useState("");
-  const [editFeaturedResults, setEditFeaturedResults] = useState<{ id: string; name: string }[]>([]);
   const [linkTargetArtist, setLinkTargetArtist] = useState<{ id: string; name: string } | null>(null);
   const [artistSearch, setArtistSearch] = useState("");
   const [artistResults, setArtistResults] = useState<{ id: string; name: string }[]>([]);
   const [targetTrackSearch, setTargetTrackSearch] = useState("");
   const [targetTrackResults, setTargetTrackResults] = useState<{ id: string; title: string }[]>([]);
-
-  useEffect(() => {
-    const q = editFeaturedSearch.trim();
-    if (q.length < 2) { setEditFeaturedResults([]); return; }
-    const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
-      setEditFeaturedResults((data ?? []).filter((a) => !editFeaturedTags.some((t) => t.id === a.id)));
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [editFeaturedSearch, id, editFeaturedTags]);
-
-  function addFeaturedTag(a: { id: string; name: string }) {
-    setEditFeaturedTags((prev) => [...prev, a]);
-    setEditFeaturedSearch("");
-    setEditFeaturedResults([]);
-  }
-
-  function removeFeaturedTag(artistId: string) {
-    setEditFeaturedTags((prev) => prev.filter((a) => a.id !== artistId));
-  }
-
-  async function addFeaturedTagCreated() {
-    const name = editFeaturedSearch.trim();
-    if (!name) return;
-    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name });
-    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return; }
-    addFeaturedTag({ id: newId as string, name });
-  }
 
   useEffect(() => {
     const q = artistSearch.trim();
@@ -700,20 +697,6 @@ export default function ArtistPage() {
     load();
   }
 
-  useEffect(() => {
-    const q = newTrackFeaturedSearch.trim();
-    if (q.length < 2) { setNewTrackFeaturedResults([]); return; }
-    const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", id).limit(8);
-      setNewTrackFeaturedResults(
-        (data ?? [])
-          .filter((a) => !newTrackFeaturedTags.some((t) => t.id === a.id))
-          .filter((a) => a.id !== newTrackMainArtistId)
-      );
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [newTrackFeaturedSearch, id, newTrackFeaturedTags, newTrackMainArtistId]);
-
   // If the main artist gets picked after a tag was already added, strip
   // that tag out -- the search exclusion above only prevents adding it
   // going forward, this catches the reverse order.
@@ -721,24 +704,6 @@ export default function ArtistPage() {
     if (!newTrackMainArtistId) return;
     setNewTrackFeaturedTags((prev) => prev.filter((t) => t.id !== newTrackMainArtistId));
   }, [newTrackMainArtistId]);
-
-  function addNewTrackFeaturedTag(a: { id: string; name: string }) {
-    setNewTrackFeaturedTags((prev) => [...prev, a]);
-    setNewTrackFeaturedSearch("");
-    setNewTrackFeaturedResults([]);
-  }
-
-  function removeNewTrackFeaturedTag(artistId: string) {
-    setNewTrackFeaturedTags((prev) => prev.filter((a) => a.id !== artistId));
-  }
-
-  async function addNewTrackFeaturedTagCreated() {
-    const name = newTrackFeaturedSearch.trim();
-    if (!name) return;
-    const { data: newId, error: err } = await supabase.rpc("admin_create_artist", { p_name: name });
-    if (err || !newId) { alert(err?.message ?? "Couldn't create artist."); return; }
-    addNewTrackFeaturedTag({ id: newId as string, name });
-  }
 
   useEffect(() => {
     const q = newTrackMainArtistSearch.trim();
@@ -753,37 +718,7 @@ export default function ArtistPage() {
   function newTrackFeaturedTagPicker() {
     return (
       <div style={{ marginBottom: 10 }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-          {newTrackFeaturedTags.map((a) => (
-            <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              {a.name}
-              <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeNewTrackFeaturedTag(a.id)}>✕</span>
-            </span>
-          ))}
-        </div>
-        <div style={{ position: "relative" }}>
-          <input
-            className="search-input"
-            style={{ width: "100%" }}
-            placeholder="Search artists to add…"
-            value={newTrackFeaturedSearch}
-            onChange={(e) => setNewTrackFeaturedSearch(e.target.value)}
-          />
-          {newTrackFeaturedSearch.trim().length >= 2 && (
-            <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
-              {newTrackFeaturedResults.map((a) => (
-                <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => addNewTrackFeaturedTag(a)}>
-                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
-                </div>
-              ))}
-              {newTrackFeaturedResults.length === 0 && (
-                <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={addNewTrackFeaturedTagCreated}>
-                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{newTrackFeaturedSearch.trim()}&quot;</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <FeaturedArtistPicker tags={newTrackFeaturedTags} onChange={setNewTrackFeaturedTags} excludeIds={[id, newTrackMainArtistId]} />
       </div>
     );
   }
@@ -835,13 +770,12 @@ export default function ArtistPage() {
 
     setAdminBusy(false);
     setNewTrackFeaturedTags([]);
-    setNewTrackFeaturedSearch("");
     setAddingTrack(false);
     setNewTrack({
       title: "", spotify_url: "", is_featured: false, is_official: false, has_audio: true, parent_track_id: "", featured_artists_text: "",
-      aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "leaked",
+      aliases: "", album: "", track_number: "", release_date: "", producers: "", genre: "", notes: "", release_status: "unconfirmed",
     });
-    setNewTrackParentSearch("");
+    setNewTrackPickerKey((k) => k + 1);
     setNewTrackMainArtistId("");
     setNewTrackMainArtistSearch("");
     await load();
@@ -893,8 +827,6 @@ export default function ArtistPage() {
   function startEdit(t: Track) {
     setEditingId(t.id);
     setEditFeaturedTags(linkedFeaturedArtists[t.id] ?? []);
-    setEditFeaturedSearch("");
-    setEditFeaturedResults([]);
     setEditDraft({
       title: t.title,
       spotify_url: t.spotify_url ?? "",
@@ -910,11 +842,8 @@ export default function ArtistPage() {
       genre: t.genre ?? "",
       notes: t.notes ?? "",
       album: t.album ?? "",
-      release_status: t.release_status ?? (t.is_official ? "released" : "leaked"),
+      release_status: t.release_status ?? (t.is_official ? "released" : "unconfirmed"),
     });
-    const currentParent = t.parent_track_id ? mainTracks.find((mt) => mt.id === t.parent_track_id) : null;
-    setParentSearch(currentParent?.title ?? "");
-    setParentSuggestionsOpen(false);
   }
 
   async function saveEdit(trackId: string) {
@@ -1120,40 +1049,13 @@ export default function ArtistPage() {
             </label>
           </div>
           <div className="comments-count" style={{ marginBottom: 6 }}>Make this a sub-version of:</div>
-          <div style={{ position: "relative" }}>
-            <input
-              className="search-input"
-              style={{ width: "100%", marginBottom: 4 }}
-              placeholder="Type to search main tracks…"
-              value={parentSearch}
-              onChange={(e) => { setParentSearch(e.target.value); setParentSuggestionsOpen(true); if (!e.target.value) setEditDraft({ ...editDraft, parent_track_id: "" }); }}
-              onFocus={() => setParentSuggestionsOpen(true)}
-            />
-            {parentSuggestionsOpen && parentSearch.trim().length > 0 && (
-              <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
-                {mainTracks
-                  .filter((mt) => mt.id !== t.id && mt.title.toLowerCase().includes(parentSearch.trim().toLowerCase()))
-                  .slice(0, 8)
-                  .map((mt) => (
-                    <div
-                      key={mt.id}
-                      className="comment-item"
-                      style={{ cursor: "pointer", padding: "8px 6px" }}
-                      onClick={() => {
-                        setEditDraft({ ...editDraft, parent_track_id: mt.id });
-                        setParentSearch(mt.title);
-                        setParentSuggestionsOpen(false);
-                      }}
-                    >
-                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
-                    </div>
-                  ))}
-                {mainTracks.filter((mt) => mt.id !== t.id && mt.title.toLowerCase().includes(parentSearch.trim().toLowerCase())).length === 0 && (
-                  <div className="comments-count">No matches.</div>
-                )}
-              </div>
-            )}
-          </div>
+          <ParentTrackPicker
+            key={`edit-parent-${t.id}`}
+            tracks={mainTracks}
+            excludeId={t.id}
+            value={editDraft.parent_track_id}
+            onChange={(pid) => setEditDraft({ ...editDraft, parent_track_id: pid })}
+          />
           <div className="comments-count" style={{ marginBottom: 10, marginTop: 4 }}>
             {editDraft.parent_track_id ? "Will become a sub-version." : "Clear the box to keep it a main track."}
           </div>
@@ -1182,37 +1084,7 @@ export default function ArtistPage() {
             value={editDraft.producers} onChange={(e) => setEditDraft({ ...editDraft, producers: e.target.value })} />
 
           <div className="comments-count" style={{ marginBottom: 4 }}>Featured artists</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-            {editFeaturedTags.map((a) => (
-              <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                {a.name}
-                <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeFeaturedTag(a.id)}>✕</span>
-              </span>
-            ))}
-          </div>
-          <div style={{ position: "relative", marginBottom: 6 }}>
-            <input
-              className="search-input"
-              style={{ width: "100%" }}
-              placeholder="Search artists to add…"
-              value={editFeaturedSearch}
-              onChange={(e) => setEditFeaturedSearch(e.target.value)}
-            />
-            {editFeaturedSearch.trim().length >= 2 && (
-              <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
-                {editFeaturedResults.map((a) => (
-                  <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={() => addFeaturedTag(a)}>
-                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
-                  </div>
-                ))}
-                {editFeaturedResults.length === 0 && (
-                  <div className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }} onClick={addFeaturedTagCreated}>
-                    <span className="comment-body" style={{ fontSize: "0.82rem" }}>+ create artist &quot;{editFeaturedSearch.trim()}&quot;</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <FeaturedArtistPicker tags={editFeaturedTags} onChange={setEditFeaturedTags} excludeIds={[id]} />
 
           <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Genre"
             value={editDraft.genre} onChange={(e) => setEditDraft({ ...editDraft, genre: e.target.value })} />
@@ -1385,7 +1257,7 @@ export default function ArtistPage() {
         {openCandidatesId === t.id && (
           <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
             <div className="comments-count" style={{ marginBottom: 8 }}>
-              Unverified web search results — not confirmed links. Check one out, and if it&apos;s
+              Unconfirmed suggestions from web searches and ChatGPT. Check one out, and if it&apos;s
               genuinely this track, suggest it below (goes through the normal review process).
             </div>
             {[...(candidatesByTrack[t.id] ?? [])]
@@ -1397,7 +1269,14 @@ export default function ArtistPage() {
                 return (
                   <div key={c.id} className="comment-item">
                     <div className="comment-body" style={{ fontSize: "0.8rem" }}>{c.title ?? c.url}</div>
-                    <div className="comment-meta">{c.source_domain}</div>
+                    <div className="comment-meta">
+                      {c.source_domain}
+                      {c.source === "chatgpt" && <> · via ChatGPT</>}
+                      {c.suggested_status && <> · looks {c.suggested_status}</>}
+                      {c.album && <> · {c.album}</>}
+                      {c.release_date && <> · {c.release_date}</>}
+                    </div>
+                    {c.notes && <div className="comment-meta" style={{ fontStyle: "italic" }}>{c.notes}</div>}
                     <div className="comment-actions">
                       <button
                         className={`comment-action-btn ${myVote === 1 ? "voted" : ""}`}
@@ -1416,7 +1295,7 @@ export default function ArtistPage() {
                       {suggested ? (
                         <span className="comment-action-btn voted">suggested ✓</span>
                       ) : (
-                        <button className="comment-action-btn" onClick={() => suggestCandidate(t, c.url)}>
+                        <button className="comment-action-btn" onClick={() => suggestCandidate(t, c)}>
                           suggest as link
                         </button>
                       )}
@@ -1550,6 +1429,18 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
+          {user && (
+            <a
+              href={chatGptLinksUrl(id, artist.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tab"
+              style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}
+              title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
+            >
+              find links with ChatGPT ↗
+            </a>
+          )}
           {!isAdmin && (
             <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
               + suggest a track
@@ -1637,29 +1528,13 @@ export default function ArtistPage() {
                 </div>
               )}
               <div className="comments-count" style={{ marginBottom: 6 }}>Sub-version of (optional):</div>
-              <div style={{ position: "relative" }}>
-                <input
-                  className="search-input"
-                  style={{ width: "100%" }}
-                  placeholder="Type to search main tracks…"
-                  value={newTrackParentSearch}
-                  onChange={(e) => { setNewTrackParentSearch(e.target.value); setNewTrackParentOpen(true); if (!e.target.value) setNewTrack({ ...newTrack, parent_track_id: "" }); }}
-                  onFocus={() => setNewTrackParentOpen(true)}
-                />
-                {newTrackParentOpen && newTrackParentSearch.trim().length > 0 && (
-                  <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 200, overflowY: "auto", padding: "6px 4px" }}>
-                    {mainTracks
-                      .filter((mt) => mt.title.toLowerCase().includes(newTrackParentSearch.trim().toLowerCase()))
-                      .slice(0, 8)
-                      .map((mt) => (
-                        <div key={mt.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
-                          onClick={() => { setNewTrack({ ...newTrack, parent_track_id: mt.id }); setNewTrackParentSearch(mt.title); setNewTrackParentOpen(false); }}>
-                          <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
+              <ParentTrackPicker
+                key={`new-parent-${newTrackPickerKey}`}
+                tracks={mainTracks}
+                value={newTrack.parent_track_id}
+                onChange={(pid) => setNewTrack({ ...newTrack, parent_track_id: pid })}
+                maxHeight={200}
+              />
 
               <div className="comments-count" style={{ marginBottom: 6, marginTop: 10 }}>Verbose info (optional)</div>
               <input className="search-input" style={{ width: "100%", marginBottom: 6 }} placeholder="Aliases (comma separated)"

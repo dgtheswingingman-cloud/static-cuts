@@ -30,6 +30,7 @@ type Discovery = {
   from_status: string | null;
   to_status: string | null;
   release_date: string | null;
+  album: string | null;
   confidence: number | null;
   corroboration_count: number;
   first_seen_at: string;
@@ -61,7 +62,7 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
     const { data, error: err } = await supabase
       .from("discoveries")
       .select(
-        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, confidence, corroboration_count, first_seen_at, last_seen_at, main_artist_id, main_artist_name, featured_artist_ids, parent_track_id, artists!artist_id(name), main:artists!main_artist_id(name), parent:tracks!parent_track_id(title), discovery_evidence(source_url, source_layer, spotify_url, official_listening_url, unofficial_listening_url, notes, created_at)"
+        "id, artist_id, matched_track_id, title, version_hint, development_type, official_status, from_status, to_status, release_date, album, confidence, corroboration_count, first_seen_at, last_seen_at, main_artist_id, main_artist_name, featured_artist_ids, parent_track_id, artists!artist_id(name), main:artists!main_artist_id(name), parent:tracks!parent_track_id(title), discovery_evidence(source_url, source_layer, spotify_url, official_listening_url, unofficial_listening_url, notes, created_at)"
       )
       .eq("state", "open")
       .order("corroboration_count", { ascending: false })
@@ -100,6 +101,16 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
     onPromoted();
   }
 
+  // One tap: send to the queue and approve straight away.
+  async function approve(d: Discovery) {
+    setBusyId(d.id);
+    const { error: err } = await supabase.rpc("approve_discovery", { p_discovery_id: d.id, p_note: null });
+    setBusyId(null);
+    if (err) { alert(err.message); return; }
+    load();
+    onPromoted();
+  }
+
   async function dismiss(d: Discovery) {
     const note = window.prompt("Dismiss this finding. Reason? (optional)");
     if (note === null) return;
@@ -124,7 +135,8 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
     <div style={{ marginBottom: 18 }}>
       <div className="section-label">Routine discoveries ({items.length})</div>
       <div className="comment-meta" style={{ margin: "2px 0 8px", fontStyle: "italic" }}>
-        Found by users&apos; ChatGPT routines. Nothing here is live. Promote to send it to the queue below.
+        Found by users&apos; ChatGPT routines. Nothing here is live until you approve it, or use
+        &quot;edit first&quot; to send it to the queue below.
       </div>
       {items.map((d) => {
         const title = d.version_hint ? `${d.title} (${d.version_hint})` : d.title;
@@ -167,6 +179,7 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
                 </span>
                 {d.confidence !== null && <span className="feature-tag">confidence {Math.round(d.confidence * 100)}%</span>}
                 {d.release_date && <span className="feature-tag">release {d.release_date}</span>}
+                {d.album && <span className="feature-tag">{d.album}</span>}
               </div>
               {shown.map((e) => (
                 <div key={e.source_url} className="comment-meta" style={{ marginTop: 2, wordBreak: "break-all" }}>
@@ -207,7 +220,10 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
                 view track
               </Link>
             )}
-            <button className="listen-link" disabled={busyId === d.id} onClick={() => promote(d)}>promote</button>
+            <button className="listen-link" disabled={busyId === d.id} onClick={() => approve(d)}>approve</button>
+            <button className="listen-link" disabled={busyId === d.id} onClick={() => promote(d)} title="Send to the review queue below to edit before approving">
+              edit first
+            </button>
             <button className="listen-link" disabled={busyId === d.id} onClick={() => dismiss(d)}>dismiss</button>
           </div>
         );

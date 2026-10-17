@@ -12,6 +12,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
+import QuickMerge from "./QuickMerge";
 
 type DupTrack = {
   track_id: string;
@@ -148,6 +149,8 @@ export default function DuplicatesPage() {
         collaborator. Choose the copy to <b>keep</b> (the one on the main artist&apos;s page), untick anything that
         isn&apos;t really the same song, then merge. ChatGPT routines add their verdict when they&apos;ve checked a group.
       </div>
+
+      {user && isAdmin && <QuickMerge onMerged={() => load(true)} />}
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
         <select
