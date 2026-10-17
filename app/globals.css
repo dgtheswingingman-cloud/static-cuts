@@ -265,6 +265,29 @@ body {
 }
 .rating-chip:hover { border-color: var(--hair-strong); color: var(--bone); }
 .rating-chip.rated { border-color: var(--hair-strong); color: var(--bone); background: var(--surface2); }
+.rating-chip.danger:hover { border-color: #a33; color: #e88; }
+
+/* The "more" panel under a track row: actions grouped by purpose. */
+.track-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  padding-bottom: 10px;
+}
+.track-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.track-actions-label {
+  min-width: 72px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.6rem;
+}
 
 .rating-popover {
   display: flex;
