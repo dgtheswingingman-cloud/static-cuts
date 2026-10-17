@@ -128,6 +128,9 @@ export default function ArtistPage() {
   const [openRatingId, setOpenRatingId] = useState<string | null>(null);
   const [openCommentsId, setOpenCommentsId] = useState<string | null>(null);
   const [openInfoId, setOpenInfoId] = useState<string | null>(null);
+  // The "more" menu on a track row: contribution and admin actions, kept out
+  // of the way for people who are just browsing.
+  const [openMoreId, setOpenMoreId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
@@ -1026,6 +1029,8 @@ export default function ArtistPage() {
     const isRatingOpen = openRatingId === t.id;
     const isEditing = editingId === t.id;
     const subs = subsByParent[t.id] ?? [];
+    // Suggested links only matter while the track has no link of its own.
+    const matchCount = !t.spotify_url ? (candidatesByTrack[t.id]?.length ?? 0) : 0;
 
     if (isEditing && editDraft) {
       return (
@@ -1126,87 +1131,109 @@ export default function ArtistPage() {
           <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenInfoId(openInfoId === t.id ? null : t.id); }}>
             info
           </button>
-          {!isSub && (
-            <a
-              href={`/submit?type=new_version&artist_id=${id}&parent_track_id=${t.id}&parent_title=${encodeURIComponent(t.title)}`}
-              className="listen-link"
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontSize: "0.68rem" }}
-            >
-              + alt version
-            </a>
-          )}
-          {user && !isAdmin && (
-            <a
-              href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artist_tags=${encodeURIComponent(JSON.stringify(linkedFeaturedArtists[t.id] ?? []))}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
-              className="listen-link"
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontSize: "0.68rem" }}
-            >
-              suggest edit
-            </a>
-          )}
-          {!t.spotify_url && (candidatesByTrack[t.id]?.length ?? 0) > 0 && (
-            <button
-              className="rating-chip"
-              onClick={(e) => { e.stopPropagation(); setOpenCandidatesId(openCandidatesId === t.id ? null : t.id); }}
-            >
-              possible matches ({candidatesByTrack[t.id].length})
-            </button>
-          )}
-          {isAdmin && !t.isCrossAppearance && (
-            <>
-              <button className="listen-link" onClick={(e) => { e.stopPropagation(); startEdit(t); }}>edit</button>
-              <button className="listen-link" onClick={(e) => { e.stopPropagation(); deleteTrack(t, subs.length > 0); }}>delete</button>
-              <button
-                className="listen-link"
-                onClick={(e) => { e.stopPropagation(); if (linkingTrackId === t.id) { resetLinkPanel(); } else { resetLinkPanel(); setLinkingTrackId(t.id); } }}
-              >
-                link track
-              </button>
-            </>
-          )}
           {t.isCrossAppearance && (
-            <>
-              <Link
-                href={`/artist/${t.homeArtistId}`}
-                className="feature-tag"
-                style={{ textDecoration: "none" }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                featured via {t.homeArtistName}
-              </Link>
-              {isAdmin && (
-                <button className="listen-link" onClick={(e) => { e.stopPropagation(); unlinkFeature(t.id); }}>
-                  remove from this page
-                </button>
-              )}
-            </>
+            <Link
+              href={`/artist/${t.homeArtistId}`}
+              className="feature-tag"
+              style={{ textDecoration: "none" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              featured via {t.homeArtistName}
+            </Link>
           )}
           {t.spotify_url && (
-            <>
-              <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
-              {user && !isAdmin && (
-                <a
-                  href={`/submit?type=flag_link&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url)}`}
-                  className="listen-link"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  flag link
-                </a>
-              )}
-            </>
+            <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
           )}
-          {user && !isAdmin && !t.isCrossAppearance && (
-            <a
-              href={`/submit?type=flag_deletion&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}`}
-              className="listen-link"
-              onClick={(e) => e.stopPropagation()}
+          {(user || !isSub || matchCount > 0) && (
+            <button
+              className={`rating-chip ${openMoreId === t.id ? "rated" : ""}`}
+              aria-expanded={openMoreId === t.id}
+              title="Suggest changes, links and versions"
+              onClick={(e) => { e.stopPropagation(); setOpenMoreId(openMoreId === t.id ? null : t.id); }}
             >
-              flag for deletion
-            </a>
+              {openMoreId === t.id ? "less" : "more"}
+              {matchCount > 0 && ` · ${matchCount} link${matchCount === 1 ? "" : "s"}`}
+            </button>
           )}
         </div>
+        {openMoreId === t.id && (
+          <div className="comments-panel track-actions" onClick={(e) => e.stopPropagation()}>
+            {(!isSub || matchCount > 0 || (user && !isAdmin)) && (
+              <div className="track-actions-group">
+                <span className="comment-meta track-actions-label">Contribute</span>
+                {matchCount > 0 && (
+                  <button
+                    className="rating-chip"
+                    onClick={() => setOpenCandidatesId(openCandidatesId === t.id ? null : t.id)}
+                  >
+                    possible links ({matchCount})
+                  </button>
+                )}
+                {!isSub && (
+                  <a
+                    href={`/submit?type=new_version&artist_id=${id}&parent_track_id=${t.id}&parent_title=${encodeURIComponent(t.title)}`}
+                    className="rating-chip"
+                    style={{ textDecoration: "none" }}
+                  >
+                    + alt version
+                  </a>
+                )}
+                {user && !isAdmin && (
+                  <a
+                    href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artist_tags=${encodeURIComponent(JSON.stringify(linkedFeaturedArtists[t.id] ?? []))}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
+                    className="rating-chip"
+                    style={{ textDecoration: "none" }}
+                  >
+                    suggest edit
+                  </a>
+                )}
+              </div>
+            )}
+            {user && !isAdmin && (t.spotify_url || !t.isCrossAppearance) && (
+              <div className="track-actions-group">
+                <span className="comment-meta track-actions-label">Report</span>
+                {t.spotify_url && (
+                  <a
+                    href={`/submit?type=flag_link&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url)}`}
+                    className="rating-chip"
+                    style={{ textDecoration: "none" }}
+                  >
+                    wrong link
+                  </a>
+                )}
+                {!t.isCrossAppearance && (
+                  <a
+                    href={`/submit?type=flag_deletion&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}`}
+                    className="rating-chip"
+                    style={{ textDecoration: "none" }}
+                  >
+                    shouldn&apos;t be here
+                  </a>
+                )}
+              </div>
+            )}
+            {isAdmin && (
+              <div className="track-actions-group">
+                <span className="comment-meta track-actions-label">Admin</span>
+                {!t.isCrossAppearance && (
+                  <>
+                    <button className="rating-chip" onClick={() => { setOpenMoreId(null); startEdit(t); }}>edit</button>
+                    <button
+                      className="rating-chip"
+                      onClick={() => { if (linkingTrackId === t.id) { resetLinkPanel(); } else { resetLinkPanel(); setLinkingTrackId(t.id); } }}
+                    >
+                      link to another artist
+                    </button>
+                    <button className="rating-chip danger" onClick={() => deleteTrack(t, subs.length > 0)}>delete</button>
+                  </>
+                )}
+                {t.isCrossAppearance && (
+                  <button className="rating-chip danger" onClick={() => unlinkFeature(t.id)}>remove from this page</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {isRatingOpen && (
           <div className="rating-popover" onClick={(e) => e.stopPropagation()}>
             <div className="rp-label">
