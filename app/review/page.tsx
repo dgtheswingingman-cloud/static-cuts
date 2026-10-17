@@ -31,6 +31,8 @@ type CurrentTrack = {
   featured_artists: string | null;
   genre: string | null;
   notes: string | null;
+  album?: string | null;
+  release_status?: string | null;
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -45,6 +47,8 @@ const FIELD_LABELS: Record<string, string> = {
   featured_artists: "Featured Artists",
   genre: "Genre",
   notes: "Notes",
+  album: "Album",
+  release_status: "Status",
 };
 
 const CATEGORIES: { key: string; label: string; types: string[] }[] = [
@@ -126,7 +130,7 @@ export default function ReviewPage() {
     if (contextTrackIds.length > 0) {
       const { data: tracks } = await supabase
         .from("tracks")
-        .select("id, title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, featured_artists, genre, notes")
+        .select("id, title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, featured_artists, genre, notes, album, release_status")
         .in("id", contextTrackIds);
       const map: Record<string, CurrentTrack> = {};
       (tracks ?? []).forEach((t: any) => { map[t.id] = t; });
@@ -163,6 +167,16 @@ export default function ReviewPage() {
     });
     setBusyId(null);
     if (err) { alert(err.message); return; }
+
+    // A status carried by a correction (e.g. from a link suggestion) isn't
+    // applied by approve_submission; set it here so unticking it still works.
+    if (sub?.type === "correction" && sub.payload.release_status && sub.payload.track_id && !excluded.includes("release_status")) {
+      const { error: statusErr } = await supabase.rpc("admin_set_release_status", {
+        p_track_id: sub.payload.track_id,
+        p_status: sub.payload.release_status,
+      });
+      if (statusErr) alert("Approved, but the status couldn't be set: " + statusErr.message);
+    }
 
     // Featured-artist picks are now real artist IDs chosen via the tag
     // picker, not free text -- link them directly. Guard on the key
