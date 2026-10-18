@@ -13,7 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,6 +37,21 @@ async function pauseSpotify(seconds: number) {
   await supabase.from("sc_private_settings").upsert({ key: PAUSE_KEY, value: until }, { onConflict: "key" });
 }
 const breather = () => new Promise((r) => setTimeout(r, 1000));
+
+// Only the timer (x-cron-secret) and the signed-in admin (link tools page)
+// may run this; anyone else could burn our Spotify allowance.
+const ADMIN_EMAIL = "dg.theswingingman@gmail.com";
+async function allowed(req: Request): Promise<boolean> {
+  const secret = req.headers.get("x-cron-secret");
+  if (secret) {
+    const { data } = await supabase.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
+    return !!data?.value && data.value === secret;
+  }
+  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return false;
+  const { data: who } = await supabase.auth.getUser(jwt);
+  return who?.user?.email === ADMIN_EMAIL;
+}
 
 async function getSpotifyToken(): Promise<string> {
   const resp = await fetch("https://accounts.spotify.com/api/token", {
@@ -68,6 +83,12 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   try {
+    if (!(await allowed(req))) {
+      return new Response(JSON.stringify({ error: "not authorized" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "30");
 

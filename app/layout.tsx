@@ -15,8 +15,16 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://static-cuts.com"),
   title: "Static Cuts//",
-  description: "Cut through the noise.",
+  description: "Cut through the noise. A community archive of every song, leak and release.",
+  openGraph: {
+    siteName: "Static Cuts//",
+    title: "Static Cuts//",
+    description: "Cut through the noise. A community archive of every song, leak and release.",
+    images: [{ url: "/icon-512.png", width: 512, height: 512 }],
+  },
+  twitter: { card: "summary" },
   appleWebApp: { capable: true, title: "Static Cuts", statusBarStyle: "black-translucent" },
   icons: { apple: "/apple-touch-icon.png" },
 };

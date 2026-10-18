@@ -63,7 +63,25 @@ const TIMER_INFO: Record<string, string> = {
   "radar-daily": "release-day reminders (07:05 UTC)",
   "follow-digest": "daily summary for followed artists (07:07 UTC)",
   "background-check": "tells you if any of these failed (hourly)",
+  "guest-artists": "gives guest artists pages once Spotify confirms them (every 10 min)",
+  "spotify-match": "finds Spotify links for songs that have none (10 songs every 5 min)",
+  "spotify-verify": "re-checks Spotify links and clears removed ones (hourly)",
 };
+
+type Progress = {
+  spotify: { left: number; searched: number; linked: number; links_checked_30d: number; paused_until: string | null };
+  genius: { checked: number; left: number };
+  covers: { have: number; left: number };
+  guests: Record<string, number>;
+};
+
+// "about 7 days" at the rate a timer gets through them.
+function eta(left: number, perDay: number) {
+  if (left <= 0) return "done";
+  const days = left / perDay;
+  if (days < 1) return `about ${Math.max(1, Math.round(days * 24))} hours left`;
+  return `about ${Math.round(days)} day${Math.round(days) === 1 ? "" : "s"} left`;
+}
 
 export default function HealthPage() {
   const { user, loading: authLoading } = useAuth();
@@ -73,18 +91,21 @@ export default function HealthPage() {
   const [error, setError] = useState<string | null>(null);
   const [timers, setTimers] = useState<Timer[]>([]);
   const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
     if (err) { setError(err.message); return; }
     setError(null);
     setH(data as Health);
-    const [{ data: t }, { data: b }] = await Promise.all([
+    const [{ data: t }, { data: b }, { data: p }] = await Promise.all([
       supabase.rpc("admin_timers"),
       supabase.rpc("admin_background_failures"),
+      supabase.rpc("admin_job_progress"),
     ]);
     setTimers((t as Timer[]) ?? []);
     setBg(b ?? null);
+    setProgress((p as Progress) ?? null);
   }
 
   useEffect(() => {
@@ -143,6 +164,37 @@ export default function HealthPage() {
               ))}
             </div>
           )}
+
+          {progress && (() => {
+            const sp = progress.spotify;
+            const pausedUntil = sp.paused_until && new Date(sp.paused_until) > new Date() ? new Date(sp.paused_until) : null;
+            const total = sp.left + sp.searched;
+            const guestsDone = (progress.guests.created ?? 0) + (progress.guests.linked ?? 0);
+            return (
+              <>
+                <div className="section-label" style={{ marginTop: 20 }}>Background progress</div>
+                <div className="health-tiles">
+                  <Tile
+                    label={pausedUntil
+                      ? `Spotify paused until ${pausedUntil.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                      : `Spotify songs checked · ${eta(sp.left, 2880)}`}
+                    value={`${n(sp.searched)} / ${n(total)}`}
+                    alert={!!pausedUntil}
+                  />
+                  <Tile label="songs with a Spotify link" value={n(sp.linked)} />
+                  <Tile label="links re-checked (30 days)" value={`${n(sp.links_checked_30d)} / ${n(sp.linked)}`} />
+                  <Tile label={`Genius credits checked · ${eta(progress.genius.left, 2160)}`} value={`${n(progress.genius.checked)} / ${n(progress.genius.checked + progress.genius.left)}`} />
+                  <Tile label={`artwork found${progress.covers.left ? ` · ${n(progress.covers.left)} to fetch` : ""}`} value={n(progress.covers.have)} />
+                  <Tile
+                    label={`guest artists sorted · ${n(progress.guests.pending ?? 0)} to check, ${n(progress.guests.review ?? 0)} for you`}
+                    value={n(guestsDone)}
+                    href="/review/guests"
+                    alert={(progress.guests.review ?? 0) > 0}
+                  />
+                </div>
+              </>
+            );
+          })()}
 
           <div className="section-label" style={{ marginTop: 20 }}>Timers</div>
           {bg && bg.failed_6h > 0 && (

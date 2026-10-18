@@ -1112,3 +1112,8 @@ a.listen-link {
   color: var(--bone);
   margin: 34px 0 4px;
 }
+
+.artist-aka {
+  margin-top: -2px;
+  margin-bottom: 12px;
+}

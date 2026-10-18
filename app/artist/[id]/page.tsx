@@ -126,6 +126,12 @@ export default function ArtistPage() {
   const [authenticity, setAuthenticity] = useState<Record<string, { real: number; fake: number; disputed: boolean }>>({});
   const [importOpen, setImportOpen] = useState(false);
   const [profilesOpen, setProfilesOpen] = useState(false);
+  // Nicknames (Ye for Kanye West): shown under the name, used when matching
+  // imports and guest artists. The admin edits them.
+  const [aliases, setAliases] = useState<string[]>([]);
+  const [aliasesOpen, setAliasesOpen] = useState(false);
+  const [aliasDraft, setAliasDraft] = useState("");
+  const [aliasError, setAliasError] = useState<string | null>(null);
   const [profileCount, setProfileCount] = useState(0);
   const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
   const [genreTagInput, setGenreTagInput] = useState("");
@@ -204,6 +210,8 @@ export default function ArtistPage() {
         .single();
       if (artistErr) throw artistErr;
       setArtist(artistRow);
+      supabase.from("artist_aliases").select("alias").eq("artist_id", id).order("alias")
+        .then(({ data: rows }) => setAliases((rows ?? []).map((r: { alias: string }) => r.alias)));
 
       const PAGE_SIZE = 1000;
       let all: Track[] = [];
@@ -456,6 +464,15 @@ export default function ArtistPage() {
     setAdminBusy(false);
     if (err) { alert(err.message); return; }
     router.push("/");
+  }
+
+  async function saveAliases() {
+    setAliasError(null);
+    const list = aliasDraft.split(",").map((x) => x.trim()).filter(Boolean);
+    const { data, error: err } = await supabase.rpc("admin_set_artist_aliases", { p_artist: id, p_aliases: list });
+    if (err) { setAliasError(err.message); return; }
+    setAliases((data as string[]) ?? []);
+    setAliasesOpen(false);
   }
 
   async function toggleFollow() {
@@ -1554,6 +1571,7 @@ export default function ArtistPage() {
           ) : (
             <>
               <h1 className="detail-name">{artist.name}</h1>
+              {aliases.length > 0 && <div className="detail-meta artist-aka">also known as {aliases.join(", ")}</div>}
             </>
           )}
           <div className="artist-actions">
@@ -1603,11 +1621,28 @@ export default function ArtistPage() {
               <button className={`tab ${addingTrack ? "active" : ""}`} onClick={() => setAddingTrack(!addingTrack)}>
                 {addingTrack ? "cancel add track" : "+ add track"}
               </button>
+              <button className={`tab ${aliasesOpen ? "active" : ""}`}
+                onClick={() => { setAliasDraft(aliases.join(", ")); setAliasError(null); setAliasesOpen(!aliasesOpen); }}>
+                nicknames{aliases.length ? ` (${aliases.length})` : ""}
+              </button>
               <button className={`tab ${profilesOpen ? "active" : ""}`} onClick={() => setProfilesOpen(!profilesOpen)}>
                 profiles{profileCount ? ` (${profileCount}/3)` : ""}
               </button>
               <span className="artist-actions-spacer" />
               <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
+            </div>
+          )}
+          {isAdmin && aliasesOpen && (
+            <div className="comments-panel" style={{ maxWidth: 520, marginBottom: 14 }}>
+              <div className="comment-meta" style={{ marginBottom: 6 }}>
+                Other names this artist goes by, separated by commas (e.g. Ye, Yeezy). Search finds them by these, and
+                imports and guest features under these names go to this page.
+              </div>
+              <input className="search-input" style={{ width: "100%", marginBottom: 8 }} value={aliasDraft}
+                onChange={(e) => setAliasDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveAliases()} />
+              <button className="comment-post-btn" onClick={saveAliases}>save</button>{" "}
+              <button className="rating-clear" onClick={() => setAliasesOpen(false)}>cancel</button>
+              {aliasError && <div className="comment-meta error-text" style={{ marginTop: 6 }}>{aliasError}</div>}
             </div>
           )}
           {isAdmin && <AdminModeNote what="follow, collect, rate, comment or suggest" />}
