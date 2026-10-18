@@ -736,3 +736,10 @@ a .health-tile:hover {
 
 /* ---------- Help wanted ---------- */
 .help-link { overflow-wrap: anywhere; }
+
+/* ---------- Real or fake ---------- */
+.real-or-fake { margin-top: 20px; }
+.real-or-fake-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.rof-bar { height: 6px; background: var(--hair); border-radius: 3px; overflow: hidden; margin: 12px 0 6px; }
+.rof-bar-real { height: 100%; background: var(--bone); }
+.disputed-tag { border-color: #b5651d !important; color: #e08a3c !important; }

@@ -119,6 +119,8 @@ export default function ArtistPage() {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [checkRequested, setCheckRequested] = useState(false);
   const [trackCredits, setTrackCredits] = useState<Record<string, string>>({});
+  // Real-or-fake vote totals for unreleased songs that have votes.
+  const [authenticity, setAuthenticity] = useState<Record<string, { real: number; fake: number; disputed: boolean }>>({});
   const [importOpen, setImportOpen] = useState(false);
   const [profilesOpen, setProfilesOpen] = useState(false);
   const [profileCount, setProfileCount] = useState(0);
@@ -497,6 +499,18 @@ export default function ArtistPage() {
   async function ensureTracksLoaded(trackIds: string[], force = false) {
     const idsToLoad = force ? trackIds : trackIds.filter((tid) => !loadedDetailIds.has(tid));
     if (idsToLoad.length === 0) return;
+
+    // Real-or-fake totals, for the "disputed" / "% real" tag.
+    supabase.rpc("rpc_authenticity", { p_track_ids: idsToLoad }).then(({ data }) => {
+      if (!data || (data as unknown[]).length === 0) return;
+      setAuthenticity((prev) => {
+        const next = { ...prev };
+        (data as { track_id: string; real_votes: number; fake_votes: number; disputed: boolean }[]).forEach((r) => {
+          next[r.track_id] = { real: r.real_votes, fake: r.fake_votes, disputed: r.disputed };
+        });
+        return next;
+      });
+    });
 
     // Who each song is credited to ("Added by" in the song info).
     supabase.rpc("rpc_track_credits", { p_track_ids: idsToLoad }).then(({ data }) => {
@@ -1174,6 +1188,22 @@ export default function ArtistPage() {
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
           <span className="feature-tag">{releaseLabel(t)}</span>
+          {authenticity[t.id] && ["rumored", "teased", "snippet", "leaked"].includes(releaseLabel(t)) && (() => {
+            const v = authenticity[t.id];
+            const total = v.real + v.fake;
+            if (!v.disputed && total < 3) return null;
+            return (
+              <Link
+                href={`/song/${t.id}`}
+                className={`feature-tag ${v.disputed ? "disputed-tag" : ""}`}
+                style={{ textDecoration: "none" }}
+                title={`${v.real} say real, ${v.fake} say fake`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {v.disputed ? "disputed" : `${Math.round((v.real / total) * 100)}% real`}
+              </Link>
+            );
+          })()}
           {t.source && (
             <a
               href={t.source_url || SOURCE_HOMES[t.source] || "#"}

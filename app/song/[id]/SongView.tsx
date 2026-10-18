@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import TrackComments from "../../artist/[id]/TrackComments";
+import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 
 type Track = {
   id: string;
@@ -197,6 +198,8 @@ export default function SongView({ id }: { id: string }) {
           </div>
         </div>
       )}
+
+      {VOTEABLE_STATUSES.includes(statusOf(t)) && <RealOrFake trackId={t.id} />}
 
       <div className="health-tiles" style={{ marginTop: 20 }}>
         <div className="health-tile">
