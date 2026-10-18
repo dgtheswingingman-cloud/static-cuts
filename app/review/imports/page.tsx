@@ -91,18 +91,20 @@ export default function ImportReviewPage() {
     setBusy(true);
     setMessage(null);
     let done = 0;
+    let problem: string | null = null;
     for (let i = 0; i < ids.length; i += 100) {
       const chunk = ids.slice(i, i + 100);
       const { data, error: err } = kind === "approve"
         ? await supabase.rpc("admin_apply_import_suggestions", { p_ids: chunk, p_status: statusOverride || null })
         : await supabase.rpc("admin_dismiss_import_suggestions", { p_ids: chunk });
-      if (err) { setMessage(`Stopped: ${err.message}`); break; }
+      if (err) { problem = err.message; break; }
       done += (data as number) ?? 0;
     }
     setBusy(false);
-    setMessage(kind === "approve"
+    const summary = kind === "approve"
       ? `${done} song${done === 1 ? "" : "s"} added. You can reverse this from the undo history.`
-      : `${done} dismissed. They won't be suggested again.`);
+      : `${done} dismissed. They won't be suggested again.`;
+    setMessage(problem ? `Stopped after ${done}: ${problem}` : summary);
     load();
   }
 
