@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import TrackComments from "../../artist/[id]/TrackComments";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
+import AddToList from "./AddToList";
 
 type Track = {
   id: string;
@@ -193,6 +194,7 @@ export default function SongView({ id }: { id: string }) {
           {song.my_rating ? `rated ${song.my_rating}/10` : "rate"}
         </button>
         <button className="tab" onClick={share}>{copied ? "link copied" : "share"}</button>
+        <AddToList trackId={t.id} />
       </div>
 
       {rateOpen && (
