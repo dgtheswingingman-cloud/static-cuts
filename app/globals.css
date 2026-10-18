@@ -638,3 +638,68 @@ body {
   flex-wrap: nowrap;
   gap: 4px;
 }
+
+/* Credit for imported song data (Spotify, Genius and Last.fm ask for it). */
+.source-tag {
+  text-decoration: none;
+}
+.source-tag:hover {
+  border-color: var(--hair-strong);
+  color: var(--bone);
+}
+.site-credit {
+  position: relative;
+  z-index: 1;
+  max-width: 580px;
+  margin: 40px auto 24px;
+  padding: 12px 16px 0;
+  border-top: 1px solid var(--hair);
+  font-size: 0.68rem;
+  color: var(--smoke);
+  text-align: center;
+}
+.site-credit a {
+  color: var(--smoke);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.site-credit a:hover {
+  color: var(--bone);
+}
+
+/* Health page: number tiles, two columns of recent activity. */
+.health-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.health-tile {
+  border: 1.5px solid var(--hair);
+  background: var(--surface);
+  padding: 10px 12px;
+  height: 100%;
+}
+a .health-tile:hover {
+  border-color: var(--hair-strong);
+}
+.health-tile[data-alert="true"] {
+  border-color: #a33;
+}
+.health-tile-value {
+  font-family: var(--font-anton), sans-serif;
+  font-size: 1.4rem;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.health-tile-label {
+  font-size: 0.68rem;
+  color: var(--smoke);
+  margin-top: 2px;
+}
+.health-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-top: 12px;
+}

@@ -79,6 +79,15 @@ type LinkCandidate = {
   notes?: string | null;
 };
 
+// Where imported songs came from, credited on each song (the services'
+// terms ask for attribution).
+const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm" };
+const SOURCE_HOMES: Record<string, string> = {
+  spotify: "https://open.spotify.com",
+  genius: "https://genius.com",
+  lastfm: "https://www.last.fm",
+};
+
 const RELEASE_STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released", "removed"] as const;
 
 // Opens ChatGPT with a short prompt; the connector's get_songs_needing_links
@@ -195,7 +204,7 @@ export default function ArtistPage() {
       while (true) {
         const { data: page, error: trackErr } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, source, source_url")
           .eq("artist_id", id)
           .range(from, from + PAGE_SIZE - 1);
         if (trackErr) throw trackErr;
@@ -216,7 +225,7 @@ export default function ArtistPage() {
       if (appearanceTrackIds.length > 0) {
         const { data: crossTracks } = await supabase
           .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, artist_id")
+          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, artist_id, source, source_url")
           .in("id", appearanceTrackIds);
         const homeArtistIds = Array.from(new Set((crossTracks ?? []).map((t: any) => t.artist_id)));
         const { data: homeArtists } = await supabase.from("artists").select("id, name").in("id", homeArtistIds);
@@ -824,7 +833,7 @@ export default function ArtistPage() {
     if (t.genre) lines.push(["Genre", t.genre]);
     if (t.notes) lines.push(["Notes", t.notes]);
     if (t.source) {
-      const sourceName = ({ spotify: "Spotify", genius: "Genius", lastfm: "Last.fm" } as Record<string, string>)[t.source] ?? t.source;
+      const sourceName = SOURCE_NAMES[t.source] ?? t.source;
       lines.push(["Source", t.source_url ? `${sourceName} (${t.source_url})` : sourceName]);
     }
     return lines;
@@ -1150,6 +1159,18 @@ export default function ArtistPage() {
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
           <span className="feature-tag">{releaseLabel(t)}</span>
+          {t.source && (
+            <a
+              href={t.source_url || SOURCE_HOMES[t.source] || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="feature-tag source-tag"
+              title={`Song info from ${SOURCE_NAMES[t.source] ?? t.source}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              via {SOURCE_NAMES[t.source] ?? t.source}
+            </a>
+          )}
           {!isAdmin && (
             <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
               {chipLabel}
@@ -1242,6 +1263,14 @@ export default function ArtistPage() {
                     shouldn&apos;t be here
                   </a>
                 )}
+                <a
+                  href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/artist/${id}?highlight=${t.id}`)}`}
+                  className="rating-chip"
+                  style={{ textDecoration: "none" }}
+                  title="For rights holders: ask for this song to be taken down."
+                >
+                  takedown request
+                </a>
               </div>
             )}
             {isAdmin && (

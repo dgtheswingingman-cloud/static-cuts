@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function LegalPage() {
@@ -10,7 +11,7 @@ export default function LegalPage() {
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Privacy &amp; Terms</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
-        Last updated {new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}.
+        Last updated 18 October 2026.
         Static Cuts// is a small, non-commercial, community-run project — this is written plainly on
         purpose, not as a substitute for legal advice if that ever changes.
       </div>
@@ -41,6 +42,12 @@ export default function LegalPage() {
           what&apos;s needed to identify your account. Search-assist tooling used behind the scenes
           (for finding official links) doesn&apos;t touch your personal data at all.
         </p>
+        <p className="detail-meta" style={{ marginBottom: 8 }}>
+          Some song information (titles, release dates, albums and links) comes from Spotify, Genius and Last.fm,
+          credited on each song it came from. If you connect ChatGPT to your account to help keep artists up to
+          date, it can read the catalogue and your followed artists and send finds for review; it can&apos;t change
+          the archive or see your email. You can disconnect it at any time.
+        </p>
 
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>Your data, your choice</h2>
         <p className="detail-meta" style={{ marginBottom: 8 }}>
@@ -68,6 +75,16 @@ export default function LegalPage() {
           archive. Be accurate, be respectful in comments, and don&apos;t submit anything you know
           to be false. Repeated bad-faith submissions or abusive behavior toward other users can
           result in your account being restricted or removed.
+        </p>
+
+        <h2 id="takedowns" style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>Takedowns</h2>
+        <p className="detail-meta" style={{ marginBottom: 8 }}>
+          Static Cuts// doesn&apos;t host audio, but we respect artists and rights holders. If you own the rights to
+          something listed here (or represent someone who does) and want it taken down, use the{" "}
+          <Link href="/takedown" style={{ color: "var(--bone)" }}>takedown form</Link>. Tell us which song or page and why.
+          We aim to act within a few days. When we agree, the song is marked removed and any links we suggested
+          for it are deleted; we&apos;ll reply by email either way. Please only send requests about music you have
+          rights to.
         </p>
 
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>No guarantees</h2>
