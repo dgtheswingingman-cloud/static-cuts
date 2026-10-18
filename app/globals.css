@@ -762,3 +762,12 @@ a .health-tile:hover {
 .sheet-map-row select, .sheet-map-row input { width: 100%; max-width: 100%; }
 @media (max-width: 560px) { .sheet-map-row { grid-template-columns: 1fr; gap: 4px; } }
 .sheet-preview { max-height: 420px; overflow-y: auto; margin-top: 12px; border-top: 1px solid var(--hair); }
+
+/* ---------- Lists ---------- */
+.list-items { list-style: none; margin: 0; padding: 0; }
+.list-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.list-num { font-family: var(--font-mono), monospace; color: var(--smoke); min-width: 2ch; text-align: right; padding-top: 2px; }
+.list-note { margin-top: 6px; font-size: 0.85rem; color: var(--smoke); white-space: pre-wrap; }
+.list-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.add-to-list { width: 100%; margin-top: 8px; }
+@media (max-width: 520px) { .list-item { flex-wrap: wrap; } .list-actions { width: 100%; justify-content: flex-start; padding-left: calc(2ch + 12px); } }

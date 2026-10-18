@@ -343,6 +343,7 @@ export default function HomePage() {
           <Link href="/new" className="tab" style={{ textDecoration: "none" }}>what&apos;s new</Link>
           <Link href="/help" className="tab" style={{ textDecoration: "none" }}>help wanted</Link>
           <Link href="/search" className="tab" style={{ textDecoration: "none" }}>search songs</Link>
+          <Link href="/lists" className="tab" style={{ textDecoration: "none" }}>lists</Link>
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
             {pickingRandom ? "…" : "🎲 random artist"}
           </button>

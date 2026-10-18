@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import Contributions from "./Contributions";
+import ProfileLists from "./ProfileLists";
 
 type Profile = {
   id: string;
@@ -299,6 +300,7 @@ export default function ProfilePage() {
           )}
 
           <Contributions userId={userId} />
+          <ProfileLists userId={userId} />
 
           {stats && (
             <div style={{ marginBottom: 20 }}>
