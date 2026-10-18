@@ -798,3 +798,17 @@ a .health-tile:hover {
 .collab-label { fill: var(--smoke); font-family: var(--font-mono), monospace; font-size: 13px; pointer-events: none; }
 .collab-side { border: 1px solid var(--hair); padding: 12px; max-height: 700px; overflow-y: auto; }
 .collab-link { padding: 8px 0; border-bottom: 1px solid var(--hair); }
+
+/* ---------- Era View ---------- */
+.era-timeline { position: relative; margin-top: 18px; padding-left: 22px; border-left: 2px solid var(--hair); }
+.era { position: relative; padding: 0 0 26px; }
+.era-dot { position: absolute; left: -29px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--bone); border: 2px solid var(--void); }
+.era-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+.era-cover { width: 84px; height: 84px; object-fit: cover; flex: none; border: 1px solid var(--hair); }
+.era-cover-empty { display: grid; place-items: center; color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.8rem; background: var(--surface); }
+.era-name { font-family: var(--font-anton), sans-serif; text-transform: uppercase; font-size: 1.5rem; line-height: 1.1; color: var(--bone); overflow-wrap: anywhere; }
+.era-songs { margin: 0 0 8px; padding-left: 20px; }
+.era-songs li { padding: 3px 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.era-songs a { color: var(--bone); text-decoration: none; }
+.era-songs a:hover { text-decoration: underline; }
+@media (max-width: 520px) { .era-cover { width: 64px; height: 64px; } .era-name { font-size: 1.2rem; } }
