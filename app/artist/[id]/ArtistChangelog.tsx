@@ -29,13 +29,9 @@ export default function ArtistChangelog({ artistId, limit }: { artistId: string;
   useEffect(() => {
     async function load() {
       const [subsRes, actionsRes] = await Promise.all([
-        supabase
-          .from("submissions")
-          .select("id, type, payload, status, created_at, submitted_by")
-          .eq("artist_id", artistId)
-          .neq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(limit),
+        // Only the public parts of each suggestion (suggestions themselves
+        // are private to their author and moderators).
+        supabase.rpc("rpc_artist_changelog", { p_artist: artistId, p_limit: limit }),
         supabase
           .from("admin_actions")
           .select("id, track_id, action_type, details, performed_at")
@@ -44,7 +40,12 @@ export default function ArtistChangelog({ artistId, limit }: { artistId: string;
           .limit(limit),
       ]);
 
-      const subs = subsRes.data ?? [];
+      type Row = { id: string; type: string; status: string; created_at: string; submitted_by: string;
+        title: string | null; from_status: string | null; to_status: string | null };
+      const subs: Submission[] = ((subsRes.data as Row[] | null) ?? []).map((r) => ({
+        id: r.id, type: r.type, status: r.status, created_at: r.created_at, submitted_by: r.submitted_by,
+        payload: { title: r.title, from_status: r.from_status, to_status: r.to_status },
+      }));
       const actions = actionsRes.data ?? [];
 
       const merged: Entry[] = [

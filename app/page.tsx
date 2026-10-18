@@ -17,6 +17,7 @@ type Artist = {
   collectedCount: number;
   avgRating: number | null;
   ratingCount: number;
+  aliases: string[];
 };
 
 type TrackResult = {
@@ -62,69 +63,24 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: artistRows, error: artistErr } = await supabase
-          .from("artists")
-          .select("id, name, status")
-          .order("name");
-        if (artistErr) throw artistErr;
-
-        const PAGE_SIZE = 1000;
-        let allTracks: { id: string; artist_id: string }[] = [];
-        let from = 0;
-        while (true) {
-          const { data: page, error: trackErr } = await supabase
-            .from("tracks")
-            .select("id, artist_id")
-            .range(from, from + PAGE_SIZE - 1);
-          if (trackErr) throw trackErr;
-          allTracks = allTracks.concat(page ?? []);
-          if (!page || page.length < PAGE_SIZE) break;
-          from += PAGE_SIZE;
-        }
-
-        const counts: Record<string, number> = {};
-        const artistByTrackId: Record<string, string> = {};
-        allTracks.forEach((t) => {
-          counts[t.artist_id] = (counts[t.artist_id] ?? 0) + 1;
-          artistByTrackId[t.id] = t.artist_id;
-        });
-
-        const collectedCounts: Record<string, number> = {};
-        if (user) {
-          let ownedIds: string[] = [];
-          let ownedFrom = 0;
-          while (true) {
-            const { data: page, error: ownedErr } = await supabase
-              .from("track_ownership")
-              .select("track_id")
-              .eq("user_id", user.id)
-              .range(ownedFrom, ownedFrom + PAGE_SIZE - 1);
-            if (ownedErr) throw ownedErr;
-            ownedIds = ownedIds.concat((page ?? []).map((r) => r.track_id));
-            if (!page || page.length < PAGE_SIZE) break;
-            ownedFrom += PAGE_SIZE;
-          }
-          ownedIds.forEach((trackId) => {
-            const artistId = artistByTrackId[trackId];
-            if (artistId) collectedCounts[artistId] = (collectedCounts[artistId] ?? 0) + 1;
-          });
-        }
-
-        const { data: ratingStats } = await supabase.from("artist_rating_stats").select("artist_id, avg_rating, rating_count");
-        const ratingMap: Record<string, { avg: number; count: number }> = {};
-        (ratingStats ?? []).forEach((r: any) => {
-          ratingMap[r.artist_id] = { avg: r.avg_rating, count: r.rating_count };
-        });
-
-        setArtists(
-          (artistRows ?? []).map((a) => ({
-            ...a,
-            trackCount: counts[a.id] ?? 0,
-            collectedCount: collectedCounts[a.id] ?? 0,
-            avgRating: ratingMap[a.id]?.avg ?? null,
-            ratingCount: ratingMap[a.id]?.count ?? 0,
-          }))
-        );
+        // One call: every artist with its song count, community rating,
+        // nicknames and (signed in, not admin mode) how many you've collected.
+        const { data, error: err } = await supabase.rpc("rpc_home_artists", { p_mine: !!user });
+        if (err) throw err;
+        type Row = {
+          id: string; name: string; status: string | null; track_count: number; collected: number;
+          avg_rating: number | null; rating_count: number; aliases: string[] | null;
+        };
+        setArtists(((data as Row[]) ?? []).map((a) => ({
+          id: a.id,
+          name: a.name,
+          status: a.status,
+          trackCount: a.track_count,
+          collectedCount: a.collected,
+          avgRating: a.avg_rating === null ? null : Number(a.avg_rating),
+          ratingCount: a.rating_count,
+          aliases: a.aliases ?? [],
+        })));
       } catch (e: any) {
         setError(e?.message ?? String(e));
       }
@@ -218,7 +174,10 @@ export default function HomePage() {
   // you find something to follow in the first place.
   const baseList = (() => {
     if (!artists) return null;
-    if (q) return artists.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()));
+    if (q) {
+      const needle = q.toLowerCase();
+      return artists.filter((a) => a.name.toLowerCase().includes(needle) || a.aliases.some((n) => n.toLowerCase().includes(needle)));
+    }
     if (user) return artists.filter((a) => followedIds.has(a.id));
     return artists;
   })();

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { useIsAdmin } from "../../useIsAdmin";
 import { useAuth } from "../../AuthProvider";
 import NoAccess from "../../components/NoAccess";
@@ -34,7 +35,11 @@ function useRunner(functionUrl: string, limit: number, pauseSeconds: number) {
     while (!stopRequested.current) {
       let response: any;
       try {
-        const res = await fetch(`${functionUrl}?limit=${limit}`);
+        // The functions only answer the timer and the signed-in admin.
+        const { data: sess } = await supabase.auth.getSession();
+        const res = await fetch(`${functionUrl}?limit=${limit}`, {
+          headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
+        });
         response = await res.json();
       } catch (e: any) {
         addLog(`Request failed: ${e?.message ?? e}. Waiting 30s and retrying...`);
@@ -46,6 +51,11 @@ function useRunner(functionUrl: string, limit: number, pauseSeconds: number) {
 
       setTotalChecked((prev) => prev + (response.checked ?? 0));
       setTotalSecondary((prev) => prev + (response[secondaryKey] ?? 0));
+
+      if (response.error) {
+        addLog(`>>> Stopped: ${response.error}`);
+        break;
+      }
 
       if (response.done) {
         addLog(">>> All tracks checked. Done.");
