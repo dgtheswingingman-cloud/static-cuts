@@ -1263,6 +1263,14 @@ export default function ArtistPage() {
                     shouldn&apos;t be here
                   </a>
                 )}
+                <a
+                  href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/artist/${id}?highlight=${t.id}`)}`}
+                  className="rating-chip"
+                  style={{ textDecoration: "none" }}
+                  title="For rights holders: ask for this song to be taken down."
+                >
+                  takedown request
+                </a>
               </div>
             )}
             {isAdmin && (

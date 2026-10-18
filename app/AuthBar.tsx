@@ -90,8 +90,8 @@ export default function AuthBar() {
           </Link>
         )}
         {isAdmin && (
-          <Link href="/admin/batches" style={smallBtn}>
-            undo history
+          <Link href="/admin/health" style={smallBtn}>
+            health
           </Link>
         )}
         <button onClick={() => signOut()} style={smallBtn}>
