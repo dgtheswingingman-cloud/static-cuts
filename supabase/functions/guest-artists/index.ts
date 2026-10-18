@@ -2,8 +2,8 @@
 //
 // Gives guests (artists only mentioned as "Feature on X's song") their own
 // pages when Spotify confirms who they are (see
-// 20261019230000_guest_artists.sql). Called by a timer every 10 minutes:
-// up to 8 names, ~1.5 seconds between Spotify requests, stops completely if
+// 20261019230000_guest_artists.sql). Called by a timer every 20 minutes:
+// up to 4 names, ~1.5 seconds between Spotify requests, stops completely if
 // Spotify says to slow down.
 //
 // For each name:
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
 
-  const { data: next, error } = await db.rpc("sc_guest_next", { p_secret: secret, p_limit: 8 });
+  const { data: next, error } = await db.rpc("sc_guest_next", { p_secret: secret, p_limit: 4 });
   if (error) return json({ error: error.message }, 403);
   const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null }[];
   const known = (next?.known ?? {}) as Record<string, string>;
