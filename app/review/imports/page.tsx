@@ -92,8 +92,12 @@ export default function ImportReviewPage() {
     setMessage(null);
     let done = 0;
     let problem: string | null = null;
-    for (let i = 0; i < ids.length; i += 100) {
-      const chunk = ids.slice(i, i + 100);
+    // Small batches: big artists (Kanye, Carti) take longer to check for
+    // duplicates, and each call has an 8-second limit.
+    const size = kind === "approve" ? 20 : 100;
+    for (let i = 0; i < ids.length; i += size) {
+      const chunk = ids.slice(i, i + size);
+      if (ids.length > size) setMessage(`${kind === "approve" ? "Adding" : "Dismissing"}… ${Math.min(i, ids.length)} of ${ids.length}`);
       const { data, error: err } = kind === "approve"
         ? await supabase.rpc("admin_apply_import_suggestions", { p_ids: chunk, p_status: statusOverride || null })
         : await supabase.rpc("admin_dismiss_import_suggestions", { p_ids: chunk });
