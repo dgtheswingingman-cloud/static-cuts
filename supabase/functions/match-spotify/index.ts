@@ -3,8 +3,8 @@
 // Finds tracks with no confirmed spotify_url, searches the real Spotify Web
 // API (Client Credentials flow -- no user login needed), and when it finds
 // the same song by the same artist writes back the link, marks the song as
-// released and fills in its album and release date if missing. Run
-// repeatedly (see the loop script) until every track has been checked.
+// released and fills in its album and release date if missing. Run by a
+// timer (10 songs every 5 minutes) and by the link tools page.
 //
 // Required secrets (set via `supabase secrets set`):
 //   SPOTIFY_CLIENT_ID
@@ -25,6 +25,21 @@ const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
 const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+// Spotify asked us to slow down: every Spotify job (this one, the link
+// checker, guest artists, the timers and the link tools page) stays off
+// until then, so nobody keeps knocking during a block.
+const PAUSE_KEY = "spotify_pause_until";
+async function spotifyPausedFor(): Promise<number> {
+  const { data } = await supabase.from("sc_private_settings").select("value").eq("key", PAUSE_KEY).maybeSingle();
+  const until = data?.value ? Date.parse(data.value) : 0;
+  return until > Date.now() ? Math.ceil((until - Date.now()) / 1000) : 0;
+}
+async function pauseSpotify(seconds: number) {
+  const until = new Date(Date.now() + Math.max(seconds || 0, 600) * 1000).toISOString();
+  await supabase.from("sc_private_settings").upsert({ key: PAUSE_KEY, value: until }, { onConflict: "key" });
+}
+const breather = () => new Promise((r) => setTimeout(r, 1000));
 
 // Matches are recorded in an undo batch ("Spotify matching <date>", one per
 // 12 hours of matching), so a bad run can be reversed from /admin/batches.
@@ -96,6 +111,14 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "50");
 
+    const paused = await spotifyPausedFor();
+    if (paused > 0) {
+      return new Response(
+        JSON.stringify({ done: false, checked: 0, matched: 0, rateLimited: true, retryAfterSeconds: paused, paused: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Every track without a link that hasn't been searched yet -- not just
     // ones already marked official, since most official songs in the
     // archive aren't marked yet. Main songs first, versions after.
@@ -119,6 +142,7 @@ Deno.serve(async (req) => {
     try {
       token = await getSpotifyToken();
     } catch (e: any) {
+      if (e?.retryAfterSeconds) await pauseSpotify(e.retryAfterSeconds);
       // The token endpoint has its own separate rate limit -- if we're
       // being throttled there too, report it the same way as a search
       // rate limit so the caller backs off properly instead of erroring out.
@@ -150,6 +174,7 @@ Deno.serve(async (req) => {
       const cleanedTitle = cleanTitle(track.title);
       const q = `track:${cleanedTitle} artist:${artistName}`;
       const searchUrl = `https://api.spotify.com/v1/search?type=track&limit=5&q=${encodeURIComponent(q)}`;
+      if (checked > 0) await breather();
       const sres = await fetch(searchUrl, { headers: { Authorization: `Bearer ${token}` } });
 
       if (sres.status === 429) {
@@ -158,6 +183,7 @@ Deno.serve(async (req) => {
         // instead of guessing. Falls back to 30s only if it's missing.
         const header = sres.headers.get("Retry-After");
         retryAfterSeconds = header ? parseInt(header, 10) : 30;
+        await pauseSpotify(retryAfterSeconds);
         break; // stop this batch, caller will retry after the given wait
       }
       checked++;
