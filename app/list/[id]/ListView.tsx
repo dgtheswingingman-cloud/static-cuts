@@ -12,7 +12,7 @@ import { useAuth } from "../../AuthProvider";
 
 type Item = {
   track_id: string; title: string; artist_id: string; artist: string; note: string | null;
-  status: string; spotify_url: string | null; album: string | null;
+  status: string; spotify_url: string | null; album: string | null; cover_url?: string | null;
 };
 type Data = {
   list: { id: string; title: string; description: string | null; is_public: boolean; created_at: string; updated_at: string };
@@ -172,6 +172,10 @@ export default function ListView({ id }: { id: string }) {
         {d.items.map((it, i) => (
           <li key={it.track_id} className="list-item">
             <span className="list-num">{i + 1}</span>
+            {it.cover_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={it.cover_url} alt="" className="thumb-cover" width={44} height={44} loading="lazy" />
+            )}
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="review-row-title"><Link href={`/song/${it.track_id}`}>{it.title}</Link></div>
               <div className="review-row-meta">
