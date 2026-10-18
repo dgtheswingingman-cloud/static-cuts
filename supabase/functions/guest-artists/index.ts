@@ -19,7 +19,9 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const pause = () => new Promise((r) => setTimeout(r, 1500));
-class SlowDown extends Error {}
+class SlowDown extends Error { constructor(msg: string, public wait: number) { super(msg); } }
+// Shared with the other Spotify jobs: see match-spotify.
+const PAUSE_KEY = "spotify_pause_until";
 
 function norm(s: string) {
   return (s || "").toLowerCase()
@@ -31,7 +33,10 @@ function norm(s: string) {
 async function spotify(path: string, token: string) {
   const res = await fetch(`https://api.spotify.com/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
   await pause();
-  if (res.status === 429) throw new SlowDown(`Spotify asked to wait ${res.headers.get("Retry-After") ?? "?"}s`);
+  if (res.status === 429) {
+    const wait = Number(res.headers.get("Retry-After")) || 60;
+    throw new SlowDown(`Spotify asked to wait ${wait}s`, wait);
+  }
   if (!res.ok) return null;
   return res.json();
 }
@@ -45,6 +50,8 @@ Deno.serve(async (req) => {
   const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null }[];
   const known = (next?.known ?? {}) as Record<string, string>;
   if (guests.length === 0) return json({ ok: true, idle: true });
+  const { data: pauseRow } = await db.from("sc_private_settings").select("value").eq("key", PAUSE_KEY).maybeSingle();
+  if (pauseRow?.value && Date.parse(pauseRow.value) > Date.now()) return json({ ok: true, paused_until: pauseRow.value });
 
   const id = Deno.env.get("SPOTIFY_CLIENT_ID"), sec = Deno.env.get("SPOTIFY_CLIENT_SECRET");
   if (!id || !sec) return json({ error: "Spotify keys aren't set up" }, 500);
@@ -104,6 +111,10 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     stopped = e instanceof SlowDown ? e.message : String((e as Error)?.message ?? e);
+    if (e instanceof SlowDown) {
+      const until = new Date(Date.now() + Math.max(e.wait, 600) * 1000).toISOString();
+      await db.from("sc_private_settings").upsert({ key: PAUSE_KEY, value: until }, { onConflict: "key" });
+    }
   }
   return json({ ok: true, done, stopped });
 });

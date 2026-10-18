@@ -23,6 +23,21 @@ const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+// Spotify asked us to slow down: every Spotify job (this one, the link
+// checker, guest artists, the timers and the link tools page) stays off
+// until then, so nobody keeps knocking during a block.
+const PAUSE_KEY = "spotify_pause_until";
+async function spotifyPausedFor(): Promise<number> {
+  const { data } = await supabase.from("sc_private_settings").select("value").eq("key", PAUSE_KEY).maybeSingle();
+  const until = data?.value ? Date.parse(data.value) : 0;
+  return until > Date.now() ? Math.ceil((until - Date.now()) / 1000) : 0;
+}
+async function pauseSpotify(seconds: number) {
+  const until = new Date(Date.now() + Math.max(seconds || 0, 600) * 1000).toISOString();
+  await supabase.from("sc_private_settings").upsert({ key: PAUSE_KEY, value: until }, { onConflict: "key" });
+}
+const breather = () => new Promise((r) => setTimeout(r, 1000));
+
 async function getSpotifyToken(): Promise<string> {
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -56,6 +71,14 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const limit = Number(url.searchParams.get("limit") || "30");
 
+    const paused = await spotifyPausedFor();
+    if (paused > 0) {
+      return new Response(
+        JSON.stringify({ done: false, checked: 0, deadFound: 0, rateLimited: true, retryAfterSeconds: paused, paused: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: tracks, error } = await supabase
       .from("tracks")
       .select("id, spotify_url")
@@ -74,6 +97,7 @@ Deno.serve(async (req) => {
     try {
       token = await getSpotifyToken();
     } catch (e: any) {
+      if (e?.retryAfterSeconds) await pauseSpotify(e.retryAfterSeconds);
       return new Response(
         JSON.stringify({ done: false, checked: 0, deadFound: 0, rateLimited: true, retryAfterSeconds: e?.retryAfterSeconds || 60 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -88,11 +112,15 @@ Deno.serve(async (req) => {
     for (const track of tracks) {
       const spotifyId = extractSpotifyTrackId(track.spotify_url);
       if (!spotifyId) {
-        // Malformed/unexpected URL format -- skip it, don't touch it.
+        // Not a Spotify track link (an album, or another site): leave the link
+        // alone but mark it checked, so it doesn't sit at the front of the
+        // queue forever.
+        await supabase.from("tracks").update({ spotify_link_verified_at: new Date().toISOString() }).eq("id", track.id);
         checked++;
         continue;
       }
 
+      if (checked > 0) await breather();
       const res = await fetch(`https://api.spotify.com/v1/tracks/${spotifyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -101,6 +129,7 @@ Deno.serve(async (req) => {
         rateLimited = true;
         const header = res.headers.get("Retry-After");
         retryAfterSeconds = header ? parseInt(header, 10) : 30;
+        await pauseSpotify(retryAfterSeconds);
         break;
       }
 

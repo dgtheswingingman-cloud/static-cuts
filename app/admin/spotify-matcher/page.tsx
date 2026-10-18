@@ -142,10 +142,10 @@ export default function SpotifyMatcherPage() {
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Spotify Matching</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
-        Keep this tab open while either one runs; closing it stops the run, and you can start it again later
-        from where it got to. Each runs at about 30 songs a minute so Spotify doesn&apos;t block us. For a big
-        overnight run, leave this tab in front and stop the computer sleeping: browsers slow down tabs in the
-        background.
+        Both of these now run by themselves: finding new links every 5 minutes (10 songs at a time) and checking
+        existing links every hour. You don&apos;t need this page for that. Use it to go faster for a while: keep the
+        tab open and in front while it runs. If Spotify asks us to slow down, every Spotify job pauses until Spotify
+        says it&apos;s OK, and this page stops too.
       </div>
 
       <RunnerPanel
