@@ -28,7 +28,7 @@ type Suggestion = {
 };
 
 const STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released"];
-const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify" };
+const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Community sheet" };
 
 export default function ImportReviewPage() {
   const { user, loading: authLoading } = useAuth();

@@ -468,6 +468,9 @@ export default function ReviewPage() {
         <Link href="/review/imports" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           imported songs →
         </Link>
+        <Link href="/admin/sheets" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+          import a spreadsheet →
+        </Link>
         {isAdmin && (
           <>
             <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
