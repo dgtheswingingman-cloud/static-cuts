@@ -113,7 +113,7 @@ export default function BatchesPage() {
     let skipped = 0;
     // Big batches are reversed a chunk at a time.
     for (let i = 0; i < 200; i++) {
-      const { data, error: err } = await supabase.rpc("admin_undo_batch", { p_batch: b.id, p_chunk: 1500 });
+      const { data, error: err } = await supabase.rpc("admin_undo_batch", { p_batch: b.id, p_chunk: 400 });
       if (err) { setMessage(`Undo stopped: ${err.message}`); break; }
       const r = data as { undone: number; skipped: number; remaining: number; finished: boolean; stuck: boolean };
       undone += r.undone;
