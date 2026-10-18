@@ -11,6 +11,7 @@ type Prefs = {
   show_collected_tracks: boolean;
   show_ratings: boolean;
   show_followed_artists: boolean;
+  show_contributions: boolean;
 };
 
 const LABELS: Record<keyof Prefs, string> = {
@@ -18,6 +19,7 @@ const LABELS: Record<keyof Prefs, string> = {
   show_collected_tracks: "Show my collected tracks publicly",
   show_ratings: "Show my ratings publicly",
   show_followed_artists: "Show artists I follow publicly",
+  show_contributions: "Show my contributions publicly (songs I've added, finds, corrections)",
 };
 
 export default function SettingsPage() {
@@ -176,7 +178,7 @@ export default function SettingsPage() {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
+        .select("show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions")
         .eq("id", user.id)
         .single();
       if (data) setPrefs(data as Prefs);
