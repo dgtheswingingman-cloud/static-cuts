@@ -116,6 +116,7 @@ export default function ArtistPage() {
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [checkRequested, setCheckRequested] = useState(false);
+  const [trackCredits, setTrackCredits] = useState<Record<string, string>>({});
   const [importOpen, setImportOpen] = useState(false);
   const [profilesOpen, setProfilesOpen] = useState(false);
   const [profileCount, setProfileCount] = useState(0);
@@ -495,6 +496,18 @@ export default function ArtistPage() {
     const idsToLoad = force ? trackIds : trackIds.filter((tid) => !loadedDetailIds.has(tid));
     if (idsToLoad.length === 0) return;
 
+    // Who each song is credited to ("Added by" in the song info).
+    supabase.rpc("rpc_track_credits", { p_track_ids: idsToLoad }).then(({ data }) => {
+      if (!data) return;
+      setTrackCredits((prev) => {
+        const next = { ...prev };
+        (data as { track_id: string; user_id: string; display_name: string | null }[]).forEach((c) => {
+          next[c.track_id] = c.display_name || "a contributor";
+        });
+        return next;
+      });
+    });
+
     const [detailsRes, candidatesRes, appearancesRes] = await Promise.all([
       supabase
         .from("tracks")
@@ -831,6 +844,7 @@ export default function ArtistPage() {
     if (realFeatured && realFeatured.length > 0) lines.push(["Featured Artists", realFeatured.map((a) => a.name).join(", ")]);
     if (t.genre) lines.push(["Genre", t.genre]);
     if (t.notes) lines.push(["Notes", t.notes]);
+    if (trackCredits[t.id]) lines.push(["Added by", trackCredits[t.id]]);
     if (t.source) {
       const sourceName = SOURCE_NAMES[t.source] ?? t.source;
       lines.push(["Source", t.source_url ? `${sourceName} (${t.source_url})` : sourceName]);

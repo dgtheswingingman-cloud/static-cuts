@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import Contributions from "./Contributions";
 
 type Profile = {
   id: string;
@@ -15,6 +16,7 @@ type Profile = {
   show_collected_tracks: boolean;
   show_ratings: boolean;
   show_followed_artists: boolean;
+  show_contributions: boolean;
 };
 type CollectedTrack = { track_id: string; tracks: { title: string; artist_id: string; artists: { name: string } | null } | null };
 type RatedTrack = { track_id: string; value: number; tracks: { title: string; artist_id: string; artists: { name: string } | null } | null };
@@ -73,7 +75,7 @@ export default function ProfilePage() {
     async function load() {
       const { data: profileRow, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, about, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists")
+        .select("id, display_name, avatar_url, about, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions")
         .eq("id", userId)
         .single();
       if (error || !profileRow) {
@@ -172,7 +174,8 @@ export default function ProfilePage() {
     !profile?.show_completion_pct &&
     !profile?.show_collected_tracks &&
     !profile?.show_ratings &&
-    !profile?.show_followed_artists;
+    !profile?.show_followed_artists &&
+    !profile?.show_contributions;
 
   return (
     <div className="wrap">
@@ -294,6 +297,8 @@ export default function ProfilePage() {
               settings.
             </div>
           )}
+
+          <Contributions userId={userId} />
 
           {stats && (
             <div style={{ marginBottom: 20 }}>
