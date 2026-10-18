@@ -467,6 +467,9 @@ export default function ReviewPage() {
         <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           takedowns →
         </Link>
+        <Link href="/admin/auto-approve" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+          auto-approve →
+        </Link>
       </div>
 
       {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}
