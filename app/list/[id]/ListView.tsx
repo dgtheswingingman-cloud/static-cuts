@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin } from "../../useIsAdmin";
 import ExportToSpotify from "../../ExportToSpotify";
 
 type Item = {
@@ -26,6 +27,7 @@ type Data = {
 
 export default function ListView({ id }: { id: string }) {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [d, setD] = useState<Data | null>(null);
   const [missing, setMissing] = useState(false);
@@ -149,7 +151,7 @@ export default function ListView({ id }: { id: string }) {
       )}
 
       <div className="song-actions">
-        {!d.is_owner && d.list.is_public && (
+        {!isAdmin && !d.is_owner && d.list.is_public && (
           <button className={`tab ${d.following ? "active" : ""}`} onClick={toggleFollow}>{d.following ? "✓ following" : "follow"}</button>
         )}
         {d.list.is_public && <button className="tab" onClick={share}>share</button>}
@@ -158,7 +160,7 @@ export default function ListView({ id }: { id: string }) {
             description={`From Static Cuts//: a list by ${d.owner?.name ?? "someone"}. static-cuts.com/list/${d.list.id}`}
             urls={d.items.map((i) => i.spotify_url)} />
         )}
-        {d.is_owner && !editing && (
+        {d.is_owner && !isAdmin && !editing && (
           <>
             <button className="tab" onClick={() => { setDraft({ title: d.list.title, description: d.list.description ?? "" }); setEditing(true); }}>edit</button>
             <button className="tab" onClick={togglePublic}>{d.list.is_public ? "make private" : "make public"}</button>
@@ -202,7 +204,7 @@ export default function ListView({ id }: { id: string }) {
             </div>
             <div className="list-actions">
               {it.spotify_url && <a className="listen-link" href={it.spotify_url} target="_blank" rel="noopener noreferrer">listen</a>}
-              {d.is_owner && (
+              {d.is_owner && !isAdmin && (
                 <>
                   <button className="rating-chip" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
                   <button className="rating-chip" aria-label="Move down" disabled={i === d.items.length - 1} onClick={() => move(i, 1)}>↓</button>

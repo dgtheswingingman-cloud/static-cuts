@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
 
 type Source = {
   id: string; title: string; tab_name: string | null; credit: string | null; url: string; artist_id: string; artist: string;
@@ -16,6 +17,7 @@ type Source = {
 
 export default function SourcesPage() {
   const { user } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [sources, setSources] = useState<Source[] | null>(null);
   const [url, setUrl] = useState("");
@@ -81,6 +83,11 @@ export default function SourcesPage() {
         Know a good community tracker? Send the link (shared as &ldquo;anyone with the link can view&rdquo;). If it&apos;s
         already been imported we&apos;ll tell you.
       </div>
+      {isAdmin ? (
+        <div className="comment-meta">
+          Admin mode: import sheets yourself from <Link href="/admin/sheets" className="text-link">import a spreadsheet</Link>.
+        </div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 560 }}>
         <input className="search-input" placeholder="https://docs.google.com/spreadsheets/d/…" value={url} onChange={(e) => setUrl(e.target.value)} />
         <input className="search-input" placeholder="Which artist? (optional)" value={artistName} onChange={(e) => setArtistName(e.target.value)} />
@@ -90,6 +97,7 @@ export default function SourcesPage() {
         </div>
         {message && <div className="comments-panel">{message}</div>}
       </div>
+      )}
     </div>
   );
 }

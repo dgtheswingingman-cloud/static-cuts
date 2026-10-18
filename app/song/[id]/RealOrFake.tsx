@@ -74,7 +74,7 @@ export default function RealOrFake({ trackId }: { trackId: string }) {
       ) : (
         <div className="comment-meta" style={{ marginTop: 8 }}>No votes yet. Be the first.</div>
       )}
-      {error && <div className="comment-meta" style={{ color: "#c55" }}>{error}</div>}
+      {error && <div className="comment-meta error-text">{error}</div>}
     </div>
   );
 }

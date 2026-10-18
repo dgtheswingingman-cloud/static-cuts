@@ -23,7 +23,7 @@ function Inner() {
 
   return (
     <div className="wrap" style={{ maxWidth: 560 }}>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Spotify playlist</h1>
+      <h1 className="detail-name page-title">Spotify playlist</h1>
       {!result && !error && <div className="empty-state">Making your playlist…</div>}
       {error && <div className="empty-state">{error}</div>}
       {result && (
@@ -33,7 +33,7 @@ function Inner() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {result.url && <a className="tab active" href={result.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>open in Spotify ↗</a>}
-            <Link href={result.back || "/"} className="tab" style={{ textDecoration: "none" }}>back</Link>
+            <Link href={result.back || "/"} className="tab">back</Link>
           </div>
         </div>
       )}

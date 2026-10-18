@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
 import DateDropdownPicker from "../components/DateDropdownPicker";
 import AlbumAutocomplete from "../components/AlbumAutocomplete";
 
@@ -11,6 +12,7 @@ type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "f
 
 function SubmitForm() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -423,11 +425,24 @@ function SubmitForm() {
   if (submitted) {
     return (
       <div className="wrap">
-        <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-        <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Thanks!</h1>
+        <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+        <h1 className="detail-name page-title">Thanks!</h1>
         <div className="empty-state" style={{ marginTop: 16 }}>
           Your submission is in the queue for review. Check{" "}
           <a href="/my-submissions" style={{ color: "var(--bone)" }}>my submissions</a> for status.
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="wrap">
+        <button className="back-btn" onClick={() => router.back()}>← back</button>
+        <h1 className="detail-name page-title">Suggestions</h1>
+        <div className="empty-state" style={{ marginTop: 16 }}>
+          Admin mode doesn&apos;t send suggestions: edit the artist page directly, or switch your role to
+          &ldquo;Regular user&rdquo; (under your name on the home page) to suggest like everyone else.
         </div>
       </div>
     );
@@ -444,8 +459,8 @@ function SubmitForm() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>{titles[type]}</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">{titles[type]}</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Reviewed before it goes live — nothing you submit appears in the archive automatically.
       </div>
@@ -763,7 +778,7 @@ function SubmitForm() {
         )}
 
         {error && (
-          <div className="empty-state" style={{ borderColor: "#a33", marginBottom: 12 }}>{error}</div>
+          <div className="empty-state error" style={{ marginBottom: 12 }}>{error}</div>
         )}
 
         <button className="comment-post-btn" disabled={busy} onClick={submit}>

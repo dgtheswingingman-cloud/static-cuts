@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import NoAccess from "../../components/NoAccess";
 
 type Reported = {
   comment_id: string; body: string; author_id: string; author: string; created_at: string; hidden_at: string | null;
@@ -27,10 +28,6 @@ export default function ReportedCommentsPage() {
   const [items, setItems] = useState<Reported[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !canModerate)) router.push("/");
-  }, [authLoading, user, canModerate, router]);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_reported_comments");
@@ -50,11 +47,11 @@ export default function ReportedCommentsPage() {
     setItems((prev) => (prev ?? []).filter((x) => x.comment_id !== c.comment_id));
   }
 
-  if (!canModerate) return null;
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Reported comments</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Reported comments</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Three reports hide a comment until someone here decides. Keep clears the reports; delete removes it (undo from the
         undo history).

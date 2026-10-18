@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer">Spotify</a>,{" "}
                 <a href="https://genius.com" target="_blank" rel="noopener noreferrer">Genius</a> and{" "}
                 <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>.{" "}
-                <Link href="/contributors">Contributors</Link> · <Link href="/sources">Sources</Link> · <Link href="/legal">Legal</Link> · <Link href="/takedown">Request a takedown</Link>
+                <Link href="/faq">FAQ</Link> · <Link href="/contributors">Contributors</Link> · <Link href="/sources">Sources</Link> · <Link href="/legal">Privacy &amp; terms</Link> · <Link href="/takedown">Request a takedown</Link>
               </footer>
             </AdminViewProvider>
           </ThemeProvider>

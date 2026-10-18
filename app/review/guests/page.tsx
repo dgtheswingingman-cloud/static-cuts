@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Guest = { name_key: string; name: string; songs: number; state: "review" | "pending"; note: string | null; sample: string[] | null };
 
@@ -25,10 +26,6 @@ export default function GuestsPage() {
   const [linking, setLinking] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [matches, setMatches] = useState<{ id: string; name: string }[]>([]);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !canModerate)) router.push("/");
-  }, [authLoading, user, canModerate, router]);
 
   async function load() {
     const { data, error } = await supabase.rpc("admin_guest_artists");
@@ -61,19 +58,19 @@ export default function GuestsPage() {
     void data;
   }
 
-  if (!canModerate) return null;
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   const review = (rows ?? []).filter((r) => r.state === "review");
   const pending = (rows ?? []).filter((r) => r.state === "pending");
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Guest artists</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Guest artists</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         People songs are credited to who don&apos;t have a page yet. Every 10 minutes a few are checked on Spotify: matches
         get a page automatically. These are the ones it couldn&apos;t confirm. <b>Add</b> makes a page and moves their songs
         there (they still show as features); <b>skip</b> leaves them as a note. Everything is in the{" "}
-        <Link href="/admin/batches" className="text-link">undo history</Link>.
+        <UndoHistoryLink />.
       </div>
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
       {!rows && <div className="empty-state">loading…</div>}

@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import QuickMerge from "./QuickMerge";
+import NoAccess from "../../components/NoAccess";
 
 type DupTrack = {
   track_id: string;
@@ -132,18 +133,12 @@ export default function DuplicatesPage() {
     removeGroup(g.group_id);
   }
 
-  if (user && !isAdmin) {
-    return (
-      <div className="wrap">
-        <div className="empty-state">Only the reviewer can merge duplicates.</div>
-      </div>
-    );
-  }
+  if (!isAdmin) return <NoAccess loading={authLoading} who="moderators" />;
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review queue</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Possible duplicates</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Possible duplicates</h1>
       <div className="detail-meta" style={{ marginBottom: 14, maxWidth: 620 }}>
         The same song entered more than once: twice on one artist&apos;s page, or a collab copied onto each
         collaborator. Choose the copy to <b>keep</b> (the one on the main artist&apos;s page), untick anything that
@@ -167,7 +162,7 @@ export default function DuplicatesPage() {
         <span className="comment-meta">{groups === null ? "" : `${total} group${total === 1 ? "" : "s"}`}</span>
       </div>
 
-      {error && <div className="empty-state" style={{ borderColor: "#a33" }}>{error}</div>}
+      {error && <div className="empty-state error">{error}</div>}
       {!error && groups === null && <div className="empty-state">loading…</div>}
       {!error && groups && groups.length === 0 && <div className="empty-state">No possible duplicates found.</div>}
 

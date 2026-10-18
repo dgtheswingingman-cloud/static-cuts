@@ -45,8 +45,8 @@ function TakedownForm() {
 
   return (
     <div className="wrap" style={{ maxWidth: 620 }}>
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Request a Takedown</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Request a Takedown</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Static Cuts// lists information about music and links to where it can be found. It doesn&apos;t host audio.
         If you own the rights to something listed here and want it taken down, tell us below. We aim to act within
@@ -88,7 +88,7 @@ function TakedownForm() {
             <textarea id="td-reason" className="search-input" style={{ width: "100%", marginTop: 4, minHeight: 120 }} required
               value={reason} onChange={(e) => setReason(e.target.value)} />
           </label>
-          {error && <div className="comment-meta" style={{ color: "#e88" }}>{error}</div>}
+          {error && <div className="comment-meta error-text">{error}</div>}
           <div>
             <button className="tab active" type="submit" disabled={busy}>{busy ? "sending…" : "send request"}</button>
           </div>

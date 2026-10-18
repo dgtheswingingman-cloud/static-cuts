@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Mod = { user_id: string; display_name: string | null; added_at: string; note: string | null; actions: number };
 type Person = { user_id: string; display_name: string | null; is_moderator: boolean; contributions: number };
@@ -22,10 +23,6 @@ export default function ModeratorsPage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
 
   async function load() {
     const { data, error } = await supabase.rpc("admin_list_moderators");
@@ -59,16 +56,16 @@ export default function ModeratorsPage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
     <div className="wrap" style={{ maxWidth: 680 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Moderators</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Moderators</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Moderators can work the review queue, edit and add songs, merge duplicates and delete songs. Artists,
         takedowns, settings and the undo history stay yours. Everything they do shows in the{" "}
-        <Link href="/admin/batches" className="text-link">undo history</Link> with their name.
+        <UndoHistoryLink /> with their name.
       </div>
 
       {message && <div className="comments-panel" style={{ marginBottom: 14 }}>{message}</div>}

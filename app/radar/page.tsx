@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
 
 type Row = {
   section: "upcoming" | "tba" | "dropped"; track_id: string; title: string; artist_id: string; artist: string;
@@ -47,6 +48,7 @@ function group(rows: Row[]) {
 
 export default function RadarPage() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export default function RadarPage() {
                       {!isAlbum && g.rows[0].spotify_url && (
                         <a className="listen-link" href={g.rows[0].spotify_url} target="_blank" rel="noopener noreferrer">listen</a>
                       )}
-                      {sec !== "dropped" && (
+                      {sec !== "dropped" && !isAdmin && (
                         <button className={`rating-chip ${allWatching ? "rated" : ""}`} disabled={busy === g.key}
                           onClick={() => setWatch(g.rows.map((r) => r.track_id), !allWatching, g.key)}>
                           {allWatching ? "✓ reminding you" : "remind me"}

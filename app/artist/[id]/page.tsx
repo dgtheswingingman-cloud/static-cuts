@@ -15,6 +15,7 @@ import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 import Completeness from "./Completeness";
+import AdminModeNote from "../../components/AdminModeNote";
 
 type Track = {
   id: string;
@@ -458,6 +459,7 @@ export default function ArtistPage() {
 
   async function toggleFollow() {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return;
     setFollowBusy(true);
     if (isFollowing) {
       await supabase.from("follows").delete().eq("user_id", user.id).eq("artist_id", id);
@@ -471,6 +473,7 @@ export default function ArtistPage() {
 
   async function toggleOwned(trackId: string) {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return; // admin mode doesn't collect
     setTogglingId(trackId);
     const isOwned = owned.has(trackId);
     try {
@@ -599,6 +602,7 @@ export default function ArtistPage() {
 
   async function voteOnCandidate(candidateId: string, value: 1 | -1) {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return;
     const current = myCandidateVotes[candidateId];
     if (current === value) {
       // Clicking the same direction again removes the vote.
@@ -1243,7 +1247,7 @@ export default function ArtistPage() {
           {t.spotify_url && (
             <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
           )}
-          {(user || !isSub || matchCount > 0) && (
+          {(user || matchCount > 0) && (
             <button
               className={`rating-chip ${openMoreId === t.id ? "rated" : ""}`}
               aria-expanded={openMoreId === t.id}
@@ -1257,7 +1261,7 @@ export default function ArtistPage() {
         </div>
         {openMoreId === t.id && (
           <div className="comments-panel track-actions" onClick={(e) => e.stopPropagation()}>
-            {(!isSub || matchCount > 0 || (user && !isAdmin)) && (
+            {(matchCount > 0 || (user && !isAdmin && (!isSub || !canModerate))) && (
               <div className="track-actions-group">
                 <span className="comment-meta track-actions-label">Contribute</span>
                 {matchCount > 0 && (
@@ -1268,11 +1272,10 @@ export default function ArtistPage() {
                     possible links ({matchCount})
                   </button>
                 )}
-                {!isSub && (
+                {user && !isAdmin && !isSub && (
                   <a
                     href={`/submit?type=new_version&artist_id=${id}&parent_track_id=${t.id}&parent_title=${encodeURIComponent(t.title)}`}
                     className="rating-chip"
-                    style={{ textDecoration: "none" }}
                   >
                     + alt version
                   </a>
@@ -1281,21 +1284,19 @@ export default function ArtistPage() {
                   <a
                     href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artist_tags=${encodeURIComponent(JSON.stringify(linkedFeaturedArtists[t.id] ?? []))}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
                     className="rating-chip"
-                    style={{ textDecoration: "none" }}
                   >
                     suggest edit
                   </a>
                 )}
               </div>
             )}
-            {user && !isAdmin && (t.spotify_url || !t.isCrossAppearance) && (
+            {user && !canModerate && (t.spotify_url || !t.isCrossAppearance) && (
               <div className="track-actions-group">
                 <span className="comment-meta track-actions-label">Report</span>
                 {t.spotify_url && (
                   <a
                     href={`/submit?type=flag_link&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url)}`}
                     className="rating-chip"
-                    style={{ textDecoration: "none" }}
                   >
                     wrong link
                   </a>
@@ -1304,7 +1305,6 @@ export default function ArtistPage() {
                   <a
                     href={`/submit?type=flag_deletion&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}`}
                     className="rating-chip"
-                    style={{ textDecoration: "none" }}
                   >
                     shouldn&apos;t be here
                   </a>
@@ -1312,7 +1312,6 @@ export default function ArtistPage() {
                 <a
                   href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/song/${t.id}`)}`}
                   className="rating-chip"
-                  style={{ textDecoration: "none" }}
                   title="For rights holders: ask for this song to be taken down."
                 >
                   takedown request
@@ -1415,6 +1414,7 @@ export default function ArtistPage() {
                     </div>
                     {c.notes && <div className="comment-meta" style={{ fontStyle: "italic" }}>{c.notes}</div>}
                     <div className="comment-actions">
+                      {!isAdmin && (<>
                       <button
                         className={`comment-action-btn ${myVote === 1 ? "voted" : ""}`}
                         onClick={() => voteOnCandidate(c.id, 1)}
@@ -1428,8 +1428,9 @@ export default function ArtistPage() {
                       >
                         ▼
                       </button>
+                      </>)}
                       <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
-                      {suggested ? (
+                      {isAdmin ? null : suggested ? (
                         <span className="comment-action-btn voted">suggested ✓</span>
                       ) : (
                         <button className="comment-action-btn" onClick={() => suggestCandidate(t, c)}>
@@ -1526,10 +1527,10 @@ export default function ArtistPage() {
       <Link href="/" style={{ textDecoration: "none", fontFamily: "var(--font-anton)", fontSize: "1.1rem", letterSpacing: "0.01em", color: "var(--bone)", display: "block", marginBottom: 14 }}>
         STATIC CUTS<span style={{ color: "var(--smoke)" }}>//</span>
       </Link>
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 18 }}>
+        <div className="empty-state error" style={{ marginTop: 18 }}>
           Couldn&apos;t load this artist: <b>{error}</b>
         </div>
       )}
@@ -1555,12 +1556,14 @@ export default function ArtistPage() {
             </>
           )}
           <div className="artist-actions">
-            <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
-              {isFollowing ? "✓ following" : "+ follow"}
-            </button>
-            <Link href={`/artist/${id}/eras`} className="tab" style={{ textDecoration: "none" }}>eras</Link>
-            <Link href={`/collabs?artist=${id}`} className="tab" style={{ textDecoration: "none" }}>collabs</Link>
-            {user && (
+            {!isAdmin && (
+              <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
+                {isFollowing ? "✓ following" : "+ follow"}
+              </button>
+            )}
+            <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
+            <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
+            {user && !isAdmin && (
               <button
                 className={`tab ${checkRequested ? "active" : ""}`}
                 disabled={checkRequested}
@@ -1575,20 +1578,19 @@ export default function ArtistPage() {
                 import songs
               </button>
             )}
-            {user && (
+            {user && !isAdmin && (
               <a
                 href={chatGptLinksUrl(id, artist.name)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="tab"
-                style={{ textDecoration: "none" }}
                 title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
               >
                 find links ↗
               </a>
             )}
             {!canModerate && (
-              <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ textDecoration: "none" }}>
+              <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track
               </a>
             )}
@@ -1607,6 +1609,7 @@ export default function ArtistPage() {
               <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
             </div>
           )}
+          {isAdmin && <AdminModeNote what="follow, collect, rate, comment or suggest" />}
           {!isAdmin && canModerate && (
             <div className="artist-actions artist-admin">
               <span className="review-toolbar-label">moderator</span>

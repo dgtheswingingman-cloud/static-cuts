@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess from "../../components/NoAccess";
 
 type Batch = {
   id: string;
@@ -82,10 +83,6 @@ export default function BatchesPage() {
   const [undoing, setUndoing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
-
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_list_batches", { p_limit: 100 });
     if (err) { setError(err.message); setBatches([]); return; }
@@ -134,12 +131,12 @@ export default function BatchesPage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Undo History</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Undo History</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Every bulk job is recorded here: merges, quick merges, Spotify matching, and later auto sub-versions and
         imports. Undo reverses the whole job. Anything edited since the job ran is left alone. Undoing is recorded

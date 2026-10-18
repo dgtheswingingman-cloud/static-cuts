@@ -24,7 +24,7 @@ export default function ArtistChangelogPage() {
       <button className="back-btn" onClick={() => router.push(`/artist/${id}`)}>
         ← back to {artistName ?? "artist"}
       </button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Changelog</h1>
+      <h1 className="detail-name page-title">Changelog</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Approved and rejected submissions for {artistName ?? "this artist"} — pending items stay
         in the review queue until resolved.

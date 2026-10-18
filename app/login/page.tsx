@@ -116,7 +116,7 @@ export default function LoginPage() {
       </div>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16, maxWidth: 520 }}>
+        <div className="empty-state error" style={{ marginTop: 16, maxWidth: 520 }}>
           {error}
         </div>
       )}

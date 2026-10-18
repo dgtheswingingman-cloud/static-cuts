@@ -301,7 +301,7 @@ export default function HomePage() {
           </div>
           {trackSearchLoading && <div className="empty-state">searching…</div>}
           {trackSearchError && (
-            <div className="empty-state" style={{ borderColor: "#a33" }}>
+            <div className="empty-state error">
               Search failed: <b>{trackSearchError}</b>
             </div>
           )}
@@ -342,14 +342,15 @@ export default function HomePage() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/new" className="tab" style={{ textDecoration: "none" }}>what&apos;s new</Link>
-          <Link href="/help" className="tab" style={{ textDecoration: "none" }}>help wanted</Link>
-          <Link href="/search" className="tab" style={{ textDecoration: "none" }}>search songs</Link>
-          <Link href="/lists" className="tab" style={{ textDecoration: "none" }}>lists</Link>
-          <Link href="/radar" className="tab" style={{ textDecoration: "none" }}>release radar</Link>
-          <Link href="/collabs" className="tab" style={{ textDecoration: "none" }}>collab map</Link>
-          <Link href="/producers" className="tab" style={{ textDecoration: "none" }}>producers</Link>
+        <nav className="home-nav" aria-label="Explore">
+          <Link href="/new" className="tab">what&apos;s new</Link>
+          <Link href="/search" className="tab">search songs</Link>
+          <Link href="/radar" className="tab">release radar</Link>
+          <Link href="/lists" className="tab">lists</Link>
+          <Link href="/collabs" className="tab">collab map</Link>
+          <Link href="/producers" className="tab">producers</Link>
+          <Link href="/help" className="tab">help wanted</Link>
+          <Link href="/faq" className="tab">faq</Link>
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
             {pickingRandom ? "…" : "🎲 random artist"}
           </button>
@@ -358,7 +359,7 @@ export default function HomePage() {
               {creatingArtist ? "…" : "+ add artist"}
             </button>
           )}
-        </div>
+        </nav>
       </div>
 
       <div className="sort-row">
@@ -375,7 +376,7 @@ export default function HomePage() {
       </div>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33" }}>
+        <div className="empty-state error">
           Couldn&apos;t load the archive: <b>{error}</b>
         </div>
       )}
@@ -393,7 +394,7 @@ export default function HomePage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
                     <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {user && following && (
+                      {user && !isAdmin && following && (
                         <button
                           className={`rating-chip ${pinnedIds.has(a.id) ? "rated" : ""}`}
                           style={{ fontSize: "0.6rem", padding: "3px 7px" }}
@@ -404,7 +405,7 @@ export default function HomePage() {
                           {pinnedIds.has(a.id) ? "📌 pinned" : "📌 pin"}
                         </button>
                       )}
-                      {user && (
+                      {user && !isAdmin && (
                         <button
                           className={`rating-chip ${following ? "rated" : ""}`}
                           style={{ fontSize: "0.6rem", padding: "3px 7px" }}
@@ -435,7 +436,7 @@ export default function HomePage() {
               {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."} Every
               artist here got added because someone wanted to track them — you could be the one to
               start theirs.{" "}
-              {user && (
+              {user && !isAdmin && (
                 <a href={`/submit?prefill_name=${encodeURIComponent(query)}`} style={{ color: "var(--bone)" }}>
                   Suggest &quot;{query}&quot; as a new artist →
                 </a>
@@ -453,13 +454,14 @@ export default function HomePage() {
       )}
 
       <div className="note">
-        <b>Live data</b> — 35 artists, 22,158 tracks, fetched fresh from Supabase on every
-        load. {user ? "Your home feed only shows artists you follow — search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}
-      </div>
-      <div style={{ textAlign: "center", marginTop: 16, marginBottom: 20 }}>
-        <Link href="/legal" style={{ color: "var(--smoke)", fontSize: "0.75rem", textDecoration: "underline" }}>
-          Privacy &amp; Terms
-        </Link>
+        {artists && artists.length > 0 && (
+          <>
+            <b>{artists.length.toLocaleString()} artists, {artists.reduce((n, a) => n + a.trackCount, 0).toLocaleString()} songs</b>, kept up to date
+            by the community.{" "}
+          </>
+        )}
+        {user ? "Your home feed only shows artists you follow. Search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}{" "}
+        New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
       </div>
     </div>
   );
