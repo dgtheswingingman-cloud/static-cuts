@@ -45,7 +45,7 @@ const n = (x: number | null | undefined) => (x ?? 0).toLocaleString("en-GB");
 function Tile({ label, value, href, alert }: { label: string; value: string; href?: string; alert?: boolean }) {
   const body = (
     <div className="health-tile" data-alert={alert ? "true" : undefined}>
-      <div className="health-tile-value">{value}</div>
+      <div className={`health-tile-value ${value.length > 9 ? "long" : ""}`}>{value}</div>
       <div className="health-tile-label">{label}</div>
     </div>
   );
@@ -219,13 +219,11 @@ export default function HealthPage() {
 
           <div className="section-label" style={{ marginTop: 20 }}>Automatic jobs</div>
           <div className="health-tiles">
-            <Tile label={matcherRunning ? "Spotify matching: running" : "Spotify matching: idle"}
-              value={`${n(h.spotify_matching.left)} left`} />
             <Tile label="artists due a check" value={n(h.queue.due)} href="/admin/queue" />
             <Tile label="people with ChatGPT routines (7 days)" value={n(h.routine_users_last_7_days)} />
           </div>
           <div className="comment-meta" style={{ marginBottom: 6 }}>
-            Spotify: {n(h.spotify_matching.checked)} songs checked, last one {ago(h.spotify_matching.last_checked_at)}
+            Spotify matching is {matcherRunning ? "running" : "idle"}: last song checked {ago(h.spotify_matching.last_checked_at)}
             {matcherRunning && <> ({n(h.spotify_matching.checked_last_hour)} in the last hour)</>}.
             {" "}Backups run nightly: <a href={BACKUPS_URL} target="_blank" rel="noopener noreferrer" className="text-link">check the latest</a>.
           </div>

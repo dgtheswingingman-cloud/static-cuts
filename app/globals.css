@@ -1117,3 +1117,9 @@ a.listen-link {
   margin-top: -2px;
   margin-bottom: 12px;
 }
+
+/* Long tile numbers ("1,353 / 23,541") stay on one line. */
+.health-tile-value.long {
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
