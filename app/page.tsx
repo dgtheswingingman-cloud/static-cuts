@@ -334,8 +334,9 @@ export default function HomePage() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/new" className="tab" style={{ textDecoration: "none" }}>what&apos;s new</Link>
+          <Link href="/help" className="tab" style={{ textDecoration: "none" }}>help wanted</Link>
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
             {pickingRandom ? "…" : "🎲 random artist"}
           </button>

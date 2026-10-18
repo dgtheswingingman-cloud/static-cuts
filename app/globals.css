@@ -733,3 +733,6 @@ a .health-tile:hover {
 .feed-tracks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .feed-track { color: var(--smoke); font-size: 0.88rem; text-decoration: none; overflow-wrap: anywhere; }
 .feed-track:hover { color: var(--bone); text-decoration: underline; }
+
+/* ---------- Help wanted ---------- */
+.help-link { overflow-wrap: anywhere; }
