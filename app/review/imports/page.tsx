@@ -22,8 +22,9 @@ type Suggestion = {
   album: string | null;
   release_date: string | null;
   main_artist_name: string | null;
-  extra: { listeners?: number; playcount?: number; pageviews?: number } | null;
+  extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null } | null;
   created_at: string;
+  version_of: string | null;
 };
 
 const STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released"];
@@ -182,7 +183,9 @@ export default function ImportReviewPage() {
                 </div>
                 <div className="review-row-meta">
                   {s.status_guess !== "unconfirmed" && <span className="feature-tag">{s.status_guess}</span>}
+                  {s.version_of && <span className="feature-tag">version of {s.version_of}</span>}
                   {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
+                  {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
                   {s.release_date && <span>{s.release_date}</span>}
                   {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
                   {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
