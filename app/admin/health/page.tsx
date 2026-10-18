@@ -63,8 +63,9 @@ const TIMER_INFO: Record<string, string> = {
   "radar-daily": "release-day reminders (07:05 UTC)",
   "follow-digest": "daily summary for followed artists (07:07 UTC)",
   "background-check": "tells you if any of these failed (hourly)",
-  "guest-artists": "gives guest artists pages once Spotify confirms them (every 10 min)",
-  "spotify-match": "finds Spotify links for songs that have none (10 songs every 5 min)",
+  "guest-artists": "gives guest artists pages once Spotify confirms them (4 every 20 min)",
+  "spotify-match": "finds Spotify links for songs that have none, followed artists first (10 songs every 5 min)",
+  "api-budget-tidy": "clears old Spotify allowance counts (daily)",
   "spotify-verify": "re-checks Spotify links and clears removed ones (hourly)",
 };
 
@@ -92,17 +93,20 @@ export default function HealthPage() {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [budget, setBudget] = useState<{ today: number; last_hour: number; per_day: number; per_minute: number } | null>(null);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
     if (err) { setError(err.message); return; }
     setError(null);
     setH(data as Health);
-    const [{ data: t }, { data: b }, { data: p }] = await Promise.all([
+    const [{ data: t }, { data: b }, { data: p }, { data: sb }] = await Promise.all([
       supabase.rpc("admin_timers"),
       supabase.rpc("admin_background_failures"),
       supabase.rpc("admin_job_progress"),
+      supabase.rpc("admin_spotify_budget"),
     ]);
+    setBudget((sb as typeof budget) ?? null);
     setTimers((t as Timer[]) ?? []);
     setBg(b ?? null);
     setProgress((p as Progress) ?? null);
@@ -181,6 +185,10 @@ export default function HealthPage() {
                     value={`${n(sp.searched)} / ${n(total)}`}
                     alert={!!pausedUntil}
                   />
+                  {budget && (
+                    <Tile label={`Spotify calls today (shared allowance, max ${budget.per_minute}/min) · ${n(budget.last_hour)} in the last hour`}
+                      value={`${n(budget.today)} / ${n(budget.per_day)}`} alert={budget.today >= budget.per_day} />
+                  )}
                   <Tile label="songs with a Spotify link" value={n(sp.linked)} />
                   <Tile label="links re-checked (30 days)" value={`${n(sp.links_checked_30d)} / ${n(sp.linked)}`} />
                   <Tile label={`Genius credits checked · ${eta(progress.genius.left, 2160)}`} value={`${n(progress.genius.checked)} / ${n(progress.genius.checked + progress.genius.left)}`} />

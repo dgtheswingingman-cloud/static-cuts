@@ -38,6 +38,13 @@ async function pauseSpotify(seconds: number) {
 }
 const breather = () => new Promise((r) => setTimeout(r, 1000));
 
+// Tickets from the shared Spotify allowance (sc_spotify_allow: 15 a minute,
+// 3,000 a day across every job). Returns how many calls we may make.
+async function spotifyTickets(want: number): Promise<number> {
+  const { data } = await supabase.rpc("sc_spotify_allow", { p_want: want });
+  return typeof data === "number" ? data : 0;
+}
+
 // Only the timer (x-cron-secret) may run this: a slow, steady rate.
 async function allowed(req: Request): Promise<boolean> {
   const secret = req.headers.get("x-cron-secret");
@@ -106,6 +113,16 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // One ticket for the sign-in, one per song.
+    const tickets = await spotifyTickets(tracks.length + 1);
+    if (tickets < 2) {
+      return new Response(
+        JSON.stringify({ done: false, checked: 0, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    tracks.splice(tickets - 1);
 
     let token: string;
     try {
