@@ -81,7 +81,7 @@ type LinkCandidate = {
 
 // Where imported songs came from, credited on each song (the services'
 // terms ask for attribution).
-const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm" };
+const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", sheet: "community sheet" };
 const SOURCE_HOMES: Record<string, string> = {
   spotify: "https://open.spotify.com",
   genius: "https://genius.com",

@@ -47,7 +47,7 @@ type Song = {
   rating: { avg?: number; count: number } | null;
 };
 
-const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm" };
+const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", sheet: "Community sheet" };
 
 function statusOf(t: { release_status: string | null; is_official: boolean }) {
   return t.release_status ?? (t.is_official ? "released" : "unconfirmed");
@@ -65,6 +65,7 @@ export default function SongView({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sheet, setSheet] = useState<{ title: string; credit: string | null; url: string } | null>(null);
 
   async function load() {
     const { data, error } = await supabase.rpc("rpc_song_page", { p_id: id });
@@ -72,6 +73,9 @@ export default function SongView({ id }: { id: string }) {
     const s = data as Song;
     if (s.redirect) { router.replace(`/song/${s.redirect}`); return; }
     setSong(s);
+    if (s.track.source === "sheet" && s.track.source_url) {
+      supabase.rpc("rpc_sheet_credit", { p_url: s.track.source_url }).then(({ data: c }) => setSheet(c ?? null));
+    }
   }
 
   useEffect(() => {
@@ -147,7 +151,15 @@ export default function SongView({ id }: { id: string }) {
       </span>
     )]);
   }
-  if (t.source) {
+  if (t.source === "sheet" && sheet) {
+    info.push(["Source", (
+      <span>
+        from <a href={sheet.url} target="_blank" rel="noopener noreferrer" className="text-link">{sheet.title} ↗</a>
+        {sheet.credit && <>, by {sheet.credit}</>}
+        <span className="comment-meta"> · <Link href="/sources" className="text-link">all sources</Link></span>
+      </span>
+    )]);
+  } else if (t.source) {
     const name = SOURCE_NAMES[t.source] ?? t.source;
     info.push(["Source", t.source_url
       ? <a href={t.source_url} target="_blank" rel="noopener noreferrer" className="text-link">{name} ↗</a>

@@ -752,3 +752,13 @@ a .health-tile:hover {
 }
 .completeness-bar { width: 90px; height: 4px; background: var(--hair); border-radius: 2px; overflow: hidden; display: inline-block; }
 .completeness-bar span { display: block; height: 100%; background: var(--bone); }
+
+/* ---------- Sheet import ---------- */
+.sheet-map { display: flex; flex-direction: column; }
+.sheet-map-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--hair); font-size: 0.88rem;
+}
+.sheet-map-row select, .sheet-map-row input { width: 100%; max-width: 100%; }
+@media (max-width: 560px) { .sheet-map-row { grid-template-columns: 1fr; gap: 4px; } }
+.sheet-preview { max-height: 420px; overflow-y: auto; margin-top: 12px; border-top: 1px solid var(--hair); }
