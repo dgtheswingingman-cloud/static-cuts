@@ -600,3 +600,41 @@ body {
 .text-link:hover {
   color: var(--bone);
 }
+
+/* Artist page header: everyday actions on one row, admin tools on their own
+   labelled row with "delete" pushed to the end. */
+.artist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.artist-actions .tab {
+  margin: 0;
+}
+.artist-admin {
+  padding-top: 10px;
+  border-top: 1px dashed var(--hair);
+  margin-bottom: 14px;
+}
+.artist-actions-spacer {
+  flex: 1 1 auto;
+}
+.tab.danger-tab {
+  border-color: #a33;
+  color: #e88;
+}
+[data-theme="light"] .tab.danger-tab {
+  border-color: #b33;
+  color: #a22;
+}
+/* Track filters: each set stays together when the row wraps. */
+.filter-groups {
+  gap: 10px 16px;
+}
+.filter-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+}

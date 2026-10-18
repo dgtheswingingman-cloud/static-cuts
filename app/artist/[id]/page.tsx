@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import DateDropdownPicker from "../../components/DateDropdownPicker";
@@ -108,6 +108,9 @@ export default function ArtistPage() {
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [checkRequested, setCheckRequested] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [profilesOpen, setProfilesOpen] = useState(false);
+  const [profileCount, setProfileCount] = useState(0);
   const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
   const [genreTagInput, setGenreTagInput] = useState("");
   const [genreTagsExpanded, setGenreTagsExpanded] = useState(false);
@@ -925,6 +928,15 @@ export default function ArtistPage() {
     load();
   }
 
+  // Empty or nearly empty pages open the import panel straight away (once
+  // per artist, so closing it sticks).
+  const autoOpenedImportFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!tracks || !user || autoOpenedImportFor.current === id) return;
+    autoOpenedImportFor.current = id;
+    if (tracks.filter((t) => !t.isCrossAppearance).length <= 10) setImportOpen(true);
+  }, [tracks, user, id]);
+
   async function requestCheck() {
     const { error: err } = await supabase.rpc("rpc_request_artist_check", { p_artist_id: id });
     if (err) { alert(err.message); return; }
@@ -1462,64 +1474,62 @@ export default function ArtistPage() {
           ) : (
             <>
               <h1 className="detail-name">{artist.name}</h1>
-              {isAdmin && (
-                <button
-                  className="rating-chip"
-                  style={{ fontSize: "0.6rem", marginTop: -8, marginBottom: 10, display: "inline-block" }}
-                  onClick={() => { setArtistNameDraft(artist.name); setEditingArtistName(true); }}
-                >
-                  edit name
-                </button>
-              )}
             </>
           )}
-          <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
-            {isFollowing ? "✓ following" : "+ follow"}
-          </button>
-          {user && (
-            <button
-              className={`tab ${checkRequested ? "active" : ""}`}
-              style={{ marginBottom: 14, marginLeft: 8 }}
-              disabled={checkRequested}
-              title="Moves this artist up the queue so it gets checked for new music soon."
-              onClick={requestCheck}
-            >
-              {checkRequested ? "✓ check requested" : "request a check"}
+          <div className="artist-actions">
+            <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
+              {isFollowing ? "✓ following" : "+ follow"}
             </button>
-          )}
-          {user && (
-            <a
-              href={chatGptLinksUrl(id, artist.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="tab"
-              style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}
-              title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
-            >
-              find links with ChatGPT ↗
-            </a>
-          )}
-          {!isAdmin && (
-            <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ marginBottom: 14, marginLeft: 8, textDecoration: "none", display: "inline-block" }}>
-              + suggest a track
-            </a>
+            {user && (
+              <button
+                className={`tab ${checkRequested ? "active" : ""}`}
+                disabled={checkRequested}
+                title="Moves this artist up the queue so it gets checked for new music soon."
+                onClick={requestCheck}
+              >
+                {checkRequested ? "✓ check requested" : "request a check"}
+              </button>
+            )}
+            {user && tracks && (
+              <button className={`tab ${importOpen ? "active" : ""}`} onClick={() => setImportOpen(!importOpen)}>
+                import songs
+              </button>
+            )}
+            {user && (
+              <a
+                href={chatGptLinksUrl(id, artist.name)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tab"
+                style={{ textDecoration: "none" }}
+                title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
+              >
+                find links with ChatGPT ↗
+              </a>
+            )}
+            {!isAdmin && (
+              <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ textDecoration: "none" }}>
+                + suggest a track
+              </a>
+            )}
+          </div>
+          {isAdmin && (
+            <div className="artist-actions artist-admin">
+              <span className="review-toolbar-label">admin</span>
+              <button className="tab" onClick={() => { setArtistNameDraft(artist.name); setEditingArtistName(true); }}>edit name</button>
+              <button className={`tab ${addingTrack ? "active" : ""}`} onClick={() => setAddingTrack(!addingTrack)}>
+                {addingTrack ? "cancel add track" : "+ add track"}
+              </button>
+              <button className={`tab ${profilesOpen ? "active" : ""}`} onClick={() => setProfilesOpen(!profilesOpen)}>
+                profiles{profileCount ? ` (${profileCount}/3)` : ""}
+              </button>
+              <span className="artist-actions-spacer" />
+              <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
+            </div>
           )}
           {isAdmin && (
-            <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setAddingTrack(!addingTrack)}>
-              {addingTrack ? "cancel add track" : "+ add track"}
-            </button>
+            <ArtistProfiles artistId={id} artistName={artist.name} open={profilesOpen} onLinkedCount={setProfileCount} />
           )}
-          {isAdmin && (
-            <button
-              className="tab"
-              style={{ marginBottom: 14, marginLeft: 8, borderColor: "#a33", color: "#e88" }}
-              disabled={adminBusy}
-              onClick={deleteArtist}
-            >
-              delete artist
-            </button>
-          )}
-          {isAdmin && <ArtistProfiles artistId={id} artistName={artist.name} />}
           {tracks && (
             <ImportPanel
               artistId={id}
@@ -1527,6 +1537,8 @@ export default function ArtistPage() {
               trackCount={tracks.filter((t) => !t.isCrossAppearance).length}
               signedIn={!!user}
               onImported={load}
+              open={importOpen}
+              onClose={() => setImportOpen(false)}
             />
           )}
           {addingTrack && isAdmin && (
@@ -1717,21 +1729,23 @@ export default function ArtistPage() {
               value={trackSearchQuery}
               onChange={(e) => setTrackSearchQuery(e.target.value)}
             />
-            <div className="tabs">
-              {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
-                <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
-              ))}
-              <span style={{ width: 4 }} />
-              {(["all", "official", "unreleased"] as ReleaseFilter[]).map((f) => (
-                <button key={f} className={`tab ${releaseFilter === f ? "active" : ""}`} onClick={() => setReleaseFilter(f)}>{f}</button>
-              ))}
+            <div className="tabs filter-groups">
+              <div className="filter-group">
+                {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
+                  <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
+                ))}
+              </div>
+              <div className="filter-group">
+                {(["all", "official", "unreleased"] as ReleaseFilter[]).map((f) => (
+                  <button key={f} className={`tab ${releaseFilter === f ? "active" : ""}`} onClick={() => setReleaseFilter(f)}>{f}</button>
+                ))}
+              </div>
               {user && (
-                <>
-                  <span style={{ width: 4 }} />
+                <div className="filter-group">
                   {(["all", "collected", "uncollected"] as CollectedFilter[]).map((f) => (
                     <button key={f} className={`tab ${collectedFilter === f ? "active" : ""}`} onClick={() => setCollectedFilter(f)}>{f}</button>
                   ))}
-                </>
+                </div>
               )}
             </div>
 
