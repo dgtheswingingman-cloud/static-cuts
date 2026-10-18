@@ -307,7 +307,7 @@ export default function HomePage() {
               {trackResults.map((t) => (
                 <Link
                   key={t.id}
-                  href={`/artist/${t.artist_id}?highlight=${t.id}`}
+                  href={`/song/${t.id}`}
                   className="track-row"
                   style={{ textDecoration: "none" }}
                 >

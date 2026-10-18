@@ -1277,7 +1277,7 @@ export default function ArtistPage() {
                   </a>
                 )}
                 <a
-                  href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/artist/${id}?highlight=${t.id}`)}`}
+                  href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/song/${t.id}`)}`}
                   className="rating-chip"
                   style={{ textDecoration: "none" }}
                   title="For rights holders: ask for this song to be taken down."
@@ -1326,7 +1326,10 @@ export default function ArtistPage() {
           <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
             <div className="comments-header">
               <div className="comments-count">Track info</div>
-              <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
+              <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Link href={`/song/${t.id}`} className="comment-action-btn" style={{ textDecoration: "none" }}>song page →</Link>
+                <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
+              </span>
             </div>
             {buildInfoLines(t).map(([label, value]) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
