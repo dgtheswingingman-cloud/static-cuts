@@ -159,10 +159,7 @@ $fn$;
 update import_suggestions s set state = 'dismissed', decided_at = now()
 where s.state = 'open'
   and exists (select 1 from sc_known_keys(s.artist_id) k where k.k = sc_title_key(s.title));
-update import_suggestions s set title_key = sc_title_key(s.title)
-where s.title_key <> sc_title_key(s.title)
-  and not exists (select 1 from import_suggestions o
-                  where o.artist_id = s.artist_id and o.title_key = sc_title_key(s.title) and o.id <> s.id);
+
 
 -- ---------------------------------------------------------------------------
 -- Tidy up after the imports
