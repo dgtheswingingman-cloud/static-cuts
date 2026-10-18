@@ -138,7 +138,16 @@ export default function SongView({ id }: { id: string }) {
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
-  if (t.producers) info.push(["Producers", t.producers]);
+  if (t.producers) {
+    const names = t.producers.split(/\s*(?:,|&|\band\b|\+|\/)\s*/i).map((x) => x.trim()).filter(Boolean);
+    info.push(["Producers", (
+      <span>
+        {names.map((n, i) => (
+          <span key={n}>{i > 0 && ", "}<Link href={`/producer/${encodeURIComponent(n)}`} className="text-link">{n}</Link></span>
+        ))}
+      </span>
+    )]);
+  }
   if (song.appears_on.length > 0) {
     info.push(["Featuring", (
       <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
