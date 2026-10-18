@@ -471,6 +471,9 @@ export default function ReviewPage() {
         <Link href="/admin/sheets" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           import a spreadsheet →
         </Link>
+        <Link href="/review/comments" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+          reported comments →
+        </Link>
         {isAdmin && (
           <>
             <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
