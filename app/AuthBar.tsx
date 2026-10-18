@@ -16,6 +16,12 @@ export default function AuthBar() {
   const isRealAdmin = useIsRealAdmin();
   const { viewAsNonAdmin, setViewAsNonAdmin } = useAdminView();
   const { theme, setTheme } = useTheme();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) { setUnread(0); return; }
+    supabase.rpc("rpc_unread_notifications").then(({ data }) => setUnread(typeof data === "number" ? data : 0));
+  }, [user]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -71,6 +77,9 @@ export default function AuthBar() {
         <span>signed in as {displayName ?? user.email}</span>
         <Link href={`/profile/${user.id}`} style={smallBtn}>
           my profile
+        </Link>
+        <Link href="/notifications" style={smallBtn} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
+          notifications{unread > 0 && <span className="notif-count">{unread}</span>}
         </Link>
         <Link href="/settings" style={smallBtn}>
           settings
