@@ -703,3 +703,24 @@ a .health-tile:hover {
   gap: 24px;
   margin-top: 12px;
 }
+
+/* ---------- Song pages ---------- */
+.song-title { overflow-wrap: anywhere; line-height: 1.05; }
+.song-tags { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.song-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.song-info-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hair);
+  align-items: baseline;
+}
+.song-info-row .comment-body { overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .song-info-row { grid-template-columns: 1fr; gap: 2px; }
+}
+.song-history { list-style: none; margin: 0; padding: 0; }
+.song-history li { padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 0.88rem; }
+.song-link { color: inherit; text-decoration: none; }
+.song-link:hover { text-decoration: underline; }

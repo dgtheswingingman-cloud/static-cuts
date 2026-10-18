@@ -78,8 +78,10 @@ export default function Contributions({ userId }: { userId: string }) {
           <div style={{ minWidth: 0 }}>
             <div className="review-row-title">
               {VERB[e.kind]}{" "}
-              {e.artist_id ? (
-                <Link href={`/artist/${e.artist_id}${e.track_id ? `?highlight=${e.track_id}` : ""}`}>{e.title ?? "a song"}</Link>
+              {e.track_id ? (
+                <Link href={`/song/${e.track_id}`}>{e.title ?? "a song"}</Link>
+              ) : e.artist_id ? (
+                <Link href={`/artist/${e.artist_id}`}>{e.title ?? "a song"}</Link>
               ) : (e.title ?? "a song")}
             </div>
             {e.artist_name && <div className="review-row-meta"><span>{e.artist_name}</span></div>}
