@@ -665,6 +665,8 @@ body {
 }
 .site-credit a:hover {
   color: var(--bone);
+}
+
 /* Health page: number tiles, two columns of recent activity. */
 .health-tiles {
   display: grid;
