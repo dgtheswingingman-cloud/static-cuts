@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Anton, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
@@ -6,6 +6,7 @@ import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
 import { AdminViewProvider } from "./AdminViewContext";
 import { ThemeProvider } from "./ThemeProvider";
+import RegisterServiceWorker from "./RegisterServiceWorker";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -14,6 +15,12 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 export const metadata: Metadata = {
   title: "Static Cuts//",
   description: "Cut through the noise.",
+  appleWebApp: { capable: true, title: "Static Cuts", statusBarStyle: "black-translucent" },
+  icons: { apple: "/apple-touch-icon.png" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0A0A0A",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ThemeProvider>
             <AdminViewProvider>
+              <RegisterServiceWorker />
               <StaticOverlay />
               <div className="scanlines" />
               {children}

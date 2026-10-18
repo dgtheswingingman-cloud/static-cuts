@@ -14,8 +14,8 @@
 //             permission_confirmed} -> saves the sheet as a source and
 //                                      suggests its songs
 //   sync     {source_id}            -> re-reads a saved sheet for new songs
-// Timer (x-cron-secret header, nightly): {action: "sync"} re-reads every
-// sheet with "check nightly" on.
+// Timer (x-cron-secret header, hourly): {action: "sync"} re-reads the next
+// due sheet (weekly, less often when quiet; see sc_sheet_sync_due).
 //
 // Sheets must be shared as "anyone with the link can view".
 
@@ -221,7 +221,8 @@ function parseDate(s: string): string | null {
 
 type Song = {
   title: string; artists: string[]; status: string; album: string | null; release_date: string | null;
-  featuring: string | null; producers: string | null; notes: string | null; listen_url: string | null; row: number;
+  featuring: string | null; producers: string | null; notes: string | null; listen_url: string | null; leak_date: string | null;
+  row: number;
 };
 
 function readSongs(rows: string[][], m: Mapping) {
@@ -288,6 +289,7 @@ function readSongs(rows: string[][], m: Mapping) {
       producers: p.producers.length ? [...new Set(p.producers)].join(", ") : null,
       notes: notes || null,
       listen_url: listen,
+      leak_date: leak,
       row: i + 1,
     });
   }
@@ -315,7 +317,7 @@ Deno.serve(async (req) => {
   const action = String(body?.action ?? "");
 
   try {
-    // Nightly re-read of every sheet with "check nightly" on.
+    // Timer: re-read the sheet that's due.
     const cronSecret = req.headers.get("x-cron-secret");
     if (cronSecret) {
       const { data: due, error } = await db.rpc("sc_sheet_sync_due", { p_secret: cronSecret });

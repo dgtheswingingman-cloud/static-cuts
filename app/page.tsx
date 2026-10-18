@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin } from "./useIsAdmin";
+import OnThisDay from "./OnThisDay";
 
 type Artist = {
   id: string;
@@ -336,6 +337,8 @@ export default function HomePage() {
           )}
         </>
       )}
+
+      {!showTrackSection && <OnThisDay />}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
