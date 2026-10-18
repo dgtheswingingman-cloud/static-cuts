@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
 import ExportCollection from "./ExportCollection";
@@ -56,7 +57,8 @@ function Section({
 export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const { user: viewer } = useAuth();
+  const viewer = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const userId = params.userId as string;
 
   const [profile, setProfile] = useState<Profile | null>(null);

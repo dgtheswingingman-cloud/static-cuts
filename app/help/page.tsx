@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import AdminModeNote from "../components/AdminModeNote";
 
 type Kind = "links" | "info" | "status" | "thin";
@@ -27,7 +27,8 @@ const TABS: { kind: Kind; label: string; blurb: string }[] = [
 ];
 
 export default function HelpWantedPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("links");
@@ -67,7 +68,7 @@ export default function HelpWantedPage() {
   }
 
   async function vote(item: LinkItem, value: 1 | -1) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const { error: err } = await supabase
       .from("track_link_candidate_votes")
       .upsert({ candidate_id: item.id, user_id: user.id, vote: value });
@@ -82,7 +83,7 @@ export default function HelpWantedPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Help wanted</h1>
+      <h1 className="detail-name page-title">Help wanted</h1>
       <div className="detail-meta">Quick jobs that make the archive better. The artists people follow most come first.</div>
 
       <div className="tabs" style={{ alignItems: "center" }}>
@@ -91,9 +92,11 @@ export default function HelpWantedPage() {
             {t.label}{counts ? ` (${counts[t.kind].toLocaleString("en-GB")})` : ""}
           </button>
         ))}
-        <button className={`tab ${following ? "active" : ""}`} onClick={() => (user ? setFollowing(!following) : router.push("/login"))}>
-          {following ? "✓ " : ""}artists I follow
-        </button>
+        {!isAdmin && (
+          <button className={`tab ${following ? "active" : ""}`} onClick={() => (user ? setFollowing(!following) : router.push("/login"))}>
+            {following ? "✓ " : ""}artists I follow
+          </button>
+        )}
       </div>
       <div className="comment-meta" style={{ marginBottom: 14 }}>{tab.blurb}</div>
       {isAdmin && <div style={{ marginBottom: 14 }}><AdminModeNote what="vote on links or suggest fixes" /></div>}

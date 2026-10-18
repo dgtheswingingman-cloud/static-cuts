@@ -8,10 +8,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import type { ListRow } from "../../lists/ListRow";
 
 export default function AddToList({ trackId }: { trackId: string }) {
-  const { user } = useAuth();
+  const user = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mine, setMine] = useState<ListRow[] | null>(null);
@@ -30,7 +32,7 @@ export default function AddToList({ trackId }: { trackId: string }) {
   }
 
   function toggleOpen() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (!open) loadMine();
     setOpen(!open);
   }

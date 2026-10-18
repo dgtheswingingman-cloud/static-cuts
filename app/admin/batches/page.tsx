@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 
 type Batch = {
@@ -73,7 +73,7 @@ function changeLine(c: Change) {
 
 export default function BatchesPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [error, setError] = useState<string | null>(null);

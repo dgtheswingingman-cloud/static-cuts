@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import { useAuth } from "../../AuthProvider";
 import NoAccess from "../../components/NoAccess";
 
@@ -132,7 +132,7 @@ function RunnerPanel({
 
 export default function SpotifyMatcherPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
 
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;

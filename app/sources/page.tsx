@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 
 type Source = {
   id: string; title: string; tab_name: string | null; credit: string | null; url: string; artist_id: string; artist: string;
@@ -16,7 +16,7 @@ type Source = {
 };
 
 export default function SourcesPage() {
-  const { user } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [sources, setSources] = useState<Source[] | null>(null);
@@ -31,7 +31,7 @@ export default function SourcesPage() {
   }, []);
 
   async function send() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     setBusy(true);
     setMessage(null);
     const { data, error } = await supabase.rpc("rpc_request_sheet", { p_url: url.trim(), p_artist_name: artistName, p_note: note });
@@ -53,7 +53,7 @@ export default function SourcesPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Sources</h1>
+      <h1 className="detail-name page-title">Sources</h1>
       <div className="detail-meta">
         A lot of what&apos;s here was first put together by fan communities in their own trackers. These are the sheets
         we&apos;ve imported, with thanks to the people who made them. Every song from a sheet links back to it.

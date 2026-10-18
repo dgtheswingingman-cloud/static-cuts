@@ -9,7 +9,7 @@ import ParentTrackPicker from "../../components/ParentTrackPicker";
 import AlbumAutocomplete from "../../components/AlbumAutocomplete";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin, useIsModerator } from "../../useIsAdmin";
+import { useIsAdmin, useIsModerator, usePersonalUser } from "../../useIsAdmin";
 import ArtistProfiles from "./ArtistProfiles";
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
@@ -113,7 +113,8 @@ export default function ArtistPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   // Moderators can edit, add, merge and delete songs; artist-level controls stay admin-only.
   const canModerate = useIsModerator();
@@ -318,7 +319,7 @@ export default function ArtistPage() {
   }, [user, tracks]);
 
   async function setRating(trackId: string, value: number) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const { error: rateErr } = await supabase
       .from("ratings")
       .upsert({ user_id: user.id, track_id: trackId, value, updated_at: new Date().toISOString() });
@@ -411,7 +412,7 @@ export default function ArtistPage() {
   }, [id, user]);
 
   async function toggleGenreTagVote(tagId: string, currentlyVoted: boolean) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     setGenreTagBusy(true);
     if (currentlyVoted) {
       await supabase.rpc("remove_genre_tag_vote", { p_tag_id: tagId });
@@ -423,7 +424,7 @@ export default function ArtistPage() {
   }
 
   async function submitGenreTag() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const tag = genreTagInput.trim();
     if (!tag) return;
     setGenreTagBusy(true);
@@ -458,7 +459,7 @@ export default function ArtistPage() {
   }
 
   async function toggleFollow() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (isAdmin) return;
     setFollowBusy(true);
     if (isFollowing) {
@@ -472,7 +473,7 @@ export default function ArtistPage() {
   }
 
   async function toggleOwned(trackId: string) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (isAdmin) return; // admin mode doesn't collect
     setTogglingId(trackId);
     const isOwned = owned.has(trackId);
@@ -601,7 +602,7 @@ export default function ArtistPage() {
   }
 
   async function voteOnCandidate(candidateId: string, value: 1 | -1) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (isAdmin) return;
     const current = myCandidateVotes[candidateId];
     if (current === value) {
@@ -618,7 +619,7 @@ export default function ArtistPage() {
   }
 
   async function suggestCandidate(track: Track, candidate: LinkCandidate) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const candidateUrl = candidate.url;
     // "spotify_url" is the field approve_submission applies (the old
     // "new_spotify_url" key was silently ignored on approval).
@@ -1247,7 +1248,7 @@ export default function ArtistPage() {
           {t.spotify_url && (
             <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
           )}
-          {(user || matchCount > 0) && (
+          {(user || canModerate || matchCount > 0) && (
             <button
               className={`rating-chip ${openMoreId === t.id ? "rated" : ""}`}
               aria-expanded={openMoreId === t.id}
@@ -1573,7 +1574,7 @@ export default function ArtistPage() {
                 {checkRequested ? "✓ requested" : "request check"}
               </button>
             )}
-            {user && tracks && (
+            {(user || isAdmin) && tracks && (
               <button className={`tab ${importOpen ? "active" : ""}`} onClick={() => setImportOpen(!importOpen)}>
                 import songs
               </button>
@@ -1626,7 +1627,7 @@ export default function ArtistPage() {
               artistId={id}
               artistName={artist.name}
               trackCount={tracks.filter((t) => !t.isCrossAppearance).length}
-              signedIn={!!user}
+              signedIn={!!user || isAdmin}
               onImported={load}
               open={importOpen}
               onClose={() => setImportOpen(false)}
@@ -1756,7 +1757,7 @@ export default function ArtistPage() {
                 <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <button
                     className={`rating-chip ${t.my_vote ? "rated" : ""}`}
-                    disabled={genreTagBusy}
+                    disabled={genreTagBusy || isAdmin}
                     onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
                   >
                     {t.tag} ({t.vote_count})
@@ -1771,10 +1772,10 @@ export default function ArtistPage() {
                 style={{ fontSize: "0.68rem", color: "var(--smoke)", cursor: "pointer", textDecoration: "underline" }}
                 onClick={() => setGenreTagsExpanded(!genreTagsExpanded)}
               >
-                {genreTagsExpanded ? "show less" : genreTags.length > 3 ? "+ more / suggest a tag" : "+ suggest a tag"}
+                {genreTagsExpanded ? "show less" : isAdmin ? (genreTags.length > 3 ? "+ more" : "manage tags") : genreTags.length > 3 ? "+ more / suggest a tag" : "+ suggest a tag"}
               </span>
             </div>
-            {genreTagsExpanded && (
+            {genreTagsExpanded && !isAdmin && (
               user ? (
                 <div style={{ display: "flex", gap: 8, maxWidth: 400, marginTop: 8 }}>
                   <input
@@ -1793,7 +1794,7 @@ export default function ArtistPage() {
             )}
           </div>
 
-          {!authLoading && !user && (
+          {!authLoading && !user && !isAdmin && (
             <div className="empty-state" style={{ marginBottom: 20 }}>
               <a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to start tracking which of these you&apos;ve found.
             </div>

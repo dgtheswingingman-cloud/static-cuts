@@ -866,12 +866,6 @@ a.listen-link {
   min-width: 52px;
 }
 
-/* Home page shortcut row. */
-.home-nav {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
 /* FAQ */
 .faq {
@@ -928,4 +922,183 @@ a.listen-link {
   flex-wrap: wrap;
   gap: 8px;
   margin: 14px 0 6px;
+}
+
+/* ---------- Account bar (home page) ---------- */
+.auth-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-height: 22px;
+  margin-top: 14px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  color: var(--smoke);
+}
+.auth-who {
+  color: var(--bone);
+}
+.auth-link,
+.inline-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--smoke);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-link:hover,
+.inline-link-btn:hover {
+  color: var(--bone);
+}
+.inline-link-btn {
+  color: var(--bone);
+}
+
+/* Explore links under the home search box. */
+.home-nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 16px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+}
+.home-nav a {
+  color: var(--smoke);
+  text-decoration: none;
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: 1px;
+}
+.home-nav a:hover {
+  color: var(--bone);
+  border-color: var(--bone);
+}
+
+/* A section label with tools on the right (home page artist list). */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 44px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hair);
+}
+.section-head .section-label {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.section-head-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Admin / account mode bar (admin account only) ---------- */
+.mode-bar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 7px 16px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  border-bottom: 1px solid var(--hair);
+  background: var(--surface);
+  color: var(--smoke);
+}
+.mode-bar.is-admin {
+  background: #3a1d12;
+  border-bottom-color: #a3542a;
+  color: #f0c7ad;
+}
+[data-theme="light"] .mode-bar.is-admin {
+  background: #fbe3d4;
+  border-bottom-color: #c9773f;
+  color: #6b2e0d;
+}
+.mode-bar-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+.mode-bar-hint {
+  opacity: 0.75;
+}
+.mode-bar-switch {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  font: inherit;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.admin-mode-note {
+  color: #d69a74;
+}
+[data-theme="light"] .admin-mode-note {
+  color: #8a4216;
+}
+
+/* ---------- Footer links ---------- */
+.site-credit-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 8px;
+}
+.site-credit .inline-link-btn {
+  color: var(--smoke);
+  font-size: inherit;
+}
+
+/* ---------- Song search filters: label column + controls ---------- */
+.filter-groups {
+  display: flex;
+  flex-wrap: wrap;
+}
+.filter-group {
+  flex-wrap: wrap;
+}
+.search-filters {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.search-filters-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--smoke);
+}
+.search-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+@media (max-width: 520px) {
+  .search-filters {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .search-filters-row {
+    margin-bottom: 6px;
+  }
 }

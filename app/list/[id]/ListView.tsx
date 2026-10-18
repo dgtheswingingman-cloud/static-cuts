@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import ExportToSpotify from "../../ExportToSpotify";
 
 type Item = {
@@ -26,7 +26,8 @@ type Data = {
 };
 
 export default function ListView({ id }: { id: string }) {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [d, setD] = useState<Data | null>(null);
@@ -99,7 +100,7 @@ export default function ListView({ id }: { id: string }) {
   }
 
   async function toggleFollow() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (!d) return;
     const { error } = d.following
       ? await supabase.from("song_list_follows").delete().eq("list_id", d.list.id).eq("user_id", user.id)

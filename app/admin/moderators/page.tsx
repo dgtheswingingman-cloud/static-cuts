@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Mod = { user_id: string; display_name: string | null; added_at: string; note: string | null; actions: number };
@@ -16,7 +16,7 @@ type Person = { user_id: string; display_name: string | null; is_moderator: bool
 
 export default function ModeratorsPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [mods, setMods] = useState<Mod[] | null>(null);
   const [query, setQuery] = useState("");

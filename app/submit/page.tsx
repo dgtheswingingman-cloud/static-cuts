@@ -4,14 +4,15 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import DateDropdownPicker from "../components/DateDropdownPicker";
 import AlbumAutocomplete from "../components/AlbumAutocomplete";
 
 type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link" | "flag_deletion";
 
 function SubmitForm() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const searchParams = useSearchParams();

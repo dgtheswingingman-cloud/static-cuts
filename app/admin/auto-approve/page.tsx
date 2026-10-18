@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Settings = {
@@ -27,7 +27,7 @@ type Settings = {
 
 export default function AutoApprovePage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [s, setS] = useState<Settings | null>(null);
   const [draft, setDraft] = useState<Partial<Settings>>({});

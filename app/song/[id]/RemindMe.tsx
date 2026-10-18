@@ -7,9 +7,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 
 export default function RemindMe({ trackId }: { trackId: string }) {
-  const { user } = useAuth();
+  const user = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -21,7 +23,7 @@ export default function RemindMe({ trackId }: { trackId: string }) {
   }, [user, trackId]);
 
   async function toggle() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     setBusy(true);
     const { error } = on
       ? await supabase.from("radar_watches").delete().eq("user_id", user.id).eq("track_id", trackId)

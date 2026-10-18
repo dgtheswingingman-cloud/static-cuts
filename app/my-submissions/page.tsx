@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
+import { AdminModePage } from "../components/AdminModeNote";
 
 type Submission = {
   id: string;
@@ -19,7 +21,9 @@ type Submission = {
 };
 
 export default function MySubmissionsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
@@ -27,7 +31,7 @@ export default function MySubmissionsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
+    if (!authLoading && !user && !isAdmin) router.push("/login");
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -142,6 +146,8 @@ export default function MySubmissionsPage() {
     }
     return true; // correction/flag_link point at a track that already exists regardless of status
   };
+
+  if (isAdmin) return <AdminModePage title="My submissions" />;
 
   return (
     <div className="wrap">
