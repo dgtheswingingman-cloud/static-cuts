@@ -12,6 +12,8 @@ type Prefs = {
   show_ratings: boolean;
   show_followed_artists: boolean;
   show_contributions: boolean;
+  notify_followed_daily: boolean;
+  notify_collected: boolean;
 };
 
 const LABELS: Record<keyof Prefs, string> = {
@@ -20,7 +22,10 @@ const LABELS: Record<keyof Prefs, string> = {
   show_ratings: "Show my ratings publicly",
   show_followed_artists: "Show artists I follow publicly",
   show_contributions: "Show my contributions publicly (songs I've added, finds, corrections)",
+  notify_followed_daily: "Daily summary of what changed for artists I follow",
+  notify_collected: "Tell me when songs I've collected change status (leaked, released…)",
 };
+const NOTIFY_KEYS: (keyof Prefs)[] = ["notify_followed_daily", "notify_collected"];
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -178,7 +183,7 @@ export default function SettingsPage() {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions")
+        .select("show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions, notify_followed_daily, notify_collected")
         .eq("id", user.id)
         .single();
       if (data) setPrefs(data as Prefs);
@@ -249,6 +254,24 @@ export default function SettingsPage() {
 
       {user && <ChatGPTRoutine userId={user.id} />}
 
+      <div className="section-label">Notifications</div>
+      <div className="detail-meta" style={{ marginBottom: 8 }}>
+        These show under &ldquo;notifications&rdquo; at the top of the homepage. &ldquo;Remind me&rdquo; on the release radar always
+        notifies you.
+      </div>
+      {prefs && (
+        <div style={{ maxWidth: 520, marginBottom: 10 }}>
+          {NOTIFY_KEYS.map((key) => (
+            <div key={key} style={rowStyle}>
+              <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{LABELS[key]}</span>
+              <button className={`tab ${prefs[key] ? "active" : ""}`} onClick={() => toggle(key)}>
+                {prefs[key] ? "on" : "off"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="section-label">Privacy</div>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Nothing here is public until you turn it on. Your profile URL is{" "}
@@ -257,7 +280,7 @@ export default function SettingsPage() {
 
       {prefs && (
         <div style={{ maxWidth: 520 }}>
-          {(Object.keys(LABELS) as (keyof Prefs)[]).map((key) => (
+          {(Object.keys(LABELS) as (keyof Prefs)[]).filter((k) => !NOTIFY_KEYS.includes(k)).map((key) => (
             <div key={key} style={rowStyle}>
               <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>
                 {LABELS[key]}
