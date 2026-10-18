@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsModerator } from "../../useIsAdmin";
 
 type Suggestion = {
   id: string;
@@ -32,7 +32,7 @@ const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.f
 
 export default function ImportReviewPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsModerator();
   const router = useRouter();
   const [items, setItems] = useState<Suggestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);

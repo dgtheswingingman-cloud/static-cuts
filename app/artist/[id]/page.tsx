@@ -9,7 +9,7 @@ import ParentTrackPicker from "../../components/ParentTrackPicker";
 import AlbumAutocomplete from "../../components/AlbumAutocomplete";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsAdmin, useIsModerator } from "../../useIsAdmin";
 import ArtistProfiles from "./ArtistProfiles";
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
@@ -113,6 +113,8 @@ export default function ArtistPage() {
   const id = params.id as string;
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
+  // Moderators can edit, add, merge and delete songs; artist-level controls stay admin-only.
+  const canModerate = useIsModerator();
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [checkRequested, setCheckRequested] = useState(false);
@@ -1244,7 +1246,7 @@ export default function ArtistPage() {
                     + alt version
                   </a>
                 )}
-                {user && !isAdmin && (
+                {user && !canModerate && (
                   <a
                     href={`/submit?type=correction&artist_id=${id}&track_id=${t.id}&track_title=${encodeURIComponent(t.title)}&current_url=${encodeURIComponent(t.spotify_url ?? "")}&current_featured=${t.is_featured}&current_official=${t.is_official}&current_parent_id=${t.parent_track_id ?? ""}&current_parent_title=${encodeURIComponent(t.parent_track_id ? (mainTracks.find((mt) => mt.id === t.parent_track_id)?.title ?? "") : "")}&current_aliases=${encodeURIComponent(t.aliases ?? "")}&current_track_number=${t.track_number ?? ""}&current_release_date=${t.release_date ?? ""}&current_producers=${encodeURIComponent(t.producers ?? "")}&current_featured_artist_tags=${encodeURIComponent(JSON.stringify(linkedFeaturedArtists[t.id] ?? []))}&current_genre=${encodeURIComponent(t.genre ?? "")}&current_notes=${encodeURIComponent(t.notes ?? "")}&current_album=${encodeURIComponent(t.album ?? "")}`}
                     className="rating-chip"
@@ -1286,9 +1288,9 @@ export default function ArtistPage() {
                 </a>
               </div>
             )}
-            {isAdmin && (
+            {canModerate && (
               <div className="track-actions-group">
-                <span className="comment-meta track-actions-label">Admin</span>
+                <span className="comment-meta track-actions-label">{isAdmin ? "Admin" : "Moderator"}</span>
                 {!t.isCrossAppearance && (
                   <>
                     <button className="rating-chip" onClick={() => { setOpenMoreId(null); startEdit(t); }}>edit</button>
@@ -1552,7 +1554,7 @@ export default function ArtistPage() {
                 find links ↗
               </a>
             )}
-            {!isAdmin && (
+            {!canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ textDecoration: "none" }}>
                 + suggest track
               </a>
@@ -1572,6 +1574,14 @@ export default function ArtistPage() {
               <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
             </div>
           )}
+          {!isAdmin && canModerate && (
+            <div className="artist-actions artist-admin">
+              <span className="review-toolbar-label">moderator</span>
+              <button className={`tab ${addingTrack ? "active" : ""}`} onClick={() => setAddingTrack(!addingTrack)}>
+                {addingTrack ? "cancel add track" : "+ add track"}
+              </button>
+            </div>
+          )}
           {isAdmin && (
             <ArtistProfiles artistId={id} artistName={artist.name} open={profilesOpen} onLinkedCount={setProfileCount} />
           )}
@@ -1586,7 +1596,7 @@ export default function ArtistPage() {
               onClose={() => setImportOpen(false)}
             />
           )}
-          {addingTrack && isAdmin && (
+          {addingTrack && canModerate && (
             <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
               <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Title"
                 value={newTrack.title} onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })} />
@@ -1714,7 +1724,7 @@ export default function ArtistPage() {
                   >
                     {t.tag} ({t.vote_count})
                   </button>
-                  {isAdmin && genreTagsExpanded && (
+                  {canModerate && genreTagsExpanded && (
                     <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
                   )}
                 </span>

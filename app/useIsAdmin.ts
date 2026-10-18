@@ -20,3 +20,11 @@ export function useIsRealAdmin() {
   const { user } = useAuth();
   return user?.email === ADMIN_EMAIL;
 }
+
+// Whether the current user can moderate: the admin (unless viewing as a
+// non-admin) or someone made a moderator on /admin/moderators.
+export function useIsModerator() {
+  const { role } = useAuth();
+  const isAdmin = useIsAdmin();
+  return isAdmin || role === "moderator";
+}

@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsModerator } from "../../useIsAdmin";
 
 type Suggestion = {
   id: string;
@@ -38,7 +38,7 @@ const TABS: { key: Suggestion["cls"]; label: string; help: string }[] = [
 
 export default function VersionSuggestionsPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsModerator();
   const router = useRouter();
   const [tab, setTab] = useState<Suggestion["cls"]>("check");
   const [items, setItems] = useState<Suggestion[] | null>(null);
