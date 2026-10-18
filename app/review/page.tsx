@@ -68,11 +68,16 @@ type Counts = {
   reported_comments: number; sheet_requests: number; takedowns: number | null;
 };
 
-// A moderation link with how many things are waiting there.
-function NavCount({ href, label, n }: { href: string; label: string; n?: number }) {
+// One moderation job as a card: what it is, and how many are waiting.
+function JobCard({ href, title, blurb, n }: { href: string; title: string; blurb: string; n?: number | null }) {
+  const waiting = typeof n === "number" && n > 0;
   return (
-    <Link href={href} className={n === 0 ? "nav-empty" : undefined}>
-      {label}{n ? <span className="nav-count">{n.toLocaleString("en-GB")}</span> : null}
+    <Link href={href} className={`mod-card ${waiting ? "waiting" : ""} ${n === 0 ? "clear" : ""}`}>
+      <span className="mod-card-top">
+        <span className="mod-card-title">{title}</span>
+        {typeof n === "number" && <span className="mod-card-count">{n === 0 ? "✓" : n.toLocaleString("en-GB")}</span>}
+      </span>
+      <span className="mod-card-blurb">{blurb}</span>
     </Link>
   );
 }
@@ -469,28 +474,34 @@ export default function ReviewPage() {
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Moderation</h1>
-      <nav className="review-nav" aria-label="Moderator tools">
-        <span className="review-nav-label">check</span>
-        <div className="review-nav-links">
-        <NavCount href="/review/duplicates" label="duplicates" />
-        <NavCount href="/review/versions" label="sub-versions" n={counts?.sub_versions} />
-        <NavCount href="/review/imports" label="imported songs" n={counts?.imported_songs} />
-        <NavCount href="/review/guests" label="guest artists" n={counts?.guest_artists} />
-        <NavCount href="/review/comments" label="reported comments" n={counts?.reported_comments} />
-        <NavCount href="/admin/sheets" label="import a spreadsheet" n={counts?.sheet_requests || undefined} />
-        </div>
-      </nav>
+      <div className="section-label">Lists to work through</div>
+      <div className="mod-grid">
+        <JobCard href="/review/imports" title="Imported songs" n={counts?.imported_songs}
+          blurb="Songs found by Genius, Last.fm and sheets, waiting for a yes or no." />
+        <JobCard href="/review/versions" title="Sub-versions" n={counts?.sub_versions}
+          blurb="Songs that look like a version of another song." />
+        <JobCard href="/review/guests" title="Guest artists" n={counts?.guest_artists}
+          blurb="Featured artists Spotify couldn't confirm: add, match or skip." />
+        <JobCard href="/review/comments" title="Reported comments" n={counts?.reported_comments}
+          blurb="Comments people have reported: keep or remove." />
+        <JobCard href="/review/duplicates" title="Duplicates"
+          blurb="The same song entered twice: pick one to keep and merge." />
+        <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
+          blurb="Import a community sheet, or handle ones people have sent in." />
+      </div>
+
       {isAdmin && (
-        <nav className="review-nav" aria-label="Admin tools">
-          <span className="review-nav-label">admin</span>
-          <div className="review-nav-links">
-          <NavCount href="/review/takedowns" label="takedowns" n={counts?.takedowns ?? undefined} />
-          <Link href="/admin/queue">artist queue</Link>
-          <Link href="/admin/auto-approve">auto-approve</Link>
-          <Link href="/admin/moderators">moderators</Link>
-          <Link href="/admin/spotify-matcher">link tools</Link>
+        <>
+          <div className="section-label">Admin</div>
+          <div className="mod-grid">
+            <JobCard href="/review/takedowns" title="Takedowns" n={counts?.takedowns ?? undefined}
+              blurb="Requests from rights holders to remove a song." />
+            <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />
+            <JobCard href="/admin/auto-approve" title="Auto-approve" blurb="Rules for adding trusted finds without review." />
+            <JobCard href="/admin/moderators" title="Moderators" blurb="Who can moderate, and what they've done." />
+            <JobCard href="/admin/spotify-matcher" title="Link tools" blurb="Run Spotify link matching faster by hand." />
           </div>
-        </nav>
+        </>
       )}
 
       {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}
@@ -498,16 +509,16 @@ export default function ReviewPage() {
       {!error && submissions === null && <div className="empty-state">loading…</div>}
       {!error && submissions && submissions.length === 0 && (
         <>
-          <h2 className="mod-heading">Suggestions waiting</h2>
+          <div className="section-label">Suggestions waiting</div>
           <div className="empty-state">
-            Nothing from users right now. Suggestions are what people send with &ldquo;suggest track&rdquo;, &ldquo;suggest
-            edit&rdquo;, &ldquo;wrong link&rdquo; and the like. Other work waiting is counted in the links above.
+            Nothing from users right now. These are what people send with &ldquo;suggest track&rdquo;, &ldquo;suggest
+            edit&rdquo;, &ldquo;wrong link&rdquo; and the like.
           </div>
         </>
       )}
 
       {!error && submissions && submissions.length > 0 && (
-        <h2 className="mod-heading">Suggestions waiting ({submissions.length})</h2>
+        <div className="section-label">Suggestions waiting ({submissions.length})</div>
       )}
       {!error && submissions && submissions.length > 0 && CATEGORIES.map((cat) => {
         const entries = submissions.filter((s) => cat.types.includes(s.type));
