@@ -292,7 +292,12 @@ export default function HomePage() {
 
       {showTrackSection && (
         <>
-          <div className="section-label">Tracks matching &quot;{q}&quot;</div>
+          <div className="section-label" style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <span>Tracks matching &quot;{q}&quot;</span>
+            <Link href={`/search?q=${encodeURIComponent(q)}`} className="text-link" style={{ textTransform: "none", letterSpacing: 0 }}>
+              all results &amp; filters →
+            </Link>
+          </div>
           {trackSearchLoading && <div className="empty-state">searching…</div>}
           {trackSearchError && (
             <div className="empty-state" style={{ borderColor: "#a33" }}>
@@ -337,6 +342,7 @@ export default function HomePage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/new" className="tab" style={{ textDecoration: "none" }}>what&apos;s new</Link>
           <Link href="/help" className="tab" style={{ textDecoration: "none" }}>help wanted</Link>
+          <Link href="/search" className="tab" style={{ textDecoration: "none" }}>search songs</Link>
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
             {pickingRandom ? "…" : "🎲 random artist"}
           </button>
