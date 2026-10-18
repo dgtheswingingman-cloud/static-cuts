@@ -474,6 +474,9 @@ export default function ReviewPage() {
         <Link href="/review/comments" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           reported comments →
         </Link>
+        <Link href="/review/guests" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+          guest artists →
+        </Link>
         {isAdmin && (
           <>
             <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
