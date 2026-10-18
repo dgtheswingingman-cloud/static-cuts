@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { useReviewKeys } from "../../components/useReviewKeys";
 
 type Suggestion = {
   id: string;
@@ -41,6 +42,8 @@ export default function ImportReviewPage() {
   const [artistFilter, setArtistFilter] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | "songs" | "features">("all");
   const [sort, setSort] = useState<"popular" | "az">("popular");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [statusOverride, setStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -62,10 +65,14 @@ export default function ImportReviewPage() {
   const shown = useMemo(() => {
     const list = (items ?? []).filter((s) =>
       (!artistFilter || s.artist_name === artistFilter) &&
+      (!statusFilter || s.status_guess === statusFilter) &&
+      (!sourceFilter || s.source === sourceFilter) &&
       (kindFilter === "all" || (kindFilter === "features" ? !!s.main_artist_name : !s.main_artist_name)));
     return [...list].sort((a, b) =>
       sort === "popular" ? popularity(b) - popularity(a) || a.title.localeCompare(b.title) : a.title.localeCompare(b.title));
-  }, [items, artistFilter, kindFilter, sort]);
+  }, [items, artistFilter, kindFilter, sort, statusFilter, sourceFilter]);
+  const statusesHere = useMemo(() => Array.from(new Set((items ?? []).map((s) => s.status_guess))).sort(), [items]);
+  const sourcesHere = useMemo(() => Array.from(new Set((items ?? []).map((s) => s.source))).sort(), [items]);
   const groups = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
     shown.forEach((s) => {
@@ -109,6 +116,13 @@ export default function ImportReviewPage() {
     load();
   }
 
+  const ordered = useMemo(() => Object.values(groups).flat(), [groups]);
+  const { focusedId } = useReviewKeys(ordered, {
+    yes: (s) => run("approve", [s.id]),
+    no: (s) => run("dismiss", [s.id]),
+    toggle: (s) => toggle(s.id),
+  }, busy);
+
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
 
@@ -145,6 +159,18 @@ export default function ImportReviewPage() {
               <option value="songs">their own songs</option>
               <option value="features">features on other songs</option>
             </select>
+            <select className="sort-select" aria-label="Suggested status" value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setSelected(new Set()); }}>
+              <option value="">any status</option>
+              {statusesHere.map((st) => <option key={st} value={st}>{st}</option>)}
+            </select>
+            {sourcesHere.length > 1 && (
+              <select className="sort-select" aria-label="Found by" value={sourceFilter}
+                onChange={(e) => { setSourceFilter(e.target.value); setSelected(new Set()); }}>
+                <option value="">any source</option>
+                {sourcesHere.map((src) => <option key={src} value={src}>{SOURCE_NAMES[src] ?? src}</option>)}
+              </select>
+            )}
             <select id="import-sort" className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
               <option value="popular">most popular first</option>
               <option value="az">A to Z</option>
@@ -166,6 +192,13 @@ export default function ImportReviewPage() {
               dismiss selected
             </button>
           </div>
+          <div className="review-toolbar-row">
+            <button className="tab" disabled={busy || shown.length === 0}
+              onClick={() => { if (confirm(`Add all ${shown.length} songs shown?`)) run("approve", shown.map((s) => s.id)); }}>
+              add all {shown.length} shown
+            </button>
+            <span className="comment-meta kb-hint">Keys: J / K move · Y add · N dismiss · X tick</span>
+          </div>
         </div>
       )}
 
@@ -178,7 +211,7 @@ export default function ImportReviewPage() {
             </button>
           </div>
           {groups[g].map((s) => (
-            <div key={s.id} className="review-row">
+            <div key={s.id} data-row-id={s.id} className={`review-row ${focusedId === s.id ? "kb-focus" : ""}`}>
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.title}`} />
               <div style={{ minWidth: 0 }}>
                 <div className="review-row-title">

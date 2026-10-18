@@ -787,7 +787,20 @@ a .health-tile:hover {
 /* ---------- Collab map ---------- */
 .collab-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
 @media (max-width: 760px) { .collab-layout { grid-template-columns: 1fr; } }
-.collab-map { width: 100%; height: auto; border: 1px solid var(--hair); background: var(--void); touch-action: manipulation; }
+.collab-map { display: block; width: 100%; height: auto; aspect-ratio: 10 / 7; border: 1px solid var(--hair); background: var(--void); touch-action: none; cursor: grab; user-select: none; }
+.collab-map:active { cursor: grabbing; }
+.collab-map line, .collab-map circle { vector-effect: non-scaling-stroke; }
+.collab-stage { position: relative; min-width: 0; }
+.collab-zoom { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.collab-zoom .rating-chip { min-width: 30px; background: var(--surface); }
+.collab-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.collab-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin-right: 3px; }
+.collab-dot.has-page { background: var(--bone); }
+.collab-dot.guest { border: 1.5px solid var(--smoke); }
+.collab-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.collab-controls .search-input { flex: 1 1 220px; }
+.collab-toggles { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.collab-link-name { background: none; border: none; padding: 0; cursor: pointer; color: var(--bone); font: inherit; }
 .collab-edge { stroke: var(--hair-strong); opacity: 0.7; }
 .collab-edge.on { stroke: var(--bone); opacity: 1; }
 .collab-edge.dim { opacity: 0.12; }
@@ -1213,4 +1226,16 @@ a.listen-link {
 .mod-card-blurb {
   font-size: 0.76rem;
   line-height: 1.4;
+}
+
+/* Review lists: the row the keyboard is on. */
+.review-row.kb-focus {
+  outline: 1.5px solid var(--bone);
+  outline-offset: 2px;
+}
+.kb-hint {
+  opacity: 0.7;
+}
+@media (hover: none) {
+  .kb-hint { display: none; }
 }
