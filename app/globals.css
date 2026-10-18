@@ -771,3 +771,10 @@ a .health-tile:hover {
 .list-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 .add-to-list { width: 100%; margin-top: 8px; }
 @media (max-width: 520px) { .list-item { flex-wrap: wrap; } .list-actions { width: 100%; justify-content: flex-start; padding-left: calc(2ch + 12px); } }
+
+/* ---------- Release radar & notifications ---------- */
+.radar-group { padding: 12px 0; border-bottom: 1px solid var(--hair); }
+.radar-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.radar-countdown { color: var(--bone); font-weight: 600; }
+.unread-note { border-left: 2px solid var(--bone); padding-left: 10px; }
+.notif-count { display: inline-block; min-width: 1.4em; padding: 0 4px; margin-left: 4px; background: var(--bone); color: var(--void); border-radius: 8px; text-align: center; }
