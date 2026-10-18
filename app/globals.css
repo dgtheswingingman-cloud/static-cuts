@@ -724,3 +724,12 @@ a .health-tile:hover {
 .song-history li { padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 0.88rem; }
 .song-link { color: inherit; text-decoration: none; }
 .song-link:hover { text-decoration: underline; }
+
+/* ---------- What's new ---------- */
+.feed-item { padding: 12px 0; border-bottom: 1px solid var(--hair); }
+.feed-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+.feed-artist { color: var(--bone); font-weight: 600; text-decoration: none; }
+.feed-artist:hover { text-decoration: underline; }
+.feed-tracks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.feed-track { color: var(--smoke); font-size: 0.88rem; text-decoration: none; overflow-wrap: anywhere; }
+.feed-track:hover { color: var(--bone); text-decoration: underline; }
