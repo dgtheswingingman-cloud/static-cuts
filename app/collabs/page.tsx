@@ -109,7 +109,7 @@ function Inner() {
   return (
     <div className="wrap" style={{ maxWidth: 1100 }}>
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Collab map</h1>
+      <h1 className="detail-name page-title">Collab map</h1>
       <div className="detail-meta">
         Who&apos;s worked with who, from shared songs and features. Filled circles have a page here; outlines are guests.
         Tap anyone to see their collaborations.

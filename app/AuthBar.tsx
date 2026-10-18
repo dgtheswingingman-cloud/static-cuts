@@ -1,127 +1,67 @@
 "use client";
 
+// Account links under the wordmark on the home page. In admin mode it shows
+// admin jobs only; your own account (profile, notifications, settings,
+// submissions) is in the regular view. The admin/account switch itself is
+// in the bar at the top of every page (ModeBar).
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import { supabase } from "@/lib/supabase";
-import { useIsAdmin, useIsModerator, useIsRealAdmin } from "./useIsAdmin";
-import { useAdminView } from "./AdminViewContext";
-import { useTheme } from "./ThemeProvider";
+import { useIsAdmin, useIsModerator } from "./useIsAdmin";
 
 export default function AuthBar() {
   const { user, loading, signOut } = useAuth();
-  const [displayName, setDisplayName] = useState<string | null>(null);
   const isAdmin = useIsAdmin();
   const isModerator = useIsModerator();
-  const isRealAdmin = useIsRealAdmin();
-  const { viewAsNonAdmin, setViewAsNonAdmin } = useAdminView();
-  const { theme, setTheme } = useTheme();
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    if (!user) { setUnread(0); return; }
+    if (!user || isAdmin) { setUnread(0); return; }
     supabase.rpc("rpc_unread_notifications").then(({ data }) => setUnread(typeof data === "number" ? data : 0));
-  }, [user]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
-    async function loadProfile() {
-      if (!user) { setDisplayName(null); return; }
-      const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).single();
-      setDisplayName(data?.display_name ?? user.email ?? "");
-    }
-    loadProfile();
+    if (!user) { setDisplayName(null); return; }
+    supabase.from("profiles").select("display_name").eq("id", user.id).single()
+      .then(({ data }) => setDisplayName(data?.display_name ?? user.email ?? ""));
   }, [user]);
 
-  if (loading) return null;
-
-  const barStyle: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "center",
-    gap: 10,
-    alignItems: "center",
-    marginTop: 14,
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--smoke)",
-    flexWrap: "wrap",
-  };
-
-  const smallBtn: React.CSSProperties = {
-    background: "none",
-    border: "1px solid var(--hair)",
-    color: "var(--smoke)",
-    padding: "4px 10px",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-    textDecoration: "none",
-  };
+  if (loading) return <div className="auth-bar" aria-hidden />;
 
   if (!user) {
     return (
-      <div style={barStyle}>
-        <Link href="/login" style={{ color: "var(--smoke)" }}>
-          log in / sign up
-        </Link>
-        <select className="sort-select" value={theme} onChange={(e) => setTheme(e.target.value as any)} style={{ fontSize: "0.68rem" }}>
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
+      <div className="auth-bar">
+        <Link href="/login" className="auth-link">log in / sign up</Link>
+      </div>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="auth-bar">
+        <span className="auth-who">admin</span>
+        <Link href="/review" className="auth-link">review queue</Link>
+        <Link href="/admin/health" className="auth-link">health</Link>
+        <Link href="/admin/batches" className="auth-link">undo history</Link>
+        <button onClick={() => signOut()} className="auth-link">log out</button>
       </div>
     );
   }
 
   return (
-    <>
-      <div style={barStyle}>
-        <span>signed in as {displayName ?? user.email}</span>
-        <Link href={`/profile/${user.id}`} style={smallBtn}>
-          my profile
-        </Link>
-        <Link href="/notifications" style={smallBtn} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
-          notifications{unread > 0 && <span className="notif-count">{unread}</span>}
-        </Link>
-        <Link href="/settings" style={smallBtn}>
-          settings
-        </Link>
-        {!isAdmin && (
-          <Link href="/my-submissions" style={smallBtn}>
-            my submissions
-          </Link>
-        )}
-        {isModerator && (
-          <Link href="/review" style={smallBtn}>
-            review queue
-          </Link>
-        )}
-        {isAdmin && (
-          <Link href="/admin/health" style={smallBtn}>
-            health
-          </Link>
-        )}
-        <button onClick={() => signOut()} style={smallBtn}>
-          log out
-        </button>
-        <select className="sort-select" value={theme} onChange={(e) => setTheme(e.target.value as any)} style={{ fontSize: "0.68rem" }}>
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
-      </div>
-
-      {isRealAdmin && (
-        <div style={{ ...barStyle, marginTop: 8 }}>
-          <span style={{ color: "var(--hair-strong)" }}>role:</span>
-          <select
-            className="sort-select"
-            value={viewAsNonAdmin ? "user" : "admin"}
-            onChange={(e) => setViewAsNonAdmin(e.target.value === "user")}
-            style={{ fontSize: "0.68rem" }}
-          >
-            <option value="admin">Administrator</option>
-            <option value="user">Regular user (preview)</option>
-          </select>
-        </div>
-      )}
-    </>
+    <div className="auth-bar">
+      <span className="auth-who">{displayName ?? user.email}</span>
+      <Link href={`/profile/${user.id}`} className="auth-link">profile</Link>
+      <Link href="/notifications" className="auth-link" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
+        notifications{unread > 0 && <span className="notif-count">{unread}</span>}
+      </Link>
+      <Link href="/my-submissions" className="auth-link">my submissions</Link>
+      {isModerator && <Link href="/review" className="auth-link">review queue</Link>}
+      <Link href="/settings" className="auth-link">settings</Link>
+      <button onClick={() => signOut()} className="auth-link">log out</button>
+    </div>
   );
 }

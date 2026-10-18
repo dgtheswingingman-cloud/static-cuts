@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 
 type Group = {
   kind: "added" | "status";
@@ -37,7 +38,9 @@ function headline(g: Group) {
 }
 
 export default function WhatsNewPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("all");
   const [following, setFollowing] = useState(false);
@@ -79,20 +82,22 @@ export default function WhatsNewPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">What&apos;s new</h1>
+      <h1 className="detail-name page-title">What&apos;s new</h1>
       <div className="detail-meta">Songs added to the archive and status changes, newest first.</div>
 
       <div className="tabs" style={{ alignItems: "center" }}>
         {KINDS.map(([k, label]) => (
           <button key={k} className={`tab ${kind === k ? "active" : ""}`} onClick={() => setKind(k)}>{label}</button>
         ))}
-        <button
-          className={`tab ${following ? "active" : ""}`}
-          onClick={() => (user ? setFollowing(!following) : router.push("/login"))}
-          title="Only artists you follow"
-        >
-          {following ? "✓ " : ""}artists I follow
-        </button>
+        {!isAdmin && (
+          <button
+            className={`tab ${following ? "active" : ""}`}
+            onClick={() => (user ? setFollowing(!following) : router.push("/login"))}
+            title="Only artists you follow"
+          >
+            {following ? "✓ " : ""}artists I follow
+          </button>
+        )}
       </div>
 
       {error && <div className="empty-state">Couldn&apos;t load the feed: {error}</div>}

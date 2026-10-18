@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 
 type Row = {
@@ -32,7 +32,7 @@ function when(iso: string | null) {
 
 export default function QueuePage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);

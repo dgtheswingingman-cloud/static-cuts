@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 
 type CommentRow = {
@@ -29,7 +29,7 @@ const REPORT_REASONS: [string, string][] = [
 type SortMode = "top" | "newest";
 
 export default function TrackComments({ trackId }: { trackId: string }) {
-  const { user } = useAuth();
+  const user = usePersonalUser();
   // Admin mode reads comments but doesn't take part (no posting, votes,
   // replies or reports); that's done from the regular user view.
   const isAdmin = useIsAdmin();
@@ -94,7 +94,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
   }
 
   async function postComment(body: string, parentCommentId: string | null) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const trimmed = body.trim();
     if (!trimmed) return;
     setPosting(true);
@@ -113,7 +113,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
   }
 
   async function toggleVote(commentId: string) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const hasVoted = myVotes.has(commentId);
     if (hasVoted) {
       await supabase.from("comment_votes").delete().eq("comment_id", commentId).eq("user_id", user.id);

@@ -33,7 +33,7 @@ function Inner() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">On {label}</h1>
+      <h1 className="detail-name page-title">On {label}</h1>
       <div className="detail-meta">Songs released or leaked on {label} in past years.</div>
       <div className="tabs">
         <button className="tab" onClick={() => go(shift(day, -1))}>← previous day</button>

@@ -7,6 +7,8 @@ import { AuthProvider } from "./AuthProvider";
 import { AdminViewProvider } from "./AdminViewContext";
 import { ThemeProvider } from "./ThemeProvider";
 import RegisterServiceWorker from "./RegisterServiceWorker";
+import ModeBar from "./ModeBar";
+import ThemeSwitch from "./ThemeSwitch";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -33,13 +35,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <RegisterServiceWorker />
               <StaticOverlay />
               <div className="scanlines" />
+              <ModeBar />
               {children}
               <footer className="site-credit">
-                Some song data from{" "}
-                <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer">Spotify</a>,{" "}
-                <a href="https://genius.com" target="_blank" rel="noopener noreferrer">Genius</a> and{" "}
-                <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>.{" "}
-                <Link href="/faq">FAQ</Link> · <Link href="/contributors">Contributors</Link> · <Link href="/sources">Sources</Link> · <Link href="/legal">Privacy &amp; terms</Link> · <Link href="/takedown">Request a takedown</Link>
+                <nav className="site-credit-links">
+                  <Link href="/faq">FAQ</Link>
+                  <Link href="/contributors">Contributors</Link>
+                  <Link href="/sources">Sources</Link>
+                  <Link href="/legal">Privacy &amp; terms</Link>
+                  <Link href="/takedown">Request a takedown</Link>
+                  <ThemeSwitch />
+                </nav>
+                <div>
+                  Some song data from{" "}
+                  <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer">Spotify</a>,{" "}
+                  <a href="https://genius.com" target="_blank" rel="noopener noreferrer">Genius</a> and{" "}
+                  <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>.
+                </div>
               </footer>
             </AdminViewProvider>
           </ThemeProvider>

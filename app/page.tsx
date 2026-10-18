@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
-import { useIsAdmin } from "./useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
 import OnThisDay from "./OnThisDay";
 
 type Artist = {
@@ -30,7 +30,7 @@ type TrackResult = {
 type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc" | "rating-desc" | "rating-asc";
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const user = usePersonalUser();
   const router = useRouter();
   const isAdmin = useIsAdmin();
   const [creatingArtist, setCreatingArtist] = useState(false);
@@ -289,6 +289,16 @@ export default function HomePage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        <nav className="home-nav" aria-label="Explore">
+          <Link href="/new">what&apos;s new</Link>
+          <Link href="/search">search songs</Link>
+          <Link href="/radar">release radar</Link>
+          <Link href="/lists">lists</Link>
+          <Link href="/collabs">collab map</Link>
+          <Link href="/producers">producers</Link>
+          <Link href="/help">help wanted</Link>
+          <Link href="/faq">faq</Link>
+        </nav>
       </div>
 
       {showTrackSection && (
@@ -340,39 +350,28 @@ export default function HomePage() {
 
       {!showTrackSection && <OnThisDay />}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div className="section-label" style={{ marginBottom: 0 }}>{sectionLabel}</div>
-        <nav className="home-nav" aria-label="Explore">
-          <Link href="/new" className="tab">what&apos;s new</Link>
-          <Link href="/search" className="tab">search songs</Link>
-          <Link href="/radar" className="tab">release radar</Link>
-          <Link href="/lists" className="tab">lists</Link>
-          <Link href="/collabs" className="tab">collab map</Link>
-          <Link href="/producers" className="tab">producers</Link>
-          <Link href="/help" className="tab">help wanted</Link>
-          <Link href="/faq" className="tab">faq</Link>
+      <div className="section-head">
+        <div className="section-label">{sectionLabel}</div>
+        <div className="section-head-tools">
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
-            {pickingRandom ? "…" : "🎲 random artist"}
+            {pickingRandom ? "…" : "random artist"}
           </button>
           {isAdmin && (
             <button className="tab" disabled={creatingArtist} onClick={createArtist}>
               {creatingArtist ? "…" : "+ add artist"}
             </button>
           )}
-        </nav>
-      </div>
-
-      <div className="sort-row">
-        <select className="sort-select" value={artistSort} onChange={(e) => updateArtistSort(e.target.value as ArtistSortKey)}>
-          <option value="name-asc">Name (A–Z)</option>
-          <option value="name-desc">Name (Z–A)</option>
-          <option value="count-desc">Most tracks logged</option>
-          <option value="count-asc">Fewest tracks logged</option>
-          {user && <option value="pct-desc">My completion % (high–low)</option>}
-          {user && <option value="pct-asc">My completion % (low–high)</option>}
-          <option value="rating-desc">Community rating (high–low)</option>
-          <option value="rating-asc">Community rating (low–high)</option>
-        </select>
+          <select className="sort-select" value={artistSort} onChange={(e) => updateArtistSort(e.target.value as ArtistSortKey)} aria-label="Sort artists">
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+            <option value="count-desc">Most tracks logged</option>
+            <option value="count-asc">Fewest tracks logged</option>
+            {user && <option value="pct-desc">My completion % (high–low)</option>}
+            {user && <option value="pct-asc">My completion % (low–high)</option>}
+            <option value="rating-desc">Community rating (high–low)</option>
+            <option value="rating-asc">Community rating (low–high)</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -418,10 +417,14 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="name">{a.name}</div>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="pct">{user ? `${pct}% collected` : "log in to track your collection"}</div>
+                  {!isAdmin && (
+                    <>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="pct">{user ? `${pct}% collected` : "log in to track your collection"}</div>
+                    </>
+                  )}
                   {a.avgRating !== null && (
                     <div className="pct" style={{ marginTop: 2 }}>
                       ★ {a.avgRating.toFixed(1)}/10 community ({a.ratingCount} rating{a.ratingCount === 1 ? "" : "s"})
@@ -460,7 +463,9 @@ export default function HomePage() {
             by the community.{" "}
           </>
         )}
-        {user ? "Your home feed only shows artists you follow. Search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}{" "}
+        {isAdmin
+          ? "Admin mode shows everyone in the archive."
+          : user ? "Your home feed only shows artists you follow. Search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}{" "}
         New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
       </div>
     </div>

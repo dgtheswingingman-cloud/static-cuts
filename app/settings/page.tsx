@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
+import { useIsAdmin } from "../useIsAdmin";
+import { AdminModePage } from "../components/AdminModeNote";
 
 type Prefs = {
   show_completion_pct: boolean;
@@ -30,6 +32,7 @@ const NOTIFY_KEYS: (keyof Prefs)[] = ["notify_followed_daily", "notify_collected
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const isAdmin = useIsAdmin();
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saving, setSaving] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
@@ -175,7 +178,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
+    if (!authLoading && !user && !isAdmin) router.push("/login");
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -207,6 +210,8 @@ export default function SettingsPage() {
     padding: "14px 0",
     borderBottom: "1px solid var(--hair)",
   };
+
+  if (isAdmin) return <AdminModePage title="Settings" />;
 
   return (
     <div className="wrap">

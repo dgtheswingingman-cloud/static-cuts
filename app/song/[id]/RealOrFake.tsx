@@ -7,13 +7,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 
 export const VOTEABLE_STATUSES = ["rumored", "teased", "snippet", "leaked"];
 
 export type Authenticity = { real_votes: number; fake_votes: number; my_vote: boolean | null; disputed: boolean };
 
 export default function RealOrFake({ trackId }: { trackId: string }) {
-  const { user } = useAuth();
+  const user = usePersonalUser();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [a, setA] = useState<Authenticity | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,7 +33,7 @@ export default function RealOrFake({ trackId }: { trackId: string }) {
   }, [trackId, user?.id]);
 
   async function vote(real: boolean) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     setBusy(true);
     setError(null);
     const { error: err } = await supabase.rpc("rpc_vote_authenticity", {

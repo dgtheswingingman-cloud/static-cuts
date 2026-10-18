@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Request = {
@@ -39,7 +39,7 @@ const RELATIONSHIP: Record<string, string> = {
 
 export default function TakedownsPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [tab, setTab] = useState<"open" | "removed" | "rejected">("open");
   const [rows, setRows] = useState<Request[] | null>(null);

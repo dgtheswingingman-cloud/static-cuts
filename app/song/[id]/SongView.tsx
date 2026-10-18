@@ -12,7 +12,7 @@ import TrackComments from "../../artist/[id]/TrackComments";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 
 type Track = {
@@ -64,7 +64,8 @@ function formatDate(d: string, withYear = true) {
 }
 
 export default function SongView({ id }: { id: string }) {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [song, setSong] = useState<Song | null>(null);
@@ -91,7 +92,7 @@ export default function SongView({ id }: { id: string }) {
   }, [id, authLoading, user?.id]);
 
   async function toggleOwned() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (!song) return;
     setBusy(true);
     const { error } = song.owned
@@ -102,7 +103,7 @@ export default function SongView({ id }: { id: string }) {
   }
 
   async function rate(value: number | null) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     if (!song) return;
     const { error } = value === null
       ? await supabase.from("ratings").delete().eq("user_id", user.id).eq("track_id", song.track.id)

@@ -28,3 +28,14 @@ export function useIsModerator() {
   const isAdmin = useIsAdmin();
   return isAdmin || role === "moderator";
 }
+
+// The account to use for personal things: collection, ratings, follows,
+// comments, votes, lists, reminders, suggestions. In admin mode this is
+// null, so the site behaves as it would for a visitor plus admin tools;
+// admin mode is only for admin jobs. Pair it with useIsAdmin() to hide
+// "log in to…" prompts in admin mode.
+export function usePersonalUser() {
+  const { user } = useAuth();
+  const isAdmin = useIsAdmin();
+  return isAdmin ? null : user;
+}

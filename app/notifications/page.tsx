@@ -8,12 +8,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
+import { AdminModePage } from "../components/AdminModeNote";
 
 type Note = { id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null };
 
 export default function NotificationsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const isAdmin = useIsAdmin();
   const [items, setItems] = useState<Note[] | null>(null);
 
   useEffect(() => {
@@ -32,10 +35,12 @@ export default function NotificationsPage() {
     setItems((prev) => (prev ?? []).filter((x) => x.id !== n.id));
   }
 
+  if (isAdmin) return <AdminModePage title="Notifications" />;
+
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Notifications</h1>
+      <h1 className="detail-name page-title">Notifications</h1>
       <div className="detail-meta">
         Songs you asked to be reminded about (on the <Link href="/radar" className="text-link">release radar</Link> or a
         song page), and songs you&apos;ve collected changing status.

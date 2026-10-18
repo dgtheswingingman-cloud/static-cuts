@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsRealAdmin } from "../../useIsAdmin";
+import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 
 type Health = {
@@ -67,7 +67,7 @@ const TIMER_INFO: Record<string, string> = {
 
 export default function HealthPage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsRealAdmin();
+  const isRealAdmin = useIsAdmin();
   const router = useRouter();
   const [h, setH] = useState<Health | null>(null);
   const [error, setError] = useState<string | null>(null);

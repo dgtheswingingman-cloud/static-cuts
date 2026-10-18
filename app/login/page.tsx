@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   return (
     <div className="wrap">
-      <h1 className="detail-name">{mode === "login" ? "Log in" : "Sign up"}</h1>
+      <h1 className="detail-name page-title">{mode === "login" ? "Log in" : "Sign up"}</h1>
 
       <div className="search-shell" style={{ marginTop: 20, marginLeft: 0 }}>
         <button onClick={() => handleOAuth()} style={oauthButtonStyle}>

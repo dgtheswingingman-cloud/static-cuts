@@ -94,7 +94,7 @@ function SearchInner() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Search songs</h1>
+      <h1 className="detail-name page-title">Search songs</h1>
 
       <input
         className="search-input"
@@ -105,31 +105,32 @@ function SearchInner() {
         autoFocus
       />
 
-      <div className="filter-groups">
-        <div className="filter-group">
-          <span className="comment-meta">status</span>
+      <div className="search-filters">
+        <span className="search-filters-label">status</span>
+        <div className="search-filters-row">
           {STATUSES.map((s) => (
             <button key={s} className={`tab ${statuses.includes(s) ? "active" : ""}`} onClick={() => toggleStatus(s)}>{s}</button>
           ))}
         </div>
-        <div className="filter-group">
-          <span className="comment-meta">released</span>
+        <span className="search-filters-label">released</span>
+        <div className="search-filters-row">
           <select className="sort-select" value={from} onChange={(e) => update({ from: e.target.value || null })} aria-label="From year">
-            <option value="">any year</option>
+            <option value="">from any year</option>
             {years.map((y) => <option key={y} value={y}>from {y}</option>)}
           </select>
           <select className="sort-select" value={to} onChange={(e) => update({ to: e.target.value || null })} aria-label="To year">
-            <option value="">any year</option>
+            <option value="">to any year</option>
             {years.map((y) => <option key={y} value={y}>to {y}</option>)}
           </select>
         </div>
-        <div className="filter-group">
-          <span className="comment-meta">link</span>
+        <span className="search-filters-label">link</span>
+        <div className="search-filters-row">
           {[["", "any"], ["yes", "has a link"], ["no", "no link"]].map(([v, label]) => (
             <button key={v} className={`tab ${link === v ? "active" : ""}`} onClick={() => update({ link: v || null })}>{label}</button>
           ))}
         </div>
-        <div className="filter-group">
+        <span className="search-filters-label">show</span>
+        <div className="search-filters-row">
           <button className={`tab ${versions ? "" : "active"}`} onClick={() => update({ versions: versions ? "no" : null })}>
             {versions ? "" : "✓ "}main songs only
           </button>

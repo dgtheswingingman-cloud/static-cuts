@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsModerator, useIsRealAdmin } from "../useIsAdmin";
+import { useIsModerator, useIsAdmin } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import Discoveries from "./Discoveries";
 
@@ -65,7 +65,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 
 export default function ReviewPage() {
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = useIsRealAdmin();
+  const isAdmin = useIsAdmin();
   const canModerate = useIsModerator();
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);

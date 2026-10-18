@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 
 type Row = {
   section: "upcoming" | "tba" | "dropped"; track_id: string; title: string; artist_id: string; artist: string;
@@ -47,7 +47,8 @@ function group(rows: Row[]) {
 }
 
 export default function RadarPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -62,7 +63,7 @@ export default function RadarPage() {
   }, [authLoading, user?.id]);
 
   async function setWatch(ids: string[], on: boolean, key: string) {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     setBusy(key);
     if (on) await supabase.from("radar_watches").upsert(ids.map((track_id) => ({ track_id, user_id: user.id })));
     else await supabase.from("radar_watches").delete().eq("user_id", user.id).in("track_id", ids);
@@ -80,7 +81,7 @@ export default function RadarPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Release radar</h1>
+      <h1 className="detail-name page-title">Release radar</h1>
       <div className="detail-meta">
         What&apos;s coming and what just dropped. Press &ldquo;remind me&rdquo; and you&apos;ll get a notification when it&apos;s
         out, or if it leaks first.

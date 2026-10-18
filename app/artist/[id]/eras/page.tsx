@@ -97,7 +97,7 @@ export default function ErasPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push(`/artist/${id}`)}>← {artist?.name ?? "artist"}</button>
-      <h1 className="detail-name">{artist ? `${artist.name}: eras` : "Eras"}</h1>
+      <h1 className="detail-name page-title">{artist ? `${artist.name}: eras` : "Eras"}</h1>
       <div className="detail-meta">
         Songs grouped by era (album or project), oldest first. Leaks sit in their era by leak date; songs with no album go
         under their year.

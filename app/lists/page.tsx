@@ -8,14 +8,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import AdminModeNote from "../components/AdminModeNote";
 import { ListRowView, type ListRow } from "./ListRow";
 
 type Kind = "popular" | "new" | "mine" | "following";
 
 export default function ListsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("popular");
@@ -35,7 +36,7 @@ export default function ListsPage() {
   }, [kind, authLoading, user?.id]);
 
   async function create() {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { if (!isAdmin) router.push("/login"); return; }
     const title = newTitle.trim();
     if (!title) return;
     setCreating(true);
