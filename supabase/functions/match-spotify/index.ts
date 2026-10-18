@@ -26,6 +26,20 @@ const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+// Matches are recorded in an undo batch ("Spotify matching <date>", one per
+// 12 hours of matching), so a bad run can be reversed from /admin/batches.
+// Only the matches are recorded, not the "searched, nothing found" marks.
+async function batchClient() {
+  const { data: batchId, error } = await supabase.rpc("sc_job_batch", {
+    p_kind: "spotify_match",
+    p_label: "Spotify matching",
+  });
+  if (error || !batchId) return supabase; // undo log unavailable: still match
+  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    global: { headers: { "x-sc-batch": String(batchId) } },
+  });
+}
+
 async function getSpotifyToken(): Promise<string> {
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -119,6 +133,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    let logged: ReturnType<typeof createClient> | null = null;
     let matched = 0;
     let checked = 0;
     let rateLimited = false;
@@ -166,7 +181,8 @@ Deno.serve(async (req) => {
         if (track.release_status !== "removed") update.release_status = "released";
         if (!track.album && best?.album?.name && best?.album?.album_type !== "compilation") update.album = best.album.name;
         if (!track.release_date && best?.album?.release_date_precision === "day") update.release_date = best.album.release_date;
-        await supabase.from("tracks").update(update).eq("id", track.id);
+        logged = logged ?? (await batchClient());
+        await logged.from("tracks").update(update).eq("id", track.id);
         matched++;
       } else {
         // Nothing that's clearly this song -- still record that we checked
