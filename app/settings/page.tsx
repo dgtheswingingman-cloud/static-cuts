@@ -216,7 +216,7 @@ export default function SettingsPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>
-        ← back to archive
+        ← home
       </button>
       <h1 className="detail-name page-title">
         Settings

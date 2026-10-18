@@ -63,7 +63,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [stats, setStats] = useState<{ total_tracks: number; collected_tracks: number } | null>(null);
+  const [stats, setStats] = useState<{ total_tracks: number; collected_tracks: number; followed_artists?: number } | null>(null);
   const [collected, setCollected] = useState<CollectedTrack[]>([]);
   const [rated, setRated] = useState<RatedTrack[]>([]);
   const [followedArtists, setFollowedArtists] = useState<FollowedArtist[]>([]);
@@ -91,7 +91,7 @@ export default function ProfilePage() {
       if (profileRow.show_completion_pct) {
         const { data: statRow } = await supabase
           .from("user_completion_stats")
-          .select("total_tracks, collected_tracks")
+          .select("total_tracks, collected_tracks, followed_artists")
           .eq("user_id", userId)
           .maybeSingle();
         if (statRow) setStats(statRow as any);
@@ -184,7 +184,7 @@ export default function ProfilePage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>
-        ← back to archive
+        ← home
       </button>
 
       {notFound && (
@@ -309,7 +309,11 @@ export default function ProfilePage() {
           {stats && (
             <div style={{ marginBottom: 20 }}>
               <div className="detail-meta">
-                {stats.collected_tracks} / {stats.total_tracks} tracks collected ({pct}%)
+                {Number(stats.followed_artists ?? 0) === 0
+                  ? "Not following any artists yet, so there's nothing to collect towards."
+                  : <>{Number(stats.collected_tracks).toLocaleString("en-GB")} / {Number(stats.total_tracks).toLocaleString("en-GB")} songs
+                    collected from the {Number(stats.followed_artists).toLocaleString("en-GB")} artist{Number(stats.followed_artists) === 1 ? "" : "s"}{" "}
+                    {isOwnProfile ? "you follow" : "they follow"} ({pct}%)</>}
               </div>
               <div className="bar-track" style={{ height: 4 }}>
                 <div className="bar-fill" style={{ width: `${pct}%` }} />
