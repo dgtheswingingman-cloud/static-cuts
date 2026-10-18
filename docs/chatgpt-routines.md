@@ -132,3 +132,18 @@ Added in `20261017190000_status_links_cleanup.sql`.
   "edit first" to send one to the queue instead.
 - **Quick merge** on `/review/duplicates` for identical copies on one artist's
   page (same title, status and details, nothing collected, rated or commented).
+
+## Shared research (20261018040000_routine_token_savings.sql)
+
+Research is shared between everyone's routines so nobody pays twice:
+
+- `search_since` per artist: whoever checked the artist last, minus two days
+  of overlap. ChatGPT only looks for news after it.
+- `recently_added`: songs added or whose status changed in the last 60 days.
+- `already_handled`: finds approved or dismissed in the last 90 days.
+- `open_discoveries`: finds waiting in review.
+
+ChatGPT skips all of these without checking them. Anything else it finds is
+checked in one `check_candidates` call (up to 50 titles), which also reports
+`previously_dismissed` so turned-down finds aren't resubmitted. Songs now
+record when they were added (`tracks.created_at`; older songs have none).
