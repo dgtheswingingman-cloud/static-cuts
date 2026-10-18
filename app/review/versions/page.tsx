@@ -15,6 +15,7 @@ import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 import { useReviewKeys } from "../../components/useReviewKeys";
+import FocusReview from "../../components/FocusReview";
 
 type Suggestion = {
   id: string;
@@ -59,6 +60,7 @@ export default function VersionSuggestionsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<"artist" | "label">("artist");
+  const [focusOpen, setFocusOpen] = useState(false);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_version_suggestions", { p_cls: null, p_limit: 2000 });
@@ -136,9 +138,22 @@ export default function VersionSuggestionsPage() {
     load();
   }
 
+  // One at a time (row buttons, keys, focus mode): no full reload, it just
+  // leaves the list.
+  async function quick(kind: "approve" | "dismiss", s: Suggestion) {
+    setBusy(true);
+    const fn = kind === "approve" ? "admin_apply_version_suggestions" : "admin_dismiss_version_suggestions";
+    const { error: err } = await supabase.rpc(fn, { p_ids: [s.id] });
+    setBusy(false);
+    if (err) { setMessage(`Couldn't ${kind === "approve" ? "approve" : "dismiss"} "${s.track_title}": ${err.message}`); return; }
+    setItems((prev) => (prev ?? []).filter((x) => x.id !== s.id));
+    setCounts((prev) => ({ ...prev, [s.cls]: Math.max(0, (prev[s.cls] ?? 1) - 1) }));
+    setSelected((prev) => { const next = new Set(prev); next.delete(s.id); return next; });
+  }
+
   const { focusedId } = useReviewKeys(ordered, {
-    yes: (s) => run("approve", [s.id]),
-    no: (s) => run("dismiss", [s.id]),
+    yes: (s) => quick("approve", s),
+    no: (s) => quick("dismiss", s),
     toggle: (s) => toggle(s.id),
   }, busy);
 
@@ -192,6 +207,7 @@ export default function VersionSuggestionsPage() {
           <span className="review-toolbar-label">group by</span>
           <button className={`tab ${groupBy === "artist" ? "active" : ""}`} onClick={() => setGroupBy("artist")}>artist</button>
           <button className={`tab ${groupBy === "label" ? "active" : ""}`} onClick={() => setGroupBy("label")}>label</button>
+          <button className="tab" onClick={() => setFocusOpen(true)} title="One at a time, with big buttons and swipes">focus mode</button>
           <span className="comment-meta kb-hint">Keys: J / K move · Y approve · N dismiss · X tick</span>
         </div></div>
       )}
@@ -228,13 +244,46 @@ export default function VersionSuggestionsPage() {
                 </div>
               </div>
               <div className="review-row-actions">
-                <button className="rating-chip" disabled={busy} onClick={() => run("approve", [s.id])}>approve</button>
-                <button className="rating-chip" disabled={busy} onClick={() => run("dismiss", [s.id])}>dismiss</button>
+                <button className="rating-chip" disabled={busy} onClick={() => quick("approve", s)}>approve</button>
+                <button className="rating-chip" disabled={busy} onClick={() => quick("dismiss", s)}>dismiss</button>
               </div>
             </div>
           ))}
         </div>
       ))}
+
+      {focusOpen && (
+        <FocusReview
+          rows={ordered}
+          busy={busy}
+          yesLabel="approve"
+          noLabel="dismiss"
+          onYes={(s) => quick("approve", s)}
+          onNo={(s) => quick("dismiss", s)}
+          onClose={() => setFocusOpen(false)}
+          render={(s) => (
+            <>
+              <div className="comment-meta" style={{ marginBottom: 6 }}>{s.track_artist}</div>
+              <div className="focus-review-title">
+                <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`} target="_blank">{s.track_title}</Link>
+              </div>
+              <div className="focus-review-meta" style={{ marginBottom: 8 }}>
+                {s.version && <span className="feature-tag">{s.version}</span>}
+                {s.track_status && <span>{s.track_status}</span>}
+              </div>
+              <div style={{ fontSize: "1rem" }}>
+                {s.action === "merge" ? "Merge into " : "A version of "}
+                {s.parent_track_id ? (
+                  <strong>{s.parent_title}{s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}</strong>
+                ) : (
+                  <strong>{s.create_parent_title} (new main song)</strong>
+                )}
+                ?
+              </div>
+            </>
+          )}
+        />
+      )}
     </div>
   );
 }

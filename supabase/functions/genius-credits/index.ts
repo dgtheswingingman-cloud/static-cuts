@@ -25,9 +25,28 @@ function key(s: string) {
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
+class OutOfTickets extends Error {}
+
+// Every Genius call takes a ticket from the shared Genius allowance
+// (sc_api_allow), so this and the Genius imports together stay under the
+// limit. No ticket: stop and carry on next run.
+async function ticket() {
+  const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", "genius_pause_until").maybeSingle();
+  if (pause?.value && Date.parse(pause.value) > Date.now()) throw new OutOfTickets("Genius has asked us to pause");
+  const { data, error } = await db.rpc("sc_api_allow", { p_service: "genius", p_want: 1 });
+  if (error) return; // allowance not set up yet: keep the usual gentle pace
+  if (data !== 1) throw new OutOfTickets("Genius allowance used up for now");
+}
+
 async function genius(path: string, token: string) {
+  await ticket();
   const res = await fetch(`https://api.genius.com${path}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 429) throw new SlowDown();
+  if (res.status === 429) {
+    const wait = parseInt(res.headers.get("Retry-After") || "600", 10);
+    const until = new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString();
+    await db.from("sc_private_settings").upsert({ key: "genius_pause_until", value: until }, { onConflict: "key" });
+    throw new SlowDown();
+  }
   if (!res.ok) return null;
   return (await res.json())?.response ?? null;
 }
@@ -79,6 +98,7 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     if (e instanceof SlowDown) stopped = "Genius asked to slow down";
+    else if (e instanceof OutOfTickets) stopped = e.message;
     else stopped = String((e as Error)?.message ?? e);
   }
 

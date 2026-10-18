@@ -29,6 +29,7 @@ function SearchInner() {
 
   const [results, setResults] = useState<Song[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [fuzzy, setFuzzy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -59,7 +60,7 @@ function SearchInner() {
       p_offset: offset,
     });
     if (err) { setError(err.message); return null; }
-    return data as { total: number; items: Song[] };
+    return data as { total: number; items: Song[]; fuzzy?: boolean };
   }
 
   const key = params.toString();
@@ -72,6 +73,7 @@ function SearchInner() {
       if (!d) return;
       setResults(d.items);
       setTotal(d.total);
+      setFuzzy(!!d.fuzzy);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -99,7 +101,7 @@ function SearchInner() {
       <input
         className="search-input"
         style={{ width: "100%", marginBottom: 14 }}
-        placeholder="Song title, album or producer…"
+        placeholder="Song, artist, album or producer…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         autoFocus
@@ -145,7 +147,9 @@ function SearchInner() {
       {hasAnything && !error && !results && <div className="empty-state">searching…</div>}
       {results && (
         <div className="section-label">
-          {total.toLocaleString("en-GB")} song{total === 1 ? "" : "s"}
+          {fuzzy
+            ? `No exact matches. ${total.toLocaleString("en-GB")} close one${total === 1 ? "" : "s"}:`
+            : `${total.toLocaleString("en-GB")} song${total === 1 ? "" : "s"}`}
         </div>
       )}
       {results && results.length === 0 && <div className="empty-state">Nothing matches. Try fewer filters.</div>}

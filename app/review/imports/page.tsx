@@ -12,6 +12,7 @@ import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 import { useReviewKeys } from "../../components/useReviewKeys";
+import FocusReview from "../../components/FocusReview";
 
 type Suggestion = {
   id: string;
@@ -47,6 +48,7 @@ export default function ImportReviewPage() {
   const [statusOverride, setStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [focusOpen, setFocusOpen] = useState(false);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_import_suggestions", { p_limit: 5000 });
@@ -116,10 +118,23 @@ export default function ImportReviewPage() {
     load();
   }
 
+  // One song at a time (row buttons, keys, focus mode): no full reload, the
+  // song just leaves the list.
+  async function quick(kind: "approve" | "dismiss", s: Suggestion) {
+    setBusy(true);
+    const { error: err } = kind === "approve"
+      ? await supabase.rpc("admin_apply_import_suggestions", { p_ids: [s.id], p_status: statusOverride || null })
+      : await supabase.rpc("admin_dismiss_import_suggestions", { p_ids: [s.id] });
+    setBusy(false);
+    if (err) { setMessage(`Couldn't ${kind === "approve" ? "add" : "dismiss"} "${s.title}": ${err.message}`); return; }
+    setItems((prev) => (prev ?? []).filter((x) => x.id !== s.id));
+    setSelected((prev) => { const next = new Set(prev); next.delete(s.id); return next; });
+  }
+
   const ordered = useMemo(() => Object.values(groups).flat(), [groups]);
   const { focusedId } = useReviewKeys(ordered, {
-    yes: (s) => run("approve", [s.id]),
-    no: (s) => run("dismiss", [s.id]),
+    yes: (s) => quick("approve", s),
+    no: (s) => quick("dismiss", s),
     toggle: (s) => toggle(s.id),
   }, busy);
 
@@ -197,6 +212,9 @@ export default function ImportReviewPage() {
               onClick={() => { if (confirm(`Add all ${shown.length} songs shown?`)) run("approve", shown.map((s) => s.id)); }}>
               add all {shown.length} shown
             </button>
+            <button className="tab" onClick={() => setFocusOpen(true)} title="One song at a time, with big buttons and swipes">
+              focus mode
+            </button>
             <span className="comment-meta kb-hint">Keys: J / K move · Y add · N dismiss · X tick</span>
           </div>
         </div>
@@ -228,13 +246,43 @@ export default function ImportReviewPage() {
                 </div>
               </div>
               <div className="review-row-actions">
-                <button className="rating-chip" disabled={busy} onClick={() => run("approve", [s.id])}>add</button>
-                <button className="rating-chip" disabled={busy} onClick={() => run("dismiss", [s.id])}>dismiss</button>
+                <button className="rating-chip" disabled={busy} onClick={() => quick("approve", s)}>add</button>
+                <button className="rating-chip" disabled={busy} onClick={() => quick("dismiss", s)}>dismiss</button>
               </div>
             </div>
           ))}
         </div>
       ))}
+
+      {focusOpen && (
+        <FocusReview
+          rows={ordered}
+          busy={busy}
+          yesLabel="add"
+          noLabel="dismiss"
+          onYes={(s) => quick("approve", s)}
+          onNo={(s) => quick("dismiss", s)}
+          onClose={() => setFocusOpen(false)}
+          note={statusOverride ? `Adding as ${statusOverride}.` : undefined}
+          render={(s) => (
+            <>
+              <div className="comment-meta" style={{ marginBottom: 6 }}>{s.artist_name} · {SOURCE_NAMES[s.source] ?? s.source}</div>
+              <div className="focus-review-title">
+                {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}
+              </div>
+              <div className="focus-review-meta">
+                <span className="feature-tag">{statusOverride || s.status_guess}</span>
+                {s.version_of && <span className="feature-tag">version of {s.version_of}</span>}
+                {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
+                {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
+                {s.release_date && <span>{s.release_date}</span>}
+                {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
+                {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
+              </div>
+            </>
+          )}
+        />
+      )}
     </div>
   );
 }

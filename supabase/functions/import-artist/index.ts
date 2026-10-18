@@ -8,8 +8,8 @@
 //   lastfm   the artist's most-played tracks -> import review list
 //
 // Gentle by design (Spotify blocked us for a day once): one artist per call,
-// a pause between every request, every Spotify call counted against the
-// shared Spotify allowance, and it stops instead of retrying when a
+// a pause between every request, every call counted against that service's
+// shared allowance, and it stops instead of retrying when a
 // service says to slow down. The database checks who may import and how
 // often (sc_import_start).
 //
@@ -76,32 +76,40 @@ function cleanSpotifyTitle(t: string): string {
     .trim();
 }
 
-// Every Spotify call takes a ticket from the shared Spotify allowance first
-// (sc_spotify_allow: 15 a minute, 3,000 a day across all jobs). When this
-// minute's tickets are gone it waits for the next minute, up to 4 times.
-async function spotifyTicket() {
-  const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", "spotify_pause_until").maybeSingle();
+// Every call to Spotify, Genius or Last.fm takes a ticket from that
+// service's shared allowance first (sc_api_allow: a set number a minute and
+// a day across all jobs). When this minute's tickets are gone it waits for
+// the next minute, up to 4 times. Each service also has a shared pause that
+// every job respects after a "slow down" reply.
+const SERVICE_KEY: Record<string, string> = { Spotify: "spotify", Genius: "genius", "Last.fm": "lastfm" };
+
+async function apiTicket(service: string) {
+  const key = SERVICE_KEY[service];
+  if (!key) return;
+  const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", `${key}_pause_until`).maybeSingle();
   if (pause?.value && Date.parse(pause.value) > Date.now()) {
-    throw new Error("Spotify has asked us to pause for a while. Try this import again later.");
+    throw new Error(`${service} has asked us to pause for a while. Try this import again later.`);
   }
   for (let i = 0; i < 4; i++) {
-    const { data } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+    const { data, error } = key === "spotify"
+      ? await db.rpc("sc_spotify_allow", { p_want: 1 })
+      : await db.rpc("sc_api_allow", { p_service: key, p_want: 1 });
+    // Genius/Last.fm allowance not set up yet: carry on at the usual gentle pace.
+    if (error && key !== "spotify") return;
     if (data === 1) return;
     await sleep(61000 - (Date.now() % 60000));
   }
-  throw new Error("Spotify is busy with other jobs right now. Try this import again in a few minutes.");
+  throw new Error(`${service} is busy with other jobs right now. Try this import again in a few minutes.`);
 }
 
 async function getJson(url: string, init: RequestInit, service: string) {
-  if (service === "Spotify") await spotifyTicket();
+  await apiTicket(service);
   const res = await fetch(url, init);
   if (res.status === 429) {
     const wait = parseInt(res.headers.get("Retry-After") || "60", 10);
-    if (service === "Spotify") {
-      // Tell every Spotify job to stay off until Spotify says it's OK.
-      const until = new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString();
-      await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: until }, { onConflict: "key" });
-    }
+    // Tell every job using this service to stay off until it's OK.
+    const until = new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString();
+    await db.from("sc_private_settings").upsert({ key: `${SERVICE_KEY[service]}_pause_until`, value: until }, { onConflict: "key" });
     throw new SlowDown(service, wait);
   }
   if (!res.ok) throw new Error(`${service} returned ${res.status} for ${new URL(url).pathname}`);
@@ -279,6 +287,12 @@ async function importLastfm(artist: Artist, runId: string) {
     const data: any = await getJson(
       `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=${encodeURIComponent(name)}` +
         `&autocorrect=1&limit=200&page=${page}&api_key=${key}&format=json`, {}, "Last.fm");
+    if (data?.error === 29) {
+      // Last.fm's "rate limit exceeded" comes back as a normal reply.
+      const until = new Date(Date.now() + 600 * 1000).toISOString();
+      await db.from("sc_private_settings").upsert({ key: "lastfm_pause_until", value: until }, { onConflict: "key" });
+      throw new SlowDown("Last.fm", 600);
+    }
     if (data?.error) throw new Error(`Last.fm: ${data.message}`);
     correctedName = correctedName ?? data?.toptracks?.["@attr"]?.artist ?? null;
     const tracks: any[] = data?.toptracks?.track ?? [];
