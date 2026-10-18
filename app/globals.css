@@ -841,9 +841,8 @@ a.listen-link {
 /* Review queue: moderator tools and admin tools as two labelled rows. */
 .review-nav {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 14px;
+  align-items: baseline;
+  gap: 6px 10px;
   margin-bottom: 8px;
   font-family: var(--font-mono), monospace;
   font-size: 0.72rem;
@@ -860,6 +859,7 @@ a.listen-link {
   color: var(--bone);
 }
 .review-nav-label {
+  flex: none;
   color: var(--hair-strong);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1137,4 +1137,31 @@ a.listen-link {
 }
 .review-nav a.nav-empty {
   opacity: 0.55;
+}
+
+/* The links after the label wrap among themselves, never under the label. */
+.review-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-width: 0;
+}
+
+/* Admin shortcuts in the mode bar. */
+.mode-bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+}
+.mode-bar-links a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.85;
+}
+.mode-bar-links a:hover,
+.mode-bar-links a.on {
+  opacity: 1;
+  font-weight: 600;
 }

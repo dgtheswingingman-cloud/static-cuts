@@ -471,23 +471,25 @@ export default function ReviewPage() {
       <h1 className="detail-name page-title">Moderation</h1>
       <nav className="review-nav" aria-label="Moderator tools">
         <span className="review-nav-label">check</span>
+        <div className="review-nav-links">
         <NavCount href="/review/duplicates" label="duplicates" />
         <NavCount href="/review/versions" label="sub-versions" n={counts?.sub_versions} />
         <NavCount href="/review/imports" label="imported songs" n={counts?.imported_songs} />
         <NavCount href="/review/guests" label="guest artists" n={counts?.guest_artists} />
         <NavCount href="/review/comments" label="reported comments" n={counts?.reported_comments} />
         <NavCount href="/admin/sheets" label="import a spreadsheet" n={counts?.sheet_requests || undefined} />
+        </div>
       </nav>
       {isAdmin && (
         <nav className="review-nav" aria-label="Admin tools">
           <span className="review-nav-label">admin</span>
+          <div className="review-nav-links">
           <NavCount href="/review/takedowns" label="takedowns" n={counts?.takedowns ?? undefined} />
           <Link href="/admin/queue">artist queue</Link>
           <Link href="/admin/auto-approve">auto-approve</Link>
           <Link href="/admin/moderators">moderators</Link>
-          <Link href="/admin/batches">undo history</Link>
-          <Link href="/admin/health">site health</Link>
           <Link href="/admin/spotify-matcher">link tools</Link>
+          </div>
         </nav>
       )}
 
