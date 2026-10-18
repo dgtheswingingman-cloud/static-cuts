@@ -1165,3 +1165,52 @@ a.listen-link {
   opacity: 1;
   font-weight: 600;
 }
+
+/* Moderation page: one card per job. */
+.mod-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mod-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--hair);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--smoke);
+}
+.mod-card:hover {
+  border-color: var(--hair-strong);
+}
+.mod-card.waiting {
+  border-color: var(--hair-strong);
+}
+.mod-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.mod-card-title {
+  color: var(--bone);
+  font-size: 0.92rem;
+}
+.mod-card-count {
+  font-family: var(--font-anton), sans-serif;
+  font-size: 1.3rem;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.mod-card.clear .mod-card-count {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  color: var(--smoke);
+}
+.mod-card-blurb {
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
