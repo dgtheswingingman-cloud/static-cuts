@@ -1487,7 +1487,7 @@ export default function ArtistPage() {
                 title="Moves this artist up the queue so it gets checked for new music soon."
                 onClick={requestCheck}
               >
-                {checkRequested ? "✓ check requested" : "request a check"}
+                {checkRequested ? "✓ requested" : "request check"}
               </button>
             )}
             {user && tracks && (
@@ -1504,12 +1504,12 @@ export default function ArtistPage() {
                 style={{ textDecoration: "none" }}
                 title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
               >
-                find links with ChatGPT ↗
+                find links ↗
               </a>
             )}
             {!isAdmin && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab" style={{ textDecoration: "none" }}>
-                + suggest a track
+                + suggest track
               </a>
             )}
           </div>
