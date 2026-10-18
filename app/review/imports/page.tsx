@@ -37,6 +37,8 @@ export default function ImportReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [artistFilter, setArtistFilter] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "songs" | "features">("all");
+  const [sort, setSort] = useState<"popular" | "az">("popular");
   const [statusOverride, setStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,7 +60,14 @@ export default function ImportReviewPage() {
   }, [isRealAdmin]);
 
   const artists = useMemo(() => Array.from(new Set((items ?? []).map((s) => s.artist_name))).sort(), [items]);
-  const shown = useMemo(() => (items ?? []).filter((s) => !artistFilter || s.artist_name === artistFilter), [items, artistFilter]);
+  const popularity = (s: Suggestion) => s.extra?.listeners ?? s.extra?.pageviews ?? -1;
+  const shown = useMemo(() => {
+    const list = (items ?? []).filter((s) =>
+      (!artistFilter || s.artist_name === artistFilter) &&
+      (kindFilter === "all" || (kindFilter === "features" ? !!s.main_artist_name : !s.main_artist_name)));
+    return [...list].sort((a, b) =>
+      sort === "popular" ? popularity(b) - popularity(a) || a.title.localeCompare(b.title) : a.title.localeCompare(b.title));
+  }, [items, artistFilter, kindFilter, sort]);
   const groups = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
     shown.forEach((s) => {
@@ -105,9 +114,9 @@ export default function ImportReviewPage() {
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Imported Songs</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Songs the Genius and Last.fm imports found that aren&apos;t on the page yet. Genius often lists unreleased songs;
-        Last.fm titles come from what people play, so leaks show up (with listener counts). Approve adds them; versions
-        like &quot;(Demo)&quot; are filed under their main song automatically.{" "}
-        <Link href="/admin/batches" className="listen-link">undo history</Link>
+        Last.fm titles come from what people play, so leaks show up. Added songs are filed under their main song
+        automatically when they&apos;re a version, and can be reversed from the{" "}
+        <Link href="/admin/batches" className="text-link">undo history</Link>.
       </div>
 
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
@@ -118,50 +127,71 @@ export default function ImportReviewPage() {
       )}
 
       {items && items.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-          <select id="import-artist-filter" className="sort-select" value={artistFilter} onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); }}>
-            <option value="">all artists ({items.length})</option>
-            {artists.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all</button>
-          <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
-          <label className="comment-meta" htmlFor="import-status">add as</label>
-          <select id="import-status" className="sort-select" value={statusOverride} onChange={(e) => setStatusOverride(e.target.value)}>
-            <option value="">suggested status</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
-            {busy ? "working…" : `add selected (${selectedHere.length})`}
-          </button>
-          <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
-            dismiss selected
-          </button>
+        <div className="review-toolbar">
+          <div className="review-toolbar-row">
+            <span className="review-toolbar-label">show</span>
+            <select id="import-artist-filter" className="sort-select" value={artistFilter}
+              onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); }}>
+              <option value="">all artists ({items.length})</option>
+              {artists.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select id="import-kind-filter" className="sort-select" value={kindFilter}
+              onChange={(e) => { setKindFilter(e.target.value as typeof kindFilter); setSelected(new Set()); }}>
+              <option value="all">songs and features</option>
+              <option value="songs">their own songs</option>
+              <option value="features">features on other songs</option>
+            </select>
+            <select id="import-sort" className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              <option value="popular">most popular first</option>
+              <option value="az">A to Z</option>
+            </select>
+            <span className="comment-meta">{shown.length} shown</span>
+          </div>
+          <div className="review-toolbar-row">
+            <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all shown</button>
+            <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
+            <span className="review-toolbar-label" style={{ marginLeft: 8 }}>add as</span>
+            <select id="import-status" className="sort-select" value={statusOverride} onChange={(e) => setStatusOverride(e.target.value)}>
+              <option value="">suggested status</option>
+              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
+              {busy ? "working…" : `add selected (${selectedHere.length})`}
+            </button>
+            <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
+              dismiss selected
+            </button>
+          </div>
         </div>
       )}
 
       {Object.keys(groups).map((g) => (
-        <div key={g} style={{ marginBottom: 16 }}>
-          <div className="section-label" style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-            {g}
+        <div key={g}>
+          <div className="review-group-head">
+            <span className="section-label" style={{ margin: 0 }}>{g} ({groups[g].length})</span>
             <button className="rating-chip" onClick={() => setSelected((prev) => new Set([...prev, ...groups[g].map((s) => s.id)]))}>
               select these
             </button>
           </div>
           {groups[g].map((s) => (
-            <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "3px 0", flexWrap: "wrap" }}>
+            <div key={s.id} className="review-row">
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.title}`} />
-              <span className="comment-body" style={{ minWidth: 0 }}>
-                {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--bone)" }}>{s.title}</a> : s.title}
-              </span>
-              {s.status_guess !== "unconfirmed" && <span className="feature-tag">{s.status_guess}</span>}
-              {s.main_artist_name && <span className="comment-meta">feature on {s.main_artist_name}&apos;s song</span>}
-              {s.release_date && <span className="comment-meta">{s.release_date}</span>}
-              {s.extra?.listeners != null && <span className="comment-meta">{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
-              {s.extra?.pageviews != null && <span className="comment-meta">{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
-              <span style={{ display: "inline-flex", gap: 6 }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="review-row-title">
+                  {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}
+                </div>
+                <div className="review-row-meta">
+                  {s.status_guess !== "unconfirmed" && <span className="feature-tag">{s.status_guess}</span>}
+                  {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
+                  {s.release_date && <span>{s.release_date}</span>}
+                  {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
+                  {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
+                </div>
+              </div>
+              <div className="review-row-actions">
                 <button className="rating-chip" disabled={busy} onClick={() => run("approve", [s.id])}>add</button>
                 <button className="rating-chip" disabled={busy} onClick={() => run("dismiss", [s.id])}>dismiss</button>
-              </span>
+              </div>
             </div>
           ))}
         </div>

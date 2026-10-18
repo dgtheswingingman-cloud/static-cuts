@@ -22,8 +22,19 @@ function searchLinks(name: string) {
   };
 }
 
-export default function ArtistProfiles({ artistId, artistName }: { artistId: string; artistName: string }) {
-  const [open, setOpen] = useState(false);
+// The "profiles" button lives in the artist page's admin row; this renders
+// the panel when it's open. linkedCount reports how many are linked (0-3).
+export default function ArtistProfiles({
+  artistId,
+  artistName,
+  open,
+  onLinkedCount,
+}: {
+  artistId: string;
+  artistName: string;
+  open: boolean;
+  onLinkedCount?: (n: number) => void;
+}) {
   const [saved, setSaved] = useState<Profiles | null>(null);
   const [spotify, setSpotify] = useState("");
   const [genius, setGenius] = useState("");
@@ -67,12 +78,16 @@ export default function ArtistProfiles({ artistId, artistName }: { artistId: str
   const linked = saved ? [saved.spotify_artist_id && "Spotify", saved.genius_artist_id && "Genius", saved.lastfm_name && "Last.fm"].filter(Boolean) : [];
   const find = searchLinks(artistName);
 
+  useEffect(() => {
+    onLinkedCount?.(linked.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked.length]);
+
+  if (!open) return null;
+
   return (
     <>
-      <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setOpen(!open)}>
-        profiles{linked.length ? ` (${linked.length}/3)` : ""}
-      </button>
-      {open && (
+      {(
         <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
           <div className="comment-meta" style={{ marginBottom: 10 }}>
             Link this artist to their profiles so imports pull songs from the right artist. Paste the profile

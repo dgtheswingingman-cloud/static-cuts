@@ -56,20 +56,24 @@ export default function ImportPanel({
   trackCount,
   signedIn,
   onImported,
+  open,
+  onClose,
 }: {
   artistId: string;
   artistName: string;
   trackCount: number;
   signedIn: boolean;
   onImported: () => void;
+  // Controlled by the artist page's "import songs" button (open by default
+  // on empty or thin pages).
+  open: boolean;
+  onClose: () => void;
 }) {
   const thin = trackCount <= 10;
-  const [open, setOpen] = useState(thin);
   const [busy, setBusy] = useState<Source | null>(null);
   const [messages, setMessages] = useState<Partial<Record<Source, string>>>({});
   const [lastRuns, setLastRuns] = useState<Partial<Record<Source, LastRun>>>({});
 
-  useEffect(() => { setOpen(thin); }, [thin]);
 
   async function loadRuns() {
     const { data } = await supabase.rpc("rpc_artist_imports", { p_artist_id: artistId });
@@ -109,13 +113,7 @@ export default function ImportPanel({
 
   if (!signedIn) return null;
 
-  if (!open) {
-    return (
-      <button className="tab" style={{ marginBottom: 14, marginLeft: 8 }} onClick={() => setOpen(true)}>
-        import songs
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
     <div className="comments-panel" style={{ maxWidth: 560, marginBottom: 20 }}>
@@ -159,9 +157,7 @@ export default function ImportPanel({
           looks for leaks, snippets and unreleased songs, sent for review. Needs the Static Cuts connector (see settings).
         </span>
       </div>
-      {!thin && (
-        <button className="rating-chip" style={{ marginTop: 10 }} onClick={() => setOpen(false)}>close</button>
-      )}
+      <button className="rating-chip" style={{ marginTop: 10 }} onClick={onClose}>close</button>
     </div>
   );
 }
