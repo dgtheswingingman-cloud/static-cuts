@@ -49,9 +49,29 @@ function norm(s: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
+// Pull "(feat. X)", "(with X)", "ft. X" out of a title. Every source writes
+// credits differently, so titles are stored without them and the guests go
+// in the featured field instead.
+function splitCredits(t: string): { title: string; credits: string[] } {
+  const credits: string[] = [];
+  let title = t.replace(/\s*[\(\[]\s*(?:feat\.|ft\.|feat\s|ft\s|featuring\s|with\s)\s*([^\)\]]*)[\)\]]/gi, (_m, who) => {
+    credits.push(who.trim());
+    return "";
+  });
+  title = title.replace(/\s+(?:feat\.?|ft\.?|featuring)\s+(.*)$/i, (_m, who) => {
+    credits.push(who.trim());
+    return "";
+  });
+  // Notes that aren't part of the song name.
+  title = title.replace(/\s*[\(\[]\s*(official (music )?video|official audio|official visuali[sz]er|visuali[sz]er|audio|lyric video|lyrics)\s*[\)\]]/gi, "");
+  return { title: title.replace(/\s{2,}/g, " ").trim(), credits: credits.filter(Boolean) };
+}
+
 // " - 2011 Remaster", " - Single Version" etc. aren't part of the song name.
 function cleanSpotifyTitle(t: string): string {
-  return t.replace(/\s+-\s+(\d{4}\s+)?(remaster(ed)?( version)?|single version|radio edit|mono|stereo|bonus track)\b.*$/i, "").trim();
+  return splitCredits(t).title
+    .replace(/\s+-\s+(\d{4}\s+)?(remaster(ed)?( version)?|single version|radio edit|mono|stereo|bonus track)\b.*$/i, "")
+    .trim();
 }
 
 async function getJson(url: string, init: RequestInit, service: string) {
@@ -122,6 +142,7 @@ async function importSpotify(artist: Artist, runId: string) {
         const names: any[] = tr.artists ?? [];
         if (!names.some((a) => a.id === spotifyId)) continue; // not on this song
         const title = cleanSpotifyTitle(tr.name);
+        const titleCredits = splitCredits(tr.name).credits;
         const key = norm(title);
         if (!key || items.has(key)) continue;
         const isFeature = names[0]?.id !== spotifyId;
@@ -132,7 +153,7 @@ async function importSpotify(artist: Artist, runId: string) {
           release_date: album.release_date_precision === "day" ? album.release_date : null,
           track_number: album.album_type === "album" ? tr.track_number : null,
           main_artist_name: isFeature ? names[0]?.name : null,
-          featured: names.filter((a) => a.id !== spotifyId && a.id !== names[0]?.id).map((a) => a.name).join(", ") || null,
+          featured: [...new Set([...names.filter((a) => a.id !== spotifyId && a.id !== names[0]?.id).map((a) => a.name), ...titleCredits])].join(", ") || null,
         });
       }
     }
@@ -177,7 +198,7 @@ async function importGenius(artist: Artist, runId: string) {
     const data: any = await getJson(
       `https://api.genius.com/artists/${geniusId}/songs?per_page=50&sort=title&page=${page}`, h, "Genius");
     for (const song of data?.response?.songs ?? []) {
-      const title: string = (song.title || "").trim();
+      const { title, credits } = splitCredits((song.title || "").trim());
       if (!title || NOT_A_SONG.test(title) || NOT_A_SONG.test(song.primary_artist?.name || "")) continue;
       const key = norm(title);
       if (!key || items.has(key)) continue;
@@ -192,7 +213,7 @@ async function importGenius(artist: Artist, runId: string) {
         // Genius doesn't say whether a song is out. Leave the call to the reviewer.
         status_guess: "unconfirmed",
         main_artist_name: isFeature ? song.primary_artist?.name : null,
-        extra: { pageviews: song.stats?.pageviews ?? null, genius_id: song.id },
+        extra: { pageviews: song.stats?.pageviews ?? null, genius_id: song.id, featuring: credits.join(", ") || null },
       });
     }
     page = data?.response?.next_page ?? 0;
@@ -211,17 +232,16 @@ async function importGenius(artist: Artist, runId: string) {
 // ----------------------------------------------------------------- Last.fm
 
 // Tags people add to leaked tracks' names, and what they tell us.
-function cleanLastfmTitle(raw: string): { title: string; status: string } {
+function cleanLastfmTitle(raw: string): { title: string; status: string; credits: string[] } {
   let status = "unconfirmed";
   if (/\b(leak|leaked|cdq|og file)\b/i.test(raw)) status = "leaked";
   if (/\bsnippet\b/i.test(raw)) status = "snippet";
-  const title = raw
+  const stripped = raw
     .replace(/\s*[\(\[]\s*(leak|leaked|cdq|hq|lq|snippet|unreleased|og file|full|official audio|official video|audio|lyrics?)\s*[\)\]]/gi, "")
-    .replace(/\s*[\(\[]\s*(feat\.?|ft\.?|featuring|prod\.?|produced by)\s[^\)\]]*[\)\]]/gi, "")
-    .replace(/\s+-\s+(leak|leaked|unreleased|snippet|cdq)\s*$/i, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-  return { title, status };
+    .replace(/\s*[\(\[]\s*(prod\.?|produced by)\s[^\)\]]*[\)\]]/gi, "")
+    .replace(/\s+-\s+(leak|leaked|unreleased|snippet|cdq)\s*$/i, "");
+  const { title, credits } = splitCredits(stripped);
+  return { title, status, credits };
 }
 
 async function importLastfm(artist: Artist, runId: string) {
@@ -241,10 +261,13 @@ async function importLastfm(artist: Artist, runId: string) {
     for (const t of tracks) {
       const listeners = parseInt(t.listeners || "0", 10);
       if (listeners < 500) continue; // the long tail is mostly typos and junk
-      const { title, status } = cleanLastfmTitle(t.name || "");
+      const { title, status, credits } = cleanLastfmTitle(t.name || "");
       const k = norm(title);
       if (!k || items.has(k)) continue;
-      items.set(k, { title, url: t.url, status_guess: status, extra: { listeners, playcount: parseInt(t.playcount || "0", 10) } });
+      items.set(k, {
+        title, url: t.url, status_guess: status,
+        extra: { listeners, playcount: parseInt(t.playcount || "0", 10), featuring: credits.join(", ") || null },
+      });
     }
     const totalPages = parseInt(data?.toptracks?.["@attr"]?.totalPages || "1", 10);
     if (page >= totalPages || tracks.every((t) => parseInt(t.listeners || "0", 10) < 500)) break;
