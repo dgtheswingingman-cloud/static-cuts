@@ -10,6 +10,7 @@ import AlbumAutocomplete from "../../components/AlbumAutocomplete";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
+import ArtistProfiles from "./ArtistProfiles";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 
@@ -1488,6 +1489,7 @@ export default function ArtistPage() {
               delete artist
             </button>
           )}
+          {isAdmin && <ArtistProfiles artistId={id} artistName={artist.name} />}
           {addingTrack && isAdmin && (
             <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
               <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Title"

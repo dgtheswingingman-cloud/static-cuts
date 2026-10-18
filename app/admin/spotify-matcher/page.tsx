@@ -9,7 +9,9 @@ const MATCH_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/match-spot
 const VERIFY_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/verify-spotify-links";
 const LINKS_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/find-possible-links";
 
-function useRunner(functionUrl: string, limit: number) {
+// pauseSeconds between batches keeps every runner well under the services'
+// rate limits (about 30 calls a minute). Faster got Spotify to block us for 24h.
+function useRunner(functionUrl: string, limit: number, pauseSeconds: number) {
   const [running, setRunning] = useState(false);
   const [totalChecked, setTotalChecked] = useState(0);
   const [totalSecondary, setTotalSecondary] = useState(0); // "matched" or "deadFound" depending on which system
@@ -63,7 +65,7 @@ function useRunner(functionUrl: string, limit: number) {
         await new Promise((r) => setTimeout(r, wait * 1000));
       } else {
         consecutiveRateLimits = 0;
-        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise((r) => setTimeout(r, pauseSeconds * 1000));
       }
     }
 
@@ -84,6 +86,7 @@ function RunnerPanel({
   secondaryLabel,
   functionUrl,
   limit,
+  pauseSeconds = 20,
   secondaryKey,
 }: {
   title: string;
@@ -91,9 +94,10 @@ function RunnerPanel({
   secondaryLabel: string;
   functionUrl: string;
   limit: number;
+  pauseSeconds?: number;
   secondaryKey: "matched" | "deadFound" | "found";
 }) {
-  const { running, totalChecked, totalSecondary, log, run, stop } = useRunner(functionUrl, limit);
+  const { running, totalChecked, totalSecondary, log, run, stop } = useRunner(functionUrl, limit, pauseSeconds);
 
   return (
     <div style={{ marginBottom: 40 }}>
@@ -143,7 +147,8 @@ export default function SpotifyMatcherPage() {
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Link Discovery Tools</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
         Two separate systems. Keep this tab open while either runs — closing it stops the process,
-        same as closing a terminal window would.
+        same as closing a terminal window would. Each runs at about 30 songs a minute so the
+        services don&apos;t block us; leave a big run going overnight.
       </div>
 
       <RunnerPanel
@@ -151,7 +156,7 @@ export default function SpotifyMatcherPage() {
         description="Searches tracks with no confirmed link yet. Each one gets marked as checked whether or not a match is found, so re-running never wastes quota re-checking the same ones."
         secondaryLabel="matched"
         functionUrl={MATCH_URL}
-        limit={20}
+        limit={10}
         secondaryKey="matched"
       />
 
@@ -160,7 +165,7 @@ export default function SpotifyMatcherPage() {
         description="Re-checks tracks that already have a confirmed link, to catch ones Spotify has since removed. Dead links get cleared automatically, making that track eligible for Find New Links again."
         secondaryLabel="dead found"
         functionUrl={VERIFY_URL}
-        limit={30}
+        limit={10}
         secondaryKey="deadFound"
       />
 
@@ -169,7 +174,7 @@ export default function SpotifyMatcherPage() {
         description="Searches Genius, SoundCloud, YouTube, Bandcamp, and Discogs for unofficial/unreleased tracks with no confirmed link, storing results as unverified candidates for community review."
         secondaryLabel="searches with results"
         functionUrl={LINKS_URL}
-        limit={15}
+        limit={10}
         secondaryKey="found"
       />
     </div>

@@ -2,11 +2,21 @@
 # been checked. Run this from PowerShell (needs internet access).
 #
 # Usage: .\run-spotify-matching.ps1 -FunctionUrl "https://<project-ref>.functions.supabase.co/match-spotify"
+#
+# Gentle by default: 10 songs per batch, 20s between batches, which is about
+# 30 Spotify searches a minute (one search per song). The old pace (about 140
+# a minute) got a 24-hour block. 20,000 songs takes roughly 11 hours, so run
+# it overnight. You can stop it with Ctrl+C at any time and start it again
+# later: it carries on from where it got to.
 
 param(
     [Parameter(Mandatory=$true)]
-    [string]$FunctionUrl
+    [string]$FunctionUrl,
+    [int]$BatchSize = 10,
+    [int]$PauseSeconds = 20
 )
+
+$started = Get-Date
 
 $totalChecked = 0
 $totalMatched = 0
@@ -14,10 +24,10 @@ $consecutiveRateLimits = 0
 
 while ($true) {
     try {
-        $response = Invoke-RestMethod -Uri "$FunctionUrl`?limit=20" -Method Get
+        $response = Invoke-RestMethod -Uri "$FunctionUrl`?limit=$BatchSize" -Method Get
     } catch {
-        Write-Host ">>> Request failed: $_. Waiting 30s and retrying..."
-        Start-Sleep -Seconds 30
+        Write-Host ">>> Request failed: $_. Waiting 60s and retrying..."
+        Start-Sleep -Seconds 60
         continue
     }
 
@@ -27,7 +37,8 @@ while ($true) {
     $matched = if ($response.matched) { $response.matched } else { 0 }
     $totalChecked += $checked
     $totalMatched += $matched
-    Write-Host ">>> running totals: checked=$totalChecked matched=$totalMatched"
+    $mins = [Math]::Max(1, [Math]::Round(((Get-Date) - $started).TotalMinutes))
+    Write-Host ">>> $(Get-Date -Format HH:mm) running totals: checked=$totalChecked matched=$totalMatched (about $([Math]::Round($totalChecked / $mins)) a minute)"
 
     if ($response.done -eq $true) {
         Write-Host ">>> All tracks checked. Done."
@@ -55,9 +66,8 @@ while ($true) {
         Start-Sleep -Seconds $wait
     } else {
         $consecutiveRateLimits = 0
-        # A small pause between every successful batch, not just after
-        # hitting a limit -- spreads requests out so we're less likely to
-        # trip the burst threshold that caused the extended block.
-        Start-Sleep -Seconds 3
+        # Pause between every batch, not just after hitting a limit, so
+        # requests stay spread out well under Spotify's burst threshold.
+        Start-Sleep -Seconds $PauseSeconds
     }
 }
