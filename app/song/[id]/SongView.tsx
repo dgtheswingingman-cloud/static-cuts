@@ -23,6 +23,7 @@ type Track = {
   aliases: string | null;
   track_number: number | null;
   release_date: string | null;
+  leak_date?: string | null;
   producers: string | null;
   genre: string | null;
   notes: string | null;
@@ -134,6 +135,7 @@ export default function SongView({ id }: { id: string }) {
   if (t.album) info.push(["Album", t.album]);
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
+  if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
   if (t.producers) info.push(["Producers", t.producers]);
   if (song.appears_on.length > 0) {
     info.push(["Featuring", (
