@@ -83,8 +83,8 @@ begin
   group by lower(nm)
   on conflict (name_key) do update set songs = excluded.songs, updated_at = now();
   -- Names nobody mentions any more.
-  update guest_artists g set songs = 0
-  where g.songs > 0 and not exists (select 1 from tracks where notes like 'Feature on %' and lower(sc_guest_name(notes)) = g.name_key);
+  update guest_artists ga set songs = 0
+  where ga.songs > 0 and not exists (select 1 from tracks where notes like 'Feature on %' and lower(sc_guest_name(notes)) = ga.name_key);
   for g in select * from guest_artists where artist_id is not null and songs > 0 loop
     perform set_config('static_cuts.batch_id', '', true);
     perform sc_begin_batch('guests', 'Songs moved to ' || g.name || '''s page');
