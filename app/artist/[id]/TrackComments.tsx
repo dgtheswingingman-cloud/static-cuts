@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import { useIsAdmin } from "../../useIsAdmin";
+import AdminModeNote from "../../components/AdminModeNote";
 
 type CommentRow = {
   id: string;
@@ -28,6 +30,9 @@ type SortMode = "top" | "newest";
 
 export default function TrackComments({ trackId }: { trackId: string }) {
   const { user } = useAuth();
+  // Admin mode reads comments but doesn't take part (no posting, votes,
+  // replies or reports); that's done from the regular user view.
+  const isAdmin = useIsAdmin();
   const router = useRouter();
 
   const [comments, setComments] = useState<CommentRow[] | null>(null);
@@ -176,17 +181,20 @@ export default function TrackComments({ trackId }: { trackId: string }) {
         <div className="comment-actions">
           <button
             className={`comment-action-btn ${voted ? "voted" : ""}`}
+            disabled={isAdmin}
             onClick={() => toggleVote(c.id)}
           >
             ▲ {voteCounts[c.id] ?? 0}
           </button>
-          <button
-            className="comment-action-btn"
-            onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
-          >
-            reply
-          </button>
-          {user && c.user_id === user.id && (
+          {!isAdmin && (
+            <button
+              className="comment-action-btn"
+              onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
+            >
+              reply
+            </button>
+          )}
+          {!isAdmin && user && c.user_id === user.id && (
             <button
               className="comment-action-btn"
               onClick={() => deleteComment(c.id, replies.length > 0)}
@@ -194,7 +202,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
               delete
             </button>
           )}
-          {user && c.user_id !== user.id && !reported[c.id] && (
+          {!isAdmin && user && c.user_id !== user.id && !reported[c.id] && (
             <button className="comment-action-btn" onClick={() => setReportingId(reportingId === c.id ? null : c.id)}>
               report
             </button>
@@ -256,10 +264,13 @@ export default function TrackComments({ trackId }: { trackId: string }) {
       {sortedTopLevel.map((c) => renderComment(c, 0))}
       {sortedTopLevel.length === 0 && (
         <div className="comments-count" style={{ marginBottom: 10 }}>
-          No comments yet — be the first.
+          {isAdmin ? "No comments yet." : "No comments yet. Be the first."}
         </div>
       )}
 
+      {isAdmin ? (
+        <div style={{ marginTop: 14 }}><AdminModeNote what="comment, reply or vote" /></div>
+      ) : (
       <div style={{ marginTop: 14 }}>
         <textarea
           className="comment-textarea"
@@ -277,6 +288,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
         </button>
         {postError && <div className="comment-meta error-text" style={{ marginTop: 6 }}>{postError}</div>}
       </div>
+      )}
     </div>
   );
 }

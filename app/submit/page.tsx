@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
 import DateDropdownPicker from "../components/DateDropdownPicker";
 import AlbumAutocomplete from "../components/AlbumAutocomplete";
 
@@ -11,6 +12,7 @@ type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "f
 
 function SubmitForm() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -428,6 +430,19 @@ function SubmitForm() {
         <div className="empty-state" style={{ marginTop: 16 }}>
           Your submission is in the queue for review. Check{" "}
           <a href="/my-submissions" style={{ color: "var(--bone)" }}>my submissions</a> for status.
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="wrap">
+        <button className="back-btn" onClick={() => router.back()}>← back</button>
+        <h1 className="detail-name page-title">Suggestions</h1>
+        <div className="empty-state" style={{ marginTop: 16 }}>
+          Admin mode doesn&apos;t send suggestions: edit the artist page directly, or switch your role to
+          &ldquo;Regular user&rdquo; (under your name on the home page) to suggest like everyone else.
         </div>
       </div>
     );

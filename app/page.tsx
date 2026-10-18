@@ -394,7 +394,7 @@ export default function HomePage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
                     <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {user && following && (
+                      {user && !isAdmin && following && (
                         <button
                           className={`rating-chip ${pinnedIds.has(a.id) ? "rated" : ""}`}
                           style={{ fontSize: "0.6rem", padding: "3px 7px" }}
@@ -405,7 +405,7 @@ export default function HomePage() {
                           {pinnedIds.has(a.id) ? "📌 pinned" : "📌 pin"}
                         </button>
                       )}
-                      {user && (
+                      {user && !isAdmin && (
                         <button
                           className={`rating-chip ${following ? "rated" : ""}`}
                           style={{ fontSize: "0.6rem", padding: "3px 7px" }}
@@ -436,7 +436,7 @@ export default function HomePage() {
               {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."} Every
               artist here got added because someone wanted to track them — you could be the one to
               start theirs.{" "}
-              {user && (
+              {user && !isAdmin && (
                 <a href={`/submit?prefill_name=${encodeURIComponent(query)}`} style={{ color: "var(--bone)" }}>
                   Suggest &quot;{query}&quot; as a new artist →
                 </a>

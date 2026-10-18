@@ -12,6 +12,8 @@ import TrackComments from "../../artist/[id]/TrackComments";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
+import { useIsAdmin } from "../../useIsAdmin";
+import AdminModeNote from "../../components/AdminModeNote";
 
 type Track = {
   id: string;
@@ -63,6 +65,7 @@ function formatDate(d: string, withYear = true) {
 
 export default function SongView({ id }: { id: string }) {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [song, setSong] = useState<Song | null>(null);
   const [missing, setMissing] = useState(false);
@@ -204,19 +207,24 @@ export default function SongView({ id }: { id: string }) {
             listen ↗
           </a>
         )}
-        <button className={`tab ${song.owned ? "active" : ""}`} disabled={busy} onClick={toggleOwned}>
-          {song.owned ? "✓ collected" : "collect"}
-        </button>
-        <button className={`tab ${song.my_rating ? "active" : ""}`} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
-          {song.my_rating ? `rated ${song.my_rating}/10` : "rate"}
-        </button>
+        {!isAdmin && (
+          <>
+            <button className={`tab ${song.owned ? "active" : ""}`} disabled={busy} onClick={toggleOwned}>
+              {song.owned ? "✓ collected" : "collect"}
+            </button>
+            <button className={`tab ${song.my_rating ? "active" : ""}`} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
+              {song.my_rating ? `rated ${song.my_rating}/10` : "rate"}
+            </button>
+          </>
+        )}
         <button className="tab" onClick={share}>{copied ? "link copied" : "share"}</button>
-        {(["announced", "teased", "snippet", "rumored"].includes(statusOf(t)) ||
+        {!isAdmin && (["announced", "teased", "snippet", "rumored"].includes(statusOf(t)) ||
           (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
-        <AddToList trackId={t.id} />
+        {!isAdmin && <AddToList trackId={t.id} />}
       </div>
+      {isAdmin && <AdminModeNote what="collect, rate, comment, vote or add to a list" />}
 
-      {rateOpen && (
+      {rateOpen && !isAdmin && (
         <div className="comments-panel" style={{ marginTop: 10 }}>
           <div className="comment-meta" style={{ marginBottom: 8 }}>
             {song.my_rating
@@ -232,7 +240,7 @@ export default function SongView({ id }: { id: string }) {
         </div>
       )}
 
-      {VOTEABLE_STATUSES.includes(statusOf(t)) && <RealOrFake trackId={t.id} />}
+      {!isAdmin && VOTEABLE_STATUSES.includes(statusOf(t)) && <RealOrFake trackId={t.id} />}
 
       <div className="health-tiles" style={{ marginTop: 20 }}>
         <div className="health-tile">
@@ -297,7 +305,7 @@ export default function SongView({ id }: { id: string }) {
       <TrackComments trackId={t.id} />
 
       <div className="comment-meta" style={{ marginTop: 30, display: "flex", gap: 14, flexWrap: "wrap" }}>
-        <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">suggest an edit or a version</Link>
+        <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">{isAdmin ? "edit on the artist page" : "suggest an edit or a version"}</Link>
         <Link href={`/takedown?url=${encodeURIComponent(`https://static-cuts.com/song/${t.id}`)}`} className="text-link">takedown request</Link>
       </div>
     </div>

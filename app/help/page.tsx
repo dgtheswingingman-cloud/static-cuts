@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
+import AdminModeNote from "../components/AdminModeNote";
 
 type Kind = "links" | "info" | "status" | "thin";
 type Counts = Record<Kind, number>;
@@ -26,6 +28,7 @@ const TABS: { kind: Kind; label: string; blurb: string }[] = [
 
 export default function HelpWantedPage() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("links");
   const [following, setFollowing] = useState(false);
@@ -93,6 +96,7 @@ export default function HelpWantedPage() {
         </button>
       </div>
       <div className="comment-meta" style={{ marginBottom: 14 }}>{tab.blurb}</div>
+      {isAdmin && <div style={{ marginBottom: 14 }}><AdminModeNote what="vote on links or suggest fixes" /></div>}
 
       {error && <div className="empty-state">Something went wrong: {error}</div>}
       {!error && !items && <div className="empty-state">loading…</div>}
@@ -113,10 +117,12 @@ export default function HelpWantedPage() {
               {c.votes > 0 && <span>{c.votes} vote{c.votes === 1 ? "" : "s"} so far</span>}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button className="rating-chip" title="This is the right song" onClick={() => vote(c, 1)}>✓ right</button>
-            <button className="rating-chip" title="Wrong song, or not a listen link" onClick={() => vote(c, -1)}>✗ wrong</button>
-          </div>
+          {!isAdmin && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="rating-chip" title="This is the right song" onClick={() => vote(c, 1)}>✓ right</button>
+              <button className="rating-chip" title="Wrong song, or not a listen link" onClick={() => vote(c, -1)}>✗ wrong</button>
+            </div>
+          )}
         </div>
       ))}
 

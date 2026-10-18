@@ -15,6 +15,7 @@ import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 import Completeness from "./Completeness";
+import AdminModeNote from "../../components/AdminModeNote";
 
 type Track = {
   id: string;
@@ -458,6 +459,7 @@ export default function ArtistPage() {
 
   async function toggleFollow() {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return;
     setFollowBusy(true);
     if (isFollowing) {
       await supabase.from("follows").delete().eq("user_id", user.id).eq("artist_id", id);
@@ -471,6 +473,7 @@ export default function ArtistPage() {
 
   async function toggleOwned(trackId: string) {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return; // admin mode doesn't collect
     setTogglingId(trackId);
     const isOwned = owned.has(trackId);
     try {
@@ -599,6 +602,7 @@ export default function ArtistPage() {
 
   async function voteOnCandidate(candidateId: string, value: 1 | -1) {
     if (!user) { router.push("/login"); return; }
+    if (isAdmin) return;
     const current = myCandidateVotes[candidateId];
     if (current === value) {
       // Clicking the same direction again removes the vote.
@@ -1217,12 +1221,16 @@ export default function ArtistPage() {
               via {SOURCE_NAMES[t.source] ?? t.source}
             </a>
           )}
-          <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
-            {chipLabel}
-          </button>
-          <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
-            comments
-          </button>
+          {!isAdmin && (
+            <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
+              {chipLabel}
+            </button>
+          )}
+          {!isAdmin && (
+            <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
+              comments
+            </button>
+          )}
           <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenInfoId(openInfoId === t.id ? null : t.id); }}>
             info
           </button>
@@ -1253,7 +1261,7 @@ export default function ArtistPage() {
         </div>
         {openMoreId === t.id && (
           <div className="comments-panel track-actions" onClick={(e) => e.stopPropagation()}>
-            {(matchCount > 0 || (user && (!isSub || !canModerate))) && (
+            {(matchCount > 0 || (user && !isAdmin && (!isSub || !canModerate))) && (
               <div className="track-actions-group">
                 <span className="comment-meta track-actions-label">Contribute</span>
                 {matchCount > 0 && (
@@ -1264,7 +1272,7 @@ export default function ArtistPage() {
                     possible links ({matchCount})
                   </button>
                 )}
-                {user && !isSub && (
+                {user && !isAdmin && !isSub && (
                   <a
                     href={`/submit?type=new_version&artist_id=${id}&parent_track_id=${t.id}&parent_title=${encodeURIComponent(t.title)}`}
                     className="rating-chip"
@@ -1406,6 +1414,7 @@ export default function ArtistPage() {
                     </div>
                     {c.notes && <div className="comment-meta" style={{ fontStyle: "italic" }}>{c.notes}</div>}
                     <div className="comment-actions">
+                      {!isAdmin && (<>
                       <button
                         className={`comment-action-btn ${myVote === 1 ? "voted" : ""}`}
                         onClick={() => voteOnCandidate(c.id, 1)}
@@ -1419,8 +1428,9 @@ export default function ArtistPage() {
                       >
                         ▼
                       </button>
+                      </>)}
                       <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
-                      {suggested ? (
+                      {isAdmin ? null : suggested ? (
                         <span className="comment-action-btn voted">suggested ✓</span>
                       ) : (
                         <button className="comment-action-btn" onClick={() => suggestCandidate(t, c)}>
@@ -1546,12 +1556,14 @@ export default function ArtistPage() {
             </>
           )}
           <div className="artist-actions">
-            <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
-              {isFollowing ? "✓ following" : "+ follow"}
-            </button>
+            {!isAdmin && (
+              <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
+                {isFollowing ? "✓ following" : "+ follow"}
+              </button>
+            )}
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
-            {user && (
+            {user && !isAdmin && (
               <button
                 className={`tab ${checkRequested ? "active" : ""}`}
                 disabled={checkRequested}
@@ -1566,7 +1578,7 @@ export default function ArtistPage() {
                 import songs
               </button>
             )}
-            {user && (
+            {user && !isAdmin && (
               <a
                 href={chatGptLinksUrl(id, artist.name)}
                 target="_blank"
@@ -1597,6 +1609,7 @@ export default function ArtistPage() {
               <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
             </div>
           )}
+          {isAdmin && <AdminModeNote what="follow, collect, rate, comment or suggest" />}
           {!isAdmin && canModerate && (
             <div className="artist-actions artist-admin">
               <span className="review-toolbar-label">moderator</span>

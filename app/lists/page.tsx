@@ -8,12 +8,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsAdmin } from "../useIsAdmin";
+import AdminModeNote from "../components/AdminModeNote";
 import { ListRowView, type ListRow } from "./ListRow";
 
 type Kind = "popular" | "new" | "mine" | "following";
 
 export default function ListsPage() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("popular");
   const [lists, setLists] = useState<ListRow[] | null>(null);
@@ -45,9 +48,12 @@ export default function ListsPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name">Lists</h1>
+      <h1 className="detail-name page-title">Lists</h1>
       <div className="detail-meta">Lists people have made: favourite leaks, best features, where to start with an artist.</div>
 
+      {isAdmin ? (
+        <div style={{ marginBottom: 18 }}><AdminModeNote what="make or follow lists" /></div>
+      ) : (
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         <input className="search-input" style={{ flex: "1 1 240px" }} placeholder="Start a new list… e.g. Best Carti leaks"
           value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && create()} maxLength={120} />
@@ -55,6 +61,7 @@ export default function ListsPage() {
           {creating ? "creating…" : user ? "create list" : "sign in to create"}
         </button>
       </div>
+      )}
 
       <div className="tabs">
         {([["popular", "popular"], ["new", "recently updated"], ["mine", "my lists"], ["following", "following"]] as [Kind, string][]).map(([k, label]) => (
