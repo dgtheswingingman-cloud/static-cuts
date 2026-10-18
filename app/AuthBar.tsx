@@ -19,8 +19,9 @@ export default function AuthBar() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    if (!user || isAdmin) { setUnread(0); return; }
-    supabase.rpc("rpc_unread_notifications").then(({ data }) => setUnread(typeof data === "number" ? data : 0));
+    if (!user) { setUnread(0); return; }
+    // Personal notifications, or admin alerts in admin mode.
+    supabase.rpc("rpc_unread_notifications", { p_admin: isAdmin }).then(({ data }) => setUnread(typeof data === "number" ? data : 0));
   }, [user, isAdmin]);
 
   useEffect(() => {
@@ -46,6 +47,9 @@ export default function AuthBar() {
         <Link href="/review" className="auth-link">moderation</Link>
         <Link href="/admin/health" className="auth-link">health</Link>
         <Link href="/admin/batches" className="auth-link">undo history</Link>
+        <Link href="/notifications" className="auth-link" aria-label={`Admin alerts${unread ? `, ${unread} unread` : ""}`}>
+          alerts{unread > 0 && <span className="notif-count">{unread}</span>}
+        </Link>
         <button onClick={() => signOut()} className="auth-link">log out</button>
       </div>
     );
