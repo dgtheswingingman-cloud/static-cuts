@@ -1,7 +1,8 @@
 // Supabase Edge Function: import-artist
 //
 // Fills an artist page from one source, when someone presses an import
-// button on the artist page:
+// button on the artist page, or on a timer overnight (see
+// 20261018150000_scheduled_imports.sql):
 //   spotify  every album, single and feature -> added straight to the page
 //   genius   every song on the artist's Genius profile -> import review list
 //   lastfm   the artist's most-played tracks -> import review list
@@ -19,7 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -292,18 +293,34 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
 
-  // Who's asking: the signed-in user's token from the site.
-  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  const { data: who } = await db.auth.getUser(jwt);
-  if (!who?.user) return json({ error: "Sign in to import songs." }, 401);
-
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Bad request." }, 400); }
-  const artistId = String(body?.artist_id || "");
   const source = String(body?.source || "");
+  let artistId = String(body?.artist_id || "");
+  let userId: string;
+
+  const cronSecret = req.headers.get("x-cron-secret");
+  if (cronSecret) {
+    // Scheduled overnight run (database timer): take the next artist from
+    // the queue that hasn't had this import in the last week. Runs as the
+    // admin, so results are credited and land in the review list as usual.
+    const { data: job, error: jobErr } = await db.rpc("sc_scheduled_import_next", {
+      p_secret: cronSecret, p_source: source,
+    });
+    if (jobErr) return json({ error: jobErr.message }, 403);
+    if (!job?.artist_id) return json({ ok: true, idle: true, reason: job?.reason ?? "nothing due" });
+    artistId = job.artist_id;
+    userId = job.user_id;
+  } else {
+    // Who's asking: the signed-in user's token from the site.
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data: who } = await db.auth.getUser(jwt);
+    if (!who?.user) return json({ error: "Sign in to import songs." }, 401);
+    userId = who.user.id;
+  }
 
   const { data: runId, error: startErr } = await db.rpc("sc_import_start", {
-    p_artist_id: artistId, p_source: source, p_user: who.user.id,
+    p_artist_id: artistId, p_source: source, p_user: userId,
   });
   if (startErr) return json({ error: startErr.message }, 429);
 
