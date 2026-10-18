@@ -30,9 +30,15 @@ export default function LegalPage() {
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>What&apos;s public vs. private</h2>
         <p className="detail-meta" style={{ marginBottom: 8 }}>
           Comments and submissions are public by nature — that&apos;s how the archive gets built.
-          Your profile has individual toggles (off by default) for showing your completion
-          percentage, collected tracks, ratings, and followed artists to other people. Your email
-          and password are never shown to anyone, including other admins.
+          Your profile has individual toggles for showing your completion percentage, collected tracks,
+          ratings, followed artists and contributions to other people. Your email and password are never
+          shown to anyone, including other admins.
+        </p>
+        <p className="detail-meta" style={{ marginBottom: 8 }}>
+          Lists you make are public unless you make them private. Votes (real-or-fake, link votes) are counted
+          publicly, but who voted which way isn&apos;t shown. Ratings work the same way. Reports on comments
+          are only seen by moderators. Notifications and &ldquo;remind me&rdquo; are private to you, and you can turn the
+          daily summary off in settings.
         </p>
 
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>Third parties involved</h2>
@@ -47,6 +53,12 @@ export default function LegalPage() {
           credited on each song it came from. If you connect ChatGPT to your account to help keep artists up to
           date, it can read the catalogue and your followed artists and send finds for review; it can&apos;t change
           the archive or see your email. You can disconnect it at any time.
+        </p>
+        <p className="detail-meta" style={{ marginBottom: 8 }}>
+          Some songs come from community spreadsheets, imported with their makers&apos; permission and credited on
+          each song and on the <a href="/sources" style={{ color: "var(--bone)" }}>sources page</a>. Artwork and producer
+          credits come from Spotify and Genius. Exporting to a Spotify playlist signs in to Spotify in your browser
+          only: we don&apos;t store that sign-in.
         </p>
 
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>Your data, your choice</h2>

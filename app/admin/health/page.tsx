@@ -51,12 +51,27 @@ function Tile({ label, value, href, alert }: { label: string; value: string; hre
   return href ? <Link href={href} style={{ textDecoration: "none" }}>{body}</Link> : body;
 }
 
+type Timer = { name: string; schedule: string; active: boolean; last_run: string | null; last_status: string | null; failed_24h: number };
+
+// What each timer does, in plain words.
+const TIMER_INFO: Record<string, string> = {
+  "genius-import": "imports an artist's songs from Genius (every 10 min)",
+  "genius-credits": "fills producers, features, dates and artwork from Genius (every 10 min)",
+  "fetch-covers": "fetches Spotify artwork (every 10 min)",
+  "sheet-sync": "re-reads community sheets that are due (hourly)",
+  "radar-daily": "release-day reminders (07:05 UTC)",
+  "follow-digest": "daily summary for followed artists (07:07 UTC)",
+  "background-check": "tells you if any of these failed (hourly)",
+};
+
 export default function HealthPage() {
   const { user, loading: authLoading } = useAuth();
   const isRealAdmin = useIsRealAdmin();
   const router = useRouter();
   const [h, setH] = useState<Health | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isRealAdmin)) router.push("/");
@@ -67,6 +82,12 @@ export default function HealthPage() {
     if (err) { setError(err.message); return; }
     setError(null);
     setH(data as Health);
+    const [{ data: t }, { data: b }] = await Promise.all([
+      supabase.rpc("admin_timers"),
+      supabase.rpc("admin_background_failures"),
+    ]);
+    setTimers((t as Timer[]) ?? []);
+    setBg(b ?? null);
   }
 
   useEffect(() => {
@@ -125,6 +146,27 @@ export default function HealthPage() {
               ))}
             </div>
           )}
+
+          <div className="section-label" style={{ marginTop: 20 }}>Timers</div>
+          {bg && bg.failed_6h > 0 && (
+            <div className="comments-panel" style={{ marginBottom: 10 }}>
+              {bg.failed_6h} of {bg.calls_6h} background calls failed in the last 6 hours.
+              {bg.last_error && <div className="comment-meta" style={{ marginTop: 4, overflowWrap: "anywhere" }}>Latest: {bg.last_error}</div>}
+            </div>
+          )}
+          {timers.map((t) => (
+            <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="review-row-title">{t.name}</div>
+                <div className="review-row-meta">
+                  <span>{TIMER_INFO[t.name] ?? t.schedule}</span>
+                  {!t.active && <span className="feature-tag">off</span>}
+                  {t.failed_24h > 0 && <span className="feature-tag disputed-tag">{t.failed_24h} failed today</span>}
+                </div>
+              </div>
+              <span className="comment-meta">{t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
+            </div>
+          ))}
 
           <div className="section-label" style={{ marginTop: 20 }}>Automatic jobs</div>
           <div className="health-tiles">
