@@ -4,7 +4,8 @@
 // API (Client Credentials flow -- no user login needed), and when it finds
 // the same song by the same artist writes back the link, marks the song as
 // released and fills in its album and release date if missing. Run by a
-// timer (10 songs every 5 minutes) and by the link tools page.
+// timer only (10 songs every 5 minutes), working through followed artists
+// first and taking turns between them (sc_spotify_match_next).
 //
 // Required secrets (set via `supabase secrets set`):
 //   SPOTIFY_CLIENT_ID
@@ -41,19 +42,12 @@ async function pauseSpotify(seconds: number) {
 }
 const breather = () => new Promise((r) => setTimeout(r, 1000));
 
-// Only the timer (x-cron-secret) and the signed-in admin (link tools page)
-// may run this; anyone else could burn our Spotify allowance.
-const ADMIN_EMAIL = "dg.theswingingman@gmail.com";
+// Only the timer (x-cron-secret) may run this: a slow, steady rate.
 async function allowed(req: Request): Promise<boolean> {
   const secret = req.headers.get("x-cron-secret");
-  if (secret) {
-    const { data } = await supabase.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
-    return !!data?.value && data.value === secret;
-  }
-  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!jwt) return false;
-  const { data: who } = await supabase.auth.getUser(jwt);
-  return who?.user?.email === ADMIN_EMAIL;
+  if (!secret) return false;
+  const { data } = await supabase.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
+  return !!data?.value && data.value === secret;
 }
 
 // Matches are recorded in an undo batch ("Spotify matching <date>", one per
@@ -114,8 +108,8 @@ type TrackRow = {
   release_status: string | null;
   album: string | null;
   release_date: string | null;
-  artists: { name: string } | null;
-  track_appearances: { artists: { name: string } | null }[] | null;
+  artist: string | null;
+  others: string[] | null;
 };
 
 Deno.serve(async (req) => {
@@ -140,17 +134,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Every track without a link that hasn't been searched yet -- not just
-    // ones already marked official, since most official songs in the
-    // archive aren't marked yet. Main songs first, versions after.
-    const { data: tracks, error } = await supabase
-      .from("tracks")
-      .select("id, title, release_status, album, release_date, artists!artist_id(name), track_appearances(artists(name))")
-      .is("spotify_url", null)
-      .is("spotify_search_attempted_at", null)
-      .order("parent_track_id", { ascending: true, nullsFirst: true })
-      .order("id", { ascending: true })
-      .limit(limit);
+    // Every track without a link that hasn't been searched yet, followed
+    // artists first, taking turns between artists.
+    const { data: tracks, error } = await supabase.rpc("sc_spotify_match_next", { p_limit: limit });
     if (error) throw error;
 
     if (!tracks || tracks.length === 0) {
@@ -185,10 +171,10 @@ Deno.serve(async (req) => {
     let retryAfterSeconds = 0;
 
     for (const track of tracks as unknown as TrackRow[]) {
-      const artistName = track.artists?.name || "";
+      const artistName = track.artist || "";
       // The home artist plus anyone linked to the song (features, band members).
       const artistKeys = new Set(
-        [artistName, ...(track.track_appearances ?? []).map((a) => a.artists?.name || "")]
+        [artistName, ...(track.others ?? [])]
           .filter(Boolean)
           .map(norm)
       );

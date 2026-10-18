@@ -38,19 +38,12 @@ async function pauseSpotify(seconds: number) {
 }
 const breather = () => new Promise((r) => setTimeout(r, 1000));
 
-// Only the timer (x-cron-secret) and the signed-in admin (link tools page)
-// may run this; anyone else could burn our Spotify allowance.
-const ADMIN_EMAIL = "dg.theswingingman@gmail.com";
+// Only the timer (x-cron-secret) may run this: a slow, steady rate.
 async function allowed(req: Request): Promise<boolean> {
   const secret = req.headers.get("x-cron-secret");
-  if (secret) {
-    const { data } = await supabase.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
-    return !!data?.value && data.value === secret;
-  }
-  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!jwt) return false;
-  const { data: who } = await supabase.auth.getUser(jwt);
-  return who?.user?.email === ADMIN_EMAIL;
+  if (!secret) return false;
+  const { data } = await supabase.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
+  return !!data?.value && data.value === secret;
 }
 
 async function getSpotifyToken(): Promise<string> {
