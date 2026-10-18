@@ -25,7 +25,9 @@ function randomString(n: number) {
 
 async function challenge(verifier: string) {
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-  return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  let bin = "";
+  new Uint8Array(hash).forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function redirectUri() {
@@ -52,7 +54,7 @@ export async function startSpotifyExport(pending: PendingExport) {
 async function api(token: string, path: string, init?: RequestInit) {
   const res = await fetch(`https://api.spotify.com/v1${path}`, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
   if (res.status === 429) throw new Error("Spotify is busy right now. Try again in a few minutes.");
   if (!res.ok) {

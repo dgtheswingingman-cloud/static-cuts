@@ -10,7 +10,11 @@ export default function ExportCollection({ userId }: { userId: string }) {
   const [urls, setUrls] = useState<(string | null)[] | null>(null);
   useEffect(() => {
     supabase.from("track_ownership").select("tracks(spotify_url)").eq("user_id", userId).limit(5000)
-      .then(({ data }) => setUrls(((data ?? []) as { tracks: { spotify_url: string | null } | null }[]).map((r) => r.tracks?.spotify_url ?? null)));
+      .then(({ data }) => {
+        // The joined song can come back as an object or a one-item list.
+        const rows = (data ?? []) as unknown as { tracks: { spotify_url: string | null } | { spotify_url: string | null }[] | null }[];
+        setUrls(rows.map((r) => (Array.isArray(r.tracks) ? r.tracks[0]?.spotify_url : r.tracks?.spotify_url) ?? null));
+      });
   }, [userId]);
   if (!urls || urls.length === 0) return null;
   return (
