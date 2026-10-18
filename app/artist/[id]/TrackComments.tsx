@@ -13,7 +13,16 @@ type CommentRow = {
   user_id: string;
   body: string;
   created_at: string;
+  hidden_at?: string | null;
 };
+
+const REPORT_REASONS: [string, string][] = [
+  ["spam", "spam"],
+  ["abuse", "abusive or hateful"],
+  ["personal_info", "personal info about someone"],
+  ["off_topic", "off topic"],
+  ["other", "something else"],
+];
 
 type SortMode = "top" | "newest";
 
@@ -30,6 +39,9 @@ export default function TrackComments({ trackId }: { trackId: string }) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [reported, setReported] = useState<Record<string, string>>({});
 
   useEffect(() => {
     load();
@@ -39,7 +51,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
   async function load() {
     const { data: commentRows, error: cErr } = await supabase
       .from("comments")
-      .select("id, track_id, parent_comment_id, user_id, body, created_at")
+      .select("id, track_id, parent_comment_id, user_id, body, created_at, hidden_at")
       .eq("track_id", trackId)
       .order("created_at", { ascending: true });
     if (cErr) {
@@ -81,6 +93,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
     const trimmed = body.trim();
     if (!trimmed) return;
     setPosting(true);
+    setPostError(null);
     const { error } = await supabase.from("comments").insert({
       track_id: trackId,
       parent_comment_id: parentCommentId,
@@ -88,7 +101,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
       body: trimmed,
     });
     setPosting(false);
-    if (error) { console.error(error); return; }
+    if (error) { setPostError(error.message); return; }
     if (parentCommentId) { setReplyBody(""); setReplyingTo(null); }
     else setNewBody("");
     load();
@@ -106,6 +119,15 @@ export default function TrackComments({ trackId }: { trackId: string }) {
       setMyVotes((prev) => new Set(prev).add(commentId));
       setVoteCounts((prev) => ({ ...prev, [commentId]: (prev[commentId] ?? 0) + 1 }));
     }
+  }
+
+  async function report(commentId: string, reason: string) {
+    const { data, error } = await supabase.rpc("rpc_report_comment", { p_comment: commentId, p_reason: reason });
+    setReportingId(null);
+    if (error) { setReported((r) => ({ ...r, [commentId]: error.message })); return; }
+    setReported((r) => ({ ...r, [commentId]: (data as { hidden?: boolean })?.hidden
+      ? "Thanks, it's hidden until a moderator checks it."
+      : "Thanks, a moderator will take a look." }));
   }
 
   async function deleteComment(commentId: string, hasReplies: boolean) {
@@ -143,6 +165,9 @@ export default function TrackComments({ trackId }: { trackId: string }) {
           </Link>{" "}
           · {new Date(c.created_at).toLocaleDateString()}
         </div>
+        {c.hidden_at && (
+          <div className="comment-meta" style={{ color: "#e08a3c" }}>Hidden after reports, waiting for a moderator. Only you can see it.</div>
+        )}
         <div className="comment-body">{c.body}</div>
         <div className="comment-actions">
           <button
@@ -165,7 +190,21 @@ export default function TrackComments({ trackId }: { trackId: string }) {
               delete
             </button>
           )}
+          {user && c.user_id !== user.id && !reported[c.id] && (
+            <button className="comment-action-btn" onClick={() => setReportingId(reportingId === c.id ? null : c.id)}>
+              report
+            </button>
+          )}
         </div>
+        {reportingId === c.id && (
+          <div className="comment-actions" style={{ flexWrap: "wrap" }}>
+            <span className="comment-meta">Why?</span>
+            {REPORT_REASONS.map(([value, label]) => (
+              <button key={value} className="comment-action-btn" onClick={() => report(c.id, value)}>{label}</button>
+            ))}
+          </div>
+        )}
+        {reported[c.id] && <div className="comment-meta">{reported[c.id]}</div>}
         {replyingTo === c.id && (
           <div style={{ marginTop: 8 }}>
             <textarea
@@ -232,6 +271,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
         >
           {posting ? "…" : "post comment"}
         </button>
+        {postError && <div className="comment-meta" style={{ color: "#e08a3c", marginTop: 6 }}>{postError}</div>}
       </div>
     </div>
   );
