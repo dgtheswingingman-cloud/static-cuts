@@ -89,6 +89,8 @@ const SOURCE_HOMES: Record<string, string> = {
   lastfm: "https://www.last.fm",
 };
 
+type PanelTab = "info" | "comments" | "actions" | "links";
+
 const RELEASE_STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released", "removed"] as const;
 
 // Opens ChatGPT with a short prompt; the connector's get_songs_needing_links
@@ -161,6 +163,10 @@ export default function ArtistPage() {
   // The "more" menu on a track row: contribution and admin actions, kept out
   // of the way for people who are just browsing.
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
+  // One panel per song row (the "⋯" button), with tabs.
+  const [panelTab, setPanelTab] = useState<PanelTab>("info");
+  // Less-used page actions (request check, import songs, find links).
+  const [headerMore, setHeaderMore] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
@@ -1124,6 +1130,7 @@ export default function ArtistPage() {
     const subs = subsByParent[t.id] ?? [];
     // Suggested links only matter while the track has no link of its own.
     const matchCount = !t.spotify_url ? (candidatesByTrack[t.id]?.length ?? 0) : 0;
+    const hasActions = canModerate || (!!user && !isAdmin);
 
     if (isEditing && editDraft) {
       return (
@@ -1227,31 +1234,6 @@ export default function ArtistPage() {
               </Link>
             );
           })()}
-          {t.source && (
-            <a
-              href={t.source_url || SOURCE_HOMES[t.source] || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="feature-tag source-tag"
-              title={`Song info from ${SOURCE_NAMES[t.source] ?? t.source}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              via {SOURCE_NAMES[t.source] ?? t.source}
-            </a>
-          )}
-          {!isAdmin && (
-            <button className={`rating-chip ${hasRated ? "rated" : ""}`} onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
-              {chipLabel}
-            </button>
-          )}
-          {!isAdmin && (
-            <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenCommentsId(openCommentsId === t.id ? null : t.id); }}>
-              comments
-            </button>
-          )}
-          <button className="rating-chip" onClick={(e) => { e.stopPropagation(); setOpenInfoId(openInfoId === t.id ? null : t.id); }}>
-            info
-          </button>
           {t.isCrossAppearance && (
             <Link
               href={`/artist/${t.homeArtistId}`}
@@ -1262,34 +1244,85 @@ export default function ArtistPage() {
               featured via {t.homeArtistName}
             </Link>
           )}
-          {t.spotify_url && (
-            <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
-          )}
-          {(user || canModerate || matchCount > 0) && (
+          <span className="track-row-actions">
+            {t.spotify_url && (
+              <a className="listen-link" href={t.spotify_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>listen</a>
+            )}
+            {!isAdmin && (
+              <button className={`rating-chip ${hasRated ? "rated" : ""}`} title={hasRated ? `Your rating: ${myRating}/10` : "Rate this song"}
+                onClick={(e) => { e.stopPropagation(); setOpenRatingId(isRatingOpen ? null : t.id); }}>
+                {hasRated ? `★ ${myRating}` : "rate"}
+              </button>
+            )}
             <button
               className={`rating-chip ${openMoreId === t.id ? "rated" : ""}`}
               aria-expanded={openMoreId === t.id}
-              title="Suggest changes, links and versions"
-              onClick={(e) => { e.stopPropagation(); setOpenMoreId(openMoreId === t.id ? null : t.id); }}
+              aria-label={`Info, comments and more for ${t.title}`}
+              title="Info, comments and more"
+              onClick={(e) => { e.stopPropagation(); if (openMoreId === t.id) setOpenMoreId(null); else { setOpenMoreId(t.id); setPanelTab("info"); } }}
             >
-              {openMoreId === t.id ? "less" : "more"}
-              {matchCount > 0 && ` · ${matchCount} link${matchCount === 1 ? "" : "s"}`}
+              {openMoreId === t.id ? "×" : "⋯"}
+              {matchCount > 0 && <span className="row-badge">{matchCount}</span>}
             </button>
-          )}
+          </span>
         </div>
         {openMoreId === t.id && (
+          <div className="track-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="track-panel-tabs" role="tablist">
+              {(["info", "comments", ...(hasActions ? ["actions"] : []), ...(matchCount > 0 ? ["links"] : [])] as PanelTab[]).map((tab) => (
+                <button key={tab} role="tab" aria-selected={panelTab === tab} className={`track-panel-tab ${panelTab === tab ? "on" : ""}`}
+                  onClick={() => setPanelTab(tab)}>
+                  {tab === "links" ? `possible links (${matchCount})` : tab === "actions" ? (canModerate ? "edit" : "suggest / report") : tab}
+                </button>
+              ))}
+              <Link href={`/song/${t.id}`} className="track-panel-tab">song page →</Link>
+            </div>
+            {panelTab === "info" && (
+          <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="comments-header">
+              <div className="comments-count">
+                {t.source ? (
+                  <>Song info from <a href={t.source_url || SOURCE_HOMES[t.source] || "#"} target="_blank" rel="noopener noreferrer"
+                    className="text-link">{SOURCE_NAMES[t.source] ?? t.source}</a></>
+                ) : "Track info"}
+              </div>
+              <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
+            </div>
+            {buildInfoLines(t).map(([label, value]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
+                <div style={{ flex: 1 }}>
+                  <div className="comment-meta" style={{ marginBottom: 2 }}>{label}</div>
+                  {label === "Featured Artists" && linkedFeaturedArtists[t.id] ? (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {linkedFeaturedArtists[t.id].map((a) => (
+                        <Link
+                          key={a.id}
+                          href={`/artist/${a.id}`}
+                          className="feature-tag"
+                          style={{ textDecoration: "none" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {a.name}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="comment-body" style={{ fontSize: "0.82rem" }}>{value}</div>
+                  )}
+                </div>
+                <button className="comment-action-btn" onClick={() => copyText(value)}>copy</button>
+              </div>
+            ))}
+          </div>
+            )}
+            {panelTab === "comments" && (
+          <div onClick={(e) => e.stopPropagation()}><TrackComments trackId={t.id} /></div>
+            )}
+            {panelTab === "actions" && hasActions && (
           <div className="comments-panel track-actions" onClick={(e) => e.stopPropagation()}>
-            {(matchCount > 0 || (user && !isAdmin && (!isSub || !canModerate))) && (
+            {user && !isAdmin && (!isSub || !canModerate) && (
               <div className="track-actions-group">
                 <span className="comment-meta track-actions-label">Contribute</span>
-                {matchCount > 0 && (
-                  <button
-                    className="rating-chip"
-                    onClick={() => setOpenCandidatesId(openCandidatesId === t.id ? null : t.id)}
-                  >
-                    possible links ({matchCount})
-                  </button>
-                )}
                 {user && !isAdmin && !isSub && (
                   <a
                     href={`/submit?type=new_version&artist_id=${id}&parent_track_id=${t.id}&parent_title=${encodeURIComponent(t.title)}`}
@@ -1357,58 +1390,8 @@ export default function ArtistPage() {
               </div>
             )}
           </div>
-        )}
-        {isRatingOpen && (
-          <div className="rating-popover" onClick={(e) => e.stopPropagation()}>
-            <div className="rp-label">
-              {hasRated ? (avg ? `community avg: ${avg.avg}/10 (${avg.count} rating${avg.count === 1 ? "" : "s"})` : "no other ratings yet") : "rate to see the community average"}
-            </div>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button key={n} className={`rating-num ${myRating === n ? "selected" : ""}`} onClick={() => setRating(t.id, n)}>{n}</button>
-            ))}
-            {hasRated && <button className="rating-clear" onClick={() => clearRating(t.id)}>clear rating</button>}
-          </div>
-        )}
-        {openCommentsId === t.id && (
-          <div onClick={(e) => e.stopPropagation()}><TrackComments trackId={t.id} /></div>
-        )}
-        {openInfoId === t.id && (
-          <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="comments-header">
-              <div className="comments-count">Track info</div>
-              <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <Link href={`/song/${t.id}`} className="comment-action-btn" style={{ textDecoration: "none" }}>song page →</Link>
-                <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
-              </span>
-            </div>
-            {buildInfoLines(t).map(([label, value]) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
-                <div style={{ flex: 1 }}>
-                  <div className="comment-meta" style={{ marginBottom: 2 }}>{label}</div>
-                  {label === "Featured Artists" && linkedFeaturedArtists[t.id] ? (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {linkedFeaturedArtists[t.id].map((a) => (
-                        <Link
-                          key={a.id}
-                          href={`/artist/${a.id}`}
-                          className="feature-tag"
-                          style={{ textDecoration: "none" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {a.name}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="comment-body" style={{ fontSize: "0.82rem" }}>{value}</div>
-                  )}
-                </div>
-                <button className="comment-action-btn" onClick={() => copyText(value)}>copy</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {openCandidatesId === t.id && (
+            )}
+            {panelTab === "links" && matchCount > 0 && (
           <div className="comments-panel" onClick={(e) => e.stopPropagation()}>
             <div className="comments-count" style={{ marginBottom: 8 }}>
               Unconfirmed suggestions from web searches and ChatGPT. Check one out, and if it&apos;s
@@ -1459,6 +1442,19 @@ export default function ArtistPage() {
                   </div>
                 );
               })}
+          </div>
+            )}
+          </div>
+        )}
+        {isRatingOpen && (
+          <div className="rating-popover" onClick={(e) => e.stopPropagation()}>
+            <div className="rp-label">
+              {hasRated ? (avg ? `community avg: ${avg.avg}/10 (${avg.count} rating${avg.count === 1 ? "" : "s"})` : "no other ratings yet") : "rate to see the community average"}
+            </div>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} className={`rating-num ${myRating === n ? "selected" : ""}`} onClick={() => setRating(t.id, n)}>{n}</button>
+            ))}
+            {hasRated && <button className="rating-clear" onClick={() => clearRating(t.id)}>clear rating</button>}
           </div>
         )}
         {linkingTrackId === t.id && !linkTargetArtist && (
@@ -1582,38 +1578,47 @@ export default function ArtistPage() {
             )}
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
-            {user && !isAdmin && (
-              <button
-                className={`tab ${checkRequested ? "active" : ""}`}
-                disabled={checkRequested}
-                title="Moves this artist up the queue so it gets checked for new music soon."
-                onClick={requestCheck}
-              >
-                {checkRequested ? "✓ requested" : "request check"}
-              </button>
-            )}
-            {(user || isAdmin) && tracks && (
-              <button className={`tab ${importOpen ? "active" : ""}`} onClick={() => setImportOpen(!importOpen)}>
-                import songs
-              </button>
-            )}
-            {user && !isAdmin && (
-              <a
-                href={chatGptLinksUrl(id, artist.name)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="tab"
-                title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
-              >
-                find links ↗
-              </a>
-            )}
-            {!canModerate && (
+            {user && !canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track
               </a>
             )}
+            {(user || isAdmin) && (
+              <button className={`tab ${headerMore ? "active" : ""}`} aria-expanded={headerMore} onClick={() => setHeaderMore(!headerMore)}>
+                {headerMore ? "less" : "more"}
+              </button>
+            )}
           </div>
+          {headerMore && (
+            <div className="artist-actions artist-more">
+              {user && !isAdmin && (
+                <button
+                  className={`tab ${checkRequested ? "active" : ""}`}
+                  disabled={checkRequested}
+                  title="Moves this artist up the queue so it gets checked for new music soon."
+                  onClick={requestCheck}
+                >
+                  {checkRequested ? "✓ requested" : "request check"}
+                </button>
+              )}
+              {(user || isAdmin) && tracks && (
+                <button className={`tab ${importOpen ? "active" : ""}`} onClick={() => setImportOpen(!importOpen)}>
+                  import songs
+                </button>
+              )}
+              {user && !isAdmin && (
+                <a
+                  href={chatGptLinksUrl(id, artist.name)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tab"
+                  title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
+                >
+                  find links ↗
+                </a>
+              )}
+            </div>
+          )}
           {isAdmin && (
             <div className="artist-actions artist-admin">
               <span className="review-toolbar-label">admin</span>
