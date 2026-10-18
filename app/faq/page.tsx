@@ -161,7 +161,7 @@ const SECTIONS: Section[] = [
         a: (
           <p>
             An optional helper. If you connect ChatGPT, it can look for new songs and listen links for the artists
-            you follow and send what it finds to the review queue. It can&apos;t change the archive directly or see
+            you follow and send what it finds to the moderators. It can&apos;t change the archive directly or see
             your email, and you can disconnect it whenever you like.
           </p>
         ),

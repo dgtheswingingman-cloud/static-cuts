@@ -26,8 +26,8 @@ export default function ArtistChangelogPage() {
       </button>
       <h1 className="detail-name page-title">Changelog</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Approved and rejected submissions for {artistName ?? "this artist"} — pending items stay
-        in the review queue until resolved.
+        Approved and rejected submissions for {artistName ?? "this artist"} — pending ones wait
+        for a moderator.
       </div>
       <ArtistChangelog artistId={id} limit={100} />
     </div>

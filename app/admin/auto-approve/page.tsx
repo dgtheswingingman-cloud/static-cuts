@@ -71,10 +71,10 @@ export default function AutoApprovePage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 680 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Auto-approve</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
-        ChatGPT finds that match a rule below are added straight away instead of waiting in the review queue.
+        ChatGPT finds that match a rule below are added straight away instead of waiting for review.
         Rumours, takedowns and songs with an open takedown request always wait for you. Each one is a separate
         entry in the <UndoHistoryLink />, so a bad one is one
         click to reverse.

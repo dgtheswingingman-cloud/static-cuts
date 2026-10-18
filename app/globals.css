@@ -1102,3 +1102,13 @@ a.listen-link {
     margin-bottom: 6px;
   }
 }
+
+/* Moderation page: a heading per job. */
+.mod-heading {
+  font-family: var(--font-anton), sans-serif;
+  text-transform: uppercase;
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--bone);
+  margin: 34px 0 4px;
+}

@@ -50,7 +50,7 @@ export default function ReportedCommentsPage() {
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Reported comments</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Three reports hide a comment until someone here decides. Keep clears the reports; delete removes it (undo from the

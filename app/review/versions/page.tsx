@@ -123,7 +123,7 @@ export default function VersionSuggestionsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Sub-versions</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Clear versions (Live, Demo, Remix, V2, Reference…) are linked under their main song automatically, including

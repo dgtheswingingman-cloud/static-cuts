@@ -91,7 +91,7 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
   }, []);
 
   async function promote(d: Discovery) {
-    const note = window.prompt("Promote to the review queue. Add a note? (optional)");
+    const note = window.prompt("Move to suggestions waiting. Add a note? (optional)");
     if (note === null) return;
     setBusyId(d.id);
     const { error: err } = await supabase.rpc("promote_discovery", { p_discovery_id: d.id, p_note: note || null });
@@ -220,7 +220,7 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
               </Link>
             )}
             <button className="listen-link" disabled={busyId === d.id} onClick={() => approve(d)}>approve</button>
-            <button className="listen-link" disabled={busyId === d.id} onClick={() => promote(d)} title="Send to the review queue below to edit before approving">
+            <button className="listen-link" disabled={busyId === d.id} onClick={() => promote(d)} title="Move to suggestions waiting below, to edit before approving">
               edit first
             </button>
             <button className="listen-link" disabled={busyId === d.id} onClick={() => dismiss(d)}>dismiss</button>

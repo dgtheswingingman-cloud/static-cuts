@@ -137,7 +137,7 @@ export default function DuplicatesPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Possible duplicates</h1>
       <div className="detail-meta" style={{ marginBottom: 14, maxWidth: 620 }}>
         The same song entered more than once: twice on one artist&apos;s page, or a collab copied onto each

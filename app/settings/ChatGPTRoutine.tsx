@@ -39,7 +39,7 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
       <div className="section-label">Help keep my artists updated with ChatGPT</div>
       <div className="detail-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
         Connect ChatGPT and schedule a task that checks the artists you follow for new songs, leaks,
-        snippets and status changes. What it finds goes to the review queue, and nothing goes live
+        snippets and status changes. What it finds goes to the moderators, and nothing goes live
         until it&apos;s approved. Needs a paid ChatGPT plan.
       </div>
       <ol className="detail-meta" style={{ maxWidth: 520, paddingLeft: 18, lineHeight: 1.7, marginBottom: 12 }}>

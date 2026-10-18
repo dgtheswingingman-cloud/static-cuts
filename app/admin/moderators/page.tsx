@@ -1,6 +1,6 @@
 "use client";
 
-// Choose moderators. They can work the review queue, edit, add, merge and
+// Choose moderators. They can review suggestions, edit, add, merge and
 // delete songs; everything they do shows in the undo history with their name.
 
 import { useEffect, useState } from "react";
@@ -60,10 +60,10 @@ export default function ModeratorsPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 680 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Moderators</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Moderators can work the review queue, edit and add songs, merge duplicates and delete songs. Artists,
+        Moderators can review suggestions, edit and add songs, merge duplicates and delete songs. Artists,
         takedowns, settings and the undo history stay yours. Everything they do shows in the{" "}
         <UndoHistoryLink /> with their name.
       </div>
