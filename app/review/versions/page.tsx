@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { useReviewKeys } from "../../components/useReviewKeys";
 
 type Suggestion = {
   id: string;
@@ -30,6 +31,15 @@ type Suggestion = {
   parent_artist: string | null;
   create_parent_title: string | null;
 };
+
+// Labels that are almost always a real version of the song: a year, or a
+// production/edition word. "Freestyle", "Part 2" and plain numbers aren't
+// here: those are often different songs.
+const LIKELY = /^(\(?\d{4}\)?|.*\b(drums?|orchestral|piano|fx|rehearsals?|edition|nft|session|version|mix|edit|acoustic|instrumental|live|demo|cdq|og|alt|reference|extended|radio|mono|stereo|remaster(ed)?|a cappella|acapella|clean|explicit|sped up|slowed|reverb|leak|snippet|early|final|original)\b.*)$/i;
+
+function labelOf(s: { version: string | null }) {
+  return (s.version ?? "").trim() || "no label";
+}
 
 const TABS: { key: Suggestion["cls"]; label: string; help: string }[] = [
   { key: "check", label: "check these", help: "The label isn't a clear version tag (a year, Freestyle, a name, Part 2…). Approve the ones that really are versions of the song shown." },
@@ -48,6 +58,7 @@ export default function VersionSuggestionsPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<"artist" | "label">("artist");
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_version_suggestions", { p_cls: null, p_limit: 2000 });
@@ -66,11 +77,19 @@ export default function VersionSuggestionsPage() {
   }, [isRealAdmin]);
 
   const shown = useMemo(() => (items ?? []).filter((s) => s.cls === tab), [items, tab]);
+  // Grouped by artist, or by label ("2022 ×28") so a whole kind can be
+  // approved in one go. Biggest label groups first.
   const byArtist = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
-    shown.forEach((s) => { (out[s.track_artist ?? "?"] = out[s.track_artist ?? "?"] || []).push(s); });
-    return out;
-  }, [shown]);
+    shown.forEach((s) => {
+      const k = groupBy === "label" ? labelOf(s) : s.track_artist ?? "?";
+      (out[k] = out[k] || []).push(s);
+    });
+    if (groupBy !== "label") return out;
+    return Object.fromEntries(Object.entries(out).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])));
+  }, [shown, groupBy]);
+  const likely = useMemo(() => shown.filter((s) => s.cls === "cross" || s.cls === "dupe" || LIKELY.test(labelOf(s))), [shown]);
+  const ordered = useMemo(() => Object.values(byArtist).flat(), [byArtist]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -117,6 +136,12 @@ export default function VersionSuggestionsPage() {
     load();
   }
 
+  const { focusedId } = useReviewKeys(ordered, {
+    yes: (s) => run("approve", [s.id]),
+    no: (s) => run("dismiss", [s.id]),
+    toggle: (s) => toggle(s.id),
+  }, busy);
+
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const help = TABS.find((t) => t.key === tab)?.help;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
@@ -152,12 +177,22 @@ export default function VersionSuggestionsPage() {
         <div className="review-toolbar"><div className="review-toolbar-row">
           <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all</button>
           <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
+          <button className="tab" disabled={likely.length === 0} onClick={() => setSelected(new Set(likely.map((s) => s.id)))}
+            title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix">
+            select likely ones ({likely.length})
+          </button>
           <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
             {busy ? "working…" : `approve selected (${selectedHere.length})`}
           </button>
           <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
             dismiss selected
           </button>
+        </div>
+        <div className="review-toolbar-row">
+          <span className="review-toolbar-label">group by</span>
+          <button className={`tab ${groupBy === "artist" ? "active" : ""}`} onClick={() => setGroupBy("artist")}>artist</button>
+          <button className={`tab ${groupBy === "label" ? "active" : ""}`} onClick={() => setGroupBy("label")}>label</button>
+          <span className="comment-meta kb-hint">Keys: J / K move · Y approve · N dismiss · X tick</span>
         </div></div>
       )}
 
@@ -165,9 +200,12 @@ export default function VersionSuggestionsPage() {
         <div key={artist}>
           <div className="review-group-head">
             <span className="section-label" style={{ margin: 0 }}>{artist} ({byArtist[artist].length})</span>
+            <button className="rating-chip" onClick={() => setSelected((prev) => new Set([...prev, ...byArtist[artist].map((s) => s.id)]))}>
+              select these
+            </button>
           </div>
           {byArtist[artist].map((s) => (
-            <div key={s.id} className="review-row">
+            <div key={s.id} data-row-id={s.id} className={`review-row ${focusedId === s.id ? "kb-focus" : ""}`}>
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
               <div style={{ minWidth: 0 }}>
                 <div className="review-row-title">
@@ -186,6 +224,7 @@ export default function VersionSuggestionsPage() {
                     )}
                   </span>
                   {s.version && <span className="feature-tag">{s.version}</span>}
+                  {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
                 </div>
               </div>
               <div className="review-row-actions">

@@ -6,13 +6,14 @@
 // songs onto it (they stay on the other artist's page as a feature); skip
 // leaves them as a note.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { useReviewKeys } from "../../components/useReviewKeys";
 
 type Guest = { name_key: string; name: string; songs: number; state: "review" | "pending"; note: string | null; sample: string[] | null };
 
@@ -58,9 +59,14 @@ export default function GuestsPage() {
     void data;
   }
 
-  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
-  const review = (rows ?? []).filter((r) => r.state === "review");
+  const review = useMemo(() => (rows ?? []).filter((r) => r.state === "review").map((r) => ({ ...r, id: r.name_key })), [rows]);
   const pending = (rows ?? []).filter((r) => r.state === "pending");
+  const { focusedId } = useReviewKeys(review, {
+    yes: (g) => act(g, "create"),
+    no: (g) => act(g, "skip"),
+  }, busy !== null);
+
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
@@ -75,9 +81,11 @@ export default function GuestsPage() {
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
       {!rows && <div className="empty-state">loading…</div>}
       {rows && review.length === 0 && <div className="empty-state">Nothing to check right now.</div>}
+      {review.length > 0 && <div className="comment-meta kb-hint" style={{ marginBottom: 8 }}>Keys: J / K move · Y add · N skip</div>}
 
       {review.map((g) => (
-        <div key={g.name_key} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+        <div key={g.name_key} data-row-id={g.name_key} className={`review-row ${focusedId === g.name_key ? "kb-focus" : ""}`}
+          style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
           <div style={{ minWidth: 0 }}>
             <div className="review-row-title">{g.name}</div>
             <div className="review-row-meta">
