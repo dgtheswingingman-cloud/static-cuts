@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import { supabase } from "@/lib/supabase";
-import { useIsAdmin, useIsRealAdmin } from "./useIsAdmin";
+import { useIsAdmin, useIsModerator, useIsRealAdmin } from "./useIsAdmin";
 import { useAdminView } from "./AdminViewContext";
 import { useTheme } from "./ThemeProvider";
 
@@ -12,6 +12,7 @@ export default function AuthBar() {
   const { user, loading, signOut } = useAuth();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const isAdmin = useIsAdmin();
+  const isModerator = useIsModerator();
   const isRealAdmin = useIsRealAdmin();
   const { viewAsNonAdmin, setViewAsNonAdmin } = useAdminView();
   const { theme, setTheme } = useTheme();
@@ -79,7 +80,7 @@ export default function AuthBar() {
             my submissions
           </Link>
         )}
-        {isAdmin && (
+        {isModerator && (
           <Link href="/review" style={smallBtn}>
             review queue
           </Link>

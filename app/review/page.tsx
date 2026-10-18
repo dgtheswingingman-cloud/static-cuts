@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
+import { useIsRealAdmin } from "../useIsAdmin";
 import Discoveries from "./Discoveries";
 
 type Submission = {
@@ -63,6 +64,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 
 export default function ReviewPage() {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsRealAdmin();
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
@@ -458,18 +460,27 @@ export default function ReviewPage() {
         <Link href="/review/versions" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           check sub-versions →
         </Link>
-        <Link href="/admin/queue" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          artist queue →
-        </Link>
+        {isAdmin && (
+          <Link href="/admin/queue" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+            artist queue →
+          </Link>
+        )}
         <Link href="/review/imports" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           imported songs →
         </Link>
-        <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          takedowns →
-        </Link>
-        <Link href="/admin/auto-approve" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          auto-approve →
-        </Link>
+        {isAdmin && (
+          <>
+            <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+              takedowns →
+            </Link>
+            <Link href="/admin/auto-approve" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+              auto-approve →
+            </Link>
+            <Link href="/admin/moderators" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+              moderators →
+            </Link>
+          </>
+        )}
       </div>
 
       {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}

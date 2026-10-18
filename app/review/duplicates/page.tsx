@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsModerator } from "../../useIsAdmin";
 import QuickMerge from "./QuickMerge";
 
 type DupTrack = {
@@ -44,7 +44,7 @@ const PAGE = 20;
 
 export default function DuplicatesPage() {
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsModerator();
   const router = useRouter();
   const [artists, setArtists] = useState<{ id: string; name: string }[]>([]);
   const [artistFilter, setArtistFilter] = useState("");
