@@ -38,7 +38,7 @@ export default function SourcesPage() {
     const r = data as { result: string; title?: string; same_tab?: boolean };
     if (r.result === "already_imported") {
       setMessage(r.same_tab
-        ? `Already imported as “${r.title}”. New songs added to it are picked up every night.`
+        ? `Already imported as “${r.title}”. New songs added to it are picked up when it's re-checked.`
         : `Another tab of this sheet is already imported (“${r.title}”). A moderator can add this tab too.`);
     } else if (r.result === "already_requested") {
       setMessage("Someone has already sent this sheet in. Your vote's been added, and a moderator will look at it.");

@@ -37,7 +37,7 @@ type Parsed = {
 };
 type Source = {
   id: string; title: string; tab_name: string | null; credit: string | null; url: string; artist_id: string; artist: string;
-  songs: number; last_synced_at: string | null; auto_sync: boolean;
+  songs: number; last_synced_at: string | null; auto_sync: boolean; next_check_at: string | null;
 };
 type Request = { sheet_id: string; url: string; artist_name: string | null; notes: string | null; people: number; first_at: string };
 
@@ -408,7 +408,7 @@ export default function SheetsPage() {
           </div>
           <label className="comment-body" style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
-            Check this sheet every night and send new songs to the review list
+            Check this sheet for new songs now and then (weekly, less often if it goes quiet) and send them to the review list
           </label>
           <label className="comment-body" style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <input type="checkbox" checked={permission} onChange={(e) => setPermission(e.target.checked)} />
@@ -457,13 +457,14 @@ export default function SheetsPage() {
               <Link href={`/artist/${s.artist_id}`}>{s.artist}</Link>
               <span>{s.songs} song{s.songs === 1 ? "" : "s"} on the site</span>
               {s.last_synced_at && <span>checked {new Date(s.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+              {s.auto_sync && s.next_check_at && <span>next check {new Date(s.next_check_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
               {s.credit && <span>by {s.credit}</span>}
             </div>
           </div>
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <button className="rating-chip" disabled={busy !== null} onClick={() => syncNow(s)}>{busy === s.id ? "checking…" : "check now"}</button>
             <button className={`rating-chip ${s.auto_sync ? "rated" : ""}`} onClick={() => updateSource(s, !s.auto_sync)}>
-              nightly {s.auto_sync ? "on" : "off"}
+              auto-check {s.auto_sync ? "on" : "off"}
             </button>
             <button className="rating-chip danger" onClick={() => updateSource(s, s.auto_sync, true)}>remove</button>
           </span>
