@@ -147,3 +147,15 @@ ChatGPT skips all of these without checking them. Anything else it finds is
 checked in one `check_candidates` call (up to 50 titles), which also reports
 `previously_dismissed` so turned-down finds aren't resubmitted. Songs now
 record when they were added (`tracks.created_at`; older songs have none).
+
+## Artist priority queue (20261018060000_artist_priority_queue.sql)
+
+One shared ranking (`sc_artist_queue`) decides which artists get checked
+next. Empty or thin pages, "request a check" presses (one per person per
+artist per day), followers and recent finds push an artist up. Every check
+that finds nothing makes the next one wait longer (1 day, 3 days, 1 week,
+2 weeks, then 30 days); a find resets it. `finish_run` records per artist
+whether anything was found. The research plan hands out each user's followed
+artists in this order with `due` and `why`. Server jobs (imports) take
+artists with `sc_claim_artists(source, count, per_hour)`, which caps how many
+artists each source gets per hour. Admins see the queue at /admin/queue.

@@ -458,6 +458,9 @@ export default function ReviewPage() {
         <Link href="/review/versions" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
           check sub-versions →
         </Link>
+        <Link href="/admin/queue" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
+          artist queue →
+        </Link>
       </div>
 
       {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}

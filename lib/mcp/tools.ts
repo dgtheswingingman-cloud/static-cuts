@@ -51,7 +51,9 @@ export const TOOLS: Tool[] = [
     name: "get_research_plan",
     title: "Get artists to research",
     description:
-      "Returns the user's CURRENT followed artists on Static Cuts that are due for a check, stalest first. " +
+      "Returns the user's CURRENT followed artists on Static Cuts in priority order (shared queue). Research " +
+      "the ones with due = true; due = false means checked recently or quiet lately, so skip unless you have time. " +
+      "why says what put the artist in the queue. " +
       "Research is shared by everyone using Static Cuts, so each artist says what's already covered: " +
       "search_since (only look for news on or after this date; null = never checked, do a full sweep), " +
       "recently_added (songs already added or updated lately: skip them), already_handled (finds already " +
