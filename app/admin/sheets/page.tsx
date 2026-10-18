@@ -37,7 +37,7 @@ type Parsed = {
 };
 type Source = {
   id: string; title: string; tab_name: string | null; credit: string | null; url: string; artist_id: string; artist: string;
-  songs: number; last_synced_at: string | null; auto_sync: boolean; next_check_at: string | null;
+  songs: number; last_synced_at: string | null; auto_sync: boolean; next_check_at: string | null; waiting?: number;
 };
 type Request = { sheet_id: string; url: string; artist_name: string | null; notes: string | null; people: number; first_at: string };
 
@@ -455,7 +455,10 @@ export default function SheetsPage() {
             </div>
             <div className="review-row-meta">
               <Link href={`/artist/${s.artist_id}`}>{s.artist}</Link>
-              <span>{s.songs} song{s.songs === 1 ? "" : "s"} on the site</span>
+              <span>{s.songs} song{s.songs === 1 ? "" : "s"} added</span>
+              {(s.waiting ?? 0) > 0 && (
+                <Link href="/review/imports" className="text-link">{s.waiting} waiting for review</Link>
+              )}
               {s.last_synced_at && <span>checked {new Date(s.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
               {s.auto_sync && s.next_check_at && <span>next check {new Date(s.next_check_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
               {s.credit && <span>by {s.credit}</span>}
