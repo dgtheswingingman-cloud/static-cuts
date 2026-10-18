@@ -1558,6 +1558,7 @@ export default function ArtistPage() {
             <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
               {isFollowing ? "✓ following" : "+ follow"}
             </button>
+            <Link href={`/collabs?artist=${id}`} className="tab" style={{ textDecoration: "none" }}>collabs</Link>
             {user && (
               <button
                 className={`tab ${checkRequested ? "active" : ""}`}
