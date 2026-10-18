@@ -743,3 +743,12 @@ a .health-tile:hover {
 .rof-bar { height: 6px; background: var(--hair); border-radius: 3px; overflow: hidden; margin: 12px 0 6px; }
 .rof-bar-real { height: 100%; background: var(--bone); }
 .disputed-tag { border-color: #b5651d !important; color: #e08a3c !important; }
+
+/* ---------- Completeness ---------- */
+.completeness { margin: -8px 0 20px; }
+.completeness-toggle {
+  display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 0;
+  color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.72rem; cursor: pointer;
+}
+.completeness-bar { width: 90px; height: 4px; background: var(--hair); border-radius: 2px; overflow: hidden; display: inline-block; }
+.completeness-bar span { display: block; height: 100%; background: var(--bone); }
