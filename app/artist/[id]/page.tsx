@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import ArtistProfiles from "./ArtistProfiles";
+import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 
@@ -34,6 +35,8 @@ type Track = {
   genre?: string | null;
   notes?: string | null;
   album?: string | null;
+  source?: string | null;
+  source_url?: string | null;
   // Client-only, not from DB: set when this track is shown here via a
   // cross-artist appearance rather than being native to this artist.
   isCrossAppearance?: boolean;
@@ -484,7 +487,7 @@ export default function ArtistPage() {
     const [detailsRes, candidatesRes, appearancesRes] = await Promise.all([
       supabase
         .from("tracks")
-        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album")
+        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album, source, source_url")
         .in("id", idsToLoad),
       supabase
         .from("track_link_candidates")
@@ -817,6 +820,10 @@ export default function ArtistPage() {
     if (realFeatured && realFeatured.length > 0) lines.push(["Featured Artists", realFeatured.map((a) => a.name).join(", ")]);
     if (t.genre) lines.push(["Genre", t.genre]);
     if (t.notes) lines.push(["Notes", t.notes]);
+    if (t.source) {
+      const sourceName = ({ spotify: "Spotify", genius: "Genius", lastfm: "Last.fm" } as Record<string, string>)[t.source] ?? t.source;
+      lines.push(["Source", t.source_url ? `${sourceName} (${t.source_url})` : sourceName]);
+    }
     return lines;
   }
 
@@ -1513,6 +1520,15 @@ export default function ArtistPage() {
             </button>
           )}
           {isAdmin && <ArtistProfiles artistId={id} artistName={artist.name} />}
+          {tracks && (
+            <ImportPanel
+              artistId={id}
+              artistName={artist.name}
+              trackCount={tracks.filter((t) => !t.isCrossAppearance).length}
+              signedIn={!!user}
+              onImported={load}
+            />
+          )}
           {addingTrack && isAdmin && (
             <div className="comments-panel" style={{ maxWidth: 480, marginBottom: 20 }}>
               <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Title"
