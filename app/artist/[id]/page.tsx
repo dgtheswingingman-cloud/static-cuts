@@ -917,10 +917,15 @@ export default function ArtistPage() {
     load();
   }
 
-  const mainTracks = tracks?.filter((t) => !t.parent_track_id) ?? [];
+  // A version whose main song isn't on this page (e.g. someone's remix of
+  // another artist's song, shown on the remixer's page) is listed as a main
+  // song here, so it doesn't disappear.
+  const pageTrackIds = new Set((tracks ?? []).map((t) => t.id));
+  const isMainHere = (t: Track) => !t.parent_track_id || !pageTrackIds.has(t.parent_track_id);
+  const mainTracks = tracks?.filter(isMainHere) ?? [];
   const subsByParent: Record<string, Track[]> = {};
   (tracks ?? []).forEach((t) => {
-    if (t.parent_track_id) (subsByParent[t.parent_track_id] = subsByParent[t.parent_track_id] || []).push(t);
+    if (!isMainHere(t)) (subsByParent[t.parent_track_id as string] = subsByParent[t.parent_track_id as string] || []).push(t);
   });
 
   const filteredMain = (() => {
