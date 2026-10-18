@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess from "../../components/NoAccess";
 
 type Row = {
   artist_id: string;
@@ -37,10 +38,6 @@ export default function QueuePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
-
-  useEffect(() => {
     if (!isRealAdmin) return;
     supabase.rpc("admin_artist_queue", { p_limit: 500 }).then(({ data, error: err }) => {
       if (err) { setError(err.message); setRows([]); return; }
@@ -48,7 +45,7 @@ export default function QueuePage() {
     });
   }, [isRealAdmin]);
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
   const due = (rows ?? []).filter((r) => r.due);
   const waiting = (rows ?? []).filter((r) => !r.due);
 
@@ -83,8 +80,8 @@ export default function QueuePage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Artist Queue</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Artist Queue</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Which artists get checked next. Empty pages, requests and recent finds push an artist up. Each check that
         finds nothing makes the next one wait longer (1 day, 3 days, a week, 2 weeks, then monthly), and a new find

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import NoAccess from "../../components/NoAccess";
 
 const FN_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/sheet-import";
 
@@ -93,10 +94,6 @@ export default function SheetsPage() {
 
   const [sources, setSources] = useState<Source[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !canModerate)) router.push("/");
-  }, [authLoading, user, canModerate, router]);
 
   async function loadLists() {
     const [{ data: s }, { data: r }] = await Promise.all([
@@ -206,13 +203,13 @@ export default function SheetsPage() {
     setParsed(null);
   }
 
-  if (!canModerate) return null;
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   const statusValues = mapping?.status_column ? preview?.values[mapping.status_column] ?? [] : [];
 
   return (
     <div className="wrap" style={{ maxWidth: 860 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Import a spreadsheet</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Import a spreadsheet</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Paste the link to one tab of a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).
         Songs go to the <Link href="/review/imports" className="text-link">imported songs</Link> list for review,

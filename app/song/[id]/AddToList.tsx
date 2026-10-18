@@ -80,7 +80,7 @@ export default function AddToList({ trackId }: { trackId: string }) {
               onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createAndAdd()} />
             <button className="rating-chip" disabled={!title.trim() || busy === "new"} onClick={createAndAdd}>create + add</button>
           </div>
-          {error && <div className="comment-meta" style={{ color: "#c55" }}>{error}</div>}
+          {error && <div className="comment-meta error-text">{error}</div>}
         </div>
       )}
       {onLists.length > 0 && !open && (

@@ -213,7 +213,7 @@ export default function SettingsPage() {
       <button className="back-btn" onClick={() => router.push("/")}>
         ← back to archive
       </button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>
+      <h1 className="detail-name page-title">
         Settings
       </h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
         </div>
       )}
       {importError && (
-        <div className="empty-state" style={{ borderColor: "#a33", maxWidth: 520, marginBottom: 20 }}>{importError}</div>
+        <div className="empty-state error" style={{ maxWidth: 520, marginBottom: 20 }}>{importError}</div>
       )}
       {importResult && (
         <div className="detail-meta" style={{ maxWidth: 520, marginBottom: 20 }}>

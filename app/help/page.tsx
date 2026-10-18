@@ -129,7 +129,7 @@ export default function HelpWantedPage() {
               {(s.missing ?? []).map((m) => <span key={m} className="feature-tag">no {m}</span>)}
             </div>
           </div>
-          <Link href={`/artist/${s.artist_id}?highlight=${s.id}`} className="rating-chip" style={{ textDecoration: "none" }}>
+          <Link href={`/artist/${s.artist_id}?highlight=${s.id}`} className="rating-chip">
             suggest edit
           </Link>
         </div>
@@ -141,7 +141,7 @@ export default function HelpWantedPage() {
             <div className="review-row-title"><Link href={`/artist/${a.artist_id}`}>{a.artist}</Link></div>
             <div className="review-row-meta"><span>{a.songs} song{a.songs === 1 ? "" : "s"}</span></div>
           </div>
-          <Link href={`/artist/${a.artist_id}`} className="rating-chip" style={{ textDecoration: "none" }}>import songs</Link>
+          <Link href={`/artist/${a.artist_id}`} className="rating-chip">import songs</Link>
         </div>
       ))}
 

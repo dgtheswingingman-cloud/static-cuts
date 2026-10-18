@@ -44,8 +44,8 @@ export default function ContributorsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Contributors</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Contributors</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         The people building the archive. Counts approved songs and versions (suggested, found by their ChatGPT
         routine or imported), status updates, corrections, finds and confirmations. Only people who show their

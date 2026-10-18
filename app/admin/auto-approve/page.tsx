@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Settings = {
   enabled: boolean;
@@ -32,10 +33,6 @@ export default function AutoApprovePage() {
   const [draft, setDraft] = useState<Partial<Settings>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
 
   async function load() {
     const { data, error } = await supabase.rpc("admin_auto_approve_settings");
@@ -68,18 +65,18 @@ export default function AutoApprovePage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
   const v = { ...s, ...draft } as Settings;
   const changed = Object.keys(draft).length > 0;
 
   return (
     <div className="wrap" style={{ maxWidth: 680 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Auto-approve</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Auto-approve</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         ChatGPT finds that match a rule below are added straight away instead of waiting in the review queue.
         Rumours, takedowns and songs with an open takedown request always wait for you. Each one is a separate
-        entry in the <Link href="/admin/batches" className="text-link">undo history</Link>, so a bad one is one
+        entry in the <UndoHistoryLink />, so a bad one is one
         click to reverse.
       </div>
 

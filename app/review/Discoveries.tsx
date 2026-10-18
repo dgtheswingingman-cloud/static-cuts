@@ -215,7 +215,6 @@ export default function Discoveries({ onPromoted }: { onPromoted: () => void }) 
               <Link
                 href={`/artist/${d.artist_id}?highlight=${d.matched_track_id}`}
                 className="listen-link"
-                style={{ textDecoration: "none" }}
               >
                 view track
               </Link>

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Request = {
   id: string;
@@ -48,10 +49,6 @@ export default function TakedownsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
-
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_takedown_requests", { p_state: tab });
     if (err) { setError(err.message); setRows([]); return; }
@@ -82,16 +79,16 @@ export default function TakedownsPage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Takedown Requests</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Takedown Requests</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Requests from the <Link href="/takedown" className="text-link">takedown form</Link>. &quot;Remove&quot; marks the
         song removed and deletes its suggested links; it can be reversed from the{" "}
-        <Link href="/admin/batches" className="text-link">undo history</Link>. Reply to the sender by email either way.
+        <UndoHistoryLink />. Reply to the sender by email either way.
       </div>
 
       <div className="review-toolbar"><div className="review-toolbar-row">

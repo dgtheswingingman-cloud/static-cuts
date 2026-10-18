@@ -70,10 +70,10 @@ export default function OAuthConsentPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 560 }}>
-      <h1 className="detail-name" style={{ fontSize: "2rem" }}>Connect an app</h1>
+      <h1 className="detail-name page-title">Connect an app</h1>
 
       {error && (
-        <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>
+        <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>
       )}
 
       {!error && !details && <div className="empty-state" style={{ marginTop: 16 }}>loading…</div>}

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Suggestion = {
   id: string;
@@ -47,10 +48,6 @@ export default function VersionSuggestionsPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_version_suggestions", { p_cls: null, p_limit: 2000 });
@@ -120,18 +117,18 @@ export default function VersionSuggestionsPage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const help = TABS.find((t) => t.key === tab)?.help;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Sub-versions</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Sub-versions</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Clear versions (Live, Demo, Remix, V2, Reference…) are linked under their main song automatically, including
         new songs as they&apos;re added. These are the ones that need a look first. Anything approved can be reversed
-        from the <Link href="/admin/batches" className="text-link">undo history</Link>.
+        from the <UndoHistoryLink />.
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>

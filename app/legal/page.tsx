@@ -8,8 +8,8 @@ export default function LegalPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Privacy &amp; Terms</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Privacy &amp; Terms</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
         Last updated 18 October 2026.
         Static Cuts// is a small, non-commercial, community-run project — this is written plainly on

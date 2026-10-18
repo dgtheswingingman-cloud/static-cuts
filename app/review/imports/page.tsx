@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Suggestion = {
   id: string;
@@ -43,10 +44,6 @@ export default function ImportReviewPage() {
   const [statusOverride, setStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_import_suggestions", { p_limit: 5000 });
@@ -112,18 +109,18 @@ export default function ImportReviewPage() {
     load();
   }
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← back to review</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Imported Songs</h1>
+      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <h1 className="detail-name page-title">Imported Songs</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Songs the Genius and Last.fm imports found that aren&apos;t on the page yet. Genius often lists unreleased songs;
         Last.fm titles come from what people play, so leaks show up. Added songs are filed under their main song
         automatically when they&apos;re a version, and can be reversed from the{" "}
-        <Link href="/admin/batches" className="text-link">undo history</Link>.
+        <UndoHistoryLink />.
       </div>
 
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}

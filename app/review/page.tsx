@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsRealAdmin } from "../useIsAdmin";
+import { useIsModerator, useIsRealAdmin } from "../useIsAdmin";
+import NoAccess from "../components/NoAccess";
 import Discoveries from "./Discoveries";
 
 type Submission = {
@@ -65,6 +66,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 export default function ReviewPage() {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useIsRealAdmin();
+  const canModerate = useIsModerator();
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
@@ -83,16 +85,12 @@ export default function ReviewPage() {
   }
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
-  }, [authLoading, user, router]);
-
-  useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, canModerate]);
 
   async function load() {
-    if (!user) return;
+    if (!user || !canModerate) return;
     const { data, error: err } = await supabase
       .from("submissions")
       .select("id, type, artist_id, payload, submitted_by, status, created_at")
@@ -429,7 +427,7 @@ export default function ReviewPage() {
           </div>
         </div>
         {link && (
-          <Link href={link} className="listen-link" style={{ textDecoration: "none" }}>
+          <Link href={link} className="listen-link">
             view live page
           </Link>
         )}
@@ -449,50 +447,35 @@ export default function ReviewPage() {
     );
   }
 
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
+
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Review queue</h1>
-      <div style={{ marginBottom: 14 }}>
-        <Link href="/review/duplicates" className="listen-link" style={{ textDecoration: "none" }}>
-          clean up possible duplicates →
-        </Link>
-        <Link href="/review/versions" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          check sub-versions →
-        </Link>
-        {isAdmin && (
-          <Link href="/admin/queue" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-            artist queue →
-          </Link>
-        )}
-        <Link href="/review/imports" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          imported songs →
-        </Link>
-        <Link href="/admin/sheets" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          import a spreadsheet →
-        </Link>
-        <Link href="/review/comments" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          reported comments →
-        </Link>
-        <Link href="/review/guests" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-          guest artists →
-        </Link>
-        {isAdmin && (
-          <>
-            <Link href="/review/takedowns" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-              takedowns →
-            </Link>
-            <Link href="/admin/auto-approve" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-              auto-approve →
-            </Link>
-            <Link href="/admin/moderators" className="listen-link" style={{ textDecoration: "none", marginLeft: 16 }}>
-              moderators →
-            </Link>
-          </>
-        )}
-      </div>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Review queue</h1>
+      <nav className="review-nav" aria-label="Moderator tools">
+        <span className="review-nav-label">check</span>
+        <Link href="/review/duplicates">duplicates</Link>
+        <Link href="/review/versions">sub-versions</Link>
+        <Link href="/review/imports">imported songs</Link>
+        <Link href="/review/guests">guest artists</Link>
+        <Link href="/review/comments">reported comments</Link>
+        <Link href="/admin/sheets">import a spreadsheet</Link>
+      </nav>
+      {isAdmin && (
+        <nav className="review-nav" aria-label="Admin tools">
+          <span className="review-nav-label">admin</span>
+          <Link href="/review/takedowns">takedowns</Link>
+          <Link href="/admin/queue">artist queue</Link>
+          <Link href="/admin/auto-approve">auto-approve</Link>
+          <Link href="/admin/moderators">moderators</Link>
+          <Link href="/admin/batches">undo history</Link>
+          <Link href="/admin/health">site health</Link>
+          <Link href="/admin/spotify-matcher">link tools</Link>
+        </nav>
+      )}
 
-      {error && <div className="empty-state" style={{ borderColor: "#a33", marginTop: 16 }}>{error}</div>}
+      {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}
       {!error && user && <Discoveries onPromoted={load} />}
       {!error && submissions === null && <div className="empty-state">loading…</div>}
       {!error && submissions && submissions.length === 0 && (

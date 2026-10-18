@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsRealAdmin } from "../../useIsAdmin";
+import NoAccess from "../../components/NoAccess";
 
 type Health = {
   generated_at: string;
@@ -73,10 +74,6 @@ export default function HealthPage() {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
-
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
     if (err) { setError(err.message); return; }
@@ -97,7 +94,7 @@ export default function HealthPage() {
     return () => clearInterval(t);
   }, [isRealAdmin]);
 
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   const r = h?.reviews;
   const toReview = r ? r.submissions + r.discoveries + r.takedowns : 0;
@@ -105,8 +102,8 @@ export default function HealthPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Site Health</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Site Health</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         What needs looking at, what&apos;s gone wrong and what the automatic jobs have been doing. Refreshes every minute.
         {h && <> Updated {ago(h.generated_at)}.</>}

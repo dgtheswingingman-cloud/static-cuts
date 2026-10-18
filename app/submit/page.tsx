@@ -423,8 +423,8 @@ function SubmitForm() {
   if (submitted) {
     return (
       <div className="wrap">
-        <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-        <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Thanks!</h1>
+        <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+        <h1 className="detail-name page-title">Thanks!</h1>
         <div className="empty-state" style={{ marginTop: 16 }}>
           Your submission is in the queue for review. Check{" "}
           <a href="/my-submissions" style={{ color: "var(--bone)" }}>my submissions</a> for status.
@@ -444,8 +444,8 @@ function SubmitForm() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>{titles[type]}</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">{titles[type]}</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Reviewed before it goes live — nothing you submit appears in the archive automatically.
       </div>
@@ -763,7 +763,7 @@ function SubmitForm() {
         )}
 
         {error && (
-          <div className="empty-state" style={{ borderColor: "#a33", marginBottom: 12 }}>{error}</div>
+          <div className="empty-state error" style={{ marginBottom: 12 }}>{error}</div>
         )}
 
         <button className="comment-post-btn" disabled={busy} onClick={submit}>

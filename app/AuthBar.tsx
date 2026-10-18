@@ -95,11 +95,6 @@ export default function AuthBar() {
           </Link>
         )}
         {isAdmin && (
-          <Link href="/admin/spotify-matcher" style={smallBtn}>
-            link tools
-          </Link>
-        )}
-        {isAdmin && (
           <Link href="/admin/health" style={smallBtn}>
             health
           </Link>

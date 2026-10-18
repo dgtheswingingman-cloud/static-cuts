@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsRealAdmin } from "../../useIsAdmin";
 import { useAuth } from "../../AuthProvider";
+import NoAccess from "../../components/NoAccess";
 
 const MATCH_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/match-spotify";
 const VERIFY_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/verify-spotify-links";
@@ -134,16 +135,12 @@ export default function SpotifyMatcherPage() {
   const isRealAdmin = useIsRealAdmin();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!authLoading && (!user || !isRealAdmin)) router.push("/");
-  }, [authLoading, user, isRealAdmin, router]);
-
-  if (!isRealAdmin) return null;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Spotify Matching</h1>
+      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
+      <h1 className="detail-name page-title">Spotify Matching</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
         Keep this tab open while either one runs; closing it stops the run, and you can start it again later
         from where it got to. Each runs at about 30 songs a minute so Spotify doesn&apos;t block us. For a big

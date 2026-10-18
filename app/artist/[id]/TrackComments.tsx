@@ -166,7 +166,11 @@ export default function TrackComments({ trackId }: { trackId: string }) {
           · {new Date(c.created_at).toLocaleDateString()}
         </div>
         {c.hidden_at && (
-          <div className="comment-meta" style={{ color: "#e08a3c" }}>Hidden after reports, waiting for a moderator. Only you can see it.</div>
+          <div className="comment-meta error-text">
+            {user && c.user_id === user.id
+              ? "Hidden after reports, waiting for a moderator. Only you can see it."
+              : "Hidden after reports. Only moderators can see it."}
+          </div>
         )}
         <div className="comment-body">{c.body}</div>
         <div className="comment-actions">
@@ -271,7 +275,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
         >
           {posting ? "…" : "post comment"}
         </button>
-        {postError && <div className="comment-meta" style={{ color: "#e08a3c", marginTop: 6 }}>{postError}</div>}
+        {postError && <div className="comment-meta error-text" style={{ marginTop: 6 }}>{postError}</div>}
       </div>
     </div>
   );
