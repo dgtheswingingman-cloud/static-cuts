@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
+import ExportToSpotify from "../../ExportToSpotify";
 
 type Item = {
   track_id: string; title: string; artist_id: string; artist: string; note: string | null;
@@ -152,6 +153,11 @@ export default function ListView({ id }: { id: string }) {
           <button className={`tab ${d.following ? "active" : ""}`} onClick={toggleFollow}>{d.following ? "✓ following" : "follow"}</button>
         )}
         {d.list.is_public && <button className="tab" onClick={share}>share</button>}
+        {d.items.length > 0 && (
+          <ExportToSpotify name={d.list.title} back={`/list/${d.list.id}`}
+            description={`From Static Cuts//: a list by ${d.owner?.name ?? "someone"}. static-cuts.com/list/${d.list.id}`}
+            urls={d.items.map((i) => i.spotify_url)} />
+        )}
         {d.is_owner && !editing && (
           <>
             <button className="tab" onClick={() => { setDraft({ title: d.list.title, description: d.list.description ?? "" }); setEditing(true); }}>edit</button>

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
+import ExportCollection from "./ExportCollection";
 
 type Profile = {
   id: string;
@@ -301,6 +302,7 @@ export default function ProfilePage() {
 
           <Contributions userId={userId} />
           <ProfileLists userId={userId} />
+          {isOwnProfile && <ExportCollection userId={userId} />}
 
           {stats && (
             <div style={{ marginBottom: 20 }}>
