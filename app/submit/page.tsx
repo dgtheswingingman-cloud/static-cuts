@@ -305,7 +305,6 @@ function SubmitForm() {
           payload: {
             title: trackTitle.trim(),
             spotify_url: trackUrl.trim() || undefined,
-            track_type: subVersionParentId ? "alternate_version" : "studio",
             is_featured: isFeatured,
             is_official: isOfficial,
             has_audio: true,
@@ -340,7 +339,6 @@ function SubmitForm() {
             title: versionTitle.trim(),
             spotify_url: versionUrl.trim() || undefined,
             parent_track_id: prefilledParentTrackId,
-            track_type: "alternate_version",
             is_featured: false,
             is_official: false,
             has_audio: true,

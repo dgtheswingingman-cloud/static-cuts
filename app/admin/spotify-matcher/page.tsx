@@ -7,7 +7,6 @@ import { useAuth } from "../../AuthProvider";
 
 const MATCH_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/match-spotify";
 const VERIFY_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/verify-spotify-links";
-const LINKS_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/find-possible-links";
 
 // pauseSeconds between batches keeps every runner well under the services'
 // rate limits (about 30 calls a minute). Faster got Spotify to block us for 24h.
@@ -22,7 +21,7 @@ function useRunner(functionUrl: string, limit: number, pauseSeconds: number) {
     setLog((prev) => [line, ...prev].slice(0, 200));
   }
 
-  async function run(secondaryKey: "matched" | "deadFound" | "found") {
+  async function run(secondaryKey: "matched" | "deadFound") {
     setRunning(true);
     stopRequested.current = false;
     setTotalChecked(0);
@@ -95,7 +94,7 @@ function RunnerPanel({
   functionUrl: string;
   limit: number;
   pauseSeconds?: number;
-  secondaryKey: "matched" | "deadFound" | "found";
+  secondaryKey: "matched" | "deadFound";
 }) {
   const { running, totalChecked, totalSecondary, log, run, stop } = useRunner(functionUrl, limit, pauseSeconds);
 
@@ -144,11 +143,12 @@ export default function SpotifyMatcherPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← back to archive</button>
-      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Link Discovery Tools</h1>
+      <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Spotify Matching</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
-        Two separate systems. Keep this tab open while either runs — closing it stops the process,
-        same as closing a terminal window would. Each runs at about 30 songs a minute so the
-        services don&apos;t block us; leave a big run going overnight.
+        Keep this tab open while either one runs; closing it stops the run, and you can start it again later
+        from where it got to. Each runs at about 30 songs a minute so Spotify doesn&apos;t block us. For a big
+        overnight run, leave this tab in front and stop the computer sleeping: browsers slow down tabs in the
+        background.
       </div>
 
       <RunnerPanel
@@ -167,15 +167,6 @@ export default function SpotifyMatcherPage() {
         functionUrl={VERIFY_URL}
         limit={10}
         secondaryKey="deadFound"
-      />
-
-      <RunnerPanel
-        title="Find Possible Links"
-        description="Searches Genius, SoundCloud, YouTube, Bandcamp, and Discogs for unofficial/unreleased tracks with no confirmed link, storing results as unverified candidates for community review."
-        secondaryLabel="searches with results"
-        functionUrl={LINKS_URL}
-        limit={10}
-        secondaryKey="found"
       />
     </div>
   );

@@ -26,7 +26,6 @@ type Track = {
   release_status?: string | null;
   // Heavy fields -- undefined until this track's letter group (or search
   // result) has actually been loaded on demand.
-  track_type?: string;
   has_audio?: boolean;
   track_number?: number | null;
   release_date?: string | null;
@@ -499,7 +498,7 @@ export default function ArtistPage() {
     const [detailsRes, candidatesRes, appearancesRes] = await Promise.all([
       supabase
         .from("tracks")
-        .select("id, track_type, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album, source, source_url")
+        .select("id, has_audio, track_number, release_date, producers, featured_artists, genre, notes, album, source, source_url")
         .in("id", idsToLoad),
       supabase
         .from("track_link_candidates")

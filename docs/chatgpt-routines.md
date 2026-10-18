@@ -119,7 +119,7 @@ Added in `20261017190000_status_links_cleanup.sql`.
 - **Spotify matcher** (`supabase/functions/match-spotify`) now checks every
   song, only accepts the same title by one of the song's own artists, and on a
   match sets the link, marks the song released and fills album and release
-  date. Redeploy it, then run `run-spotify-matching.ps1`.
+  date. Redeploy it, then run it from the admin "link tools" page (Spotify Matching); keep the tab open, it runs at about 30 songs a minute.
 - **ChatGPT link suggestions:** "find links with ChatGPT" on artist pages opens
   ChatGPT with a short prompt. The connector's `get_songs_needing_links`,
   `suggest_link` and `mark_checked` tools add suggestions to each song's
