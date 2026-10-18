@@ -104,6 +104,7 @@ export default function ArtistPage() {
   const isAdmin = useIsAdmin();
 
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [checkRequested, setCheckRequested] = useState(false);
   const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
   const [genreTagInput, setGenreTagInput] = useState("");
   const [genreTagsExpanded, setGenreTagsExpanded] = useState(false);
@@ -917,6 +918,12 @@ export default function ArtistPage() {
     load();
   }
 
+  async function requestCheck() {
+    const { error: err } = await supabase.rpc("rpc_request_artist_check", { p_artist_id: id });
+    if (err) { alert(err.message); return; }
+    setCheckRequested(true);
+  }
+
   // A version whose main song isn't on this page (e.g. someone's remix of
   // another artist's song, shown on the remixer's page) is listed as a main
   // song here, so it doesn't disappear.
@@ -1462,6 +1469,17 @@ export default function ArtistPage() {
           <button className={`tab ${isFollowing ? "active" : ""}`} style={{ marginBottom: 14 }} disabled={followBusy} onClick={toggleFollow}>
             {isFollowing ? "✓ following" : "+ follow"}
           </button>
+          {user && (
+            <button
+              className={`tab ${checkRequested ? "active" : ""}`}
+              style={{ marginBottom: 14, marginLeft: 8 }}
+              disabled={checkRequested}
+              title="Moves this artist up the queue so it gets checked for new music soon."
+              onClick={requestCheck}
+            >
+              {checkRequested ? "✓ check requested" : "request a check"}
+            </button>
+          )}
           {user && (
             <a
               href={chatGptLinksUrl(id, artist.name)}
