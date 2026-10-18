@@ -1123,3 +1123,18 @@ a.listen-link {
   font-size: 1.05rem;
   white-space: nowrap;
 }
+
+/* Moderation page: how many are waiting behind each link. */
+.review-nav .nav-count {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 7px;
+  background: var(--bone);
+  color: var(--void);
+  font-size: 0.64rem;
+  text-decoration: none;
+}
+.review-nav a.nav-empty {
+  opacity: 0.55;
+}

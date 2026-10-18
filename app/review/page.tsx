@@ -63,11 +63,26 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
   { key: "deletions", label: "Flagged for Deletion", types: ["flag_deletion"] },
 ];
 
+type Counts = {
+  suggestions: number; finds: number; sub_versions: number; imported_songs: number; guest_artists: number;
+  reported_comments: number; sheet_requests: number; takedowns: number | null;
+};
+
+// A moderation link with how many things are waiting there.
+function NavCount({ href, label, n }: { href: string; label: string; n?: number }) {
+  return (
+    <Link href={href} className={n === 0 ? "nav-empty" : undefined}>
+      {label}{n ? <span className="nav-count">{n.toLocaleString("en-GB")}</span> : null}
+    </Link>
+  );
+}
+
 export default function ReviewPage() {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
   const canModerate = useIsModerator();
   const router = useRouter();
+  const [counts, setCounts] = useState<Counts | null>(null);
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
@@ -91,6 +106,7 @@ export default function ReviewPage() {
 
   async function load() {
     if (!user || !canModerate) return;
+    supabase.rpc("rpc_moderation_counts").then(({ data }) => setCounts((data as Counts) ?? null));
     const { data, error: err } = await supabase
       .from("submissions")
       .select("id, type, artist_id, payload, submitted_by, status, created_at")
@@ -455,17 +471,17 @@ export default function ReviewPage() {
       <h1 className="detail-name page-title">Moderation</h1>
       <nav className="review-nav" aria-label="Moderator tools">
         <span className="review-nav-label">check</span>
-        <Link href="/review/duplicates">duplicates</Link>
-        <Link href="/review/versions">sub-versions</Link>
-        <Link href="/review/imports">imported songs</Link>
-        <Link href="/review/guests">guest artists</Link>
-        <Link href="/review/comments">reported comments</Link>
-        <Link href="/admin/sheets">import a spreadsheet</Link>
+        <NavCount href="/review/duplicates" label="duplicates" />
+        <NavCount href="/review/versions" label="sub-versions" n={counts?.sub_versions} />
+        <NavCount href="/review/imports" label="imported songs" n={counts?.imported_songs} />
+        <NavCount href="/review/guests" label="guest artists" n={counts?.guest_artists} />
+        <NavCount href="/review/comments" label="reported comments" n={counts?.reported_comments} />
+        <NavCount href="/admin/sheets" label="import a spreadsheet" n={counts?.sheet_requests || undefined} />
       </nav>
       {isAdmin && (
         <nav className="review-nav" aria-label="Admin tools">
           <span className="review-nav-label">admin</span>
-          <Link href="/review/takedowns">takedowns</Link>
+          <NavCount href="/review/takedowns" label="takedowns" n={counts?.takedowns ?? undefined} />
           <Link href="/admin/queue">artist queue</Link>
           <Link href="/admin/auto-approve">auto-approve</Link>
           <Link href="/admin/moderators">moderators</Link>
@@ -481,7 +497,10 @@ export default function ReviewPage() {
       {!error && submissions && submissions.length === 0 && (
         <>
           <h2 className="mod-heading">Suggestions waiting</h2>
-          <div className="empty-state">No suggestions waiting.</div>
+          <div className="empty-state">
+            Nothing from users right now. Suggestions are what people send with &ldquo;suggest track&rdquo;, &ldquo;suggest
+            edit&rdquo;, &ldquo;wrong link&rdquo; and the like. Other work waiting is counted in the links above.
+          </div>
         </>
       )}
 
