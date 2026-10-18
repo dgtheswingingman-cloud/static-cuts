@@ -14,6 +14,7 @@ import ArtistProfiles from "./ArtistProfiles";
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
+import Completeness from "./Completeness";
 
 type Track = {
   id: string;
@@ -1742,6 +1743,7 @@ export default function ArtistPage() {
               <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
             </div>
           )}
+          <Completeness artistId={id} refreshKey={tracks?.length} />
 
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
