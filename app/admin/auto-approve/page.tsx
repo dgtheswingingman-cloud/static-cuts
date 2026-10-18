@@ -17,7 +17,9 @@ type Settings = {
   min_confirmations: number;
   trusted_min_approved: number;
   trusted_max_dismissed_pct: number;
+  link_votes: number;
   updated_at: string;
+  recent_links: { at: string; label: string; undone: boolean }[];
   waiting: number;
   recent: { at: string; title: string; artist_id: string; artist: string | null; status: string | null; reason: string }[];
 };
@@ -132,6 +134,19 @@ export default function AutoApprovePage() {
                 </div>
               </div>
               <div className="comment-meta">The last two rules also need ChatGPT to be fairly sure (confidence 0.6 or more).</div>
+
+              <div className="comment-body">
+                Possible links: put a link on the song once its score reaches{" "}
+                <select id="aa-links" className="sort-select" disabled={!v.enabled} value={v.link_votes}
+                  onChange={(e) => setDraft({ ...draft, link_votes: Number(e.target.value) })}>
+                  <option value={0}>off</option>
+                  {[3, 5, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <div className="comment-meta">
+                  Score is &ldquo;right&rdquo; votes minus &ldquo;wrong&rdquo; votes from the help-wanted page and artist pages.
+                  Only songs with no link yet, and only listening sites (Spotify, YouTube, SoundCloud, Bandcamp, Apple Music…).
+                </div>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -142,6 +157,23 @@ export default function AutoApprovePage() {
               </button>
             </div>
           </div>
+
+          {(s.recent_links ?? []).length > 0 && (
+            <>
+              <div className="section-label">Links voted in</div>
+              {s.recent_links.map((r, i) => (
+                <div key={i} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div className="review-row-title" style={{ minWidth: 0 }}>
+                    {r.label.replace(/^Link voted in: /, "")}
+                    {r.undone && <span className="feature-tag" style={{ marginLeft: 8 }}>undone</span>}
+                  </div>
+                  <span className="comment-meta">
+                    {new Date(r.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
 
           <div className="section-label">Recently auto-approved</div>
           {s.recent.length === 0 && <div className="comment-meta">Nothing yet.</div>}
