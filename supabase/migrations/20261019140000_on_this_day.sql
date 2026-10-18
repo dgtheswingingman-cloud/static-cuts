@@ -5,8 +5,10 @@
 -- <date>.". Release dates already live in tracks.release_date.
 
 alter table tracks add column if not exists leak_date date;
-create index if not exists tracks_release_md_idx on tracks ((to_char(release_date, 'MM-DD'))) where release_date is not null;
-create index if not exists tracks_leak_md_idx on tracks ((to_char(leak_date, 'MM-DD'))) where leak_date is not null;
+create index if not exists tracks_release_md_idx on tracks ((extract(month from release_date)), (extract(day from release_date)))
+  where release_date is not null;
+create index if not exists tracks_leak_md_idx on tracks ((extract(month from leak_date)), (extract(day from leak_date)))
+  where leak_date is not null;
 
 -- "Leaked Dec 20, 2023." in notes -> 2023-12-20 (null if it isn't a date).
 create or replace function sc_leak_date_from_notes(p_notes text)
@@ -118,10 +120,12 @@ as $$
   with d as (select coalesce(p_day, (now() at time zone 'Europe/London')::date) as day),
   hits as (
     select 'released'::text kind, t.release_date on_date, t.* from tracks t, d
-    where t.release_date is not null and to_char(t.release_date, 'MM-DD') = to_char(d.day, 'MM-DD') and t.release_date < d.day
+    where t.release_date is not null and t.release_date < d.day
+      and extract(month from t.release_date) = extract(month from d.day) and extract(day from t.release_date) = extract(day from d.day)
     union all
     select 'leaked', t.leak_date, t.* from tracks t, d
-    where t.leak_date is not null and to_char(t.leak_date, 'MM-DD') = to_char(d.day, 'MM-DD') and t.leak_date < d.day
+    where t.leak_date is not null and t.leak_date < d.day
+      and extract(month from t.leak_date) = extract(month from d.day) and extract(day from t.leak_date) = extract(day from d.day)
   )
   select h.kind, h.on_date, (extract(year from d.day) - extract(year from h.on_date))::int, h.id, h.title, h.artist_id, a.name,
          coalesce(h.release_status, case when h.is_official then 'released' else 'unconfirmed' end), h.spotify_url, h.album
