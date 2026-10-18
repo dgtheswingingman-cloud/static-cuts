@@ -499,7 +499,6 @@ export default function ReviewPage() {
             <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />
             <JobCard href="/admin/auto-approve" title="Auto-approve" blurb="Rules for adding trusted finds without review." />
             <JobCard href="/admin/moderators" title="Moderators" blurb="Who can moderate, and what they've done." />
-            <JobCard href="/admin/spotify-matcher" title="Link tools" blurb="Run Spotify link matching faster by hand." />
           </div>
         </>
       )}
