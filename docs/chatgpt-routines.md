@@ -159,3 +159,23 @@ whether anything was found. The research plan hands out each user's followed
 artists in this order with `due` and `why`. Server jobs (imports) take
 artists with `sc_claim_artists(source, count, per_hour)`, which caps how many
 artists each source gets per hour. Admins see the queue at /admin/queue.
+
+## Artist imports (20261018070000_artist_imports.sql, functions/import-artist)
+
+Artist pages have an import panel (open automatically on pages with 10 songs
+or fewer, behind "import songs" otherwise):
+
+- Spotify: every album, single and feature, added straight away with link,
+  album, date and released status. Songs already on the page get missing
+  links/albums filled in instead.
+- Genius / Last.fm: songs not on the page go to /review/imports to approve in
+  bulk (Last.fm tracks under 500 listeners are ignored).
+- ChatGPT: opens a prompt to find unreleased songs, sent to the review queue.
+
+Limits (sc_import_start): signed in, one import per artist per source per
+day, 10 a day per person (admin unlimited), one at a time per artist. The
+function pauses 1.5s between requests and stops if a service says to slow
+down. Profiles found by name are saved automatically if none is set; check
+them under "profiles". Imported songs record `source` / `source_url`, shown
+as "Source" in the song info. Secrets: SPOTIFY_CLIENT_ID,
+SPOTIFY_CLIENT_SECRET, GENIUS_ACCESS_TOKEN, LASTFM_API_KEY.
