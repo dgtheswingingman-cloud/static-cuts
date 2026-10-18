@@ -97,7 +97,7 @@ export default function ReviewPage() {
       .eq("status", "pending")
       .order("created_at", { ascending: true });
     if (err) {
-      setError("You don't have access to the review queue.");
+      setError("You don't have access to moderation.");
       return;
     }
     setSubmissions(data ?? []);
@@ -452,7 +452,7 @@ export default function ReviewPage() {
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
-      <h1 className="detail-name page-title">Review queue</h1>
+      <h1 className="detail-name page-title">Moderation</h1>
       <nav className="review-nav" aria-label="Moderator tools">
         <span className="review-nav-label">check</span>
         <Link href="/review/duplicates">duplicates</Link>
@@ -479,9 +479,15 @@ export default function ReviewPage() {
       {!error && user && <Discoveries onPromoted={load} />}
       {!error && submissions === null && <div className="empty-state">loading…</div>}
       {!error && submissions && submissions.length === 0 && (
-        <div className="empty-state">Nothing pending.</div>
+        <>
+          <h2 className="mod-heading">Suggestions waiting</h2>
+          <div className="empty-state">No suggestions waiting.</div>
+        </>
       )}
 
+      {!error && submissions && submissions.length > 0 && (
+        <h2 className="mod-heading">Suggestions waiting ({submissions.length})</h2>
+      )}
       {!error && submissions && submissions.length > 0 && CATEGORIES.map((cat) => {
         const entries = submissions.filter((s) => cat.types.includes(s.type));
         if (entries.length === 0) return null;

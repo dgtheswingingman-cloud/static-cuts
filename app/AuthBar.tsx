@@ -43,7 +43,7 @@ export default function AuthBar() {
     return (
       <div className="auth-bar">
         <span className="auth-who">admin</span>
-        <Link href="/review" className="auth-link">review queue</Link>
+        <Link href="/review" className="auth-link">moderation</Link>
         <Link href="/admin/health" className="auth-link">health</Link>
         <Link href="/admin/batches" className="auth-link">undo history</Link>
         <button onClick={() => signOut()} className="auth-link">log out</button>
@@ -59,7 +59,7 @@ export default function AuthBar() {
         notifications{unread > 0 && <span className="notif-count">{unread}</span>}
       </Link>
       <Link href="/my-submissions" className="auth-link">my submissions</Link>
-      {isModerator && <Link href="/review" className="auth-link">review queue</Link>}
+      {isModerator && <Link href="/review" className="auth-link">moderation</Link>}
       <Link href="/settings" className="auth-link">settings</Link>
       <button onClick={() => signOut()} className="auth-link">log out</button>
     </div>

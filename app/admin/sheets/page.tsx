@@ -208,7 +208,7 @@ export default function SheetsPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 860 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Import a spreadsheet</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Paste the link to one tab of a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).

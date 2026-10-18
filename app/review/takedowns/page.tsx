@@ -83,7 +83,7 @@ export default function TakedownsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Takedown Requests</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Requests from the <Link href="/takedown" className="text-link">takedown form</Link>. &quot;Remove&quot; marks the

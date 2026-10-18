@@ -64,7 +64,7 @@ export default function GuestsPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← review</button>
+      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
       <h1 className="detail-name page-title">Guest artists</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         People songs are credited to who don&apos;t have a page yet. Every 10 minutes a few are checked on Spotify: matches
