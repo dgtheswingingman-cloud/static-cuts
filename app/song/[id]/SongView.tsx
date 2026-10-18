@@ -25,6 +25,7 @@ type Track = {
   track_number: number | null;
   release_date: string | null;
   leak_date?: string | null;
+  cover_url?: string | null;
   producers: string | null;
   genre: string | null;
   notes: string | null;
@@ -174,6 +175,10 @@ export default function SongView({ id }: { id: string }) {
     <div className="wrap song-page">
       <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
 
+      {t.cover_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={t.cover_url} alt="" className="song-cover" width={140} height={140} />
+      )}
       <h1 className="detail-name song-title">{t.title}</h1>
       <div className="detail-meta song-tags">
         <Link href={`/artist/${artistId}`} className="text-link">{song.artist?.name ?? "Unknown artist"}</Link>

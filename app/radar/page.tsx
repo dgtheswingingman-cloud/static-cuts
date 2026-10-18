@@ -13,7 +13,7 @@ import { useAuth } from "../AuthProvider";
 type Row = {
   section: "upcoming" | "tba" | "dropped"; track_id: string; title: string; artist_id: string; artist: string;
   album: string | null; release_date: string | null; status: string; spotify_url: string | null;
-  watchers: number; watching: boolean;
+  watchers: number; watching: boolean; cover_url?: string | null;
 };
 type Group = { key: string; artist_id: string; artist: string; album: string | null; date: string | null; rows: Row[] };
 
@@ -100,7 +100,11 @@ export default function RadarPage() {
               return (
                 <div key={g.key} className="radar-group">
                   <div className="radar-head">
-                    <div style={{ minWidth: 0 }}>
+                    {g.rows.find((r) => r.cover_url) && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={g.rows.find((r) => r.cover_url)!.cover_url!} alt="" className="thumb-cover" width={48} height={48} loading="lazy" />
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div className="review-row-title">
                         <Link href={`/artist/${g.artist_id}`}>{g.artist}</Link>
                         {isAlbum ? <> · {g.album ?? `${g.rows.length} songs`}</> : <> · <Link href={`/song/${g.rows[0].track_id}`}>{g.rows[0].title}</Link></>}
