@@ -524,3 +524,79 @@ body {
 [data-theme="light"] .scanlines {
   display: none;
 }
+
+/* Bulk review lists (imported songs, sub-versions): one tidy row per item --
+   checkbox, title with details underneath, buttons on the right. */
+.review-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--void);
+  border-bottom: 1px solid var(--hair);
+  padding: 10px 0;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.review-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.review-toolbar-label {
+  font-size: 0.68rem;
+  color: var(--smoke);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.review-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--hair-strong);
+  padding: 4px 0;
+  margin-top: 18px;
+}
+.review-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.review-row input[type="checkbox"] {
+  margin: 0;
+}
+.review-row-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  color: var(--bone);
+}
+.review-row-title a {
+  color: var(--bone);
+}
+.review-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 3px;
+  font-size: 0.7rem;
+  color: var(--smoke);
+}
+.review-row-actions {
+  display: flex;
+  gap: 6px;
+}
+.text-link {
+  color: var(--smoke);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.text-link:hover {
+  color: var(--bone);
+}

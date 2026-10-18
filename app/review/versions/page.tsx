@@ -130,8 +130,8 @@ export default function VersionSuggestionsPage() {
       <h1 className="detail-name" style={{ fontSize: "2.2rem" }}>Sub-versions</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Clear versions (Live, Demo, Remix, V2, Reference…) are linked under their main song automatically, including
-        new songs as they&apos;re added. These are the ones that need a look first.{" "}
-        <Link href="/admin/batches" className="listen-link">undo history</Link>
+        new songs as they&apos;re added. These are the ones that need a look first. Anything approved can be reversed
+        from the <Link href="/admin/batches" className="text-link">undo history</Link>.
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -152,7 +152,7 @@ export default function VersionSuggestionsPage() {
       {items && shown.length === 0 && !error && <div className="empty-state">Nothing to check here.</div>}
 
       {shown.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14, position: "sticky", top: 0, background: "var(--bg, inherit)", padding: "6px 0", zIndex: 2 }}>
+        <div className="review-toolbar"><div className="review-toolbar-row">
           <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all</button>
           <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
           <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
@@ -161,34 +161,40 @@ export default function VersionSuggestionsPage() {
           <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
             dismiss selected
           </button>
-        </div>
+        </div></div>
       )}
 
       {Object.keys(byArtist).map((artist) => (
-        <div key={artist} style={{ marginBottom: 14 }}>
-          <div className="section-label">{artist}</div>
+        <div key={artist}>
+          <div className="review-group-head">
+            <span className="section-label" style={{ margin: 0 }}>{artist} ({byArtist[artist].length})</span>
+          </div>
           {byArtist[artist].map((s) => (
-            <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "4px 0", flexWrap: "wrap" }}>
+            <div key={s.id} className="review-row">
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
-              <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`} className="comment-body" style={{ color: "var(--bone)" }}>
-                {s.track_title}
-              </Link>
-              <span className="comment-meta">
-                {s.action === "merge" ? "merge into" : "→ version of"}{" "}
-                {s.parent_track_id ? (
-                  <>
-                    <strong>{s.parent_title}</strong>
-                    {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
-                  </>
-                ) : (
-                  <strong>{s.create_parent_title} (new main song)</strong>
-                )}
-              </span>
-              {s.version && <span className="feature-tag">{s.version}</span>}
-              <span style={{ display: "inline-flex", gap: 6 }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="review-row-title">
+                  <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`}>{s.track_title}</Link>
+                </div>
+                <div className="review-row-meta">
+                  <span>
+                    {s.action === "merge" ? "merge into" : "version of"}{" "}
+                    {s.parent_track_id ? (
+                      <>
+                        <strong>{s.parent_title}</strong>
+                        {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
+                      </>
+                    ) : (
+                      <strong>{s.create_parent_title} (new main song)</strong>
+                    )}
+                  </span>
+                  {s.version && <span className="feature-tag">{s.version}</span>}
+                </div>
+              </div>
+              <div className="review-row-actions">
                 <button className="rating-chip" disabled={busy} onClick={() => run("approve", [s.id])}>approve</button>
                 <button className="rating-chip" disabled={busy} onClick={() => run("dismiss", [s.id])}>dismiss</button>
-              </span>
+              </div>
             </div>
           ))}
         </div>
