@@ -18,7 +18,7 @@ type SongItem = { id: string; title: string; artist_id: string; artist: string; 
 type ArtistItem = { artist_id: string; artist: string; songs: number };
 
 const TABS: { kind: Kind; label: string; blurb: string }[] = [
-  { kind: "links", label: "check links", blurb: "Is this link the right song? Open it, listen, then vote. Votes help decide which link goes on the song." },
+  { kind: "links", label: "check links", blurb: "Is this link the right song? Open it, listen, then vote. Once enough people agree, the link goes on the song." },
   { kind: "info", label: "missing info", blurb: "Released songs with no release date or album. Open the song, then use “suggest an edit or a version”." },
   { kind: "status", label: "unknown status", blurb: "Songs nobody has marked yet: released, leaked, snippet, rumoured? Open the song and suggest an edit." },
   { kind: "thin", label: "thin pages", blurb: "Artists with 10 songs or fewer. Open the page and press “import songs” to fill it in." },
