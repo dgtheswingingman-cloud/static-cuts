@@ -20,6 +20,14 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const pause = () => new Promise((r) => setTimeout(r, 1500));
 class SlowDown extends Error { constructor(msg: string, public wait: number) { super(msg); } }
+class OutOfTickets extends Error {}
+
+// A ticket from the shared Spotify allowance (sc_spotify_allow: 15 a minute,
+// 3,000 a day across every job) before every Spotify call.
+async function ticket() {
+  const { data } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+  if (data !== 1) throw new OutOfTickets("Spotify allowance used up for now; carrying on next run");
+}
 // Shared with the other Spotify jobs: see match-spotify.
 const PAUSE_KEY = "spotify_pause_until";
 
@@ -31,6 +39,7 @@ function norm(s: string) {
 }
 
 async function spotify(path: string, token: string) {
+  await ticket();
   const res = await fetch(`https://api.spotify.com/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
   await pause();
   if (res.status === 429) {
@@ -55,6 +64,7 @@ Deno.serve(async (req) => {
 
   const id = Deno.env.get("SPOTIFY_CLIENT_ID"), sec = Deno.env.get("SPOTIFY_CLIENT_SECRET");
   if (!id || !sec) return json({ error: "Spotify keys aren't set up" }, 500);
+  try { await ticket(); } catch { return json({ ok: true, stopped: "Spotify allowance used up for now" }); }
   const tok = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${id}:${sec}`) },
@@ -110,7 +120,7 @@ Deno.serve(async (req) => {
       }
     }
   } catch (e) {
-    stopped = e instanceof SlowDown ? e.message : String((e as Error)?.message ?? e);
+    stopped = e instanceof SlowDown || e instanceof OutOfTickets ? e.message : String((e as Error)?.message ?? e);
     if (e instanceof SlowDown) {
       const until = new Date(Date.now() + Math.max(e.wait, 600) * 1000).toISOString();
       await db.from("sc_private_settings").upsert({ key: PAUSE_KEY, value: until }, { onConflict: "key" });

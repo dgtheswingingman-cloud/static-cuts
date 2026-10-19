@@ -8,7 +8,8 @@
 //   lastfm   the artist's most-played tracks -> import review list
 //
 // Gentle by design (Spotify blocked us for a day once): one artist per call,
-// a pause between every request, and it stops instead of retrying when a
+// a pause between every request, every Spotify call counted against the
+// shared Spotify allowance, and it stops instead of retrying when a
 // service says to slow down. The database checks who may import and how
 // often (sc_import_start).
 //
@@ -75,10 +76,32 @@ function cleanSpotifyTitle(t: string): string {
     .trim();
 }
 
+// Every Spotify call takes a ticket from the shared Spotify allowance first
+// (sc_spotify_allow: 15 a minute, 3,000 a day across all jobs). When this
+// minute's tickets are gone it waits for the next minute, up to 4 times.
+async function spotifyTicket() {
+  const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", "spotify_pause_until").maybeSingle();
+  if (pause?.value && Date.parse(pause.value) > Date.now()) {
+    throw new Error("Spotify has asked us to pause for a while. Try this import again later.");
+  }
+  for (let i = 0; i < 4; i++) {
+    const { data } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+    if (data === 1) return;
+    await sleep(61000 - (Date.now() % 60000));
+  }
+  throw new Error("Spotify is busy with other jobs right now. Try this import again in a few minutes.");
+}
+
 async function getJson(url: string, init: RequestInit, service: string) {
+  if (service === "Spotify") await spotifyTicket();
   const res = await fetch(url, init);
   if (res.status === 429) {
     const wait = parseInt(res.headers.get("Retry-After") || "60", 10);
+    if (service === "Spotify") {
+      // Tell every Spotify job to stay off until Spotify says it's OK.
+      const until = new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString();
+      await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: until }, { onConflict: "key" });
+    }
     throw new SlowDown(service, wait);
   }
   if (!res.ok) throw new Error(`${service} returned ${res.status} for ${new URL(url).pathname}`);
