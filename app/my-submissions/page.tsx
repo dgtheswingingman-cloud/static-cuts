@@ -29,6 +29,11 @@ export default function MySubmissionsPage() {
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
   const [trackTitles, setTrackTitles] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [trust, setTrust] = useState<{ approved: number; rejected: number; trusted: boolean } | null>(null);
+
+  useEffect(() => {
+    supabase.rpc("rpc_my_trust").then(({ data }) => setTrust(data ?? null));
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user && !isAdmin) router.push("/login");
@@ -159,6 +164,13 @@ export default function MySubmissionsPage() {
         )}
       </div>
 
+      {trust && (
+        <div className="comment-meta" style={{ marginBottom: 14 }}>
+          {trust.trusted
+            ? "You're a trusted contributor: your suggestions go live straight away (deleting songs still waits for a moderator)."
+            : `${trust.approved} of your suggestions approved. At 25 you become a trusted contributor and your suggestions go live straight away.`}
+        </div>
+      )}
       {submissions === null && <div className="empty-state">loading…</div>}
       {submissions && submissions.length === 0 && (
         <div className="empty-state">

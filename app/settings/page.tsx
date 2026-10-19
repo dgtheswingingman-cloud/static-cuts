@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
+import PhoneAlerts from "./PhoneAlerts";
 import { useIsAdmin } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 
@@ -276,6 +277,8 @@ export default function SettingsPage() {
           ))}
         </div>
       )}
+
+      <PhoneAlerts />
 
       <div className="section-label">Privacy</div>
       <div className="detail-meta" style={{ marginBottom: 20 }}>

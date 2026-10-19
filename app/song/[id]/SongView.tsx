@@ -12,6 +12,8 @@ import TrackComments from "../../artist/[id]/TrackComments";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
+import WantButton from "./WantButton";
+import InlinePlayer from "../../components/InlinePlayer";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 
@@ -246,6 +248,7 @@ export default function SongView({ id }: { id: string }) {
             listen ↗
           </a>
         )}
+        <InlinePlayer url={t.spotify_url} />
         {!isAdmin && (
           <>
             <button className={`tab ${song.owned ? "active" : ""}`} disabled={busy} onClick={toggleOwned}>
@@ -259,6 +262,7 @@ export default function SongView({ id }: { id: string }) {
         <button className="tab" onClick={share}>{copied ? "link copied" : "share"}</button>
         {!isAdmin && (["announced", "teased", "snippet", "rumored"].includes(statusOf(t)) ||
           (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
+        {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
         {!isAdmin && <AddToList trackId={t.id} />}
       </div>
       {isAdmin && <AdminModeNote what="collect, rate, comment, vote or add to a list" />}

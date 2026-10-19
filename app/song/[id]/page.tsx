@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${song.track.title} — ${song.artist?.name ?? "Unknown"} · Static Cuts//`;
   const bits = [song.track.release_status, song.track.album].filter(Boolean).join(" · ");
   const description = `${song.track.title} by ${song.artist?.name ?? "unknown"}${bits ? ` (${bits})` : ""}. Versions, status history and comments on Static Cuts//.`;
-  const images = song.track.cover_url ? [{ url: song.track.cover_url }] : undefined;
+  // The picture itself comes from opengraph-image.tsx next to this file.
   return {
     title,
     description,
     alternates: { canonical: `/song/${id}` },
-    openGraph: { title, description, type: "music.song", images },
-    twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((i) => i.url) },
+    openGraph: { title, description, type: "music.song" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

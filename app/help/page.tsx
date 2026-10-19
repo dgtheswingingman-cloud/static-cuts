@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import AdminModeNote from "../components/AdminModeNote";
+import VersionQuestions from "./VersionQuestions";
 
 type Kind = "links" | "info" | "status" | "thin";
 type Counts = Record<Kind, number>;
@@ -85,6 +86,8 @@ export default function HelpWantedPage() {
       <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Help wanted</h1>
       <div className="detail-meta">Quick jobs that make the archive better. The artists people follow most come first.</div>
+
+      {user && !isAdmin && <div style={{ marginTop: 14 }}><VersionQuestions /></div>}
 
       <div className="tabs" style={{ alignItems: "center" }}>
         {visibleTabs.map((t) => (

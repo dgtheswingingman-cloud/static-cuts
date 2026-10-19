@@ -151,8 +151,48 @@ const SECTIONS: Section[] = [
         a: (
           <p>
             Send the link on the <Link href="/sources">sources page</Link>. A moderator checks it, then imports it.
-            Only songs that aren&apos;t already here are added, every song keeps a credit to your sheet, and the sheet
-            is re-checked now and then so new rows get picked up. Leak file links in the sheet are left out.
+            Songs that aren&apos;t here yet go to the review list. For songs we already have, the sheet fills in blank
+            statuses and missing details (and where it disagrees with us, a moderator decides). Every song keeps a
+            credit to your sheet, and the sheet is re-checked now and then so changes get picked up. Leak file links
+            in the sheet are left out.
+          </p>
+        ),
+      },
+      {
+        q: "I track my own collection in a spreadsheet. Can I bring it?",
+        a: (
+          <p>
+            Yes: <Link href="/collection/import">import my spreadsheet</Link> (also on your profile) ticks the songs you
+            list in your collection here. Only your collection changes.
+          </p>
+        ),
+      },
+      {
+        q: "What's a trusted contributor?",
+        a: (
+          <p>
+            After 25 of your suggestions are approved (with no more than 1 in 5 turned down), your suggestions go live
+            straight away instead of waiting for a moderator. Deleting songs and adding artists still always get
+            checked. Your progress is on <Link href="/my-submissions">my submissions</Link>.
+          </p>
+        ),
+      },
+      {
+        q: "What does “want it” do?",
+        a: (
+          <p>
+            It&apos;s a vote for an unreleased song you want to hear. The votes make the{" "}
+            <Link href="/wanted">most wanted</Link> lists, for every artist and overall.
+          </p>
+        ),
+      },
+      {
+        q: "Can I get alerts on my phone?",
+        a: (
+          <p>
+            Yes: turn on &ldquo;phone alerts&rdquo; in <Link href="/settings">settings</Link> on each device you want them
+            on. On iPhone, add the site to your home screen first (Share → Add to Home Screen) and turn it on from
+            there.
           </p>
         ),
       },

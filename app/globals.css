@@ -1399,3 +1399,13 @@ a.listen-link {
 .trust-tag.trust-confirmed { border-style: solid; border-color: #4caf6a; color: #4caf6a; }
 .trust-tag.trust-sourced { border-style: solid; color: var(--bone); }
 .trust-tag.trust-unverified { opacity: 0.8; }
+
+/* ---------- Play here ---------- */
+.inline-player { flex-basis: 100%; width: 100%; margin-top: 8px; }
+.inline-player iframe { width: 100%; border: 0; border-radius: 10px; display: block; background: var(--surface); }
+
+/* ---------- Your year ---------- */
+.year-card { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; padding: 22px 20px; }
+.year-big { font-size: 3rem; font-weight: 700; line-height: 1; }
+.year-label { color: var(--smoke); margin-top: 6px; }
+.year-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 0.9rem; }

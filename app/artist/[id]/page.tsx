@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import InlinePlayer, { embedFor } from "../../components/InlinePlayer";
 import Link from "next/link";
 import DateDropdownPicker from "../../components/DateDropdownPicker";
 import FeaturedArtistPicker from "../../components/FeaturedArtistPicker";
@@ -207,6 +208,48 @@ export default function ArtistPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  async function loadTracksSlowly(): Promise<Track[]> {
+    const PAGE_SIZE = 1000;
+    let all: Track[] = [];
+    let from = 0;
+    while (true) {
+      const { data: page, error: trackErr } = await supabase
+        .from("tracks")
+        .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, source, source_url")
+        .eq("artist_id", id)
+        .range(from, from + PAGE_SIZE - 1);
+      if (trackErr) throw trackErr;
+      all = all.concat(page ?? []);
+      if (!page || page.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+    // Cross-artist appearances: songs whose home is another artist but that
+    // also show up here as a feature.
+    const { data: appearances } = await supabase.from("track_appearances").select("track_id").eq("artist_id", id);
+    const appearanceTrackIds = (appearances ?? []).map((a) => a.track_id);
+    if (appearanceTrackIds.length > 0) {
+      const { data: crossTracks } = await supabase
+        .from("tracks")
+        .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, artist_id, source, source_url")
+        .in("id", appearanceTrackIds);
+      const homeArtistIds = Array.from(new Set((crossTracks ?? []).map((t: any) => t.artist_id)));
+      const { data: homeArtists } = await supabase.from("artists").select("id, name").in("id", homeArtistIds);
+      const homeNameMap: Record<string, string> = {};
+      (homeArtists ?? []).forEach((a: any) => { homeNameMap[a.id] = a.name; });
+      (crossTracks ?? []).forEach((t: any) => {
+        if (t.artist_id === id) return;
+        all.push({
+          ...t,
+          is_featured: true, // always shows as featured on a page that isn't its home
+          isCrossAppearance: true,
+          homeArtistId: t.artist_id,
+          homeArtistName: homeNameMap[t.artist_id] ?? "unknown artist",
+        });
+      });
+    }
+    return all;
+  }
+
   async function load() {
     try {
       const { data: artistRow, error: artistErr } = await supabase
@@ -219,51 +262,15 @@ export default function ArtistPage() {
       supabase.from("artist_aliases").select("alias").eq("artist_id", id).order("alias")
         .then(({ data: rows }) => setAliases((rows ?? []).map((r: { alias: string }) => r.alias)));
 
-      const PAGE_SIZE = 1000;
+      // Every song in one request (fast even for 4,000-song pages); the
+      // older page-by-page loading is kept as a fallback.
       let all: Track[] = [];
-      let from = 0;
-      while (true) {
-        const { data: page, error: trackErr } = await supabase
-          .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, source, source_url")
-          .eq("artist_id", id)
-          .range(from, from + PAGE_SIZE - 1);
-        if (trackErr) throw trackErr;
-        all = all.concat(page ?? []);
-        if (!page || page.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+      const { data: fast, error: fastErr } = await supabase.rpc("rpc_artist_tracks", { p_artist_id: id });
+      if (!fastErr && Array.isArray(fast)) {
+        all = fast as Track[];
+      } else {
+        all = await loadTracksSlowly();
       }
-
-      // Cross-artist appearances: tracks whose "home" is a different
-      // artist, but that have been linked to also show up here as a
-      // feature. Same canonical track -- just tagged distinctly and
-      // pointed back at its real home.
-      const { data: appearances } = await supabase
-        .from("track_appearances")
-        .select("track_id")
-        .eq("artist_id", id);
-      const appearanceTrackIds = (appearances ?? []).map((a) => a.track_id);
-      if (appearanceTrackIds.length > 0) {
-        const { data: crossTracks } = await supabase
-          .from("tracks")
-          .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, artist_id, source, source_url")
-          .in("id", appearanceTrackIds);
-        const homeArtistIds = Array.from(new Set((crossTracks ?? []).map((t: any) => t.artist_id)));
-        const { data: homeArtists } = await supabase.from("artists").select("id, name").in("id", homeArtistIds);
-        const homeNameMap: Record<string, string> = {};
-        (homeArtists ?? []).forEach((a: any) => { homeNameMap[a.id] = a.name; });
-
-        (crossTracks ?? []).forEach((t: any) => {
-          all.push({
-            ...t,
-            is_featured: true, // always shows as featured on a page that isn't its home
-            isCrossAppearance: true,
-            homeArtistId: t.artist_id,
-            homeArtistName: homeNameMap[t.artist_id] ?? "unknown artist",
-          });
-        });
-      }
-
       all.sort((a, b) => a.title.localeCompare(b.title));
 
       // load() replaces the whole tracks array with light-only data (no
@@ -284,21 +291,36 @@ export default function ArtistPage() {
     }
   }
 
+  // Your ticks and ratings for this page, in one request. (Asking with
+  // every song id in the address broke on big pages like Kanye's.)
   useEffect(() => {
-    async function loadOwned() {
-      if (!user || !tracks) { setOwned(new Set()); return; }
+    async function loadMarks() {
+      if (!user || !tracks) { setOwned(new Set()); setMyRatings({}); return; }
+      const { data, error: markErr } = await supabase.rpc("rpc_my_artist_marks", { p_artist_id: id });
+      if (!markErr && data) {
+        setOwned(new Set((data.owned ?? []) as string[]));
+        setMyRatings((data.ratings ?? {}) as Record<string, number>);
+        return;
+      }
+      // Fallback: ask in chunks of 200 ids.
       const trackIds = tracks.map((t) => t.id);
-      if (trackIds.length === 0) return;
-      const { data, error: ownedErr } = await supabase
-        .from("track_ownership")
-        .select("track_id")
-        .eq("user_id", user.id)
-        .in("track_id", trackIds);
-      if (ownedErr) { console.error(ownedErr); return; }
-      setOwned(new Set((data ?? []).map((r) => r.track_id)));
+      const ownedIds: string[] = [];
+      const ratingMap: Record<string, number> = {};
+      for (let i = 0; i < trackIds.length; i += 200) {
+        const chunk = trackIds.slice(i, i + 200);
+        const [{ data: o }, { data: r }] = await Promise.all([
+          supabase.from("track_ownership").select("track_id").eq("user_id", user.id).in("track_id", chunk),
+          supabase.from("ratings").select("track_id, value").eq("user_id", user.id).in("track_id", chunk),
+        ]);
+        (o ?? []).forEach((x) => ownedIds.push(x.track_id));
+        (r ?? []).forEach((x) => { ratingMap[x.track_id] = x.value; });
+      }
+      setOwned(new Set(ownedIds));
+      setMyRatings(ratingMap);
     }
-    loadOwned();
-  }, [user, tracks]);
+    loadMarks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, tracks === null, id]);
 
   useEffect(() => {
     async function loadAvgRatings() {
@@ -314,23 +336,6 @@ export default function ArtistPage() {
     loadAvgRatings();
   }, [id]);
 
-  useEffect(() => {
-    async function loadMyRatings() {
-      if (!user || !tracks) { setMyRatings({}); return; }
-      const trackIds = tracks.map((t) => t.id);
-      if (trackIds.length === 0) return;
-      const { data, error: ratingErr } = await supabase
-        .from("ratings")
-        .select("track_id, value")
-        .eq("user_id", user.id)
-        .in("track_id", trackIds);
-      if (ratingErr) { console.error(ratingErr); return; }
-      const map: Record<string, number> = {};
-      (data ?? []).forEach((r) => { map[r.track_id] = r.value; });
-      setMyRatings(map);
-    }
-    loadMyRatings();
-  }, [user, tracks]);
 
   async function setRating(trackId: string, value: number) {
     if (!user) { if (!isAdmin) router.push("/login"); return; }
@@ -1288,6 +1293,11 @@ export default function ArtistPage() {
               </div>
               <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
             </div>
+            {t.spotify_url && embedFor(t.spotify_url) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "4px 0 8px" }}>
+                <InlinePlayer url={t.spotify_url} />
+              </div>
+            )}
             {buildInfoLines(t).map(([label, value]) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
                 <div style={{ flex: 1 }}>
@@ -1578,6 +1588,7 @@ export default function ArtistPage() {
             )}
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
+            <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
             {user && !canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track
