@@ -10,6 +10,7 @@
 --  6. Phone alerts (web push) for your notifications.
 --  7. Import your own spreadsheet into your collection.
 --  8. Public data access with keys the admin hands out.
+--  9. Faster artist pages: one request for every song, one for your marks.
 
 -- ----------------------------------------------------------------- 1
 
@@ -712,5 +713,55 @@ begin
 end;
 $$;
 revoke execute on function sc_api_budget_tidy() from public, anon, authenticated;
+
+-- ----------------------------------------------------------------- 9
+
+-- Every song on an artist's page in one go (their own and the ones they
+-- appear on), with only what the list needs. Big pages (Kanye: 3,800+
+-- songs) used to take several requests one after another.
+create or replace function rpc_artist_tracks(p_artist_id text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select coalesce(jsonb_agg(x order by x ->> 'title'), '[]'::jsonb) from (
+    select jsonb_build_object('id', t.id, 'title', t.title, 'spotify_url', t.spotify_url, 'parent_track_id', t.parent_track_id,
+             'is_featured', t.is_featured, 'is_official', t.is_official, 'aliases', t.aliases,
+             'release_status', t.release_status, 'source', t.source, 'source_url', t.source_url) x
+    from tracks t where t.artist_id = p_artist_id
+    union all
+    select jsonb_build_object('id', t.id, 'title', t.title, 'spotify_url', t.spotify_url, 'parent_track_id', t.parent_track_id,
+             'is_featured', true, 'is_official', t.is_official, 'aliases', t.aliases,
+             'release_status', t.release_status, 'source', t.source, 'source_url', t.source_url,
+             'isCrossAppearance', true, 'homeArtistId', t.artist_id, 'homeArtistName', a.name)
+    from track_appearances ap join tracks t on t.id = ap.track_id join artists a on a.id = t.artist_id
+    where ap.artist_id = p_artist_id and t.artist_id <> p_artist_id
+  ) s;
+$$;
+grant execute on function rpc_artist_tracks(text) to anon, authenticated;
+
+-- Your collection ticks and ratings for one artist's page. (Asking with
+-- every song id in the address broke on big pages.)
+create or replace function rpc_my_artist_marks(p_artist_id text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  with ids as (
+    select id from tracks where artist_id = p_artist_id
+    union
+    select track_id from track_appearances where artist_id = p_artist_id
+  )
+  select case when auth.uid() is null then null else jsonb_build_object(
+    'owned', (select coalesce(jsonb_agg(o.track_id), '[]'::jsonb) from track_ownership o join ids on ids.id = o.track_id
+              where o.user_id = auth.uid()),
+    'ratings', (select coalesce(jsonb_object_agg(r.track_id, r.value), '{}'::jsonb) from ratings r join ids on ids.id = r.track_id
+                where r.user_id = auth.uid())) end;
+$$;
+grant execute on function rpc_my_artist_marks(text) to authenticated;
 
 select 'done' as result;
