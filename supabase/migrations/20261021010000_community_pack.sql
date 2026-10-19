@@ -541,6 +541,8 @@ declare
   v_artist text;
   v_track text;
   v_title text;
+  v_key text;
+  v_song text;
   out jsonb := '[]'::jsonb;
   n int := 0;
 begin
@@ -551,15 +553,17 @@ begin
     v_artist := coalesce(p_artist_id, sc_find_artist(it ->> 'artist'));
     v_track := null;
     v_title := null;
-    if v_artist is not null then
+    v_key := sc_title_key(it ->> 'title');
+    v_song := sc_song_key(it ->> 'title');
+    if v_artist is not null and coalesce(v_key, '') <> '' then
       select t.id, t.title into v_track, v_title
       from track_title_keys tk join tracks t on t.id = tk.track_id
-      where tk.artist_id = v_artist and tk.key = sc_title_key(it ->> 'title') and tk.key <> ''
+      where tk.artist_id = v_artist and tk.key = v_key
       order by tk.is_main desc limit 1;
       if v_track is null then
         select t.id, t.title into v_track, v_title
         from track_title_keys tk join tracks t on t.id = tk.track_id
-        where tk.artist_id = v_artist and tk.song_key = sc_song_key(it ->> 'title') and tk.song_key <> ''
+        where tk.artist_id = v_artist and tk.song_key = v_song and v_song <> ''
         order by tk.is_main desc limit 1;
       end if;
     end if;
