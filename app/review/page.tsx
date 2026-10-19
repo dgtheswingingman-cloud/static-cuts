@@ -488,6 +488,8 @@ export default function ReviewPage() {
           blurb="Comments people have reported: keep or remove." />
         <JobCard href="/review/duplicates" title="Duplicates"
           blurb="The same song entered twice: pick one to keep and merge." />
+        <JobCard href="/review/trusted" title="Trusted contributors"
+          blurb="People whose suggestions go live straight away." />
         <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
           blurb="Import a community sheet, or handle ones people have sent in." />
       </div>
@@ -501,6 +503,7 @@ export default function ReviewPage() {
             <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />
             <JobCard href="/admin/auto-approve" title="Auto-approve" blurb="Rules for adding trusted finds without review." />
             <JobCard href="/admin/moderators" title="Moderators" blurb="Who can moderate, and what they've done." />
+            <JobCard href="/admin/api-keys" title="API keys" blurb="Read-only access for other fan sites and bots." />
           </div>
         </>
       )}

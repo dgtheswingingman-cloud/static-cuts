@@ -292,6 +292,12 @@ export default function ProfilePage() {
               <Link href="/settings" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
                 settings
               </Link>
+              <Link href="/year" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
+                your year
+              </Link>
+              <Link href="/collection/import" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
+                import my spreadsheet
+              </Link>
             </div>
           )}
 

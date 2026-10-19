@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import InlinePlayer, { embedFor } from "../../components/InlinePlayer";
 import Link from "next/link";
 import DateDropdownPicker from "../../components/DateDropdownPicker";
 import FeaturedArtistPicker from "../../components/FeaturedArtistPicker";
@@ -1288,6 +1289,11 @@ export default function ArtistPage() {
               </div>
               <button className="comment-action-btn" onClick={() => copyAllInfo(t)}>copy all</button>
             </div>
+            {t.spotify_url && embedFor(t.spotify_url) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "4px 0 8px" }}>
+                <InlinePlayer url={t.spotify_url} />
+              </div>
+            )}
             {buildInfoLines(t).map(([label, value]) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--hair)" }}>
                 <div style={{ flex: 1 }}>
@@ -1578,6 +1584,7 @@ export default function ArtistPage() {
             )}
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
+            <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
             {user && !canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track
