@@ -72,6 +72,16 @@ async function callFn(body: unknown) {
   return r;
 }
 
+// What the tracker did to songs already on the site.
+function trackerSummary(r: { statuses?: number; details?: number; disagree?: number }) {
+  const parts = [
+    `${r.statuses ?? 0} status${r.statuses === 1 ? "" : "es"} filled in`,
+    `${r.details ?? 0} song${r.details === 1 ? "" : "s"} given missing details`,
+  ];
+  if (r.disagree) parts.push(`${r.disagree} disagreement${r.disagree === 1 ? "" : "s"} sent to "Tracker disagrees"`);
+  return `Songs already here: ${parts.join(", ")}.`;
+}
+
 export default function SheetsPage() {
   const { user, loading: authLoading } = useAuth();
   const canModerate = useIsModerator();
@@ -162,7 +172,7 @@ export default function SheetsPage() {
         action: "import", url, mapping, title, credit, artist_id: artist.id, tab_name: tab,
         auto_sync: autoSync, permission_confirmed: permission,
       });
-      setMessage(`Done: ${r.suggested} song${r.suggested === 1 ? "" : "s"} sent to the review list, ${r.skipped} already on the site.`);
+      setMessage(`Done: ${r.suggested} new song${r.suggested === 1 ? "" : "s"} sent to the review list. ${trackerSummary(r)}`);
       setParsed(null);
       loadLists();
     } catch (e: any) {
@@ -176,7 +186,7 @@ export default function SheetsPage() {
     setMessage(null);
     try {
       const r = await callFn({ action: "sync", source_id: s.id });
-      setMessage(`${s.title}: ${r.suggested} new song${r.suggested === 1 ? "" : "s"} sent to the review list.`);
+      setMessage(`${s.title}: ${r.suggested} new song${r.suggested === 1 ? "" : "s"} sent to the review list. ${trackerSummary(r)}`);
       loadLists();
     } catch (e: any) {
       setMessage(e.message);

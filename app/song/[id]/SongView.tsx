@@ -36,6 +36,9 @@ type Track = {
   created_at: string | null;
   source: string | null;
   source_url: string | null;
+  status_source?: string | null;
+  status_source_url?: string | null;
+  spotify_verified_at?: string | null;
 };
 type Version = { id: string; title: string; release_status: string | null; is_official: boolean; spotify_url: string | null; is_main: boolean };
 type Song = {
@@ -44,7 +47,7 @@ type Song = {
   artist: { id: string; name: string } | null;
   family: Version[];
   appears_on: { id: string; name: string }[];
-  history: { from: string | null; to: string; at: string }[];
+  history: { from: string | null; to: string; at: string; note?: string | null; by_suggestion?: boolean }[];
   added_by: { id: string; name: string } | null;
   collectors: number;
   comments: number;
@@ -57,6 +60,23 @@ const SOURCE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Geni
 
 function statusOf(t: { release_status: string | null; is_official: boolean }) {
   return t.release_status ?? (t.is_official ? "released" : "unconfirmed");
+}
+
+// How sure we are of a song's status, in plain words. Kept separate from
+// the status itself: "leaked" from a careful tracker and "leaked" that
+// nobody has checked aren't the same thing.
+function trustOf(t: Track): { level: "confirmed" | "sourced" | "reported" | "unverified"; label: string; title: string } {
+  const status = statusOf(t);
+  if (status === "released" && /open\.spotify\.com/.test(t.spotify_url ?? "")) {
+    return { level: "confirmed", label: "✓ confirmed on Spotify", title: "This song is on Spotify, so it's officially out." };
+  }
+  if (status === "unconfirmed") {
+    return { level: "unverified", label: "unverified", title: "Nobody has confirmed whether this song is out, leaked or unreleased yet." };
+  }
+  if (t.status_source) {
+    return { level: "sourced", label: `per ${t.status_source}`, title: "The status comes from this community tracker." };
+  }
+  return { level: "reported", label: "community-reported", title: "Added or approved by the community; no outside source recorded." };
 }
 
 function formatDate(d: string, withYear = true) {
@@ -184,6 +204,18 @@ export default function SongView({ id }: { id: string }) {
       : name]);
   }
 
+  // The song's life in order: when it leaked or came out, plus every status
+  // change the site has recorded (and where it came from).
+  const timeline: { at: string; text: ReactNode; note?: string | null }[] = [
+    ...(t.leak_date ? [{ at: t.leak_date, text: <><strong>leaked</strong></> }] : []),
+    ...(t.release_date ? [{ at: t.release_date, text: <><strong>released</strong>{t.album ? <> on {t.album}</> : null}</> }] : []),
+    ...song.history.map((h) => ({
+      at: h.at,
+      text: h.from ? <>marked {h.from} → <strong>{h.to}</strong> here</> : <>added here as <strong>{h.to}</strong></>,
+      note: h.note ?? (h.by_suggestion ? "from an approved suggestion" : null),
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
   return (
     <div className="wrap song-page">
       <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
@@ -196,6 +228,12 @@ export default function SongView({ id }: { id: string }) {
       <div className="detail-meta song-tags">
         <Link href={`/artist/${artistId}`} className="text-link">{song.artist?.name ?? "Unknown artist"}</Link>
         <span className="feature-tag">{statusOf(t)}</span>
+        {(() => {
+          const tr = trustOf(t);
+          return tr.level === "sourced" && t.status_source_url
+            ? <a href={t.status_source_url} target="_blank" rel="noopener noreferrer" className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label} ↗</a>
+            : <span className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</span>;
+        })()}
         {t.is_featured && <span className="feature-tag">featured</span>}
         {main && main.id !== t.id && (
           <span>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></span>
@@ -288,14 +326,14 @@ export default function SongView({ id }: { id: string }) {
         </>
       )}
 
-      {song.history.length > 0 && (
+      {timeline.length > 0 && (
         <>
-          <div className="section-label">Status history</div>
+          <div className="section-label">History</div>
           <ol className="song-history">
-            {song.history.map((h, i) => (
+            {timeline.map((h, i) => (
               <li key={i}>
-                <span className="comment-meta">{formatDate(h.at)}</span>{" "}
-                {h.from ? <>{h.from} → <strong>{h.to}</strong></> : <>added as <strong>{h.to}</strong></>}
+                <span className="comment-meta">{formatDate(h.at)}</span>{" "}{h.text}
+                {h.note && <span className="comment-meta"> · {h.note}</span>}
               </li>
             ))}
           </ol>

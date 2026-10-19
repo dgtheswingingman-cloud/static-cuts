@@ -41,6 +41,7 @@ const KIND_LABELS: Record<string, string> = {
   sub_versions: "auto sub-versions",
   import: "import",
   paste: "pasted tracklist",
+  tracker: "community tracker",
   "link-check": "dead link check",
 };
 
