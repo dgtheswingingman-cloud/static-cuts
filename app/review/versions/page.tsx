@@ -123,15 +123,16 @@ export default function VersionSuggestionsPage() {
   async function rescan() {
     setBusy(true);
     setMessage(null);
-    // A few artists per call keeps each one quick.
+    // Groups of artists per call keeps each one quick.
     const { data: artists } = await supabase.from("artists").select("id");
     const ids = (artists ?? []).map((a: { id: string }) => a.id);
+    const size = 50;
     let added = 0;
-    for (let i = 0; i < ids.length; i += 20) {
-      const { data, error: err } = await supabase.rpc("admin_scan_versions", { p_artist_ids: ids.slice(i, i + 20) });
+    for (let i = 0; i < ids.length; i += size) {
+      const { data, error: err } = await supabase.rpc("admin_scan_versions", { p_artist_ids: ids.slice(i, i + size) });
       if (err) { setBusy(false); setMessage(`Rescan stopped: ${err.message}`); load(); return; }
       added += (data as number) ?? 0;
-      setMessage(`Rescanning… ${Math.min(i + 20, ids.length)} of ${ids.length} artists`);
+      setMessage(`Rescanning… ${Math.min(i + size, ids.length)} of ${ids.length} artists`);
     }
     setBusy(false);
     setMessage(`Rescan done: ${added} new suggestion${added === 1 ? "" : "s"}.`);

@@ -10,6 +10,7 @@
 --     removes possible links that have been taken down.
 --  6. Typo-friendly song search, and artist names count in search.
 --  7. "Paste a tracklist" for the admin.
+--  8. Sub-versions rescan ~50x faster (it was timing out).
 
 -- ----------------------------------------------------------------- 1
 
@@ -486,5 +487,77 @@ end;
 $$;
 revoke execute on function admin_paste_tracklist(text, jsonb, text, date, text) from public, anon;
 grant execute on function admin_paste_tracklist(text, jsonb, text, date, text) to authenticated;
+
+-- ----------------------------------------------------------------- 8
+
+-- Same results as before, much faster: the main songs are found through the
+-- tidied-title cache, and each title's key is worked out once instead of
+-- once per comparison. A full rescan of every artist takes about a second
+-- (it used to time out on big artists).
+create index if not exists track_title_keys_main_key on track_title_keys (key) where is_main;
+
+create or replace function sc_scan_versions(p_artist_ids text[] default null)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  n int;
+begin
+  with t as (
+    select tr.id, tr.artist_id, tr.title, vi.*
+    from tracks tr cross join lateral sc_version_info(tr.title) vi
+    where tr.parent_track_id is null
+      and (p_artist_ids is null or tr.artist_id = any (p_artist_ids))
+  ),
+  versions as materialized (
+    select t.*, sc_title_key(t.base) bk from t where base is not null and cls <> 'skip'
+  ),
+  mains as materialized (
+    select distinct on (tr.artist_id, tk.key) tr.artist_id, tk.key k, tr.id
+    from (select distinct bk from versions) v
+    join track_title_keys tk on tk.key = v.bk and tk.is_main
+    join tracks tr on tr.id = tk.track_id
+    where (sc_version_info(tr.title)).base is null
+    order by tr.artist_id, tk.key, (tr.spotify_url is null), release_status_rank(tr.release_status) desc, tr.id
+  ),
+  -- Remixes with no original on the page: is there exactly one other
+  -- artist with that song?
+  others as (
+    select k, min(id) id, count(*) n from mains group by k
+  ),
+  matched as (
+    select v.*, m.id as parent_id,
+      case when m.id is null and lower(v.version) ~ '\mremix' and o.n = 1 then o.id end as cross_parent
+    from versions v
+    left join mains m on m.artist_id = v.artist_id and m.k = v.bk
+    left join others o on o.k = v.bk
+  ),
+  cand as (
+    select id as track_id,
+      coalesce(parent_id, cross_parent) as parent_track_id,
+      case when parent_id is null and cross_parent is null then base end as create_parent_title,
+      version,
+      case when cls = 'dupe' then 'dupe'
+           when parent_id is null and cross_parent is not null then 'cross'
+           else cls end as cls,
+      case when cls = 'dupe' then 'merge'
+           when parent_id is null and cross_parent is null then 'create_parent'
+           else 'link' end as action
+    from matched
+    where (parent_id is not null or cross_parent is not null)
+       or (cls = 'sure' and lower(version) !~ '\mremix')
+  )
+  insert into version_suggestions (track_id, parent_track_id, create_parent_title, version, cls, action)
+  select r.* from cand r
+  where (r.action <> 'merge' or r.parent_track_id is not null)
+    and not exists (select 1 from version_suggestions vs
+                    where vs.track_id = r.track_id and vs.state in ('open', 'dismissed'))
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
 
 select 'done' as result, (select count(*) from cron.job where jobname = 'link-check') as link_check_timer;
