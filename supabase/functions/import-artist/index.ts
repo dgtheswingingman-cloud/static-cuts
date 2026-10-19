@@ -19,6 +19,18 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Supabase's own servers occasionally disagree about the time for a moment
+// ("JWT issued at future"). Wait a moment and try again rather than failing.
+async function steadyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(input, init);
+    if (i >= 2 || (res.status !== 401 && res.status !== 403)) return res;
+    const text = await res.clone().text();
+    if (!text.includes("issued at future")) return res;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -27,7 +39,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { global: { fetch: steadyFetch } });
 
 const PAUSE_MS = 1500; // ~40 requests a minute at most, well under every limit
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -37,6 +49,10 @@ class SlowDown extends Error {
     super(`${service} asked us to slow down (wait ${seconds}s). Try this import again later.`);
   }
 }
+
+// The artist isn't on that site. Not a fault: on a timer run it's noted and
+// the artist isn't tried again for a week.
+class NotFound extends Error {}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -143,7 +159,7 @@ async function importSpotify(artist: Artist, runId: string) {
     const s = await getJson(`https://api.spotify.com/v1/search?type=artist&limit=10&q=${encodeURIComponent(artist.name)}`, h, "Spotify");
     const exact = (s?.artists?.items ?? []).filter((a: any) => norm(a.name) === norm(artist.name));
     exact.sort((a: any, b: any) => (b.followers?.total ?? 0) - (a.followers?.total ?? 0));
-    if (!exact.length) throw new Error(`Couldn't find "${artist.name}" on Spotify. Add their Spotify link with the "profiles" button and try again.`);
+    if (!exact.length) throw new NotFound(`Couldn't find "${artist.name}" on Spotify. Add their Spotify link with the "profiles" button and try again.`);
     spotifyId = exact[0].id as string;
     await db.rpc("sc_import_set_profile", { p_artist_id: artist.id, p_field: "spotify", p_value: spotifyId });
     profileNote = `Linked to Spotify profile "${exact[0].name}" (${exact[0].followers?.total ?? 0} followers). Check it's the right one under "profiles".`;
@@ -219,7 +235,7 @@ async function importGenius(artist: Artist, runId: string) {
     const hit = (s?.response?.hits ?? [])
       .map((x: any) => x.result?.primary_artist)
       .find((a: any) => a && (norm(a.name) === norm(searchName) || norm(a.name) === norm(artist.name)));
-    if (!hit) throw new Error(`Couldn't find "${artist.name}" on Genius. Add their Genius link with the "profiles" button and try again.`);
+    if (!hit) throw new NotFound(`Couldn't find "${artist.name}" on Genius. Add their Genius link with the "profiles" button and try again.`);
     geniusId = String(hit.id);
     await db.rpc("sc_import_set_profile", { p_artist_id: artist.id, p_field: "genius", p_value: geniusId });
     profileNote = `Linked to Genius profile "${hit.name}". Check it's the right one under "profiles".`;
@@ -371,6 +387,11 @@ Deno.serve(async (req) => {
     await db.rpc("sc_import_finish", { p_run: runId, p_error: null });
     return json({ ok: true, source, ...result });
   } catch (e: any) {
+    if (e instanceof NotFound && cronSecret) {
+      // Counted as done, so the timer doesn't try this artist again for a week.
+      await db.rpc("sc_import_finish", { p_run: runId, p_error: null });
+      return json({ ok: false, skipped: String(e.message) });
+    }
     await db.rpc("sc_import_finish", { p_run: runId, p_error: String(e?.message ?? e) });
     return json({ error: String(e?.message ?? e) }, e instanceof SlowDown ? 429 : 500);
   }

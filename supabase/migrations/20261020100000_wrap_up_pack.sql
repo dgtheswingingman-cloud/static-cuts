@@ -162,10 +162,13 @@ declare
   v_stuck text;
   v_cron_failed text;
 begin
-  -- Calls to the background jobs that failed.
+  -- Calls to the background jobs that failed. "JWT issued at future" is a
+  -- brief clock hiccup on Supabase's side: that run is skipped and the next
+  -- one carries on, so it isn't worth an alert.
   select count(*), left(max(coalesce(error_msg, content::text, '')), 200) into v_failed, v_err
   from net._http_response
-  where created > now() - interval '1 hour' and (timed_out or status_code >= 400 or error_msg is not null);
+  where created > now() - interval '1 hour' and (timed_out or status_code >= 400 or error_msg is not null)
+    and coalesce(content::text, '') not like '%JWT issued at future%';
   if v_failed > 0 then
     insert into notifications (user_id, kind, title, body, link, dedupe_key)
     select a, 'admin', v_failed || ' background job call' || case when v_failed = 1 then '' else 's' end || ' failed in the last hour',
