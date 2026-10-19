@@ -73,6 +73,7 @@ declare
   src sheet_sources%rowtype;
   it jsonb;
   v_ids text[];
+  v_key text;
   t tracks%rowtype;
   v_status text;
   v_leak date;
@@ -93,9 +94,13 @@ begin
   for it in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) loop
     -- The song this row is about: same tidied title on this artist's page,
     -- preferring a main song when a version shares the name.
+    -- (The key is worked out once here: inside the query it was re-worked
+    -- for every song on the page, which timed out on big trackers.)
+    v_key := sc_title_key(it ->> 'title');
+    continue when v_key is null or v_key = '';
     select array_agg(tk.track_id order by tk.is_main desc) into v_ids
     from track_title_keys tk
-    where tk.artist_id = p_home and tk.key = sc_title_key(it ->> 'title') and tk.key <> '';
+    where tk.artist_id = p_home and tk.key = v_key;
     continue when v_ids is null;
     -- Two main songs with the same name: too unsure to touch either.
     continue when cardinality(v_ids) > 1
