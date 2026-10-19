@@ -65,7 +65,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 
 type Counts = {
   suggestions: number; finds: number; sub_versions: number; imported_songs: number; guest_artists: number;
-  reported_comments: number; sheet_requests: number; takedowns: number | null;
+  reported_comments: number; sheet_requests: number; tracker_disagreements?: number; takedowns: number | null;
 };
 
 // One moderation job as a card: what it is, and how many are waiting.
@@ -478,6 +478,8 @@ export default function ReviewPage() {
       <div className="mod-grid">
         <JobCard href="/review/imports" title="Imported songs" n={counts?.imported_songs}
           blurb="Songs found by Genius, Last.fm and sheets, waiting for a yes or no." />
+        <JobCard href="/review/tracker" title="Tracker disagrees" n={counts?.tracker_disagreements}
+          blurb="A community tracker gives a different status from ours: pick one." />
         <JobCard href="/review/versions" title="Sub-versions" n={counts?.sub_versions}
           blurb="Songs that look like a version of another song." />
         <JobCard href="/review/guests" title="Guest artists" n={counts?.guest_artists}
