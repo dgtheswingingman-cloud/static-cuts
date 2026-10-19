@@ -62,12 +62,17 @@ const TIMER_INFO: Record<string, string> = {
   "sheet-sync": "re-reads community sheets that are due (hourly)",
   "radar-daily": "release-day reminders (07:05 UTC)",
   "follow-digest": "daily summary for followed artists (07:07 UTC)",
-  "background-check": "tells you if any of these failed (hourly)",
+  "background-check": "tells you if any of these failed or stopped running (hourly)",
   "guest-artists": "gives guest artists pages once Spotify confirms them (4 every 20 min)",
   "spotify-match": "finds Spotify links for songs that have none, followed artists first (10 songs every 5 min)",
-  "api-budget-tidy": "clears old Spotify allowance counts (daily)",
+  "api-budget-tidy": "clears old allowance counts, undo history over 6 months and old timer logs (daily)",
+  "link-check": "checks YouTube and SoundCloud links still work, 15 every 30 min (re-checks monthly)",
   "spotify-verify": "re-checks Spotify links and clears removed ones (hourly)",
 };
+
+type Budget = { today: number; last_hour: number; per_day: number | null; per_minute: number | null; paused_until: string | null };
+type DeadLinks = { checked: number; dead: number; songs: { track_id: string; title: string; artist_id: string; artist: string; url: string }[] };
+const SERVICE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", youtube: "YouTube", soundcloud: "SoundCloud" };
 
 type Progress = {
   spotify: { left: number; searched: number; linked: number; links_checked_30d: number; paused_until: string | null };
@@ -93,20 +98,23 @@ export default function HealthPage() {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [budget, setBudget] = useState<{ today: number; last_hour: number; per_day: number; per_minute: number } | null>(null);
+  const [budget, setBudget] = useState<Record<string, Budget> | null>(null);
+  const [dead, setDead] = useState<DeadLinks | null>(null);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
     if (err) { setError(err.message); return; }
     setError(null);
     setH(data as Health);
-    const [{ data: t }, { data: b }, { data: p }, { data: sb }] = await Promise.all([
+    const [{ data: t }, { data: b }, { data: p }, { data: sb }, { data: dl }] = await Promise.all([
       supabase.rpc("admin_timers"),
       supabase.rpc("admin_background_failures"),
       supabase.rpc("admin_job_progress"),
-      supabase.rpc("admin_spotify_budget"),
+      supabase.rpc("admin_api_budget"),
+      supabase.rpc("admin_dead_links"),
     ]);
     setBudget((sb as typeof budget) ?? null);
+    setDead((dl as DeadLinks) ?? null);
     setTimers((t as Timer[]) ?? []);
     setBg(b ?? null);
     setProgress((p as Progress) ?? null);
@@ -185,10 +193,6 @@ export default function HealthPage() {
                     value={`${n(sp.searched)} / ${n(total)}`}
                     alert={!!pausedUntil}
                   />
-                  {budget && (
-                    <Tile label={`Spotify calls today (shared allowance, max ${budget.per_minute}/min) · ${n(budget.last_hour)} in the last hour`}
-                      value={`${n(budget.today)} / ${n(budget.per_day)}`} alert={budget.today >= budget.per_day} />
-                  )}
                   <Tile label="songs with a Spotify link" value={n(sp.linked)} />
                   <Tile label="links re-checked (30 days)" value={`${n(sp.links_checked_30d)} / ${n(sp.linked)}`} />
                   <Tile label={`Genius credits checked · ${eta(progress.genius.left, 2160)}`} value={`${n(progress.genius.checked)} / ${n(progress.genius.checked + progress.genius.left)}`} />
@@ -203,6 +207,46 @@ export default function HealthPage() {
               </>
             );
           })()}
+
+          {budget && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>Outside services (calls today, shared by every job)</div>
+              <div className="health-tiles">
+                {Object.entries(budget).map(([svc, b]) => {
+                  const paused = b.paused_until ? new Date(b.paused_until) : null;
+                  return (
+                    <Tile key={svc}
+                      label={paused
+                        ? `${SERVICE_NAMES[svc] ?? svc} paused until ${paused.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                        : `${SERVICE_NAMES[svc] ?? svc} · max ${b.per_minute ?? "?"}/min · ${n(b.last_hour)} in the last hour`}
+                      value={`${n(b.today)} / ${b.per_day != null ? n(b.per_day) : "?"}`}
+                      alert={!!paused || (b.per_day != null && b.today >= b.per_day)} />
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {dead && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>Dead links</div>
+              <div className="comment-meta" style={{ marginBottom: 8 }}>
+                {n(dead.checked)} YouTube and SoundCloud links checked, {n(dead.dead)} taken down. Possible links that were taken
+                down are removed automatically (they&apos;re in the undo history).
+                {dead.songs.length > 0 ? " These songs' main listen link no longer works:" : ""}
+              </div>
+              {dead.songs.map((d) => (
+                <div key={d.track_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="review-row-title">
+                      <Link href={`/artist/${d.artist_id}?highlight=${d.track_id}`}>{d.title}</Link>
+                    </div>
+                    <div className="review-row-meta"><span>{d.artist}</span><span style={{ overflowWrap: "anywhere" }}>{d.url}</span></div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
 
           <div className="section-label" style={{ marginTop: 20 }}>Timers</div>
           {bg && bg.failed_6h > 0 && (

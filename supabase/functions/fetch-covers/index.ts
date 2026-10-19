@@ -8,7 +8,19 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// Supabase's own servers occasionally disagree about the time for a moment
+// ("JWT issued at future"). Wait a moment and try again rather than failing.
+async function steadyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(input, init);
+    if (i >= 2 || (res.status !== 401 && res.status !== 403)) return res;
+    const text = await res.clone().text();
+    if (!text.includes("issued at future")) return res;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
+const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { global: { fetch: steadyFetch } });
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 

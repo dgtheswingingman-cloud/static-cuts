@@ -11,6 +11,18 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Supabase's own servers occasionally disagree about the time for a moment
+// ("JWT issued at future"). Wait a moment and try again rather than failing.
+async function steadyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(input, init);
+    if (i >= 2 || (res.status !== 401 && res.status !== 403)) return res;
+    const text = await res.clone().text();
+    if (!text.includes("issued at future")) return res;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -21,7 +33,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
 const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { global: { fetch: steadyFetch } });
 
 // Spotify asked us to slow down: every Spotify job (this one, the link
 // checker, guest artists, the timers and the link tools page) stays off

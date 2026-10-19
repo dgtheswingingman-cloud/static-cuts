@@ -40,6 +40,8 @@ const KIND_LABELS: Record<string, string> = {
   undo: "undo",
   sub_versions: "auto sub-versions",
   import: "import",
+  paste: "pasted tracklist",
+  "link-check": "dead link check",
 };
 
 // Plain-language summary of what a batch touched, e.g. "12 songs changed, 3 removed".

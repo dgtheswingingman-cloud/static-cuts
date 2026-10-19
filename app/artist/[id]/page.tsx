@@ -1626,6 +1626,7 @@ export default function ArtistPage() {
               <button className={`tab ${addingTrack ? "active" : ""}`} onClick={() => setAddingTrack(!addingTrack)}>
                 {addingTrack ? "cancel add track" : "+ add track"}
               </button>
+              <Link href={`/admin/tracklist?artist=${id}`} className="tab">paste tracklist</Link>
               <button className={`tab ${aliasesOpen ? "active" : ""}`}
                 onClick={() => { setAliasDraft(aliases.join(", ")); setAliasError(null); setAliasesOpen(!aliasesOpen); }}>
                 nicknames{aliases.length ? ` (${aliases.length})` : ""}

@@ -21,12 +21,24 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Supabase's own servers occasionally disagree about the time for a moment
+// ("JWT issued at future"). Wait a moment and try again rather than failing.
+async function steadyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(input, init);
+    if (i >= 2 || (res.status !== 401 && res.status !== 403)) return res;
+    const text = await res.clone().text();
+    if (!text.includes("issued at future")) return res;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { global: { fetch: steadyFetch } });
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
