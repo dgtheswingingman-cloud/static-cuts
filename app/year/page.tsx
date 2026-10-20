@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
+import ShareButton from "../components/ShareButton";
 
 type Review = {
   year: number; collected: number; unreleased_collected: number; artists: number;
@@ -100,7 +101,10 @@ function YearInner() {
           <div className="year-row"><span>Songs rated</span><span>{n(r.ratings)}</span></div>
           <div className="year-row"><span>Suggestions approved</span><span>{n(r.approved_suggestions)}</span></div>
           <div className="year-row"><span>Comments</span><span>{n(r.comments)}</span></div>
-          <div className="comment-meta" style={{ marginTop: 14 }}>static-cuts.com · screenshot it to share</div>
+          <div className="comment-meta" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            static-cuts.com · screenshot it to share, or
+            <ShareButton title={`My ${year} on Static Cuts//`} label="share my profile" path={user ? `/profile/${user.id}` : "/"} />
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import PhoneAlerts from "./PhoneAlerts";
+import YourData from "./YourData";
 import { useIsAdmin } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 
@@ -308,6 +309,8 @@ export default function SettingsPage() {
         {saving ? "saving…" : "Changes save instantly."} These control what anyone can see on
         your public profile page — not what you see yourself, which always shows everything.
       </div>
+
+      <YourData />
     </div>
   );
 }

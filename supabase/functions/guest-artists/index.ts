@@ -127,7 +127,9 @@ Deno.serve(async (req) => {
         const note = confirmed ? `On Spotify but only ${followers} followers.`
           : exact.length > 1 ? `${exact.length} artists on Spotify with this name; none matched their songs.`
           : "On Spotify, but their songs here didn't match.";
-        await db.rpc("sc_guest_result", { p_secret: secret, p_key: g.key, p_action: "review", p_note: note });
+        // Keep the Spotify profile we found (if we're sure of it), so adding
+        // them from the review list links it straight away.
+        await db.rpc("sc_guest_result", { p_secret: secret, p_key: g.key, p_action: "review", p_note: note, p_spotify_id: confirmed?.id ?? null });
         done.push({ name: g.name, result: "review" });
       }
     }

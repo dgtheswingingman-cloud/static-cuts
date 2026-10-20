@@ -9,6 +9,7 @@ import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
 import ExportCollection from "./ExportCollection";
+import ShareButton from "../../components/ShareButton";
 
 type Profile = {
   id: string;
@@ -245,6 +246,7 @@ export default function ProfilePage() {
                 )}
               </div>
               <h1 className="detail-name" style={{ margin: 0 }}>{profile.display_name ?? "anonymous"}</h1>
+              <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} label="share profile" />
             </div>
           )}
 

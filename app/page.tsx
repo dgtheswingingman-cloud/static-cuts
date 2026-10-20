@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { readPicks, savePicks } from "./components/picks";
+import SinceLastVisit from "./components/SinceLastVisit";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
@@ -312,6 +313,9 @@ export default function HomePage() {
           )}
         </div>
       )}
+
+      {!q && !isAdmin && user && <SinceLastVisit who={user.id} />}
+      {!q && !isAdmin && !user && picks.length > 0 && <SinceLastVisit who="picks" artistIds={picks} />}
 
       {showTrackSection && (
         <>

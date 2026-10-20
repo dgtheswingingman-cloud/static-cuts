@@ -1337,3 +1337,7 @@ a.listen-link {
   padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); background: var(--void); border-top: 1px solid var(--hair);
 }
 .first-visit { margin: 0 0 14px; }
+
+/* Home: since your last visit */
+.since-visit { margin: 0 0 16px; }
+.since-visit .year-row:last-of-type { border-bottom: 0; }

@@ -52,11 +52,25 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgot() {
+    setError(null);
+    setMessage(null);
+    if (!email.trim()) { setError("Type your email above first, then press this again."); return; }
+    setBusy(true);
+    // The link brings you back to the site, which then asks for a new password.
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    setBusy(false);
+    if (err) setError(err.message);
+    else setMessage("If there's an account with that email, a link to set a new password is on its way. Check your spam folder too.");
+  }
+
   async function handleOAuth() {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
-      options: { redirectTo: window.location.origin + nextPath() },
+      // user-follow-read: so the first-visit page can tick the artists you
+      // already follow on Spotify.
+      options: { redirectTo: window.location.origin + nextPath(), scopes: "user-follow-read" },
     });
     if (error) setError(error.message);
     // On success, Supabase redirects away to the provider automatically --
@@ -113,6 +127,11 @@ export default function LoginPage() {
             {busy ? "…" : mode === "login" ? "Log in" : "Sign up"}
           </button>
         </form>
+        {mode === "login" && (
+          <button className="back-btn" style={{ marginTop: 10 }} disabled={busy} onClick={handleForgot}>
+            Forgot your password?
+          </button>
+        )}
       </div>
 
       {error && (

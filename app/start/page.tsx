@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
+import { useAuth } from "../AuthProvider";
 import { readPicks, savePicks } from "../components/picks";
 
 type A = { id: string; name: string; track_count: number; aliases: string[] | null };
@@ -21,6 +22,8 @@ export default function StartPage() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const { session } = useAuth();
+  const [fromSpotify, setFromSpotify] = useState<number | null>(null);
 
   useEffect(() => {
     setPicked(new Set(readPicks()));
@@ -30,6 +33,34 @@ export default function StartPage() {
       setArtists(rows);
     });
   }, []);
+
+  // Signed in with Spotify: tick the artists you already follow there. Uses
+  // your own Spotify sign-in (it lasts an hour), a few calls at most.
+  const spotifyToken = session?.provider_token;
+  useEffect(() => {
+    if (!user || !spotifyToken || fromSpotify !== null) return;
+    let cancelled = false;
+    (async () => {
+      const ids: string[] = [];
+      let next: string | null = "https://api.spotify.com/v1/me/following?type=artist&limit=50";
+      for (let page = 0; next && page < 4; page++) {
+        const { data: ok } = await supabase.rpc("rpc_spotify_ticket");
+        if (!ok) break;
+        const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${spotifyToken}` } });
+        if (!res.ok) break;
+        const body = await res.json();
+        ids.push(...(body?.artists?.items ?? []).map((a: { id: string }) => a.id));
+        next = body?.artists?.next ?? null;
+      }
+      if (cancelled || ids.length === 0) { if (!cancelled) setFromSpotify(0); return; }
+      const { data } = await supabase.rpc("rpc_artists_by_spotify", { p_ids: ids });
+      const ours = ((data as string[]) ?? []);
+      if (cancelled) return;
+      setPicked((prev) => new Set([...prev, ...ours]));
+      setFromSpotify(ours.length);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, spotifyToken, fromSpotify]);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -68,6 +99,11 @@ export default function StartPage() {
         Pick a few artists and your home page will be about them: their songs, leaks, releases and what changed.
         {!user && " No account needed to look around."}
       </div>
+      {fromSpotify !== null && fromSpotify > 0 && (
+        <div className="comments-panel" style={{ marginBottom: 14 }}>
+          Ticked {fromSpotify} artist{fromSpotify === 1 ? "" : "s"} you follow on Spotify. Untick any you don&apos;t want.
+        </div>
+      )}
       <input className="search-input" style={{ width: "100%", marginBottom: 14 }} placeholder="Find an artist…" value={q} onChange={(e) => setQ(e.target.value)} />
       {artists === null && <div className="empty-state">loading…</div>}
       <div className="start-grid">
