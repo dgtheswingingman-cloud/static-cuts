@@ -10,7 +10,7 @@ import { useAuth } from "../AuthProvider";
 import { useAdminView } from "../AdminViewContext";
 import { useIsAdmin, useIsRealAdmin } from "../useIsAdmin";
 
-export default function NoAccess({ loading, who }: { loading: boolean; who: "admin" | "moderators" }) {
+export default function NoAccess({ loading, who }: { loading: boolean; who: "owner" | "admin" | "moderators" }) {
   const { user } = useAuth();
   const path = usePathname();
   const isRealAdmin = useIsRealAdmin();
@@ -27,7 +27,7 @@ export default function NoAccess({ loading, who }: { loading: boolean; who: "adm
           </>
         ) : (
           <>
-            {who === "admin" ? "This page is only for the site admin." : "This page is for moderators."}{" "}
+            {who === "owner" ? "This page is only for the site owner." : who === "admin" ? "This page is only for admins." : "This page is for moderators."}{" "}
             {user ? (
               <>Want to help out? <Link href="/faq#moderators" className="text-link">Here&apos;s how moderating works</Link>.</>
             ) : (

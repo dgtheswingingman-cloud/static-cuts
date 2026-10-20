@@ -12,6 +12,8 @@
 //   3. else it needs 1,000+ followers (when Spotify reports them) AND one of
 //      the guest's songs here found on Spotify under that artist -> create
 //   4. otherwise -> review list
+// While followed artists still have songs waiting for their Spotify or
+// Genius check, step 3 waits: existing artists are filled in first.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -118,7 +120,11 @@ Deno.serve(async (req) => {
         if (confirmed) break;
       }
       const followers = confirmed?.followers?.total;
-      if (confirmed && (followers === undefined || followers === null || followers >= 1000)) {
+      if (confirmed && next?.new_pages === false && (followers === undefined || followers === null || followers >= 1000)) {
+        // Would be a new page, but existing artists come first: noted for later.
+        await db.rpc("sc_guest_wait", { p_secret: secret, p_key: g.key, p_spotify_id: confirmed.id });
+        done.push({ name: g.name, result: "waiting" });
+      } else if (confirmed && (followers === undefined || followers === null || followers >= 1000)) {
         await db.rpc("sc_guest_result", {
           p_secret: secret, p_key: g.key, p_action: "create", p_spotify_id: confirmed.id, p_spotify_name: confirmed.name,
         });

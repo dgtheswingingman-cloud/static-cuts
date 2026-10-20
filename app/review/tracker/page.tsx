@@ -69,7 +69,7 @@ export default function TrackerDisagreementsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Tracker Disagrees</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         A community tracker gives a different status from ours. Blank statuses are filled from trackers automatically;

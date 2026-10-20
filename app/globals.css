@@ -1341,3 +1341,15 @@ a.listen-link {
 /* Home: since your last visit */
 .since-visit { margin: 0 0 16px; }
 .since-visit .year-row:last-of-type { border-bottom: 0; }
+
+/* Collab map: whole scene canvas, circle labels, phone list-first */
+.collab-canvas { display: block; width: 100%; aspect-ratio: 10 / 7; border: 1px solid var(--hair); background: var(--void); touch-action: none; cursor: grab; }
+.collab-canvas:active { cursor: grabbing; }
+.collab-working { position: absolute; top: 12px; left: 12px; }
+.collab-center-label { fill: var(--bone); font-size: 15px; }
+.collab-node:hover circle { stroke: var(--bone); stroke-width: 3; }
+.phone-only { display: none; }
+@media (max-width: 600px) {
+  .phone-only { display: inline-flex; }
+  .collab-stage.phone-hide { display: none; }
+}

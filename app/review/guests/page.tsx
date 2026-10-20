@@ -58,6 +58,15 @@ export default function GuestsPage() {
     void data;
   }
 
+  // Fix a misspelt or oddly written name before adding them.
+  async function rename(g: { name_key: string; name: string }) {
+    const name = prompt("Their name as it should appear:", g.name);
+    if (!name || name.trim() === g.name) return;
+    const { error } = await supabase.rpc("admin_guest_edit", { p_key: g.name_key, p_name: name.trim() });
+    if (error) { setMessage(error.message); return; }
+    setRows((prev) => (prev ?? []).map((x) => (x.name_key === g.name_key ? { ...x, name: name.trim() } : x)));
+  }
+
   const review = useMemo(() => (rows ?? []).filter((r) => r.state === "review").map((r) => ({ ...r, id: r.name_key })), [rows]);
   const pending = (rows ?? []).filter((r) => r.state === "pending");
 
@@ -65,11 +74,12 @@ export default function GuestsPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Guest artists</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         People songs are credited to who don&apos;t have a page yet. Every 10 minutes a few are checked on Spotify: matches
-        get a page automatically. These are the ones it couldn&apos;t confirm. <b>Add</b> makes a page and moves their songs
+        get a page automatically (once the artists you follow are filled in first). These are the ones it couldn&apos;t
+        confirm. <b>Add</b> makes a page and moves their songs
         there (they still show as features); <b>skip</b> leaves them as a note. Everything is in the{" "}
         <UndoHistoryLink />.
       </div>
@@ -102,6 +112,7 @@ export default function GuestsPage() {
             <button className="rating-chip" disabled={busy === g.name_key} onClick={() => act(g, "create")}>add</button>
             <button className="rating-chip" disabled={busy === g.name_key}
               onClick={() => { setLinking(linking === g.name_key ? null : g.name_key); setQ(""); }}>same as…</button>
+            <button className="rating-chip" disabled={busy === g.name_key} onClick={() => rename(g)}>edit name</button>
             <button className="rating-chip" disabled={busy === g.name_key} onClick={() => act(g, "skip")}>skip</button>
           </span>
         </div>

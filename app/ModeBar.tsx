@@ -16,8 +16,7 @@ import { useAdminView } from "./AdminViewContext";
 import { useIsRealAdmin } from "./useIsAdmin";
 
 const SHORTCUTS: [string, string][] = [
-  ["/review", "moderation"],
-  ["/admin/health", "health"],
+  ["/control", "control room"],
   ["/notifications", "alerts"],
   ["/admin/batches", "undo history"],
 ];
