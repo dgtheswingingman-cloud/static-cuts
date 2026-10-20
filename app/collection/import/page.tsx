@@ -110,8 +110,8 @@ export default function CollectionImportPage() {
     if (fixing === null || q.length < 2) { setFixHits([]); return; }
     const t = setTimeout(() => {
       supabase.from("tracks").select("id, title, artists!artist_id(name)").ilike("title", `%${q}%`).order("title").limit(10)
-        .then(({ data }) => setFixHits(((data ?? []) as { id: string; title: string; artists: { name: string } | null }[])
-          .map((x) => ({ id: x.id, title: x.title, artist: x.artists?.name ?? "" }))));
+        .then(({ data }) => setFixHits(((data ?? []) as unknown as { id: string; title: string; artists: { name: string } | { name: string }[] | null }[])
+          .map((x) => ({ id: x.id, title: x.title, artist: (Array.isArray(x.artists) ? x.artists[0]?.name : x.artists?.name) ?? "" }))));
     }, 250);
     return () => clearTimeout(t);
   }, [fixQ, fixing]);
