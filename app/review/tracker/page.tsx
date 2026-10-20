@@ -13,8 +13,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
-import { useReviewKeys } from "../../components/useReviewKeys";
-import FocusReview from "../../components/FocusReview";
 
 type Row = {
   id: string; track_id: string; title: string; artist_id: string; artist: string;
@@ -32,7 +30,6 @@ export default function TrackerDisagreementsPage() {
   const [artistFilter, setArtistFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [focusOpen, setFocusOpen] = useState(false);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_tracker_disagreements");
@@ -66,11 +63,6 @@ export default function TrackerDisagreementsPage() {
     }
   }
 
-  const { focusedId } = useReviewKeys(shown, {
-    yes: (r) => decide(true, [r.id]),
-    no: (r) => decide(false, [r.id]),
-    toggle: (r) => setSelected((prev) => { const n = new Set(prev); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; }),
-  }, busy || focusOpen);
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((r) => selected.has(r.id)).map((r) => r.id);
@@ -107,15 +99,11 @@ export default function TrackerDisagreementsPage() {
               keep ours
             </button>
           </div>
-          <div className="review-toolbar-row">
-            <button className="tab" onClick={() => setFocusOpen(true)}>focus mode</button>
-            <span className="comment-meta kb-hint">Keys: J / K move · Y use tracker · N keep ours · X tick</span>
-          </div>
         </div>
       )}
 
       {shown.map((r) => (
-        <div key={r.id} data-row-id={r.id} className={`review-row ${focusedId === r.id ? "kb-focus" : ""}`}>
+        <div key={r.id} data-row-id={r.id} className="review-row">
           <input type="checkbox" checked={selected.has(r.id)} aria-label={`select ${r.title}`}
             onChange={() => setSelected((prev) => { const n = new Set(prev); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} />
           <div style={{ minWidth: 0 }}>
@@ -136,32 +124,6 @@ export default function TrackerDisagreementsPage() {
         </div>
       ))}
 
-      {focusOpen && (
-        <FocusReview
-          rows={shown}
-          busy={busy}
-          yesLabel="use tracker"
-          noLabel="keep ours"
-          onYes={(r) => decide(true, [r.id])}
-          onNo={(r) => decide(false, [r.id])}
-          onClose={() => setFocusOpen(false)}
-          render={(r) => (
-            <>
-              <div className="comment-meta" style={{ marginBottom: 6 }}>{r.artist}</div>
-              <div className="focus-review-title">
-                <Link href={`/song/${r.track_id}`} target="_blank">{r.title}</Link>
-              </div>
-              <div style={{ fontSize: "1rem", marginBottom: 8 }}>
-                Ours says <strong>{r.current_status}</strong>, the tracker says <strong>{r.tracker_status}</strong>.
-              </div>
-              <div className="focus-review-meta">
-                <a href={r.source_url} target="_blank" rel="noopener noreferrer">{r.source_title}</a>
-                {r.tracker_title && r.tracker_title !== r.title && <span>listed there as &quot;{r.tracker_title}&quot;</span>}
-              </div>
-            </>
-          )}
-        />
-      )}
     </div>
   );
 }

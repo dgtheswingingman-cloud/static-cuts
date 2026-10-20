@@ -11,8 +11,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
-import { useReviewKeys } from "../../components/useReviewKeys";
-import FocusReview from "../../components/FocusReview";
 
 type Suggestion = {
   id: string;
@@ -48,7 +46,6 @@ export default function ImportReviewPage() {
   const [statusOverride, setStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [focusOpen, setFocusOpen] = useState(false);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_import_suggestions", { p_limit: 5000 });
@@ -118,7 +115,7 @@ export default function ImportReviewPage() {
     load();
   }
 
-  // One song at a time (row buttons, keys, focus mode): no full reload, the
+  // One song at a time (row buttons): no full reload, the
   // song just leaves the list.
   async function quick(kind: "approve" | "dismiss", s: Suggestion) {
     setBusy(true);
@@ -132,11 +129,6 @@ export default function ImportReviewPage() {
   }
 
   const ordered = useMemo(() => Object.values(groups).flat(), [groups]);
-  const { focusedId } = useReviewKeys(ordered, {
-    yes: (s) => quick("approve", s),
-    no: (s) => quick("dismiss", s),
-    toggle: (s) => toggle(s.id),
-  }, busy);
 
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
@@ -212,10 +204,6 @@ export default function ImportReviewPage() {
               onClick={() => { if (confirm(`Add all ${shown.length} songs shown?`)) run("approve", shown.map((s) => s.id)); }}>
               add all {shown.length} shown
             </button>
-            <button className="tab" onClick={() => setFocusOpen(true)} title="One song at a time, with big buttons and swipes">
-              focus mode
-            </button>
-            <span className="comment-meta kb-hint">Keys: J / K move · Y add · N dismiss · X tick</span>
           </div>
         </div>
       )}
@@ -229,7 +217,7 @@ export default function ImportReviewPage() {
             </button>
           </div>
           {groups[g].map((s) => (
-            <div key={s.id} data-row-id={s.id} className={`review-row ${focusedId === s.id ? "kb-focus" : ""}`}>
+            <div key={s.id} data-row-id={s.id} className="review-row">
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.title}`} />
               <div style={{ minWidth: 0 }}>
                 <div className="review-row-title">
@@ -254,35 +242,6 @@ export default function ImportReviewPage() {
         </div>
       ))}
 
-      {focusOpen && (
-        <FocusReview
-          rows={ordered}
-          busy={busy}
-          yesLabel="add"
-          noLabel="dismiss"
-          onYes={(s) => quick("approve", s)}
-          onNo={(s) => quick("dismiss", s)}
-          onClose={() => setFocusOpen(false)}
-          note={statusOverride ? `Adding as ${statusOverride}.` : undefined}
-          render={(s) => (
-            <>
-              <div className="comment-meta" style={{ marginBottom: 6 }}>{s.artist_name} · {SOURCE_NAMES[s.source] ?? s.source}</div>
-              <div className="focus-review-title">
-                {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}
-              </div>
-              <div className="focus-review-meta">
-                <span className="feature-tag">{statusOverride || s.status_guess}</span>
-                {s.version_of && <span className="feature-tag">version of {s.version_of}</span>}
-                {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
-                {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
-                {s.release_date && <span>{s.release_date}</span>}
-                {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
-                {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
-              </div>
-            </>
-          )}
-        />
-      )}
     </div>
   );
 }
