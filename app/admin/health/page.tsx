@@ -74,14 +74,6 @@ type Budget = { today: number; last_hour: number; per_day: number | null; per_mi
 type DeadLinks = { checked: number; dead: number; songs: { track_id: string; title: string; artist_id: string; artist: string; url: string }[] };
 const SERVICE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", youtube: "YouTube", soundcloud: "SoundCloud" };
 
-type SiteStats = { accounts: number; new_7d: number; activated: number; active_7d: number; returning_7d: number; contributors_30d: number; searches_missed_7d: number };
-type TrackerRow = {
-  id: string; title: string; artist_id: string; artist: string | null; auto_sync: boolean; last_synced_at: string | null;
-  next_check_at: string | null; statuses: number | null; details: number | null; disagree: number | null; suggested: number | null;
-  error: string | null; open_disagreements: number;
-};
-type CheckedRow = { artist_id: string; artist: string; followers: number; songs: number; checked: number; pct: number; trackers: number };
-
 type TrackerRow = {
   id: string; title: string; artist_id: string; artist: string; auto_sync: boolean; last_synced_at: string | null;
   next_check_at: string | null; error: string | null; statuses: number | null; details: number | null; disagree: number | null;
@@ -124,11 +116,6 @@ export default function HealthPage() {
   const [checked, setChecked] = useState<CheckedRow[]>([]);
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [misses, setMisses] = useState<Miss[]>([]);
-  const [stats, setStats] = useState<SiteStats | null>(null);
-  const [trackers, setTrackers] = useState<TrackerRow[]>([]);
-  const [misses, setMisses] = useState<{ q: string; times: number; people: number; last_at: string }[]>([]);
-  const [checked, setChecked] = useState<CheckedRow[]>([]);
-  const [showAllChecked, setShowAllChecked] = useState(false);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
@@ -142,16 +129,6 @@ export default function HealthPage() {
       supabase.rpc("admin_api_budget"),
       supabase.rpc("admin_dead_links"),
     ]);
-    const [{ data: st }, { data: tr }, { data: sm }, { data: ck }] = await Promise.all([
-      supabase.rpc("admin_site_stats"),
-      supabase.rpc("admin_tracker_health"),
-      supabase.rpc("admin_search_misses", { p_days: 30 }),
-      supabase.rpc("admin_artist_checked"),
-    ]);
-    setStats((st as SiteStats) ?? null);
-    setTrackers((tr as TrackerRow[]) ?? []);
-    setMisses((sm as typeof misses) ?? []);
-    setChecked((ck as CheckedRow[]) ?? []);
     setBudget((sb as typeof budget) ?? null);
     setDead((dl as DeadLinks) ?? null);
     const [{ data: tr }, { data: ck }, { data: st }, { data: ms }] = await Promise.all([
@@ -195,20 +172,6 @@ export default function HealthPage() {
 
       {h && r && (
         <>
-          {stats && (
-            <>
-              <div className="section-label">People (not counting you)</div>
-              <div className="health-tiles">
-                <Tile label={`accounts · ${n(stats.new_7d)} new this week`} value={n(stats.accounts)} />
-                <Tile label="activated (follow an artist and collected, rated or wanted a song)" value={n(stats.activated)} />
-                <Tile label="active this week" value={n(stats.active_7d)} />
-                <Tile label="came back (joined over a week ago, active this week)" value={n(stats.returning_7d)} />
-                <Tile label="contributors (30 days)" value={n(stats.contributors_30d)} />
-                <Tile label="searches that found nothing (7 days)" value={n(stats.searches_missed_7d)} />
-              </div>
-            </>
-          )}
-
           <div className="section-label">Needs you</div>
           <div className="health-tiles">
             <Tile label="takedown requests" value={n(r.takedowns)} href="/review/takedowns" alert={r.takedowns > 0} />
@@ -287,74 +250,6 @@ export default function HealthPage() {
                   );
                 })}
               </div>
-            </>
-          )}
-
-          {trackers.length > 0 && (
-            <>
-              <div className="section-label" style={{ marginTop: 20 }}>Trackers</div>
-              {trackers.map((t) => (
-                <div key={t.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="review-row-title">{t.title}</div>
-                    <div className="review-row-meta">
-                      {t.artist && <Link href={`/artist/${t.artist_id}`}>{t.artist}</Link>}
-                      {t.error
-                        ? <span className="feature-tag disputed-tag">failed: {t.error}</span>
-                        : <span>last run: {t.statuses ?? 0} statuses filled, {t.details ?? 0} details, {t.suggested ?? 0} new songs</span>}
-                      {t.open_disagreements > 0 && <Link href="/review/tracker">{t.open_disagreements} disagreement{t.open_disagreements === 1 ? "" : "s"} waiting</Link>}
-                      {!t.auto_sync && <span className="feature-tag">not re-checked automatically</span>}
-                    </div>
-                  </div>
-                  <span className="comment-meta">{t.last_synced_at ? `ran ${ago(t.last_synced_at)}` : "due now"}</span>
-                </div>
-              ))}
-            </>
-          )}
-
-          {misses.length > 0 && (
-            <>
-              <div className="section-label" style={{ marginTop: 20 }}>Searches that found nothing (30 days)</div>
-              <div className="comment-meta" style={{ marginBottom: 8 }}>
-                What people expected to find. Missing artists or songs worth adding, or spellings worth a nickname.
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                {misses.map((m) => (
-                  <Link key={m.q} href={`/search?q=${encodeURIComponent(m.q)}`} className="feature-tag" style={{ textDecoration: "none" }}
-                    title={`${m.times} time${m.times === 1 ? "" : "s"}, ${m.people} ${m.people === 1 ? "person" : "people"}`}>
-                    {m.q}{m.times > 1 ? ` ×${m.times}` : ""}
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-
-          {checked.length > 0 && (
-            <>
-              <div className="section-label" style={{ marginTop: 20 }}>How checked each artist is</div>
-              <div className="comment-meta" style={{ marginBottom: 8 }}>
-                Share of main songs with a real status (not &quot;unconfirmed&quot;), most-followed artists first. Good launch
-                artists are followed and well checked; a tracker is the quickest way to raise the number.
-              </div>
-              {(showAllChecked ? checked : checked.slice(0, 12)).map((c) => (
-                <div key={c.artist_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="review-row-title"><Link href={`/artist/${c.artist_id}`}>{c.artist}</Link></div>
-                    <div className="review-row-meta">
-                      <span>{n(c.checked)} of {n(c.songs)} checked</span>
-                      <span>{n(c.followers)} follower{c.followers === 1 ? "" : "s"}</span>
-                      <span>{c.trackers ? `${c.trackers} tracker tab${c.trackers === 1 ? "" : "s"}` : "no tracker"}</span>
-                    </div>
-                    <div className="bar-track" style={{ height: 4, marginTop: 6 }}><div className="bar-fill" style={{ width: `${c.pct}%` }} /></div>
-                  </div>
-                  <span className="comment-meta">{c.pct}%</span>
-                </div>
-              ))}
-              {checked.length > 12 && (
-                <button className="tab" style={{ marginTop: 8 }} onClick={() => setShowAllChecked(!showAllChecked)}>
-                  {showAllChecked ? "show fewer" : `show all ${checked.length}`}
-                </button>
-              )}
             </>
           )}
 
