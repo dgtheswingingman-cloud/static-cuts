@@ -36,8 +36,37 @@ export default function OwnerPanel() {
     load();
   }
 
+  // Genius: add clear-cut songs without review.
+  const [genius, setGenius] = useState<{ on: boolean; added_7d: number; waiting: number } | null>(null);
+  useEffect(() => { supabase.rpc("owner_genius_auto").then(({ data }) => setGenius((data as typeof genius) ?? null)); }, []);
+  async function toggleGenius() {
+    if (!genius) return;
+    const { error } = await supabase.rpc("owner_set_genius_auto", { p_on: !genius.on });
+    if (error) { setMessage(error.message); return; }
+    setGenius({ ...genius, on: !genius.on });
+  }
+
   return (
     <>
+      {genius && (
+        <>
+          <div className="section-label">Genius imports</div>
+          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="review-row-title">Add clear-cut songs without review</div>
+              <div className="review-row-meta">
+                <span>The artist&apos;s own songs with no version words (demo, remix, v2, snippet…) and nothing similar on the page already. Added as &ldquo;unconfirmed&rdquo;, every batch in the undo history.</span>
+              </div>
+              <div className="review-row-meta">
+                <span>{genius.added_7d.toLocaleString("en-GB")} added this week</span>
+                <span>{genius.waiting.toLocaleString("en-GB")} waiting for review</span>
+              </div>
+            </div>
+            <button className={`tab ${genius.on ? "active" : ""}`} onClick={toggleGenius}>{genius.on ? "on" : "off"}</button>
+          </div>
+        </>
+      )}
+
       <div className="section-label">Leak file links</div>
       <div className="comment-meta" style={{ marginBottom: 10 }}>
         Links to these sites never show as a listen link. They&apos;re kept on the song privately: only you see them, on
