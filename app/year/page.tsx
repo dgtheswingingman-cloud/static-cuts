@@ -11,6 +11,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import ShareButton from "../components/ShareButton";
+import Wrapped from "./Wrapped";
 
 type Review = {
   year: number; collected: number; unreleased_collected: number; artists: number;
@@ -30,6 +31,7 @@ function YearInner() {
   const now = new Date().getFullYear();
   const year = Number(params.get("y")) || now;
   const [r, setR] = useState<Review | null>(null);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -56,6 +58,12 @@ function YearInner() {
         <button className="tab" onClick={() => router.push(`/year?y=${year - 1}`)}>← {year - 1}</button>
         {year < now && <button className="tab" onClick={() => router.push(`/year?y=${year + 1}`)}>{year + 1} →</button>}
       </div>
+      {r && r.collected + r.ratings + r.follows > 0 && (
+        <button className="wrapped-play" onClick={() => setPlaying(true)}>
+          ▶ Play your {year} Wrapped
+        </button>
+      )}
+      {r && playing && <Wrapped review={r} onClose={() => setPlaying(false)} />}
       {!r && <div className="empty-state">loading…</div>}
       {r && (
         <div className="year-card">

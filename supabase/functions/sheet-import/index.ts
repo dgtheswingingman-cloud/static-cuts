@@ -14,6 +14,9 @@
 //             permission_confirmed} -> saves the sheet as a source and
 //                                      suggests its songs
 //   sync     {source_id}            -> re-reads a saved sheet for new songs
+// Anyone signed in:
+//   user_csv {url}                  -> the sheet as CSV text, for "import my
+//                                      spreadsheet" (nothing saved)
 // Timer (x-cron-secret header, hourly): {action: "sync"} re-reads the next
 // due sheet (weekly, less often when quiet; see sc_sheet_sync_due).
 //
@@ -379,10 +382,20 @@ Deno.serve(async (req) => {
       return json({ ok: true, results });
     }
 
-    // Everyone else: must be the admin or a moderator.
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     const { data: who } = await db.auth.getUser(jwt);
     if (!who?.user) return json({ error: "Sign in first." }, 401);
+
+    // Anyone signed in: read their own Google Sheet for "import my
+    // spreadsheet" (only the text comes back; nothing is saved).
+    if (action === "user_csv") {
+      const { id: sid, gid: sgid } = parseSheetUrl(String(body?.url ?? ""));
+      const csv = await fetchCsv(sid, sgid);
+      if (csv.length > 3_000_000) return json({ error: "That sheet is too big (over 3 MB). Download it as CSV and pick the file instead." }, 400);
+      return json({ ok: true, csv });
+    }
+
+    // Everyone else: must be the admin or a moderator.
     const { data: canMod } = await db.rpc("sc_user_can_moderate", { p_user: who.user.id });
     if (!canMod) return json({ error: "Only moderators can import sheets." }, 403);
 
