@@ -265,6 +265,13 @@ export default function SongView({ id }: { id: string }) {
         {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
         {!isAdmin && <AddToList trackId={t.id} />}
       </div>
+      {!t.spotify_url && (
+        <div className="comment-meta" style={{ marginTop: 8 }}>
+          No listen link yet: we know about this song but not of a place to play it.{" "}
+          <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">Know one? Add it</Link>
+          {" · "}<Link href="/listen" className="text-link">how to listen, and playing your own files</Link>
+        </div>
+      )}
       {isAdmin && <AdminModeNote what="collect, rate, comment, vote or add to a list" />}
 
       {rateOpen && !isAdmin && (

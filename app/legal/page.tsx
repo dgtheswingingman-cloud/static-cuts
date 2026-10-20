@@ -63,9 +63,10 @@ export default function LegalPage() {
 
         <h2 style={{ fontFamily: "var(--font-anton)", fontSize: "1.2rem", marginTop: 16, marginBottom: 8 }}>Your data, your choice</h2>
         <p className="detail-meta" style={{ marginBottom: 8 }}>
-          You can change or delete anything in your profile at any time. If you want your account
-          removed entirely, reach out and it'll be handled directly — this is a small enough project
-          that there's no automated self-serve deletion flow yet, just a real person on the other end.
+          You can change or delete anything in your profile at any time. In Settings, under &ldquo;Your data&rdquo;,
+          you can download everything you&apos;ve put in as one file, or delete your account. Deleting removes your
+          follows, collection, ratings, lists, votes and settings; approved suggestions stay in the archive without
+          your name, and your comments are replaced with &ldquo;[deleted]&rdquo;.
         </p>
       </section>
 

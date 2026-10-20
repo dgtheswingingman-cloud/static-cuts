@@ -15,6 +15,7 @@ import ArtistProfiles from "./ArtistProfiles";
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
+import ShareButton from "../../components/ShareButton";
 import Completeness from "./Completeness";
 import AdminModeNote from "../../components/AdminModeNote";
 
@@ -1589,6 +1590,7 @@ export default function ArtistPage() {
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
             <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
+            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} />
             {user && !canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track

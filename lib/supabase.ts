@@ -16,6 +16,12 @@ async function fetchWithClockRetry(input: RequestInfo | URL, init?: RequestInit)
   return fetch(input, init);
 }
 
+// A "forgot your password?" email link lands with #...type=recovery. Note it
+// before the client reads (and clears) the address, so the site can send
+// the person on to set a new password.
+export const cameForPasswordReset =
+  typeof window !== "undefined" && /type=recovery/.test(window.location.hash + window.location.search);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: fetchWithClockRetry },
 });

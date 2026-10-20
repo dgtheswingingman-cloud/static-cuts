@@ -310,14 +310,46 @@ function readSongs(rows: string[][], m: Mapping) {
 
 // ---------------------------------------------------------------------------
 
-async function importSource(sourceId: string, userId: string) {
+// The names of the columns the mapping reads, e.g. {title: "song name"}.
+function headerCheck(rows: string[][], m: Mapping) {
+  const header = rows[m.header_row] ?? [];
+  const out: Record<string, string> = {};
+  for (const [field, i] of Object.entries(m.columns)) {
+    if (i !== undefined) out[field] = (header[i] ?? "").split("\n")[0].trim().toLowerCase();
+  }
+  return out;
+}
+
+// A tracker that needs a look before it's read again.
+class Held extends Error {}
+
+// onTimer: a scheduled re-check. Those stop if the sheet's columns have
+// changed since it was set up; an import pressed by hand takes the sheet as
+// it is now (and remembers its columns from then on).
+async function importSource(sourceId: string, userId: string, onTimer = false) {
   const { data: src, error } = await db.from("sheet_sources").select("*").eq("id", sourceId).single();
   if (error || !src) throw new Error("Unknown sheet.");
   const { id, gid } = parseSheetUrl(src.url);
   const rows = parseCsv(await fetchCsv(id, gid));
-  const { songs } = readSongs(rows, src.mapping as Mapping);
+  const mapping = src.mapping as Mapping;
+  const now = headerCheck(rows, mapping);
+  const before = src.header_check as Record<string, string> | null;
+  // Paused for a look: only a person pressing import or re-check runs it.
+  if (onTimer && src.last_result?.held) throw new Held(String(src.last_result.error ?? "Paused for a look."));
+  if (onTimer && before) {
+    const changed = Object.keys({ ...before, ...now }).filter((f) => (before[f] ?? "") !== (now[f] ?? ""));
+    if (changed.length) {
+      throw new Held(`The tracker's columns changed (${changed.map((f) => `${f}: "${before[f] ?? ""}" is now "${now[f] ?? ""}"`).join("; ")}). ` +
+        "Re-import it from Import a spreadsheet to check how it's read.");
+    }
+  }
+  const { songs } = readSongs(rows, mapping);
   const { data, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs });
-  if (err) throw new Error(err.message);
+  if (err) {
+    if (err.message.startsWith("Held for a look")) throw new Held(err.message);
+    throw new Error(err.message);
+  }
+  if (!onTimer || !before) await db.from("sheet_sources").update({ header_check: now }).eq("id", sourceId);
   return { read: songs.length, ...data };
 }
 
@@ -336,10 +368,11 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 403);
       const results: unknown[] = [];
       for (const sid of (due?.sources ?? []) as string[]) {
-        try { results.push({ source: sid, ...(await importSource(sid, due.user_id)) }); }
+        try { results.push({ source: sid, ...(await importSource(sid, due.user_id, true)) }); }
         catch (e: any) {
-          await db.from("sheet_sources").update({ last_synced_at: new Date().toISOString(), last_result: { error: String(e?.message ?? e) } }).eq("id", sid);
-          results.push({ source: sid, error: String(e?.message ?? e) });
+          if (e instanceof Held) await db.rpc("sc_sheet_hold", { p_source: sid, p_reason: e.message });
+          else await db.from("sheet_sources").update({ last_synced_at: new Date().toISOString(), last_result: { error: String(e?.message ?? e) } }).eq("id", sid);
+          results.push({ source: sid, error: String(e?.message ?? e), held: e instanceof Held });
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
@@ -354,7 +387,15 @@ Deno.serve(async (req) => {
     if (!canMod) return json({ error: "Only moderators can import sheets." }, 403);
 
     if (action === "sync") {
-      return json({ ok: true, ...(await importSource(String(body.source_id), who.user.id)) });
+      try {
+        return json({ ok: true, ...(await importSource(String(body.source_id), who.user.id)) });
+      } catch (e: any) {
+        if (!(e instanceof Held)) throw e;
+        // Pressed by hand: pause it and say what happened. Pressing again
+        // goes through; re-importing it switches automatic re-checks back on.
+        await db.rpc("sc_sheet_hold", { p_source: String(body.source_id), p_reason: e.message });
+        return json({ error: `${e.message} If that's expected, press it again to go ahead, then re-import it from Import a spreadsheet to switch automatic re-checks back on.` }, 409);
+      }
     }
 
     const url = String(body?.url ?? "");
@@ -407,7 +448,13 @@ Deno.serve(async (req) => {
         },
       });
       if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, source_id: sourceId, ...(await importSource(sourceId as string, who.user.id)) });
+      try {
+        return json({ ok: true, source_id: sourceId, ...(await importSource(sourceId as string, who.user.id)) });
+      } catch (e: any) {
+        if (!(e instanceof Held)) throw e;
+        await db.rpc("sc_sheet_hold", { p_source: sourceId, p_reason: e.message });
+        return json({ error: `${e.message} If that's expected, press import again to go ahead.` }, 409);
+      }
     }
 
     return json({ error: "Unknown action." }, 400);

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { supabase, cameForPasswordReset } from "@/lib/supabase";
 
 type AuthContextType = {
   session: Session | null;
@@ -29,8 +29,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session);
       setLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      // Came in from a "set a new password" email: go and set it.
+      if ((event === "PASSWORD_RECOVERY" || (cameForPasswordReset && newSession)) && window.location.pathname !== "/reset-password") {
+        window.location.assign("/reset-password");
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, []);

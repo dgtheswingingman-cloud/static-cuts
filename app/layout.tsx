@@ -48,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <footer className="site-credit">
                 <nav className="site-credit-links">
                   <Link href="/faq">FAQ</Link>
+                  <Link href="/listen">How to listen</Link>
                   <Link href="/contributors">Contributors</Link>
                   <Link href="/sources">Sources</Link>
                   <Link href="/legal">Privacy &amp; terms</Link>
