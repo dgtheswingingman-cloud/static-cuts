@@ -74,6 +74,12 @@ function SearchInner() {
       setResults(d.items);
       setTotal(d.total);
       setFuzzy(!!d.fuzzy);
+      // Nothing at all for plain words: counted (just the words) so missing
+      // songs can be added.
+      const words = (params.get("q") ?? "").trim();
+      if (d.total === 0 && words.length >= 3 && !statuses.length && !from && !to && !link) {
+        supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "songs" });
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

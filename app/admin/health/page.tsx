@@ -74,6 +74,18 @@ type Budget = { today: number; last_hour: number; per_day: number | null; per_mi
 type DeadLinks = { checked: number; dead: number; songs: { track_id: string; title: string; artist_id: string; artist: string; url: string }[] };
 const SERVICE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", youtube: "YouTube", soundcloud: "SoundCloud" };
 
+type TrackerRow = {
+  id: string; title: string; artist_id: string; artist: string; auto_sync: boolean; last_synced_at: string | null;
+  next_check_at: string | null; error: string | null; statuses: number | null; details: number | null; disagree: number | null;
+  suggested: number | null; open_disagreements: number;
+};
+type CheckedRow = { artist_id: string; artist: string; songs: number; checked: number; pct: number; followers: number; has_tracker: boolean };
+type SiteStats = {
+  accounts: number; new_7d: number; new_30d: number; active_7d: number; active_30d: number; returning: number;
+  contributors_30d: number; missed_searches_7d: number; push_devices: number;
+};
+type Miss = { query: string; kind: string; times: number; last_at: string; now_found: boolean };
+
 type Progress = {
   spotify: { left: number; searched: number; linked: number; links_checked_30d: number; paused_until: string | null };
   genius: { checked: number; left: number };
@@ -100,6 +112,10 @@ export default function HealthPage() {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [budget, setBudget] = useState<Record<string, Budget> | null>(null);
   const [dead, setDead] = useState<DeadLinks | null>(null);
+  const [trackers, setTrackers] = useState<TrackerRow[]>([]);
+  const [checked, setChecked] = useState<CheckedRow[]>([]);
+  const [stats, setStats] = useState<SiteStats | null>(null);
+  const [misses, setMisses] = useState<Miss[]>([]);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_health");
@@ -115,6 +131,16 @@ export default function HealthPage() {
     ]);
     setBudget((sb as typeof budget) ?? null);
     setDead((dl as DeadLinks) ?? null);
+    const [{ data: tr }, { data: ck }, { data: st }, { data: ms }] = await Promise.all([
+      supabase.rpc("admin_tracker_status"),
+      supabase.rpc("admin_artist_checked", { p_limit: 40 }),
+      supabase.rpc("admin_site_stats"),
+      supabase.rpc("admin_search_misses", { p_days: 30 }),
+    ]);
+    setTrackers((tr as TrackerRow[]) ?? []);
+    setChecked((ck as CheckedRow[]) ?? []);
+    setStats((st as SiteStats) ?? null);
+    setMisses((ms as Miss[]) ?? []);
     setTimers((t as Timer[]) ?? []);
     setBg(b ?? null);
     setProgress((p as Progress) ?? null);
@@ -224,6 +250,97 @@ export default function HealthPage() {
                   );
                 })}
               </div>
+            </>
+          )}
+
+          {stats && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>People</div>
+              <div className="health-tiles">
+                <Tile label={`accounts · ${n(stats.new_7d)} new this week, ${n(stats.new_30d)} this month`} value={n(stats.accounts)} />
+                <Tile label={`active this week · ${n(stats.active_30d)} this month`} value={n(stats.active_7d)} />
+                <Tile label="came back a week or more after their first visit" value={n(stats.returning)} />
+                <Tile label="people who sent suggestions (30 days)" value={n(stats.contributors_30d)} />
+                <Tile label="searches that found nothing (7 days)" value={n(stats.missed_searches_7d)} />
+                <Tile label="devices with phone alerts on" value={n(stats.push_devices)} />
+              </div>
+              <div className="comment-meta" style={{ marginBottom: 8 }}>
+                &ldquo;Active&rdquo; means they followed, collected, rated, commented, suggested or voted.
+              </div>
+            </>
+          )}
+
+          {trackers.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>Community trackers</div>
+              {trackers.map((t) => (
+                <div key={t.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="review-row-title">{t.title}</div>
+                    <div className="review-row-meta">
+                      <Link href={`/artist/${t.artist_id}`}>{t.artist}</Link>
+                      {t.error ? <span className="feature-tag disputed-tag">last check failed: {t.error}</span> : (
+                        <>
+                          {t.statuses != null && <span>{n(t.statuses)} statuses filled</span>}
+                          {t.details != null && <span>{n(t.details)} songs given details</span>}
+                          {t.suggested != null && <span>{n(t.suggested)} new songs suggested</span>}
+                        </>
+                      )}
+                      {t.open_disagreements > 0 && <Link href="/review/tracker">{t.open_disagreements} disagreements waiting</Link>}
+                      {!t.auto_sync && <span className="feature-tag">not re-checked</span>}
+                    </div>
+                  </div>
+                  <span className="comment-meta">{t.last_synced_at ? `checked ${ago(t.last_synced_at)}` : "not checked yet"}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {checked.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>How much is checked (most followed first)</div>
+              <div className="comment-meta" style={{ marginBottom: 8 }}>
+                Main songs with a real status (not &ldquo;unconfirmed&rdquo;). Good for picking launch artists, and for seeing
+                which artists need a tracker.
+              </div>
+              {checked.map((c) => (
+                <div key={c.artist_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="review-row-title"><Link href={`/artist/${c.artist_id}`}>{c.artist}</Link></div>
+                    <div className="review-row-meta">
+                      <span>{n(c.checked)} of {n(c.songs)} songs</span>
+                      <span>{n(c.followers)} follower{c.followers === 1 ? "" : "s"}</span>
+                      {c.has_tracker ? <span className="feature-tag">tracker</span> : <span>no tracker yet</span>}
+                    </div>
+                  </div>
+                  <span className="comment-meta" style={{ minWidth: 90, textAlign: "right" }}>
+                    {c.pct}% <span className="completeness-bar" style={{ display: "inline-block", width: 50, verticalAlign: "middle" }}><span style={{ width: `${c.pct}%` }} /></span>
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {misses.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 20 }}>Searches that found nothing (30 days)</div>
+              <div className="comment-meta" style={{ marginBottom: 8 }}>
+                What people looked for and didn&apos;t find: songs or artists to add, or spellings to add as nicknames.
+                Only the words are kept, not who searched.
+              </div>
+              {misses.map((m) => (
+                <div key={`${m.kind}:${m.query}`} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="review-row-title">&ldquo;{m.query}&rdquo;</div>
+                    <div className="review-row-meta">
+                      <span>{m.kind === "artists" ? "artist search" : "song search"}</span>
+                      <span>{m.times} time{m.times === 1 ? "" : "s"}</span>
+                      {m.now_found && <span className="feature-tag">finds something now</span>}
+                    </div>
+                  </div>
+                  <span className="comment-meta">{ago(m.last_at)}</span>
+                </div>
+              ))}
             </>
           )}
 

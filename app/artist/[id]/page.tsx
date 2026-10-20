@@ -1801,7 +1801,7 @@ export default function ArtistPage() {
               <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
             </div>
           )}
-          <Completeness artistId={id} refreshKey={tracks?.length} />
+          <Completeness artistId={id} artistName={artist?.name} refreshKey={tracks?.length} />
 
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>

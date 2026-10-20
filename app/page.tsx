@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { readPicks, savePicks } from "./components/picks";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
@@ -47,6 +48,11 @@ export default function HomePage() {
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
   const [pinBusyId, setPinBusyId] = useState<string | null>(null);
   const [pickingRandom, setPickingRandom] = useState(false);
+  // Artists picked on the first-visit page before signing up.
+  const [picks, setPicks] = useState<string[]>([]);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => { setPicks(readPicks()); }, []);
 
   const SORT_STORAGE_KEY = "static_cuts_artist_sort";
 
@@ -97,6 +103,34 @@ export default function HomePage() {
     }
     loadFollowed();
   }, [user]);
+
+  // Signed in with picks from before: follow them for real, once.
+  useEffect(() => {
+    if (!user || isAdmin) return;
+    const local = readPicks();
+    if (local.length === 0) return;
+    supabase.rpc("rpc_follow_many", { p_artist_ids: local }).then(({ error: err }) => {
+      if (err) return;
+      savePicks([]);
+      setPicks([]);
+      setFollowedIds((prev) => new Set([...prev, ...local]));
+    });
+  }, [user, isAdmin]);
+
+  // Artist searches that find nothing are counted (just the words), so
+  // missing artists can be added.
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 3 || !artists) return;
+    const needle = term.toLowerCase();
+    const found = artists.some((a) => a.name.toLowerCase().includes(needle) || a.aliases.some((x) => x.toLowerCase().includes(needle)));
+    if (found) return;
+    const t = setTimeout(() => {
+      if (trackResults.length === 0) supabase.rpc("rpc_log_search_miss", { p_query: term, p_kind: "artists" });
+    }, 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, artists, trackResults.length]);
 
   async function togglePin(artistId: string) {
     if (!user) return;
@@ -179,6 +213,7 @@ export default function HomePage() {
       return artists.filter((a) => a.name.toLowerCase().includes(needle) || a.aliases.some((n) => n.toLowerCase().includes(needle)));
     }
     if (user) return artists.filter((a) => followedIds.has(a.id));
+    if (picks.length > 0 && !showAll) return artists.filter((a) => picks.includes(a.id));
     return artists;
   })();
 
@@ -261,6 +296,22 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
+
+      {!user && !isAdmin && !q && (
+        <div className="comments-panel first-visit">
+          {picks.length === 0 ? (
+            <>New here? <Link href="/start" className="text-link">Pick a few artists you&apos;re into</Link> and this page becomes about them.</>
+          ) : (
+            <>
+              {showAll ? "Showing everyone. " : "Showing your picks. "}
+              <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }}
+                onClick={() => setShowAll(!showAll)}>{showAll ? "back to your picks" : "see everyone"}</button>
+              {" · "}<Link href="/start" className="text-link">change picks</Link>
+              {" · "}<Link href="/login" className="text-link">make an account</Link> to keep them and get alerts when they leak or release.
+            </>
+          )}
+        </div>
+      )}
 
       {showTrackSection && (
         <>
@@ -408,8 +459,8 @@ export default function HomePage() {
             </div>
           ) : user ? (
             <div className="empty-state">
-              You&apos;re not following anyone yet. Search above for an artist and hit{" "}
-              <b>+ follow</b> to add them here.
+              You&apos;re not following anyone yet. <Link href="/start" className="text-link">Pick a few artists</Link>, or
+              search above and hit <b>+ follow</b>.
             </div>
           ) : (
             <div className="empty-state">Nothing in the archive yet.</div>
