@@ -1353,3 +1353,31 @@ a.listen-link {
   .phone-only { display: inline-flex; }
   .collab-stage.phone-hide { display: none; }
 }
+
+/* Artist page: photo, about, bands */
+.artist-about { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin: 6px 0 14px; }
+.artist-photo { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 1px solid var(--hair); flex: 0 0 auto; }
+.artist-bio { font-size: 0.88rem; line-height: 1.55; color: var(--bone); max-width: 640px; }
+.artist-group-songs { flex: 1 0 100%; }
+@media (max-width: 600px) { .artist-photo { width: 84px; height: 84px; } }
+
+/* Static Cuts Wrapped */
+.wrapped-play { display: block; width: 100%; padding: 18px; margin-bottom: 16px; background: var(--bone); color: var(--void); border: 0; font-family: var(--font-anton), Impact, sans-serif; font-size: 1.4rem; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
+.wrapped { position: fixed; inset: 0; z-index: 200; background: #0b0b0c; color: #ededed; display: flex; flex-direction: column; overflow: hidden; }
+.wrapped::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.10), transparent 60%), repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 6px); }
+.wrapped-bars { display: flex; gap: 4px; padding: 14px 16px 0; position: relative; }
+.wrapped-bars span { flex: 1; height: 3px; background: rgba(255,255,255,0.18); }
+.wrapped-bars span.on { background: #ededed; }
+.wrapped-close { position: absolute; top: 22px; right: 14px; background: none; border: 0; color: #ededed; font-size: 2rem; cursor: pointer; z-index: 2; }
+.wrapped-slide { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px; cursor: pointer; position: relative; animation: wrapped-in 0.45s ease; user-select: none; }
+.wrapped-kicker { font-family: var(--font-mono), monospace; text-transform: uppercase; letter-spacing: 0.12em; color: #8a8a8a; font-size: 0.85rem; margin-bottom: 18px; }
+.wrapped-big { font-family: var(--font-anton), Impact, sans-serif; font-size: clamp(5rem, 28vw, 13rem); line-height: 0.95; }
+.wrapped-title { font-family: var(--font-anton), Impact, sans-serif; text-transform: uppercase; font-size: clamp(2.2rem, 9vw, 4.5rem); line-height: 1.02; max-width: 900px; }
+.wrapped-line { font-family: var(--font-mono), monospace; font-size: 1.05rem; margin-top: 12px; }
+.wrapped-note { margin-top: 30px; color: #8a8a8a; font-family: var(--font-mono), monospace; font-size: 0.8rem; animation: wrapped-pulse 1.6s ease infinite; }
+.wrapped-foot { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 22px; position: relative; }
+@keyframes wrapped-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes wrapped-pulse { 50% { opacity: 0.4; } }
+
+/* Control room: live */
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4caf6a; margin-right: 4px; animation: wrapped-pulse 1.2s ease infinite; }
