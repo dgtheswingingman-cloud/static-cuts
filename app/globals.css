@@ -1409,3 +1409,17 @@ a.listen-link {
 .year-big { font-size: 3rem; font-weight: 700; line-height: 1; }
 .year-label { color: var(--smoke); margin-top: 6px; }
 .year-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 0.9rem; }
+
+/* ---------- First visit ---------- */
+.start-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding-bottom: 80px; }
+.start-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  font: inherit; color: var(--bone); background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+}
+.start-chip.on { border-color: var(--bone); background: var(--surface2); }
+.start-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); background: var(--void); border-top: 1px solid var(--hair);
+}
+.first-visit { margin: 0 0 14px; }

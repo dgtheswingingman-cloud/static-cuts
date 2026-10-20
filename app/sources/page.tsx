@@ -28,6 +28,9 @@ export default function SourcesPage() {
 
   useEffect(() => {
     supabase.rpc("rpc_sheet_sources").then(({ data }) => setSources((data as Source[]) ?? []));
+    // Coming from an artist page's "know a fan tracker?" link.
+    const a = new URLSearchParams(window.location.search).get("artist");
+    if (a) setArtistName(a);
   }, []);
 
   async function send() {
@@ -88,7 +91,7 @@ export default function SourcesPage() {
           Admin mode: import sheets yourself from <Link href="/admin/sheets" className="text-link">import a spreadsheet</Link>.
         </div>
       ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 560 }}>
+      <div id="send" style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 560 }}>
         <input className="search-input" placeholder="https://docs.google.com/spreadsheets/d/…" value={url} onChange={(e) => setUrl(e.target.value)} />
         <input className="search-input" placeholder="Which artist? (optional)" value={artistName} onChange={(e) => setArtistName(e.target.value)} />
         <input className="search-input" placeholder="Anything we should know, like who made it? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />

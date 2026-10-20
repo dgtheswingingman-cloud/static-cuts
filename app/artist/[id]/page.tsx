@@ -132,6 +132,7 @@ export default function ArtistPage() {
   // Nicknames (Ye for Kanye West): shown under the name, used when matching
   // imports and guest artists. The admin edits them.
   const [aliases, setAliases] = useState<string[]>([]);
+  const [checked, setChecked] = useState<{ total: number; checked: number; pct: number } | null>(null);
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
@@ -261,6 +262,8 @@ export default function ArtistPage() {
       setArtist(artistRow);
       supabase.from("artist_aliases").select("alias").eq("artist_id", id).order("alias")
         .then(({ data: rows }) => setAliases((rows ?? []).map((r: { alias: string }) => r.alias)));
+      supabase.rpc("rpc_artist_checked", { p_artist_id: id })
+        .then(({ data: c }) => setChecked((c as { total: number; checked: number; pct: number }) ?? null));
 
       // Every song in one request (fast even for 4,000-song pages); the
       // older page-by-page loading is kept as a fallback.
@@ -1578,6 +1581,14 @@ export default function ArtistPage() {
             <>
               <h1 className="detail-name">{artist.name}</h1>
               {aliases.length > 0 && <div className="detail-meta artist-aka">also known as {aliases.join(", ")}</div>}
+              {checked && checked.total > 0 && (
+                <div className="detail-meta artist-checked" title="Songs with a confirmed status: released, leaked, snippet and so on, rather than unconfirmed">
+                  {checked.pct}% checked ({checked.checked.toLocaleString("en-GB")} of {checked.total.toLocaleString("en-GB")} songs have a confirmed status)
+                  {checked.pct < 90 && (
+                    <> · <Link href={`/sources?artist=${encodeURIComponent(artist.name)}#send`} className="text-link">know a tracker for {artist.name}?</Link></>
+                  )}
+                </div>
+              )}
             </>
           )}
           <div className="artist-actions">
@@ -1801,7 +1812,7 @@ export default function ArtistPage() {
               <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
             </div>
           )}
-          <Completeness artistId={id} refreshKey={tracks?.length} />
+          <Completeness artistId={id} artistName={artist.name} refreshKey={tracks?.length} />
 
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>

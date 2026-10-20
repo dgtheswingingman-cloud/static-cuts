@@ -252,7 +252,8 @@ async function importGenius(artist: Artist, runId: string) {
       if (!key || items.has(key)) continue;
       const isFeature = String(song.primary_artist?.id) !== geniusId;
       const c = song.release_date_components;
-      const date = c?.year && c?.month && c?.day
+      // Only full dates with a real year (Genius sometimes has "20" for 2020).
+      const date = c?.year >= 1900 && c?.year <= 2100 && c?.month && c?.day
         ? `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}` : null;
       items.set(key, {
         title,

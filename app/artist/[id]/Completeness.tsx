@@ -17,7 +17,7 @@ const LABELS: [keyof Data["parts"], string][] = [
   ["albums", "releases with an album"],
 ];
 
-export default function Completeness({ artistId, refreshKey }: { artistId: string; refreshKey?: number }) {
+export default function Completeness({ artistId, artistName, refreshKey }: { artistId: string; artistName?: string; refreshKey?: number }) {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -31,6 +31,11 @@ export default function Completeness({ artistId, refreshKey }: { artistId: strin
     <div className="completeness">
       <button className="completeness-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span>page {data.score}% complete</span>
+        {data.parts.status.total > 0 && (
+          <span className="comment-meta" title="Songs with a confirmed status (released, leaked, snippet…) rather than unconfirmed">
+            · {Math.round((data.parts.status.done * 100) / data.parts.status.total)}% checked
+          </span>
+        )}
         <span className="completeness-bar"><span style={{ width: `${data.score}%` }} /></span>
         <span className="comment-meta">{open ? "hide" : "details"}</span>
       </button>
@@ -45,8 +50,11 @@ export default function Completeness({ artistId, refreshKey }: { artistId: strin
               </div>
             );
           })}
-          <div className="health-tile" style={{ display: "flex", alignItems: "center" }}>
+          <div className="health-tile" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
             <Link href="/help" className="text-link">help fill it in →</Link>
+            <Link href={`/sources?artist=${encodeURIComponent(artistName ?? "")}#send`} className="text-link">
+              know a fan tracker for this artist? →
+            </Link>
           </div>
         </div>
       )}
