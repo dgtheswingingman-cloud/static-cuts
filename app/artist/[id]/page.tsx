@@ -16,7 +16,9 @@ import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 import ShareButton from "../../components/ShareButton";
+import StoryButton from "../../components/StoryButton";
 import Completeness from "./Completeness";
+import ArtistAbout from "./ArtistAbout";
 import AdminModeNote from "../../components/AdminModeNote";
 
 type Track = {
@@ -201,6 +203,8 @@ export default function ArtistPage() {
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
   const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
   const [playingCandidate, setPlayingCandidate] = useState<string | null>(null);
+  // How many songs to show in each open letter (big pages show 120 first).
+  const [letterLimit, setLetterLimit] = useState<Record<string, number>>({});
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [loadedDetailIds, setLoadedDetailIds] = useState<Set<string>>(new Set());
@@ -534,6 +538,12 @@ export default function ArtistPage() {
   async function ensureTracksLoaded(trackIds: string[], force = false) {
     const idsToLoad = force ? trackIds : trackIds.filter((tid) => !loadedDetailIds.has(tid));
     if (idsToLoad.length === 0) return;
+    // Big letters (hundreds of songs): ask in pieces, so the request address
+    // never gets too long and the first songs fill in straight away.
+    if (idsToLoad.length > 150) {
+      for (let i = 0; i < idsToLoad.length; i += 150) await ensureTracksLoaded(idsToLoad.slice(i, i + 150), true);
+      return;
+    }
 
     // Real-or-fake totals, for the "disputed" / "% real" tag.
     supabase.rpc("rpc_authenticity", { p_track_ids: idsToLoad }).then(({ data }) => {
@@ -1605,6 +1615,7 @@ export default function ArtistPage() {
             <>
               <h1 className="detail-name">{artist.name}</h1>
               {aliases.length > 0 && <div className="detail-meta artist-aka">also known as {aliases.join(", ")}</div>}
+              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} />
             </>
           )}
           <div className="artist-actions">
@@ -1617,6 +1628,20 @@ export default function ArtistPage() {
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
             <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
             <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} />
+            <StoryButton fileName={`static-cuts-${id}`} story={async () => {
+              const { data: a } = await supabase.from("artists").select("image_url").eq("id", id).maybeSingle();
+              const main = (tracks ?? []).filter((x) => !x.parent_track_id);
+              const leaked = main.filter((x) => x.release_status === "leaked").length;
+              const unreleased = main.filter((x) => x.release_status && !["released", "unconfirmed"].includes(x.release_status)).length;
+              return {
+                kicker: "the full discography",
+                title: artist.name,
+                imageUrl: (a as { image_url?: string | null } | null)?.image_url ?? null,
+                round: true,
+                lines: [`${main.length.toLocaleString("en-GB")} songs`, ...(unreleased ? [`${unreleased.toLocaleString("en-GB")} unreleased`] : []), ...(leaked ? [`${leaked.toLocaleString("en-GB")} leaked`] : [])],
+                footer: `static-cuts.com/artist/${id}`,
+              };
+            }} />
             {user && !canModerate && (
               <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                 + suggest track
@@ -1953,7 +1978,7 @@ export default function ArtistPage() {
                       <span>{letter} ({letterGroups[letter].length})</span>
                       <button className="tab" style={{ padding: "3px 10px", fontSize: "0.62rem" }}>{isOpen ? "hide" : "show"}</button>
                     </div>
-                    {isOpen && letterGroups[letter].map((t) => {
+                    {isOpen && letterGroups[letter].slice(0, letterLimit[letter] ?? 120).map((t) => {
                       const passingSubs = (subsByParent[t.id] ?? []).filter((s) => trackPasses(s, owned, roleFilter, releaseFilter, collectedFilter));
                       const subsOpen = openSubsFor.has(t.id);
                       return (
@@ -1972,6 +1997,12 @@ export default function ArtistPage() {
                         </div>
                       );
                     })}
+                    {isOpen && letterGroups[letter].length > (letterLimit[letter] ?? 120) && (
+                      <button className="tab" style={{ margin: "6px 0 12px" }}
+                        onClick={() => setLetterLimit((prev) => ({ ...prev, [letter]: (prev[letter] ?? 120) + 300 }))}>
+                        show {Math.min(300, letterGroups[letter].length - (letterLimit[letter] ?? 120))} more of {letterGroups[letter].length}
+                      </button>
+                    )}
                   </div>
                 );
               })}
