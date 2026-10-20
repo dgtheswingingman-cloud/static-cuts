@@ -28,6 +28,11 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
+// YouTube sends titles with HTML codes (&amp; for &).
+function decode(s: string) {
+  return s.replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+
 function norm(s: string) {
   return (s || "").toLowerCase()
     .replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"')
@@ -65,8 +70,8 @@ Deno.serve(async (req) => {
 
     const song = norm(s.title), artist = norm(s.artist);
     const items = ((body?.items ?? []) as any[]).map((v) => {
-      const title = String(v?.snippet?.title ?? "");
-      const channel = String(v?.snippet?.channelTitle ?? "");
+      const title = decode(String(v?.snippet?.title ?? ""));
+      const channel = decode(String(v?.snippet?.channelTitle ?? ""));
       const t = norm(title), c = norm(channel);
       const official = c === artist || c === artist + "topic" || (c.includes(artist) && c.includes("vevo"));
       const matches = song.length > 0 && t.includes(song) && (t.includes(artist) || c.includes(artist));
