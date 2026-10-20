@@ -135,7 +135,7 @@ export default function ImportReviewPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Imported Songs</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Songs the Genius and Last.fm imports found that aren&apos;t on the page yet. Genius often lists unreleased songs;

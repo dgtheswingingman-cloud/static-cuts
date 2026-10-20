@@ -57,7 +57,7 @@ export default function AuthBar() {
         notifications{unread > 0 && <span className="notif-count">{unread}</span>}
       </Link>
       <Link href="/my-submissions" className="auth-link">my submissions</Link>
-      {isModerator && <Link href="/review" className="auth-link">moderation</Link>}
+      {isModerator && <Link href="/control" className="auth-link">control room</Link>}
       <Link href="/settings" className="auth-link">settings</Link>
       <button onClick={() => signOut()} className="auth-link">log out</button>
     </div>

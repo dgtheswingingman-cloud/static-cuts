@@ -10,7 +10,7 @@ type AuthContextType = {
   loading: boolean;
   // 'admin', 'moderator' or null. Loaded with the session; `loading` stays
   // true until it's known.
-  role: "admin" | "moderator" | null;
+  role: "owner" | "admin" | "moderator" | null;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -21,7 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"admin" | "moderator" | null>(null);
+  const [role, setRole] = useState<"owner" | "admin" | "moderator" | null>(null);
   const [roleFor, setRoleFor] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     supabase.rpc("rpc_my_role").then(({ data }) => {
       if (cancelled) return;
-      setRole(data === "admin" || data === "moderator" ? data : null);
+      setRole(data === "owner" || data === "admin" || data === "moderator" ? data : null);
       setRoleFor(userId);
     });
     return () => { cancelled = true; };

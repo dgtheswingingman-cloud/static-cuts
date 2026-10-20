@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsOwner } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 
 type Settings = {
@@ -27,7 +27,7 @@ type Settings = {
 
 export default function AutoApprovePage() {
   const { user, loading: authLoading } = useAuth();
-  const isRealAdmin = useIsAdmin();
+  const isRealAdmin = useIsOwner();
   const router = useRouter();
   const [s, setS] = useState<Settings | null>(null);
   const [draft, setDraft] = useState<Partial<Settings>>({});
@@ -65,13 +65,13 @@ export default function AutoApprovePage() {
     load();
   }
 
-  if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
+  if (!isRealAdmin) return <NoAccess loading={authLoading} who="owner" />;
   const v = { ...s, ...draft } as Settings;
   const changed = Object.keys(draft).length > 0;
 
   return (
     <div className="wrap" style={{ maxWidth: 680 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control?tab=owner")}>← control room</button>
       <h1 className="detail-name page-title">Auto-approve</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         ChatGPT finds that match a rule below are added straight away instead of waiting for review.

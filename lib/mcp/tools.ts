@@ -81,7 +81,7 @@ export const TOOLS: Tool[] = [
       "the status has moved on. Verdicts: new (not in Static Cuts), known_same_status (nothing to do), " +
       "known_status_changed (submit it), open_discovery (already reported; only submit with a different source URL), " +
       "previously_dismissed (already reviewed and turned down: don't submit). " +
-      "To check several finds for one artist, use check_candidates instead (one call for up to 50). " +
+      "To check several finds for one artist, use check_candidates instead (one call for up to 100). " +
       "version_of is set when the title looks like a version (Demo, V2, Remix, Live...) of a song already in the archive.",
     inputSchema: {
       type: "object",
@@ -107,7 +107,7 @@ export const TOOLS: Tool[] = [
     name: "check_candidates",
     title: "Check many songs at once",
     description:
-      "Batch version of check_candidate: checks up to 50 titles for one artist in a single call and returns a " +
+      "Batch version of check_candidate: checks up to 100 titles for one artist in a single call and returns a " +
       "verdict for each (new, known_same_status, known_status_changed, open_discovery, previously_dismissed). " +
       "Prefer this over calling check_candidate many times. Submit only the ones marked new or " +
       "known_status_changed (or open_discovery when you have a different source).",
@@ -117,7 +117,7 @@ export const TOOLS: Tool[] = [
         artist_id: { type: "string" },
         items: {
           type: "array",
-          maxItems: 50,
+          maxItems: 100,
           items: {
             type: "object",
             properties: {
@@ -179,14 +179,14 @@ export const TOOLS: Tool[] = [
     name: "get_songs_needing_links",
     title: "List songs that need a listen link",
     description:
-      "Returns up to 25 of an artist's songs that have no listen link on Static Cuts, the ones nobody has checked " +
+      "Returns up to 100 (default 25) of an artist's songs that have no listen link on Static Cuts, the ones nobody has checked " +
       "first, with any links already suggested. Follow the instructions it returns: find a link for each song, " +
       "call suggest_link for each one you find, then mark_checked with every track_id you looked at.",
     inputSchema: {
       type: "object",
       properties: {
         artist_id: { type: "string" },
-        limit: { type: "integer", minimum: 1, maximum: 50, description: "Default 25." },
+        limit: { type: "integer", minimum: 1, maximum: 100, description: "Default 25, up to 100." },
       },
       required: ["artist_id"],
       additionalProperties: false,
@@ -219,6 +219,33 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     run: (db, args) => rpc(db, "rpc_suggest_link", { p: args }),
+  },
+  {
+    name: "suggest_details",
+    title: "Fill in a song's missing details",
+    description:
+      "For a song already on Static Cuts: suggests details it's missing (album, release date, producers, featured " +
+      "artists, track number). Only empty fields are used; it goes to the review list as a suggested edit. Give the " +
+      "page that shows the details as source_url. Use it while researching (get_songs_needing_links and the " +
+      "research plan's needs_status give track_ids). Album art comes automatically from the Spotify link, so " +
+      "finding a song's Spotify link fills its artwork too.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        track_id: { type: "string" },
+        album: { type: "string", description: "Album, EP or single name." },
+        release_date: { type: "string", description: "YYYY-MM-DD, only when you know the exact day." },
+        producers: { type: "string", description: "Comma-separated." },
+        featured_artists: { type: "string", description: "Comma-separated, not the main artist." },
+        track_number: { type: "integer", minimum: 1, maximum: 200 },
+        source_url: { type: "string", description: "The page that shows these details (required, http/https)." },
+        notes: { type: "string", description: "One sentence for the reviewer (max 1000 chars)." },
+      },
+      required: ["track_id", "source_url"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    run: (db, args) => rpc(db, "rpc_suggest_details", { p: args }),
   },
   {
     name: "mark_checked",
@@ -310,7 +337,7 @@ export const SERVER_INSTRUCTIONS = [
   "2. Research each artist: official sources first, then release databases and music press, then community",
   "   sources (artist subreddits, leak/unreleased trackers, fan archives). Underground material often appears",
   "   in community sources before Spotify or Apple index it -- that is fine, report it with lower confidence.",
-  "3. Check your finds with check_candidates (up to 50 per call). Submit only new songs or real status changes",
+  "3. Check your finds with check_candidates (up to 100 per call). Submit only new songs or real status changes",
   "   (rumored -> teased -> snippet -> leaked/announced -> released, or removed after a takedown).",
   "4. submit_discovery once per finding with the best source URL. Never invent sources.",
   "   Features: when the followed artist guests on another artist's song, set main_artist_name to the song's owner.",
@@ -319,6 +346,8 @@ export const SERVER_INSTRUCTIONS = [
   "   Collabs: list collaborators in featured_artists; if the song is already on a collaborator's page it gets linked, not duplicated.",
   "   Status checks: each artist's needs_status lists songs whose status is unknown. Find out what each is",
   "   (released, leaked, snippet...), submit_discovery for what you can prove, then mark_checked those track_ids.",
+  "   Details: when you see a song's album, exact release date, producers, features or track number and the",
+  "   song is already on Static Cuts, call suggest_details (only gaps are used).",
   "5. Clean-up: for each researched artist call get_possible_duplicates(artist_id) and report_duplicate on up to 5 groups.",
   "Link requests: when asked to find links, use get_songs_needing_links, suggest_link and mark_checked.",
   "6. finish_run with the artist_ids you researched, even if you found nothing, so other users' routines",

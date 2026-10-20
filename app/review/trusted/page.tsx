@@ -41,7 +41,7 @@ export default function TrustedPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Trusted Contributors</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Trusted contributors&apos; suggestions go live straight away instead of waiting here. It happens by itself

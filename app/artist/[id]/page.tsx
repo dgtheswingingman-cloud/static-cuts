@@ -200,6 +200,7 @@ export default function ArtistPage() {
   const [trackSearchQuery, setTrackSearchQuery] = useState("");
   const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set());
   const [candidateScores, setCandidateScores] = useState<Record<string, number>>({});
+  const [playingCandidate, setPlayingCandidate] = useState<string | null>(null);
   const [myCandidateVotes, setMyCandidateVotes] = useState<Record<string, 1 | -1>>({});
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [loadedDetailIds, setLoadedDetailIds] = useState<Set<string>>(new Set());
@@ -645,6 +646,15 @@ export default function ArtistPage() {
       setMyCandidateVotes((prev) => ({ ...prev, [candidateId]: value }));
       setCandidateScores((prev) => ({ ...prev, [candidateId]: (prev[candidateId] ?? 0) + delta }));
     }
+  }
+
+  // Moderators: put a possible link straight onto the song (after playing it).
+  async function applyCandidate(track: Track, candidate: LinkCandidate) {
+    if (!confirm(`Use this link for "${track.title}"?`)) return;
+    const { error: err } = await supabase.rpc("admin_use_link_candidate", { p_candidate: candidate.id });
+    if (err) { alert(err.message); return; }
+    setTracks((prev) => prev?.map((x) => (x.id === track.id ? { ...x, spotify_url: candidate.url } : x)) ?? prev);
+    setCandidatesByTrack((prev) => ({ ...prev, [track.id]: (prev[track.id] ?? []).filter((c) => c.id !== candidate.id) }));
   }
 
   async function suggestCandidate(track: Track, candidate: LinkCandidate) {
@@ -1420,11 +1430,18 @@ export default function ArtistPage() {
                     <div className="comment-meta">
                       {c.source_domain}
                       {c.source === "chatgpt" && <> · via ChatGPT</>}
+                      {c.source === "youtube" && <> · via YouTube search{c.link_kind === "official" ? " (artist's channel)" : ""}</>}
                       {c.suggested_status && <> · looks {c.suggested_status}</>}
                       {c.album && <> · {c.album}</>}
                       {c.release_date && <> · {c.release_date}</>}
                     </div>
                     {c.notes && <div className="comment-meta" style={{ fontStyle: "italic" }}>{c.notes}</div>}
+                    {playingCandidate === c.id && embedFor(c.url) && (
+                      <div className="inline-player">
+                        <iframe src={embedFor(c.url)!.src} height={embedFor(c.url)!.height} loading="lazy" title="Preview"
+                          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" />
+                      </div>
+                    )}
                     <div className="comment-actions">
                       {!isAdmin && (<>
                       <button
@@ -1441,7 +1458,16 @@ export default function ArtistPage() {
                         ▼
                       </button>
                       </>)}
+                      {embedFor(c.url) && (
+                        <button className={`comment-action-btn ${playingCandidate === c.id ? "voted" : ""}`}
+                          onClick={() => setPlayingCandidate(playingCandidate === c.id ? null : c.id)}>
+                          {playingCandidate === c.id ? "■ stop" : "▶ play"}
+                        </button>
+                      )}
                       <a className="comment-action-btn" href={c.url} target="_blank" rel="noopener noreferrer">view</a>
+                      {canModerate && (
+                        <button className="comment-action-btn" onClick={() => applyCandidate(t, c)}>use this link</button>
+                      )}
                       {isAdmin ? null : suggested ? (
                         <span className="comment-action-btn voted">suggested ✓</span>
                       ) : (

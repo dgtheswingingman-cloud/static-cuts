@@ -62,6 +62,14 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
           </div>
         </li>
       </ol>
+      <div className="comment-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
+        <b>How often it runs</b> is set in ChatGPT, not here: open the scheduled task in ChatGPT and change its
+        schedule (or ask ChatGPT &ldquo;change my Static Cuts task to run every 3 days&rdquo;). Daily is plenty;
+        research is shared with everyone, so more often mostly finds nothing new.
+        <br />
+        <b>Other AI assistants:</b> any assistant that can add a custom connector (MCP) and run scheduled tasks can
+        should work with the same connector link and instructions (Claude, for example). Only ChatGPT has been tested so far.
+      </div>
       <div className="detail-meta" style={{ marginBottom: 20, maxWidth: 520 }}>
         {lastRun === undefined
           ? ""

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
-import { useIsAdmin } from "../../useIsAdmin";
+import { useIsOwner } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 
 type Key = {
@@ -20,7 +20,7 @@ const BASE = "https://pcuyzaamcsegblrauxsa.supabase.co/functions/v1/public-api";
 
 export default function ApiKeysPage() {
   const { loading: authLoading } = useAuth();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsOwner();
   const router = useRouter();
   const [keys, setKeys] = useState<Key[] | null>(null);
   const [name, setName] = useState("");
@@ -53,11 +53,11 @@ export default function ApiKeysPage() {
     load();
   }
 
-  if (!isAdmin) return <NoAccess loading={authLoading} who="admin" />;
+  if (!isAdmin) return <NoAccess loading={authLoading} who="owner" />;
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control?tab=owner")}>← control room</button>
       <h1 className="detail-name page-title">API Keys</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Read-only access to the archive for other fan sites and bots. Make one key per person or project. Each key

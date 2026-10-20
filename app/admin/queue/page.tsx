@@ -80,7 +80,7 @@ export default function QueuePage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/review")}>← moderation</button>
+      <button className="back-btn" onClick={() => router.push("/control?tab=health")}>← control room</button>
       <h1 className="detail-name page-title">Artist Queue</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Which artists get checked next. Empty pages, requests and recent finds push an artist up. Each check that

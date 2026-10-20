@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/review", "/settings", "/notifications", "/my-submissions", "/submit", "/login", "/spotify-callback", "/oauth"],
+      disallow: ["/admin", "/review", "/control", "/settings", "/notifications", "/my-submissions", "/submit", "/login", "/spotify-callback", "/oauth"],
     },
     sitemap: "https://static-cuts.com/sitemap.xml",
   };

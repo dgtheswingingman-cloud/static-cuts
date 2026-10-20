@@ -14,6 +14,7 @@ import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
 import WantButton from "./WantButton";
 import InlinePlayer from "../../components/InlinePlayer";
+import FileNote from "./FileNote";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 
@@ -265,6 +266,7 @@ export default function SongView({ id }: { id: string }) {
         {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
         {!isAdmin && <AddToList trackId={t.id} />}
       </div>
+      <FileNote trackId={t.id} />
       {!t.spotify_url && (
         <div className="comment-meta" style={{ marginTop: 8 }}>
           No listen link yet: we know about this song but not of a place to play it.{" "}
