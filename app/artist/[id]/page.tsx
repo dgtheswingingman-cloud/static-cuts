@@ -2023,6 +2023,7 @@ export default function ArtistPage() {
 
           <button
             onClick={pickRandomDeepCut}
+            className="deep-cut-fab"
             style={{
               position: "fixed",
               bottom: 24,

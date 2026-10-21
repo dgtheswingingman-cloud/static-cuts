@@ -1639,3 +1639,107 @@ a.listen-link {
 .lb-points { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--bone); }
 .lb-how { background: none; border: 0; padding: 6px 0 0; cursor: pointer; font: inherit; font-size: 0.68rem; }
 .lb-how-text { margin-top: 4px; line-height: 1.5; }
+
+/* ======================= Phones (below 1024px) ===========================
+   App feel: a slim app bar at the top, a tab bar along the bottom, the
+   homepage as side-swipe rows and a 2-column grid of photo cards.
+   Computers keep the layout above. */
+.tabbar, .site-top-icons { display: none; }
+@media (max-width: 1023px) {
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+
+  .site-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    max-width: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: color-mix(in srgb, var(--void) 90%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--hair);
+  }
+  .site-top + .wrap { padding-top: 16px; }
+  .site-top-icons { display: flex; gap: 18px; align-items: center; }
+  .site-icon { color: var(--bone); position: relative; display: flex; padding: 4px; }
+  .site-icon-dot { position: absolute; top: -2px; right: -6px; background: #e5484d; color: #fff; font-family: var(--font-mono), monospace; font-size: 0.55rem; line-height: 1; border-radius: 999px; padding: 2px 4px; }
+  .wrap { padding-left: 16px; padding-right: 16px; padding-bottom: 40px; }
+
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    background: color-mix(in srgb, var(--void) 94%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--hair);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 7px; color: var(--smoke); font-size: 0.62rem; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .tabbar a.on { color: var(--bone); }
+  .tabbar a.on svg { stroke-width: 2.3; }
+  .deep-cut-fab { bottom: calc(84px + env(safe-area-inset-bottom)) !important; right: 16px !important; }
+
+  /* Homepage: the app bar has the wordmark; the tab bar has the account. */
+  .home-wide .hero { margin-bottom: 18px; }
+  .home-wide .hero .wordmark, .home-wide .hero .tagline, .home-wide .hero .auth-bar { display: none; }
+  .home-wide .search-shell { margin-top: 0; max-width: none; }
+  .home-wide .search-input { border-radius: 12px; padding: 13px 16px; }
+  .home-nav {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    gap: 8px;
+    margin: 12px -16px 0;
+    padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+  .home-nav::-webkit-scrollbar { display: none; }
+  .home-nav a { border: 1px solid var(--hair); border-radius: 999px; padding: 7px 13px; white-space: nowrap; font-size: 0.7rem; }
+
+  /* Side-swipe rows. */
+  .mstrips section { margin-bottom: 22px; }
+  .mstrip-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone); }
+  .mstrip-head > span { display: inline-flex; align-items: center; gap: 8px; }
+  .mstrip-head a { color: var(--smoke); letter-spacing: 0; text-transform: none; font-size: 0.74rem; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e5484d; }
+  .mstrip, .otd-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+  }
+  .mstrip::-webkit-scrollbar, .otd-list::-webkit-scrollbar { display: none; }
+  .mcard { flex: 0 0 136px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 2px; text-decoration: none; min-width: 0; }
+  .mcard-img { width: 136px; height: 136px; border-radius: 10px; overflow: hidden; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-family: var(--font-anton), sans-serif; font-size: 2rem; color: var(--smoke); margin-bottom: 6px; }
+  .mcard-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mcard-title { color: var(--bone); font-size: 0.84rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mcard-sub { color: var(--smoke); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mcard-when { color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.6rem; }
+  .otd-list .review-row { flex: 0 0 240px; scroll-snap-align: start; border: 1.5px solid var(--hair); background: var(--surface); padding: 12px 14px; border-radius: 10px; align-items: start; }
+
+  /* Artists: 2 columns of photo cards. */
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .card { padding: 12px; border-radius: 12px; }
+  .card .name { font-size: 1.12rem; margin: 6px 0 10px; overflow-wrap: anywhere; }
+  .card .count { font-size: 0.52rem; }
+  .card .rating-chip { font-size: 0.55rem !important; padding: 2px 6px !important; }
+  .card.has-photo {
+    min-height: 170px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background:
+      linear-gradient(to top, var(--void) 18%, color-mix(in srgb, var(--void) 50%, transparent) 60%, color-mix(in srgb, var(--void) 20%, transparent)),
+      var(--card-img) center / cover no-repeat,
+      var(--surface);
+  }
+}

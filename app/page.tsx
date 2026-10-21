@@ -16,6 +16,7 @@ import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
 import LiveFeed from "./components/LiveFeed";
 import RadarColumn from "./components/RadarColumn";
+import MobileStrips from "./components/MobileStrips";
 
 type Artist = {
   id: string;
@@ -63,10 +64,9 @@ export default function HomePage() {
 
   const SORT_STORAGE_KEY = "static_cuts_artist_sort";
 
-  // Artist photos for the cards (shown on computers).
+  // Artist photos for the cards and the Live rows.
   const [photos, setPhotos] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
     supabase.from("artists").select("id, image_url").not("image_url", "is", null).limit(1000)
       .then(({ data }) => setPhotos(Object.fromEntries(((data ?? []) as { id: string; image_url: string }[]).map((r) => [r.id, r.image_url]))));
   }, []);
@@ -313,6 +313,7 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
+      {!q && <MobileStrips photos={photos} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>
       {!q && <LiveFeed photos={photos} />}
       <div className="home-main">
