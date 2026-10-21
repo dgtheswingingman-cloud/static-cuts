@@ -1381,3 +1381,7 @@ a.listen-link {
 
 /* Control room: live */
 .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4caf6a; margin-right: 4px; animation: wrapped-pulse 1.2s ease infinite; }
+
+/* Sub-versions: version and main song side by side */
+.compare-play { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+@media (max-width: 640px) { .compare-play { grid-template-columns: 1fr; } }

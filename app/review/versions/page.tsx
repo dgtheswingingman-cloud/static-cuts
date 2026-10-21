@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import ComparePlay from "./ComparePlay";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
@@ -232,6 +233,9 @@ export default function VersionSuggestionsPage() {
                   </span>
                   {s.version && <span className="feature-tag">{s.version}</span>}
                   {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <ComparePlay trackId={s.track_id} trackTitle={s.track_title} parentId={s.parent_track_id} parentTitle={s.parent_title} />
                 </div>
               </div>
               <div className="review-row-actions">
