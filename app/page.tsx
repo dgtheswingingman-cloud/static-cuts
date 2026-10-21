@@ -14,7 +14,8 @@ import OnThisDay from "./OnThisDay";
 import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
-import LiveTicker from "./components/LiveTicker";
+import LiveFeed from "./components/LiveFeed";
+import RadarColumn from "./components/RadarColumn";
 
 type Artist = {
   id: string;
@@ -281,7 +282,7 @@ export default function HomePage() {
   return (
     <div className="wrap home-wide">
       <div className="hero">
-        <HeroCollage />
+        <HeroCollage artistIds={user ? [...followedIds] : undefined} />
         <Link href="/" onClick={() => setQuery("")} style={{ textDecoration: "none" }}>
           <h1 className="wordmark">
             STATIC CUTS<span className="slash">//</span>
@@ -312,7 +313,9 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
-      {!q && <LiveTicker />}
+      <div className={`home-cols ${q ? "searching" : ""}`}>
+      {!q && <LiveFeed photos={photos} />}
+      <div className="home-main">
 
       {!user && !isAdmin && !q && (
         <div className={picks.length === 0 ? "" : "comments-panel first-visit"}>
@@ -501,6 +504,9 @@ export default function HomePage() {
           ? "Admin mode shows everyone in the archive."
           : user ? "Your home feed only shows artists you follow. Search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}{" "}
         New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
+      </div>
+      </div>
+      {!q && <RadarColumn />}
       </div>
     </div>
   );
