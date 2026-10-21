@@ -81,6 +81,46 @@ export default function CollectionImportPage() {
     setArtistCol(-1);
   }
 
+  // A Google Sheets link (shared as "anyone with the link can view").
+  const [sheetUrl, setSheetUrl] = useState("");
+  async function readSheet() {
+    setBusy("sheet");
+    setMessage(null);
+    const { data: sess } = await supabase.auth.getSession();
+    const res = await fetch("https://pcuyzaamcsegblrauxsa.functions.supabase.co/sheet-import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
+      body: JSON.stringify({ action: "user_csv", url: sheetUrl.trim() }),
+    });
+    const r = await res.json().catch(() => ({ error: `Failed (${res.status}).` }));
+    setBusy(null);
+    if (!res.ok || r.error) { setMessage(r.error ?? "Couldn't read that sheet."); return; }
+    setText(r.csv);
+    setMatches(null);
+    setTitleCol(-1);
+    setArtistCol(-1);
+  }
+
+  // Songs that weren't found: search for the right one by hand.
+  const [fixing, setFixing] = useState<number | null>(null);
+  const [fixQ, setFixQ] = useState("");
+  const [fixHits, setFixHits] = useState<{ id: string; title: string; artist: string }[]>([]);
+  useEffect(() => {
+    const q = fixQ.trim();
+    if (fixing === null || q.length < 2) { setFixHits([]); return; }
+    const t = setTimeout(() => {
+      supabase.from("tracks").select("id, title, artists!artist_id(name)").ilike("title", `%${q}%`).order("title").limit(10)
+        .then(({ data }) => setFixHits(((data ?? []) as unknown as { id: string; title: string; artists: { name: string } | { name: string }[] | null }[])
+          .map((x) => ({ id: x.id, title: x.title, artist: (Array.isArray(x.artists) ? x.artists[0]?.name : x.artists?.name) ?? "" }))));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [fixQ, fixing]);
+  function pickFix(row: number, hit: { id: string; title: string }) {
+    setMatches((prev) => (prev ?? []).map((m) => (m.row === row ? { ...m, track_id: hit.id, title: hit.title, owned: false } : m)));
+    setFixing(null);
+    setFixQ("");
+  }
+
   async function match() {
     const items = rows.slice(1).map((r) => ({ title: (r[titleCol] ?? "").split("\n")[0].trim(), artist: artistCol >= 0 ? (r[artistCol] ?? "").trim() : null }))
       .filter((x) => x.title);
@@ -128,10 +168,16 @@ export default function CollectionImportPage() {
       <h1 className="detail-name page-title">Import My Spreadsheet</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Already track what you have in a spreadsheet? Bring it here and the songs you list get ticked in your
-        collection. In Google Sheets use File → Download → CSV, then pick the file below (or paste the rows).
+        collection. Paste a Google Sheets link, pick a CSV file, or paste the rows.
         Only your collection changes; nothing is added to the archive.
       </div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <input className="search-input" style={{ flex: "1 1 260px" }} placeholder="Google Sheets link (shared as anyone with the link can view)"
+          value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
+        <button className="tab active" disabled={!sheetUrl.trim() || !!busy} onClick={readSheet}>{busy === "sheet" ? "reading…" : "read sheet"}</button>
+      </div>
+      <div className="comment-meta" style={{ marginBottom: 6 }}>or pick a CSV file:</div>
       <input type="file" accept=".csv,.tsv,.txt" onChange={(e) => readFile(e.target.files?.[0])} style={{ marginBottom: 10 }} />
       <textarea className="search-input" style={{ width: "100%", minHeight: 110, fontFamily: "inherit" }}
         placeholder={"or paste here, with a header row:\nArtist,Song\nPlayboi Carti,Magnolia"}
@@ -203,12 +249,32 @@ export default function CollectionImportPage() {
             <>
               <div className="section-label">Not found here ({missing.length})</div>
               <div className="comment-meta" style={{ marginBottom: 6 }}>
-                Different spellings, or songs the archive doesn&apos;t have yet. You can suggest missing ones from the artist&apos;s page.
+                Different spellings, or songs the archive doesn&apos;t have yet. Press <b>find</b> to pick the right song
+                yourself; missing ones can be suggested from the artist&apos;s page.
               </div>
-              <div className="comment-meta" style={{ lineHeight: 1.7 }}>
-                {missing.slice(0, 150).map((m) => `${m.title_in}${m.artist_in ? ` (${m.artist_in})` : ""}`).join(" · ")}
-                {missing.length > 150 ? ` · …and ${missing.length - 150} more` : ""}
-              </div>
+              {missing.slice(0, 150).map((m) => (
+                <div key={m.row} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="review-row-title">{m.title_in}</div>
+                    {m.artist_in && <div className="review-row-meta"><span>{m.artist_in}</span></div>}
+                    {fixing === m.row && (
+                      <div style={{ marginTop: 6 }}>
+                        <input className="search-input" autoFocus style={{ width: "100%" }} placeholder="Search for the song…" value={fixQ}
+                          onChange={(e) => setFixQ(e.target.value)} />
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                          {fixHits.map((h) => (
+                            <button key={h.id} className="rating-chip" onClick={() => pickFix(m.row, h)}>{h.title} · {h.artist}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button className="rating-chip" onClick={() => { setFixing(fixing === m.row ? null : m.row); setFixQ(m.title_in); }}>
+                    {fixing === m.row ? "cancel" : "find"}
+                  </button>
+                </div>
+              ))}
+              {missing.length > 150 && <div className="comment-meta">…and {missing.length - 150} more.</div>}
             </>
           )}
         </>

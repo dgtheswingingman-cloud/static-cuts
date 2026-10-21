@@ -15,6 +15,7 @@ import NoAccess from "../components/NoAccess";
 import ReviewHub from "./ReviewHub";
 import HealthPanel from "./HealthPanel";
 import OwnerPanel from "./OwnerPanel";
+import LivePanel from "./LivePanel";
 
 type Tab = "todo" | "health" | "people" | "owner";
 
@@ -68,6 +69,8 @@ function ControlInner() {
             <Card href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />
             <Card href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />
           </div>
+          <LivePanel />
+          <div style={{ height: 18 }} />
           <HealthPanel part="health" />
         </>
       )}

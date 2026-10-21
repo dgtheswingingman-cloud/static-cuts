@@ -15,6 +15,7 @@ import RemindMe from "./RemindMe";
 import WantButton from "./WantButton";
 import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
+import StoryButton from "../../components/StoryButton";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 
@@ -261,6 +262,13 @@ export default function SongView({ id }: { id: string }) {
           </>
         )}
         <button className="tab" onClick={share}>{copied ? "link copied" : "share"}</button>
+        <StoryButton fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
+          kicker: `${statusOf(t)} · ${song.artist?.name ?? ""}`,
+          title: t.title,
+          subtitle: [t.album, t.release_date ? new Date(t.release_date).getFullYear() : null].filter(Boolean).join(" · ") || undefined,
+          imageUrl: t.cover_url,
+          footer: `static-cuts.com/song/${t.id}`,
+        })} />
         {!isAdmin && (["announced", "teased", "snippet", "rumored"].includes(statusOf(t)) ||
           (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
         {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
