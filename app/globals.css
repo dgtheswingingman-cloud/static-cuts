@@ -1504,3 +1504,84 @@ a.listen-link {
 .rail-artist:hover { text-decoration: underline; }
 .rail-what { font-size: 0.74rem; color: var(--smoke); line-height: 1.4; overflow-wrap: anywhere; }
 .rail-song { color: var(--smoke); }
+
+/* ===================== Computers (1024px and wider) =====================
+   A top bar, a wider homepage with artist photos behind the wordmark, a live
+   ticker and photo cards. Phones and narrow windows keep the layout above. */
+.dnav, .hero-collage, .ticker { display: none; }
+@media (min-width: 1024px) {
+  .dnav {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--void) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--hair);
+  }
+  .dnav-inner { max-width: 1200px; margin: 0 auto; padding: 12px 28px; display: flex; align-items: center; gap: 28px; }
+  .dnav-logo { font-family: var(--font-anton), sans-serif; font-size: 1.3rem; color: var(--bone); text-decoration: none; letter-spacing: 0.01em; white-space: nowrap; }
+  .dnav-logo .slash { color: var(--smoke); }
+  .dnav-links { display: flex; gap: 20px; flex: 1; flex-wrap: wrap; }
+  .dnav-links a { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke); text-decoration: none; padding: 4px 0; border-bottom: 1.5px solid transparent; }
+  .dnav-links a:hover, .dnav-links a.on { color: var(--bone); border-bottom-color: var(--bone); }
+  .dnav-search input { width: 220px; background: var(--surface); border: 1.5px solid var(--hair); color: var(--bone); font: inherit; font-size: 0.82rem; padding: 7px 12px; }
+  .dnav-search input:focus { outline: none; border-color: var(--hair-strong); }
+
+  /* The bar has the wordmark and the sections now. */
+  .site-top { display: none; }
+  .home-nav { display: none; }
+
+  .wrap.home-wide { max-width: 1200px; padding: 0 28px 80px; }
+  .home-wide .hero { position: relative; padding: 90px 0 70px; margin-bottom: 0; overflow: hidden; }
+  .home-wide .hero > *:not(.hero-collage) { position: relative; z-index: 1; }
+  .home-wide .wordmark { font-size: clamp(4rem, 7vw, 6.4rem); }
+  .home-wide .search-shell { max-width: 620px; }
+  .hero-collage {
+    display: grid;
+    position: absolute;
+    inset: 0;
+    grid-template-columns: repeat(8, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 4px;
+    opacity: 0.22;
+    filter: grayscale(1) contrast(1.1);
+    -webkit-mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
+    mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
+    pointer-events: none;
+  }
+  .hero-collage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .ticker { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding: 10px 0; margin-bottom: 36px; }
+  .ticker-label { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.14em; color: var(--bone); text-decoration: none; white-space: nowrap; }
+  .ticker-dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; animation: ticker-pulse 2s infinite; }
+  @keyframes ticker-pulse { 0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.6); } 70% { box-shadow: 0 0 0 7px rgba(229, 72, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); } }
+  .ticker-window { overflow: hidden; flex: 1; -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+  .ticker-track { display: inline-flex; gap: 36px; white-space: nowrap; animation: ticker-move linear infinite; padding-right: 36px; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  @keyframes ticker-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .ticker-item { font-size: 0.8rem; color: var(--smoke); }
+  .ticker-item a { color: var(--smoke); }
+  .ticker-item .ticker-artist { color: var(--bone); text-decoration: none; font-weight: 600; }
+
+  .home-wide .grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+  .card.has-photo {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background:
+      linear-gradient(to top, var(--void) 22%, color-mix(in srgb, var(--void) 55%, transparent) 60%, color-mix(in srgb, var(--void) 25%, transparent)),
+      var(--card-img) center / cover no-repeat,
+      var(--surface);
+  }
+
+  .home-wide .otd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .home-wide .otd-list .review-row { border: 1.5px solid var(--hair); background: var(--surface); padding: 12px 14px; align-items: start; }
+  .home-wide .otd { margin-bottom: 30px !important; }
+}
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+  .ticker-window { overflow-x: auto; }
+  .ticker-dot { animation: none; }
+}

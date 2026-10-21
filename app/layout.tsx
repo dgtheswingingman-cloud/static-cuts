@@ -10,6 +10,7 @@ import RegisterServiceWorker from "./RegisterServiceWorker";
 import ModeBar from "./ModeBar";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
+import DesktopNav from "./DesktopNav";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <StaticOverlay />
               <div className="scanlines" />
               <ModeBar />
+              <DesktopNav />
               <SiteHome />
               {children}
               <footer className="site-credit">
