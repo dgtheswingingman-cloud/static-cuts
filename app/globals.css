@@ -1575,19 +1575,22 @@ a.listen-link {
   .home-wide .wordmark { font-size: clamp(4rem, 7vw, 6.4rem); }
   .home-wide .search-shell { max-width: 620px; }
   .hero-collage {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     position: absolute;
     inset: 0;
-    grid-template-columns: repeat(8, 1fr);
-    grid-auto-rows: 1fr;
-    gap: 4px;
     opacity: 0.22;
     filter: grayscale(1) contrast(1.1);
     -webkit-mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
     mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
     pointer-events: none;
   }
-  .hero-collage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hc-row { flex: 1; min-height: 0; overflow: hidden; }
+  .hc-track { display: flex; gap: 4px; height: 100%; width: max-content; animation: hc-move 120s linear infinite; }
+  .hc-reverse .hc-track { animation-direction: reverse; }
+  .hc-track img { height: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  @keyframes hc-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 
   .home-wide .grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
@@ -1612,6 +1615,7 @@ a.listen-link {
 }
 @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
   .live-dot { animation: none; }
+  .hc-track { animation: none; }
 }
 
 /* With the static behind the page, plain cards let a little of it through. */

@@ -1,6 +1,7 @@
 "use client";
 
-// Computers only: faded artist photos behind the homepage wordmark. Your
+// Computers only: faded artist photos sliding slowly behind the homepage
+// wordmark. Your
 // followed artists when you follow enough with photos, otherwise a random
 // mix from the archive.
 
@@ -37,11 +38,21 @@ export default function HeroCollage({ artistIds }: { artistIds?: string[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   if (imgs.length < 6) return null;
+  // Two rows sliding in opposite directions; each row is drawn twice so the
+  // loop has no seam.
+  const half = Math.ceil(imgs.length / 2);
+  const rows = [imgs.slice(0, half), imgs.slice(half)];
   return (
     <div className="hero-collage" aria-hidden="true">
-      {imgs.map((u, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={i} src={u} alt="" loading="lazy" />
+      {rows.map((row, r) => (
+        <div key={r} className={`hc-row ${r === 1 ? "hc-reverse" : ""}`}>
+          <div className="hc-track">
+            {[...row, ...row].map((u, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={u} alt="" loading="lazy" />
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
