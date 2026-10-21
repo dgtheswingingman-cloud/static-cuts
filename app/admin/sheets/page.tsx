@@ -184,7 +184,9 @@ export default function SheetsPage() {
   // Every tab at once: the AI works out each tab, then it's imported with the
   // same artist and credit. Tabs already imported and info tabs (credits,
   // stats, key...) are left out; a tab with hardly any songs is skipped.
-  const INFO_TAB = /info|credit|stat|faq|key|legend|about|changelog|guide|read ?me|rules|template|links?$/i;
+  // Tabs that aren't song lists, are just favourites of songs on other tabs,
+  // or would bring in fake songs (AI tracks, fakes, fan edits).
+  const INFO_TAB = /info|credit|stat|faq|key|legend|about|changelog|guide|read ?me|rules|template|links?$|fake|\bai\b|fan edit|stem|tracklist|best of|worst of|grail|wanted|special|merch|\bart\b|tours?\b|interview|video|social|buys?\b|compilation|album cop|misc|performance|remix/i;
   async function importAllTabs() {
     if (!preview || !artist) return;
     const todo = preview.tabs.filter((t) => !INFO_TAB.test(t.name)

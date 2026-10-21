@@ -519,6 +519,28 @@ Deno.serve(async (req) => {
       songs.forEach((x) => (statuses[x.status] = (statuses[x.status] ?? 0) + 1));
       return json({ ok: true, ...r, header: (rows[r.mapping.header_row] ?? []).map((h) => h.split("\n")[0].trim()), total: songs.length, skipped, statuses, eras, sample: songs.slice(0, 12) });
     }
+    // Owner's tidy-up runs (timer's password): work out a tab with the AI and
+    // import it, credited and attributed like an import pressed by hand.
+    if (cronSecret && action === "ai_import") {
+      const { data: real } = await db.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
+      if (!real?.value || real.value !== cronSecret) return json({ error: "not authorized" }, 403);
+      const url = String(body?.url ?? "");
+      const { id, gid } = parseSheetUrl(url);
+      const rows = parseCsv(await fetchCsv(id, gid));
+      const ai = await aiMapping(rows);
+      const { songs } = readSongs(rows, ai.mapping);
+      if (songs.length < 3) return json({ ok: true, skipped: "not a list of songs", explanation: ai.explanation });
+      const { data: sourceId, error } = await db.rpc("sc_sheet_save_source", {
+        p_user: body.user_id,
+        p: {
+          url, mapping: ai.mapping, title: body.title, credit: body.credit, artist_id: body.artist_id, tab_name: body.tab_name,
+          auto_sync: true, permission_confirmed: true,
+        },
+      });
+      if (error) return json({ error: error.message }, 400);
+      const r = await importSource(sourceId as string, String(body.user_id));
+      return json({ ok: true, source_id: sourceId, explanation: ai.explanation, ...r });
+    }
     if (cronSecret) {
       const { data: due, error } = await db.rpc("sc_sheet_sync_due", { p_secret: cronSecret });
       if (error) return json({ error: error.message }, 403);
