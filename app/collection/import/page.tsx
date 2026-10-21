@@ -165,11 +165,23 @@ export default function CollectionImportPage() {
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
       <button className="back-btn" onClick={() => router.push(user ? `/profile/${user.id}` : "/")}>← profile</button>
-      <h1 className="detail-name page-title">Import My Spreadsheet</h1>
+      <h1 className="detail-name page-title">Import Your Music</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Already track what you have in a spreadsheet? Bring it here and the songs you list get ticked in your
-        collection. Paste a Google Sheets link, pick a CSV file, or paste the rows.
-        Only your collection changes; nothing is added to the archive.
+        Tick the songs you already have in your collection, so you don&apos;t start from zero. Only your collection
+        changes; nothing is added to the archive.
+      </div>
+
+      <div className="section-label">From Spotify</div>
+      <div className="detail-meta" style={{ marginBottom: 10 }}>
+        Your saved songs on Spotify, matched exactly to songs here that have a Spotify link (so official releases only).
+      </div>
+      <Link href="/settings#spotify-import" className="tab active" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
+        import from Spotify
+      </Link>
+
+      <div className="section-label">From a spreadsheet</div>
+      <div className="detail-meta" style={{ marginBottom: 12 }}>
+        Paste a Google Sheets link, pick a CSV file, or paste the rows.
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>

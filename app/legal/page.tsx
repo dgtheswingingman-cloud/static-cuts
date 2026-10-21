@@ -8,7 +8,6 @@ export default function LegalPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Privacy &amp; Terms</h1>
       <div className="detail-meta" style={{ marginBottom: 24 }}>
         Last updated 18 October 2026.

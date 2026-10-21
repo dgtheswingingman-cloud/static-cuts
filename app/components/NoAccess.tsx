@@ -18,7 +18,6 @@ export default function NoAccess({ loading, who }: { loading: boolean; who: "own
   if (loading) return <div className="wrap"><div className="empty-state">loading…</div></div>;
   return (
     <div className="wrap">
-      <Link href="/" className="back-btn">← home</Link>
       <div className="empty-state" style={{ marginTop: 18 }}>
         {isRealAdmin ? (
           <>

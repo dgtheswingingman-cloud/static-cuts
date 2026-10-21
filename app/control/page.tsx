@@ -48,7 +48,6 @@ function ControlInner() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Control room</h1>
       <div className="tabs" style={{ marginBottom: 18 }}>
         {tabs.map(([t, label]) => (

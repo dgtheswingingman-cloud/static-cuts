@@ -138,7 +138,6 @@ export default function BatchesPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Undo History</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Every bulk job is recorded here: merges, quick merges, Spotify matching, and later auto sub-versions and

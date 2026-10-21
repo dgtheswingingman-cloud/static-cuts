@@ -1588,7 +1588,6 @@ export default function ArtistPage() {
       <Link href="/" style={{ textDecoration: "none", fontFamily: "var(--font-anton)", fontSize: "1.1rem", letterSpacing: "0.01em", color: "var(--bone)", display: "block", marginBottom: 14 }}>
         STATIC CUTS<span style={{ color: "var(--smoke)" }}>//</span>
       </Link>
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
 
       {error && (
         <div className="empty-state error" style={{ marginTop: 18 }}>

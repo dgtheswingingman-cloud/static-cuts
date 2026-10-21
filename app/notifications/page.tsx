@@ -39,7 +39,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">{isAdmin ? "Admin alerts" : "Notifications"}</h1>
       <div className="detail-meta">
         {isAdmin ? (

@@ -299,7 +299,6 @@ const SECTIONS: Section[] = [
 export default function FaqPage() {
   return (
     <div className="wrap faq">
-      <Link href="/" className="back-btn">← home</Link>
       <h1 className="detail-name page-title">FAQ</h1>
       <div className="detail-meta">How the archive works, and how to help build it.</div>
       <nav className="faq-jump" aria-label="Sections">
