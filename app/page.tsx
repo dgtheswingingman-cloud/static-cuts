@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { readPicks, savePicks } from "./components/picks";
 import SinceLastVisit from "./components/SinceLastVisit";
+import Landing from "./components/Landing";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
@@ -292,6 +293,7 @@ export default function HomePage() {
           <Link href="/radar">release radar</Link>
           <Link href="/lists">lists</Link>
           <Link href="/collabs">collab map</Link>
+          <Link href="/local">local cuts</Link>
           <Link href="/producers">producers</Link>
           <Link href="/help">help wanted</Link>
           <Link href="/faq">faq</Link>
@@ -299,9 +301,9 @@ export default function HomePage() {
       </div>
 
       {!user && !isAdmin && !q && (
-        <div className="comments-panel first-visit">
+        <div className={picks.length === 0 ? "" : "comments-panel first-visit"}>
           {picks.length === 0 ? (
-            <>New here? <Link href="/start" className="text-link">Pick a few artists you&apos;re into</Link> and this page becomes about them.</>
+            <Landing artists={artists?.length ?? 0} songs={artists ? artists.reduce((t: number, a: Artist) => t + (a.trackCount ?? 0), 0) : null} />
           ) : (
             <>
               {showAll ? "Showing everyone. " : "Showing your picks. "}

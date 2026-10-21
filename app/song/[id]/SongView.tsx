@@ -15,6 +15,7 @@ import RemindMe from "./RemindMe";
 import WantButton from "./WantButton";
 import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
+import MyFile from "./MyFile";
 import StoryButton from "../../components/StoryButton";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
@@ -274,6 +275,7 @@ export default function SongView({ id }: { id: string }) {
         {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
         {!isAdmin && <AddToList trackId={t.id} />}
       </div>
+      <MyFile trackId={t.id} />
       <FileNote trackId={t.id} />
       {!t.spotify_url && (
         <div className="comment-meta" style={{ marginTop: 8 }}>
