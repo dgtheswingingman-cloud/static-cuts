@@ -1,8 +1,9 @@
 "use client";
 
 // The Control room: one place for running the site, shaped by who you are.
-//   To do        (moderators, admins, owner) every list waiting for a decision
-//   Site health  (admins, owner) jobs, outside services, trackers, links
+//   Work         (moderators, admins, owner) every list waiting for a decision
+//                and the tools (spreadsheets, tracklists, artist queue, undo)
+//   Site health  (admins, owner) the workings: jobs, outside services, links
 //   People       (admins, owner) sign-ups, how checked artists are, searches
 //   Owner        (owner) the team, API keys, auto-approve, leak file links
 
@@ -39,7 +40,7 @@ function ControlInner() {
   if (!canModerate) return <NoAccess loading={loading} who="moderators" />;
 
   const tabs: [Tab, string][] = [
-    ["todo", "To do"],
+    ["todo", "Work"],
     ...(isAdmin ? ([["health", "Site health"], ["people", "People"]] as [Tab, string][]) : []),
     ...(isOwner ? ([["owner", "Owner"]] as [Tab, string][]) : []),
   ];
@@ -61,13 +62,6 @@ function ControlInner() {
       {tab === "todo" && <ReviewHub />}
       {tab === "health" && (
         <>
-          <div className="section-label" style={{ marginTop: 0 }}>Tools</div>
-          <div className="mod-grid" style={{ marginBottom: 18 }}>
-            <Card href="/admin/sheets" title="Spreadsheets" blurb="Import a community tracker, or re-check one." />
-            <Card href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />
-            <Card href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />
-            <Card href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />
-          </div>
           <LivePanel />
           <div style={{ height: 18 }} />
           <HealthPanel part="health" />
