@@ -11,6 +11,7 @@ import ModeBar from "./ModeBar";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
 import DesktopNav from "./DesktopNav";
+import MobileTabBar from "./MobileTabBar";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -33,6 +34,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0A0A0A",
+  // Full-screen when saved to the home screen; the app bar and tab bar keep
+  // clear of the notch and the home bar.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -66,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>.
                 </div>
               </footer>
+              <MobileTabBar />
             </AdminViewProvider>
           </ThemeProvider>
         </AuthProvider>
