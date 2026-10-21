@@ -1414,3 +1414,16 @@ a.listen-link {
 .landing-card { border: 1px solid var(--hair); padding: 14px; background: var(--surface); }
 .landing-card-title { font-weight: 600; margin-bottom: 6px; color: var(--bone); }
 .landing-foot { margin-top: 4px; }
+
+/* Local Cuts: tidy & save */
+.tidy-options { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.tidy-options label { display: flex; gap: 6px; align-items: center; }
+.tidy-row { padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.tidy-row.is-flagged { box-shadow: inset 3px 0 0 #d6a33c; padding-left: 8px; }
+.tidy-before { text-decoration: line-through; opacity: 0.7; overflow-wrap: anywhere; }
+.tidy-after { font-family: var(--font-mono), monospace; font-size: 0.82rem; color: var(--bone); overflow-wrap: anywhere; margin: 2px 0; }
+.tidy-flag { color: #d6a33c; }
+.tidy-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin-top: 6px; align-items: end; }
+.tidy-field { display: flex; flex-direction: column; gap: 2px; }
+.tidy-field .search-input { padding: 6px 8px; font-size: 0.85rem; }
+@media (max-width: 760px) { .local-folder-main { display: none; } }
