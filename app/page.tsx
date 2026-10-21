@@ -11,6 +11,7 @@ import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
 import OnThisDay from "./OnThisDay";
+import { local as safeLocal } from "@/lib/safeStorage";
 
 type Artist = {
   id: string;
@@ -59,13 +60,13 @@ export default function HomePage() {
   const SORT_STORAGE_KEY = "static_cuts_artist_sort";
 
   useEffect(() => {
-    const stored = localStorage.getItem(SORT_STORAGE_KEY) as ArtistSortKey | null;
+    const stored = safeLocal.get(SORT_STORAGE_KEY) as ArtistSortKey | null;
     if (stored) setArtistSort(stored);
   }, []);
 
   function updateArtistSort(sort: ArtistSortKey) {
     setArtistSort(sort);
-    localStorage.setItem(SORT_STORAGE_KEY, sort);
+    safeLocal.set(SORT_STORAGE_KEY, sort);
   }
 
   useEffect(() => {

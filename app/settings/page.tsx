@@ -10,6 +10,7 @@ import YourData from "./YourData";
 import LastfmLink from "./LastfmLink";
 import { useIsAdmin } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
+import { local } from "@/lib/safeStorage";
 
 type Prefs = {
   show_completion_pct: boolean;
@@ -58,7 +59,6 @@ export default function SettingsPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const providerToken = sessionData.session?.provider_token;
-      console.log("Spotify import — provider_token present:", !!providerToken, providerToken ? `(length ${providerToken.length})` : "");
       if (!providerToken) {
         throw new Error("Your Spotify session expired — click the button again to reconnect.");
       }
@@ -88,14 +88,11 @@ export default function SettingsPage() {
       let checked = 0;
       const matchedTrackIds = new Set<string>();
       let next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
-      let pageCount = 0;
       while (next) {
         const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${providerToken}` } });
         const data: any = await res.json();
-        pageCount++;
-        console.log(`Spotify import — page ${pageCount}, status ${res.status}:`, data);
         if (!res.ok) {
-          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"} — check the browser console for the full response.`);
+          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
         }
         for (const item of data.items ?? []) {
           checked++;
@@ -135,14 +132,13 @@ export default function SettingsPage() {
     // a stale token from before (even one Spotify-side revoked) still sits
     // in the local session and would short-circuit past the scope request
     // entirely, silently reusing insufficient access every time.
-    localStorage.setItem("static_cuts_spotify_import_pending", "true");
+    local.set("static_cuts_spotify_import_pending", "true");
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
       options: { redirectTo: window.location.origin + "/settings", scopes: "user-library-read" },
     });
-    console.log("Spotify import — signInWithOAuth result:", { data, error: err });
     if (err) {
-      localStorage.removeItem("static_cuts_spotify_import_pending");
+      local.remove("static_cuts_spotify_import_pending");
       setImportError(err.message);
     }
   }
@@ -152,7 +148,7 @@ export default function SettingsPage() {
     // right moment -- that proved unreliable when the OAuth round-trip
     // completes near-instantly (already-authorized, silent re-auth).
     // Instead, actively poll for the token to actually show up.
-    if (localStorage.getItem("static_cuts_spotify_import_pending") !== "true") return;
+    if (local.get("static_cuts_spotify_import_pending") !== "true") return;
 
     let cancelled = false;
     let attempts = 0;
@@ -161,16 +157,15 @@ export default function SettingsPage() {
       if (cancelled) return;
       attempts++;
       const { data } = await supabase.auth.getSession();
-      console.log(`Spotify import — poll attempt ${attempts}, provider_token present:`, !!data.session?.provider_token);
       if (data.session?.provider_token) {
-        localStorage.removeItem("static_cuts_spotify_import_pending");
+        local.remove("static_cuts_spotify_import_pending");
         runSpotifyImport();
         return;
       }
       if (attempts < 15) {
         setTimeout(poll, 400);
       } else {
-        localStorage.removeItem("static_cuts_spotify_import_pending");
+        local.remove("static_cuts_spotify_import_pending");
         setImportError("Couldn't detect a valid Spotify session after waiting — try clicking the button again.");
       }
     }

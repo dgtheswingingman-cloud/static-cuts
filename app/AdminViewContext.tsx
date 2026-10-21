@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { local } from "@/lib/safeStorage";
 
 type AdminViewContextType = {
   viewAsNonAdmin: boolean;
@@ -15,13 +16,13 @@ export function AdminViewProvider({ children }: { children: React.ReactNode }) {
   const [viewAsNonAdmin, setViewAsNonAdminState] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = local.get(STORAGE_KEY);
     if (stored === "true") setViewAsNonAdminState(true);
   }, []);
 
   function setViewAsNonAdmin(v: boolean) {
     setViewAsNonAdminState(v);
-    localStorage.setItem(STORAGE_KEY, String(v));
+    local.set(STORAGE_KEY, String(v));
   }
 
   return (
