@@ -9,7 +9,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import ComparePlay from "./ComparePlay";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
@@ -55,6 +54,7 @@ export default function VersionSuggestionsPage() {
   const [items, setItems] = useState<Suggestion[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<"all" | "likely" | "selected">("all");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,16 +79,22 @@ export default function VersionSuggestionsPage() {
   const shown = useMemo(() => (items ?? []).filter((s) => s.cls === tab), [items, tab]);
   // Grouped by artist, or by label ("2022 ×28") so a whole kind can be
   // approved in one go. Biggest label groups first.
+  const likely = useMemo(() => shown.filter((s) => s.cls === "cross" || s.cls === "dupe" || LIKELY.test(labelOf(s))), [shown]);
+  const likelyIds = useMemo(() => new Set(likely.map((s) => s.id)), [likely]);
+  // Narrow the list: everything, just the likely ones, or just what's ticked.
+  const listed = useMemo(
+    () => (view === "likely" ? shown.filter((s) => likelyIds.has(s.id)) : view === "selected" ? shown.filter((s) => selected.has(s.id)) : shown),
+    [shown, view, likelyIds, selected]
+  );
   const byArtist = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
-    shown.forEach((s) => {
+    listed.forEach((s) => {
       const k = groupBy === "label" ? labelOf(s) : s.track_artist ?? "?";
       (out[k] = out[k] || []).push(s);
     });
     if (groupBy !== "label") return out;
     return Object.fromEntries(Object.entries(out).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])));
-  }, [shown, groupBy]);
-  const likely = useMemo(() => shown.filter((s) => s.cls === "cross" || s.cls === "dupe" || LIKELY.test(labelOf(s))), [shown]);
+  }, [listed, groupBy]);
   const ordered = useMemo(() => Object.values(byArtist).flat(), [byArtist]);
 
   function toggle(id: string) {
@@ -186,7 +192,7 @@ export default function VersionSuggestionsPage() {
         <div className="review-toolbar"><div className="review-toolbar-row">
           <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all</button>
           <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
-          <button className="tab" disabled={likely.length === 0} onClick={() => setSelected(new Set(likely.map((s) => s.id)))}
+          <button className="tab" disabled={likely.length === 0} onClick={() => { setSelected(new Set(likely.map((s) => s.id))); setView("likely"); }}
             title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix">
             select likely ones ({likely.length})
           </button>
@@ -196,6 +202,12 @@ export default function VersionSuggestionsPage() {
           <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
             dismiss selected
           </button>
+        </div>
+        <div className="review-toolbar-row">
+          <span className="review-toolbar-label">show</span>
+          <button className={`tab ${view === "all" ? "active" : ""}`} onClick={() => setView("all")}>everything ({shown.length})</button>
+          <button className={`tab ${view === "likely" ? "active" : ""}`} disabled={likely.length === 0} onClick={() => setView("likely")}>likely ones ({likely.length})</button>
+          <button className={`tab ${view === "selected" ? "active" : ""}`} disabled={selectedHere.length === 0} onClick={() => setView("selected")}>ticked ({selectedHere.length})</button>
         </div>
         <div className="review-toolbar-row">
           <span className="review-toolbar-label">group by</span>
@@ -213,7 +225,7 @@ export default function VersionSuggestionsPage() {
             </button>
           </div>
           {byArtist[artist].map((s) => (
-            <div key={s.id} data-row-id={s.id} className="review-row">
+            <div key={s.id} data-row-id={s.id} className={`review-row ${selected.has(s.id) ? "is-ticked" : ""}`}>
               <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
               <div style={{ minWidth: 0 }}>
                 <div className="review-row-title">
@@ -232,10 +244,8 @@ export default function VersionSuggestionsPage() {
                     )}
                   </span>
                   {s.version && <span className="feature-tag">{s.version}</span>}
+                  {likelyIds.has(s.id) && <span className="feature-tag likely-tag" title="Picked by &quot;select likely ones&quot;">likely</span>}
                   {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
-                </div>
-                <div style={{ marginTop: 6 }}>
-                  <ComparePlay trackId={s.track_id} trackTitle={s.track_title} parentId={s.parent_track_id} parentTitle={s.parent_title} />
                 </div>
               </div>
               <div className="review-row-actions">
