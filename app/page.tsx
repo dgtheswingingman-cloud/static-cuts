@@ -12,6 +12,9 @@ import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
 import OnThisDay from "./OnThisDay";
 import { local as safeLocal } from "@/lib/safeStorage";
+import type { CSSProperties } from "react";
+import HeroCollage from "./components/HeroCollage";
+import LiveTicker from "./components/LiveTicker";
 
 type Artist = {
   id: string;
@@ -58,6 +61,14 @@ export default function HomePage() {
   useEffect(() => { setPicks(readPicks()); }, []);
 
   const SORT_STORAGE_KEY = "static_cuts_artist_sort";
+
+  // Artist photos for the cards (shown on computers).
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    supabase.from("artists").select("id, image_url").not("image_url", "is", null).limit(1000)
+      .then(({ data }) => setPhotos(Object.fromEntries(((data ?? []) as { id: string; image_url: string }[]).map((r) => [r.id, r.image_url]))));
+  }, []);
 
   useEffect(() => {
     const stored = safeLocal.get(SORT_STORAGE_KEY) as ArtistSortKey | null;
@@ -268,8 +279,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="wrap">
+    <div className="wrap home-wide">
       <div className="hero">
+        <HeroCollage />
         <Link href="/" onClick={() => setQuery("")} style={{ textDecoration: "none" }}>
           <h1 className="wordmark">
             STATIC CUTS<span className="slash">//</span>
@@ -300,6 +312,7 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
+      {!q && <LiveTicker />}
 
       {!user && !isAdmin && !q && (
         <div className={picks.length === 0 ? "" : "comments-panel first-visit"}>
@@ -408,7 +421,9 @@ export default function HomePage() {
               const pct = a.trackCount > 0 ? Math.round((a.collectedCount / a.trackCount) * 100) : 0;
               const following = followedIds.has(a.id);
               return (
-                <Link key={a.id} href={`/artist/${a.id}`} className={`card ${pinnedIds.has(a.id) ? "pinned" : ""}`}>
+                <Link key={a.id} href={`/artist/${a.id}`}
+                  className={`card ${pinnedIds.has(a.id) ? "pinned" : ""} ${photos[a.id] ? "has-photo" : ""}`}
+                  style={photos[a.id] ? ({ "--card-img": `url("${photos[a.id]}")` } as CSSProperties) : undefined}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
                     <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

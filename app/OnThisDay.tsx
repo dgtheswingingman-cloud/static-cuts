@@ -36,12 +36,12 @@ export default function OnThisDay() {
   }, []);
   if (!items || items.length === 0) return null;
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div className="otd" style={{ marginBottom: 10 }}>
       <div className="section-label" style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
         <span>On this day</span>
         <Link href="/on-this-day" className="text-link" style={{ textTransform: "none", letterSpacing: 0 }}>more →</Link>
       </div>
-      {items.map((a) => <AnniversaryRow key={a.kind + a.track_id} a={a} />)}
+      <div className="otd-list">{items.map((a) => <AnniversaryRow key={a.kind + a.track_id} a={a} />)}</div>
     </div>
   );
 }
