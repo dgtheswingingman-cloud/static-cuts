@@ -71,8 +71,9 @@ const TIMER_INFO: Record<string, string> = {
   "lastfm-import": "imports an artist's most-played songs from Last.fm for review (hourly, :41)",
   "youtube-search": "searches YouTube for songs with no link, into possible links (1 every 15 min, needs the YouTube key)",
   "collab-refresh": "works out the collab map (nightly)",
+  "duplicate-refresh": "works out possible duplicate songs for the duplicates page (hourly, :17)",
   "push-alerts": "sends phone alerts (every 2 min)",
-  "artist-info": "fills in artist photos (Spotify) and about text (Last.fm), 8 artists twice an hour",
+  "artist-info": "fills in artist photos (Spotify, else Genius) and about text (Last.fm), 8 artists twice an hour",
   "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
 };
 
