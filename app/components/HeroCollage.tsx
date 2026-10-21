@@ -49,7 +49,7 @@ export default function HeroCollage({ artistIds }: { artistIds?: string[] }) {
           <div className="hc-track">
             {[...row, ...row].map((u, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={u} alt="" loading="lazy" />
+              <img key={i} src={u} alt="" />
             ))}
           </div>
         </div>

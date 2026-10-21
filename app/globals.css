@@ -1570,7 +1570,7 @@ a.listen-link {
   .live-songs { font-size: 0.74rem; color: var(--smoke); margin-top: 3px; overflow-wrap: anywhere; }
   .live-songs a { color: var(--smoke); }
   .live-songs a:hover { color: var(--bone); }
-  .home-wide .hero { position: relative; padding: 90px 0 70px; margin-bottom: 36px; overflow: hidden; }
+  .home-wide .hero { position: relative; padding: 90px 0 70px; margin-bottom: 36px; }
   .home-wide .hero > *:not(.hero-collage) { position: relative; z-index: 1; }
   .home-wide .wordmark { font-size: clamp(4rem, 7vw, 6.4rem); }
   .home-wide .search-shell { max-width: 620px; }
@@ -1579,7 +1579,9 @@ a.listen-link {
     flex-direction: column;
     gap: 4px;
     position: absolute;
-    inset: 0;
+    /* Edge to edge: the page is 36px in from each side of the screen. */
+    top: 0; bottom: 0; left: -36px; right: -36px;
+    overflow: hidden;
     opacity: 0.22;
     filter: grayscale(1) contrast(1.1);
     -webkit-mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
