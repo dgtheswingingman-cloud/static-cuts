@@ -1743,3 +1743,46 @@ a.listen-link {
       var(--surface);
   }
 }
+
+/* Phones, every page: app-style spacing, rows of buttons that swipe
+   sideways instead of wrapping into piles, bigger tap targets, no back
+   links (the tab bar and the phone's back gesture do that). */
+@media (max-width: 1023px) {
+  .back-btn { display: none; }
+  .detail-name, .page-title { font-size: clamp(1.9rem, 9vw, 2.6rem) !important; margin-top: 4px !important; }
+  .detail-meta { font-size: 0.8rem; }
+  .section-label { margin-top: 22px; }
+
+  /* Rows of tabs, filters and buttons: one swipeable line. */
+  .tabs, .filter-group, .review-toolbar-row, .vs-toolbar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .tabs::-webkit-scrollbar, .filter-group::-webkit-scrollbar, .review-toolbar-row::-webkit-scrollbar, .vs-toolbar::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex-shrink: 0; padding: 9px 14px; border-radius: 999px; }
+  .rating-chip, .listen-link, .comment-post-btn, .comment-action-btn { min-height: 34px; }
+
+  /* Cards and panels: rounded, app-like. */
+  .comments-panel, .empty-state, .mod-card, .health-tile, .ai-box, .sheet-group, .live { border-radius: 12px; }
+  .mod-grid { grid-template-columns: 1fr 1fr; }
+  .health-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+  /* Rows with buttons on the right: buttons drop under the text. */
+  .review-row { grid-template-columns: auto minmax(0, 1fr) !important; }
+  .review-row > .review-row-actions, .review-row > span:last-child:not(:first-child) { grid-column: 2; justify-content: flex-start; }
+  .track-row { flex-wrap: wrap; row-gap: 6px; }
+
+  /* Inputs: full width, 16px text so iPhones don't zoom in. */
+  .search-input, .sort-select, .comment-textarea, input[type="text"], input[type="search"], textarea, select { font-size: 16px !important; }
+  .search-input { width: 100%; border-radius: 12px; }
+  .sheet-map-row { grid-template-columns: 1fr !important; gap: 6px; }
+
+  /* Wide things scroll inside themselves instead of the whole page. */
+  table { display: block; overflow-x: auto; max-width: 100%; }
+  .site-credit { padding-bottom: 12px; }
+}
