@@ -15,6 +15,7 @@ import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
 import LiveFeed from "./components/LiveFeed";
+import RadarColumn from "./components/RadarColumn";
 
 type Artist = {
   id: string;
@@ -312,7 +313,8 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
-      <div className="home-cols">
+      <div className={`home-cols ${q ? "searching" : ""}`}>
+      {!q && <LiveFeed photos={photos} />}
       <div className="home-main">
 
       {!user && !isAdmin && !q && (
@@ -504,7 +506,7 @@ export default function HomePage() {
         New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
       </div>
       </div>
-      {!q && <LiveFeed photos={photos} />}
+      {!q && <RadarColumn />}
       </div>
     </div>
   );
