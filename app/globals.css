@@ -515,8 +515,8 @@ body {
   z-index: 1;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.04) 0px,
-    rgba(255, 255, 255, 0.04) 1px,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
     transparent 1px,
     transparent 3px
   );
