@@ -14,6 +14,10 @@
 //             permission_confirmed} -> saves the sheet as a source and
 //                                      suggests its songs
 //   sync     {source_id}            -> re-reads a saved sheet for new songs
+//   ai_mapping {url}                -> asks Claude (Haiku) to work out the
+//                                      tab's layout from its header and a
+//                                      sample of rows; returns a mapping in
+//                                      the same shape as preview, nothing saved
 // Anyone signed in:
 //   user_csv {url}                  -> the sheet as CSV text, for "import my
 //                                      spreadsheet" (nothing saved)
@@ -157,6 +161,9 @@ type Mapping = {
   status_values: Record<string, string>;
   links: "official" | "all" | "none";
   skip_eras: string[];
+  // Era banner rows: the row starts a new era when this column contains the
+  // text (any case); the era's name is in name_column. Set by "work it out".
+  banner?: { column: number; contains: string; name_column: number } | null;
 };
 
 const STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked", "announced", "released"];
@@ -259,6 +266,12 @@ function readSongs(rows: string[][], m: Mapping) {
     const filled = r.filter((c) => c.trim() !== "").length;
     if (filled === 0) continue;
     const titleCell = col(r, "title");
+    // Era banners described by the mapping ("work it out").
+    if (m.banner && (r[m.banner.column] ?? "").toLowerCase().includes(m.banner.contains.toLowerCase())) {
+      const name = (r[m.banner.name_column] ?? "").split("\n")[0].trim();
+      era = name.replace(/\s+era\b.*$/i, "").trim() || era;
+      continue;
+    }
     // Era banners: a row with one or two cells filled and no song name (or
     // only the era column filled).
     if ((!titleCell && filled <= 2) || (m.columns.era !== undefined && filled === 1 && col(r, "era"))) {
@@ -330,6 +343,127 @@ function headerCheck(rows: string[][], m: Mapping) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// "Work it out": the AI reads a sample of the tab and returns a mapping
+// ---------------------------------------------------------------------------
+
+const AI_PAUSE = "claude_pause_until";
+const AI_MODEL = "claude-haiku-5-5";
+
+async function aiTicket() {
+  const { data: p } = await db.from("sc_private_settings").select("value").eq("key", AI_PAUSE).maybeSingle();
+  if (p?.value && Date.parse(p.value) > Date.now()) throw new Error("The AI asked us to slow down. Try again in a few minutes.");
+  const { data, error } = await db.rpc("sc_api_allow", { p_service: "claude", p_want: 1 });
+  if (!error && data !== 1) throw new Error("The AI allowance is used up for now. Try again in a minute.");
+}
+
+const short = (c: string) => {
+  const v = c.replace(/\s+/g, " ").trim();
+  return v.length > 70 ? v.slice(0, 70) + "…" : v;
+};
+
+// The rows the AI sees: the top of the sheet (headers, banners) and a spread
+// of rows from the rest, each cell cut short, numbered by their real row.
+function sampleRows(rows: string[][]) {
+  const pick = new Set<number>();
+  for (let i = 0; i < Math.min(15, rows.length); i++) pick.add(i);
+  const rest = rows.length - 15;
+  if (rest > 0) for (let k = 0; k < 45; k++) pick.add(15 + Math.floor((k * rest) / 45));
+  return [...pick].sort((a, b) => a - b).map((i) => `row ${i}: ${JSON.stringify((rows[i] ?? []).map(short))}`).join("\n");
+}
+
+// Short values that repeat in each column (likely statuses, types, quality).
+function columnValues(rows: string[][], from: number) {
+  const width = Math.max(0, ...rows.slice(0, 40).map((r) => r.length));
+  const out: string[] = [];
+  for (let c = 0; c < width; c++) {
+    const counts: Record<string, number> = {};
+    for (const r of rows.slice(from)) {
+      const v = (r[c] ?? "").trim();
+      if (v && v.length <= 30) counts[v] = (counts[v] ?? 0) + 1;
+    }
+    const top = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
+    if (top.length > 0 && top.length <= 30) out.push(`column ${c}: ${top.map(([v, n]) => `${JSON.stringify(v)} x${n}`).join(", ")}`);
+  }
+  return out.join("\n");
+}
+
+async function aiMapping(rows: string[][]) {
+  const key = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!key) throw new Error("The AI key isn't set up.");
+  const guess = suggestMapping(rows);
+  const prompt = `You are reading one tab of a fan-made music tracker spreadsheet (unreleased and released songs by one artist). Work out how to read it.
+
+Rows are numbered from 0. Each row is a JSON array of its cells (cut short).
+${sampleRows(rows)}
+
+Short values that repeat in each column, with counts:
+${columnValues(rows, guess.header_row + 1)}
+
+Reply with ONLY a JSON object, no other text:
+{
+  "header_row": <row number of the column headings>,
+  "columns": { <field>: <column number> ... only fields this tab really has },
+  "default_status": <status for songs when nothing says otherwise>,
+  "status_column": "availability" | "type" | null,
+  "status_values": { <exact value from the status column>: <status> ... },
+  "skip_eras": [],
+  "banner": { "column": <n>, "contains": "<text>", "name_column": <n> } or null,
+  "explanation": "<two short plain-English sentences: what you found and anything odd>"
+}
+
+Fields: title (song name; required), artist (only a separate artist column), era (era/album column), notes, length (track length), file_date (recording/file date), leak_date (leak/surface date), release_date, type (e.g. Demo, Throwaway, Feature), availability (how much exists: Full, OG File, Snippet, Partial, Unavailable...), quality, links, producers, features.
+Statuses: leaked (full song or file is out), snippet (only a snippet/preview is out), released (officially out), rumored (unheard, unavailable, only known about), teased, announced, unconfirmed.
+Rules: a column whose heading cell is blank can still be a field: decide from its contents (dates, lengths like 3:12). Pick status_column = the column that says how much of the song is out (usually availability). Map every value listed for that column in status_values. If the tab is all released songs, default_status is released.
+Era banners: many trackers put a row before each era (album/period) with the era name and stats like "12 OG Files", "3 Snippets" or "Total". Those rows are not songs. If you see them, set banner: column = a column whose cell on banner rows always contains some text that song rows never have in that column (e.g. "OG File" or "Total"), contains = that text, name_column = the column holding the era name on banner rows. Otherwise banner is null.`;
+
+  await aiTicket();
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (res.status === 429 || res.status === 529) {
+    const wait = Number(res.headers.get("retry-after")) || 60;
+    await db.from("sc_private_settings").upsert({ key: AI_PAUSE, value: new Date(Date.now() + Math.max(wait, 120) * 1000).toISOString() }, { onConflict: "key" });
+    throw new Error("The AI is busy. Try again in a few minutes.");
+  }
+  const body: any = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`The AI couldn't read this tab (${body?.error?.message ?? res.status}).`);
+  const text = String((body?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""))
+    .replace(/```(?:json)?/g, "");
+  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+  let out: any;
+  try { out = JSON.parse(json); } catch {
+    console.error("ai_mapping unreadable", body?.stop_reason, text.slice(0, 300));
+    throw new Error(body?.stop_reason === "max_tokens" ? "The AI's answer was too long. Try again." : "The AI's answer couldn't be read. Try again.");
+  }
+
+  // Keep only what makes sense for this sheet.
+  const header_row = Number.isInteger(out.header_row) && out.header_row >= 0 && out.header_row < Math.min(rows.length, 40) ? out.header_row : guess.header_row;
+  const width = Math.max(0, ...rows.slice(0, 60).map((r) => r.length));
+  const columns: Partial<Record<Field, number>> = {};
+  for (const f of Object.keys(SYNONYMS) as Field[]) {
+    const c = out.columns?.[f];
+    if (Number.isInteger(c) && c >= 0 && c < width) columns[f] = c;
+  }
+  if (columns.title === undefined) columns.title = guess.columns.title;
+  const status_column = out.status_column === "availability" || out.status_column === "type" ? out.status_column : null;
+  const status_values: Record<string, string> = {};
+  for (const [v, st] of Object.entries(out.status_values ?? {})) if (STATUSES.includes(String(st))) status_values[v] = String(st);
+  const mapping: Mapping = {
+    header_row, columns,
+    default_status: STATUSES.includes(out.default_status) ? out.default_status : "leaked",
+    status_column: status_column && columns[status_column] !== undefined ? status_column : null,
+    status_values, links: "official", skip_eras: [],
+    banner: out.banner && Number.isInteger(out.banner.column) && Number.isInteger(out.banner.name_column)
+      && out.banner.column >= 0 && out.banner.column < width && out.banner.name_column >= 0 && out.banner.name_column < width
+      && typeof out.banner.contains === "string" && out.banner.contains.trim().length >= 2
+      ? { column: out.banner.column, contains: out.banner.contains.trim(), name_column: out.banner.name_column } : null,
+  };
+  return { mapping, explanation: String(out.explanation ?? "").slice(0, 400) };
+}
+
 // A tracker that needs a look before it's read again.
 class Held extends Error {}
 
@@ -373,6 +507,18 @@ Deno.serve(async (req) => {
   try {
     // Timer: re-read the sheet that's due.
     const cronSecret = req.headers.get("x-cron-secret");
+    // Testing "work it out" with the timer's password (nothing is saved).
+    if (cronSecret && action === "ai_mapping") {
+      const { data: real } = await db.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
+      if (!real?.value || real.value !== cronSecret) return json({ error: "not authorized" }, 403);
+      const { id, gid } = parseSheetUrl(String(body?.url ?? ""));
+      const rows = parseCsv(await fetchCsv(id, gid));
+      const r = await aiMapping(rows);
+      const { songs, eras, skipped } = readSongs(rows, r.mapping);
+      const statuses: Record<string, number> = {};
+      songs.forEach((x) => (statuses[x.status] = (statuses[x.status] ?? 0) + 1));
+      return json({ ok: true, ...r, header: (rows[r.mapping.header_row] ?? []).map((h) => h.split("\n")[0].trim()), total: songs.length, skipped, statuses, eras, sample: songs.slice(0, 12) });
+    }
     if (cronSecret) {
       const { data: due, error } = await db.rpc("sc_sheet_sync_due", { p_secret: cronSecret });
       if (error) return json({ error: error.message }, 403);
@@ -421,6 +567,11 @@ Deno.serve(async (req) => {
     const url = String(body?.url ?? "");
     const { id, gid } = parseSheetUrl(url);
     const rows = parseCsv(await fetchCsv(id, gid));
+
+    if (action === "ai_mapping") {
+      const r = await aiMapping(rows);
+      return json({ ok: true, ...r });
+    }
 
     if (action === "preview") {
       const mapping = suggestMapping(rows);

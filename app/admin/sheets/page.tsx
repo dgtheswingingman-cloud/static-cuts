@@ -24,6 +24,7 @@ type Mapping = {
   status_values: Record<string, string>;
   links: "official" | "all" | "none";
   skip_eras: string[];
+  banner?: { column: number; contains: string; name_column: number } | null;
 };
 type Preview = {
   sheet_id: string; gid: string; title: string | null; tabs: { gid: string; name: string }[]; header: string[];
@@ -59,6 +60,9 @@ const FIELDS: [Field, string, string][] = [
   ["features", "Features", "Also read from \"(feat. X)\" in names."],
 ];
 const STATUSES = ["leaked", "snippet", "released", "rumored", "teased", "announced", "unconfirmed"];
+
+const sheetIdOf = (u: string) => u.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/)?.[1] ?? u;
+const gidOf = (u: string) => u.match(/[#?&]gid=(\d+)/)?.[1] ?? "0";
 
 async function callFn(body: unknown) {
   const { data: s } = await supabase.auth.getSession();
@@ -103,6 +107,7 @@ export default function SheetsPage() {
   const [permission, setPermission] = useState(false);
 
   const [sources, setSources] = useState<Source[]>([]);
+  const [aiNote, setAiNote] = useState<string | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
 
   async function loadLists() {
@@ -139,11 +144,36 @@ export default function SheetsPage() {
       setTitle(p.existing?.title ?? (p.title ? `${p.title}${tab ? ` (${tab})` : ""}` : ""));
       setCredit(p.existing?.credit ?? "");
       setAutoSync(p.existing?.auto_sync ?? true);
+      setAiNote(null);
+      // Another tab of this spreadsheet already imported: same artist and credit.
+      const sibling = !p.existing ? sources.find((s) => sheetIdOf(s.url) === p.sheet_id) : undefined;
+      if (sibling) {
+        setArtist({ id: sibling.artist_id, name: sibling.artist });
+        setCredit(sibling.credit ?? "");
+        setPermission(true);
+        if (p.title) setTitle(`${p.title}${tab ? ` (${tab})` : ""}`);
+      }
       if (p.existing) {
         const { data } = await supabase.from("artists").select("id, name").eq("id", p.existing.artist_id).maybeSingle();
         if (data) setArtist(data);
         setMessage("This tab has been imported before. Importing again only adds songs that aren't on the site yet.");
       }
+    } catch (e: any) {
+      setMessage(e.message);
+    }
+    setBusy(null);
+  }
+
+  // "Work it out": the AI reads a sample of this tab and fills in every
+  // setting below, then the songs are previewed straight away.
+  async function workItOut() {
+    setBusy("ai");
+    setMessage(null);
+    try {
+      const r = await callFn({ action: "ai_mapping", url });
+      setMapping(r.mapping as Mapping);
+      setAiNote(r.explanation || "Done. Check the settings and the songs below.");
+      setParsed((await callFn({ action: "parse", url, mapping: r.mapping })) as Parsed);
     } catch (e: any) {
       setMessage(e.message);
     }
@@ -221,7 +251,7 @@ export default function SheetsPage() {
       <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Import a spreadsheet</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Paste the link to one tab of a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).
+        Paste a link to a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).
         Songs go to the <Link href="/review/imports" className="text-link">imported songs</Link> list for review,
         credited to the sheet and its makers. Leak file links are left out; only official listening links are kept.
       </div>
@@ -240,7 +270,7 @@ export default function SheetsPage() {
         <>
           {preview.tabs.length > 1 && (
             <div className="filter-group" style={{ marginBottom: 14 }}>
-              <span className="comment-meta">tab</span>
+              <span className="comment-meta">tabs (✓ already imported)</span>
               {preview.tabs.map((t) => (
                 <button key={t.gid} className={`tab ${t.gid === preview.gid ? "active" : ""}`} disabled={busy !== null}
                   onClick={() => {
@@ -248,9 +278,25 @@ export default function SheetsPage() {
                     setUrl(next);
                     loadPreview(next);
                   }}>
-                  {t.name}
+                  {sources.some((s) => sheetIdOf(s.url) === preview.sheet_id && gidOf(s.url) === t.gid) ? "✓ " : ""}{t.name}
                 </button>
               ))}
+            </div>
+          )}
+
+          <div className="ai-box">
+            <div>
+              <strong>Let the AI work it out</strong>
+              <div className="comment-meta">Reads a sample of this tab and fills in every setting below (columns, statuses, era rows), then shows the songs. About a quarter of a penny. You can still change anything.</div>
+            </div>
+            <button className="tab active" disabled={busy !== null} onClick={workItOut}>{busy === "ai" ? "working it out…" : "work it out"}</button>
+          </div>
+          {aiNote && <div className="comments-panel" style={{ marginBottom: 14 }}>{aiNote}</div>}
+          {mapping.banner && (
+            <div className="comment-meta" style={{ marginBottom: 10 }}>
+              Era rows: a row where column {String.fromCharCode(65 + (mapping.banner.column % 26))} contains &ldquo;{mapping.banner.contains}&rdquo; starts a new era (name from column {String.fromCharCode(65 + (mapping.banner.name_column % 26))}).{" "}
+              <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }}
+                onClick={() => { setMapping({ ...mapping, banner: null }); setParsed(null); }}>turn off</button>
             </div>
           )}
 
@@ -454,32 +500,67 @@ export default function SheetsPage() {
 
       <div className="section-label">Imported sheets</div>
       {sources.length === 0 && <div className="comment-meta">None yet.</div>}
-      {sources.map((s) => (
-        <div key={s.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title">
-              <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a>
+      {/* One entry per spreadsheet, its tabs underneath. */}
+      {Object.values(sources.reduce<Record<string, Source[]>>((acc, x) => {
+        (acc[sheetIdOf(x.url)] = acc[sheetIdOf(x.url)] || []).push(x);
+        return acc;
+      }, {})).map((tabs) => {
+        const first = tabs[0];
+        const name = first.title.replace(/\s*\([^)]*\)\s*$/, "") || first.title;
+        const busyHere = tabs.some((t) => busy === t.id);
+        return (
+          <div key={sheetIdOf(first.url)} className="sheet-group">
+            <div className="sheet-group-head">
+              <div style={{ minWidth: 0 }}>
+                <div className="review-row-title">
+                  <a href={first.url} target="_blank" rel="noopener noreferrer">{name}</a>
+                </div>
+                <div className="review-row-meta">
+                  <Link href={`/artist/${first.artist_id}`}>{first.artist}</Link>
+                  <span>{tabs.reduce((n, t) => n + t.songs, 0)} songs added</span>
+                  <span>{tabs.length} tab{tabs.length === 1 ? "" : "s"}</span>
+                  {first.credit && <span>by {first.credit}</span>}
+                </div>
+              </div>
+              <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button className="rating-chip" disabled={busy !== null} onClick={async () => { for (const t of tabs) await syncNow(t); }}>
+                  {busyHere ? "checking…" : tabs.length > 1 ? "check all tabs" : "check now"}
+                </button>
+                <button className="rating-chip" disabled={busy !== null}
+                  onClick={() => { setUrl(first.url); loadPreview(first.url); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  add a tab
+                </button>
+              </span>
             </div>
-            <div className="review-row-meta">
-              <Link href={`/artist/${s.artist_id}`}>{s.artist}</Link>
-              <span>{s.songs} song{s.songs === 1 ? "" : "s"} added</span>
-              {(s.waiting ?? 0) > 0 && (
-                <Link href="/review/imports" className="text-link">{s.waiting} waiting for review</Link>
-              )}
-              {s.last_synced_at && <span>checked {new Date(s.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
-              {s.auto_sync && s.next_check_at && <span>next check {new Date(s.next_check_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
-              {s.credit && <span>by {s.credit}</span>}
-            </div>
+            {tabs.map((s) => (
+              <div key={s.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="review-row-title" style={{ fontSize: "0.82rem" }}>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer">{s.tab_name ?? s.title}</a>
+                  </div>
+                  <div className="review-row-meta">
+                    <span>{s.songs} song{s.songs === 1 ? "" : "s"}</span>
+                    {(s.waiting ?? 0) > 0 && (
+                      <Link href="/review/imports" className="text-link">{s.waiting} waiting for review</Link>
+                    )}
+                    {s.last_synced_at && <span>checked {new Date(s.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+                    {s.auto_sync && s.next_check_at && <span>next check {new Date(s.next_check_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+                  </div>
+                </div>
+                <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {tabs.length > 1 && (
+                    <button className="rating-chip" disabled={busy !== null} onClick={() => syncNow(s)}>{busy === s.id ? "checking…" : "check"}</button>
+                  )}
+                  <button className={`rating-chip ${s.auto_sync ? "rated" : ""}`} onClick={() => updateSource(s, !s.auto_sync)}>
+                    auto-check {s.auto_sync ? "on" : "off"}
+                  </button>
+                  <button className="rating-chip danger" onClick={() => updateSource(s, s.auto_sync, true)}>remove</button>
+                </span>
+              </div>
+            ))}
           </div>
-          <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button className="rating-chip" disabled={busy !== null} onClick={() => syncNow(s)}>{busy === s.id ? "checking…" : "check now"}</button>
-            <button className={`rating-chip ${s.auto_sync ? "rated" : ""}`} onClick={() => updateSource(s, !s.auto_sync)}>
-              auto-check {s.auto_sync ? "on" : "off"}
-            </button>
-            <button className="rating-chip danger" onClick={() => updateSource(s, s.auto_sync, true)}>remove</button>
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
