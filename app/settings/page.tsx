@@ -218,9 +218,6 @@ export default function SettingsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>
-        ← home
-      </button>
       <h1 className="detail-name page-title">
         Settings
       </h1>
@@ -230,7 +227,7 @@ export default function SettingsPage() {
         this page is just how the site behaves for you.
       </div>
 
-      <div className="section-label">Import from Spotify</div>
+      <div className="section-label" id="spotify-import" style={{ scrollMarginTop: 20 }}>Import from Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 16, maxWidth: 520 }}>
         Checks your actual Spotify library against tracks Static Cuts already has a confirmed link
         for, and marks any matches as collected. Exact ID matching, not a title guess — but it can

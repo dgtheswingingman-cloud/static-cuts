@@ -43,6 +43,7 @@ function labelOf(s: { version: string | null }) {
 const TABS: { key: Suggestion["cls"]; label: string; help: string }[] = [
   { key: "check", label: "check these", help: "The label isn't a clear version tag (a year, Freestyle, a name, Part 2…). Approve the ones that really are versions of the song shown." },
   { key: "cross", label: "other artist's song", help: "Remixes whose original is on another artist's page. Approving puts the remix under the original and keeps it listed on the remixer's page." },
+  { key: "sure", label: "needs a main song", help: "Clear versions (Live, Remix, Mixed…) whose main song isn't on the page yet. Approving makes the main song and puts this under it." },
   { key: "dupe", label: "marked dupe", help: "Songs labelled \"Dupe\". Approving merges them into the song shown (ratings, collections and comments move across)." },
 ];
 
@@ -60,26 +61,29 @@ export default function VersionSuggestionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<"artist" | "label">("artist");
 
-  async function load() {
-    const { data, error: err } = await supabase.rpc("admin_version_suggestions", { p_cls: null, p_limit: 2000 });
+  // One list at a time (a list can run to a couple of thousand), with the
+  // counts for every list fetched separately so the tabs are always right.
+  async function load(which: Suggestion["cls"] = tab) {
+    const [{ data, error: err }, { data: c }] = await Promise.all([
+      supabase.rpc("admin_version_suggestions", { p_cls: which, p_limit: 2000 }),
+      supabase.rpc("admin_version_counts"),
+    ]);
     if (err) { setError(err.message); setItems([]); return; }
     setError(null);
-    const all = (data as Suggestion[]) ?? [];
-    const c: Record<string, number> = {};
-    all.forEach((s) => { c[s.cls] = (c[s.cls] ?? 0) + 1; });
-    setCounts(c);
-    setItems(all);
+    setCounts((c as Record<string, number>) ?? {});
+    setItems((data as Suggestion[]) ?? []);
     setSelected(new Set());
   }
 
   useEffect(() => {
-    if (isRealAdmin) load();
-  }, [isRealAdmin]);
+    if (isRealAdmin) { setItems(null); load(tab); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRealAdmin, tab]);
 
   const shown = useMemo(() => (items ?? []).filter((s) => s.cls === tab), [items, tab]);
   // Grouped by artist, or by label ("2022 ×28") so a whole kind can be
   // approved in one go. Biggest label groups first.
-  const likely = useMemo(() => shown.filter((s) => s.cls === "cross" || s.cls === "dupe" || LIKELY.test(labelOf(s))), [shown]);
+  const likely = useMemo(() => shown.filter((s) => s.cls !== "check" || LIKELY.test(labelOf(s))), [shown]);
   const likelyIds = useMemo(() => new Set(likely.map((s) => s.id)), [likely]);
   // Narrow the list: everything, just the likely ones, or just what's ticked.
   const listed = useMemo(
@@ -161,101 +165,114 @@ export default function VersionSuggestionsPage() {
   const help = TABS.find((t) => t.key === tab)?.help;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
 
+  // The label tag only when the title doesn't already say it.
+  const showTag = (s: Suggestion) => !!s.version && !s.track_title.toLowerCase().includes(s.version.toLowerCase());
+  const allShownTicked = listed.length > 0 && listed.every((s) => selected.has(s.id));
+
   return (
     <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Sub-versions</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Clear versions (Live, Demo, Remix, V2, Reference…) are linked under their main song automatically, including
-        new songs as they&apos;re added. These are the ones that need a look first. Anything approved can be reversed
-        from the <UndoHistoryLink />.
+      <div className="detail-meta" style={{ marginBottom: 14 }}>
+        Clear versions are linked automatically. These need a look. Approvals can be reversed from the <UndoHistoryLink />.
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+      <div className="tabs" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
-          <button key={t.key} className={`tab ${tab === t.key ? "active" : ""}`} onClick={() => { setTab(t.key); setSelected(new Set()); }}>
-            {t.label} ({counts[t.key] ?? 0})
+          <button key={t.key} className={`tab ${tab === t.key ? "active" : ""}`} onClick={() => { if (t.key !== tab) { setTab(t.key); setView("all"); } }}>
+            {t.label} <span className="tab-count">{(counts[t.key] ?? 0).toLocaleString("en-GB")}</span>
           </button>
         ))}
-        <button className="tab" disabled={busy} onClick={rescan} title="Look for new suggestions across every artist">
-          rescan
-        </button>
+      </div>
+      <div className="vs-help">
+        <span>{help}</span>
+        <button className="text-link vs-plain" disabled={busy} onClick={rescan} title="Look for new suggestions across every artist">rescan</button>
       </div>
 
-      {help && <div className="comment-meta" style={{ marginBottom: 12 }}>{help}</div>}
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
       {error && <div className="comment-meta" style={{ marginBottom: 12 }}>Couldn&apos;t load suggestions: {error}</div>}
       {items === null && <div className="empty-state">loading…</div>}
       {items && shown.length === 0 && !error && <div className="empty-state">Nothing to check here.</div>}
 
       {shown.length > 0 && (
-        <div className="review-toolbar"><div className="review-toolbar-row">
-          <button className="tab" onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all</button>
-          <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
-          <button className="tab" disabled={likely.length === 0} onClick={() => { setSelected(new Set(likely.map((s) => s.id))); setView("likely"); }}
-            title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix">
-            select likely ones ({likely.length})
-          </button>
-          <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
-            {busy ? "working…" : `approve selected (${selectedHere.length})`}
-          </button>
-          <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
-            dismiss selected
-          </button>
+        <div className="review-toolbar vs-toolbar">
+          <label className="vs-check-all">
+            <input type="checkbox" checked={allShownTicked}
+              onChange={() => setSelected(allShownTicked ? new Set() : new Set(listed.map((s) => s.id)))} />
+            {selectedHere.length > 0 ? `${selectedHere.length} ticked` : "tick all"}
+          </label>
+          {selectedHere.length > 0 ? (
+            <>
+              <button className="tab active" disabled={busy} onClick={() => run("approve", selectedHere)}>{busy ? "working…" : "approve"}</button>
+              <button className="tab" disabled={busy} onClick={() => run("dismiss", selectedHere)}>dismiss</button>
+              <button className="text-link vs-plain" onClick={() => setSelected(new Set())}>clear</button>
+            </>
+          ) : (
+            <button className="text-link vs-plain" disabled={likely.length === 0}
+              onClick={() => { setSelected(new Set(likely.map((s) => s.id))); setView("likely"); }}
+              title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix">
+              tick likely ones ({likely.length})
+            </button>
+          )}
+          <span className="vs-spacer" />
+          <select className="vs-select" value={view} onChange={(e) => setView(e.target.value as typeof view)} aria-label="Show">
+            <option value="all">show all ({shown.length})</option>
+            <option value="likely" disabled={likely.length === 0}>likely ones ({likely.length})</option>
+            <option value="selected" disabled={selectedHere.length === 0}>ticked ({selectedHere.length})</option>
+          </select>
+          <select className="vs-select" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} aria-label="Group by">
+            <option value="artist">by artist</option>
+            <option value="label">by label</option>
+          </select>
         </div>
-        <div className="review-toolbar-row">
-          <span className="review-toolbar-label">show</span>
-          <button className={`tab ${view === "all" ? "active" : ""}`} onClick={() => setView("all")}>everything ({shown.length})</button>
-          <button className={`tab ${view === "likely" ? "active" : ""}`} disabled={likely.length === 0} onClick={() => setView("likely")}>likely ones ({likely.length})</button>
-          <button className={`tab ${view === "selected" ? "active" : ""}`} disabled={selectedHere.length === 0} onClick={() => setView("selected")}>ticked ({selectedHere.length})</button>
-        </div>
-        <div className="review-toolbar-row">
-          <span className="review-toolbar-label">group by</span>
-          <button className={`tab ${groupBy === "artist" ? "active" : ""}`} onClick={() => setGroupBy("artist")}>artist</button>
-          <button className={`tab ${groupBy === "label" ? "active" : ""}`} onClick={() => setGroupBy("label")}>label</button>
-        </div></div>
       )}
 
-      {Object.keys(byArtist).map((artist) => (
-        <div key={artist}>
-          <div className="review-group-head">
-            <span className="section-label" style={{ margin: 0 }}>{artist} ({byArtist[artist].length})</span>
-            <button className="rating-chip" onClick={() => setSelected((prev) => new Set([...prev, ...byArtist[artist].map((s) => s.id)]))}>
-              select these
-            </button>
+      {Object.keys(byArtist).map((artist) => {
+        const ids = byArtist[artist].map((s) => s.id);
+        const all = ids.every((id) => selected.has(id));
+        return (
+          <div key={artist}>
+            <label className="review-group-head vs-group">
+              <input type="checkbox" checked={all} onChange={() => setSelected((prev) => {
+                const next = new Set(prev);
+                ids.forEach((id) => (all ? next.delete(id) : next.add(id)));
+                return next;
+              })} aria-label={`tick all for ${artist}`} />
+              <span className="section-label" style={{ margin: 0 }}>{artist} <span className="vs-dim">{ids.length}</span></span>
+            </label>
+            {byArtist[artist].map((s) => (
+              <div key={s.id} data-row-id={s.id} className={`review-row ${selected.has(s.id) ? "is-ticked" : ""}`}>
+                <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
+                <div style={{ minWidth: 0 }}>
+                  <div className="review-row-title">
+                    <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`}>{s.track_title}</Link>
+                    {likelyIds.has(s.id) && s.cls === "check" && <span className="feature-tag likely-tag" title="Picked by &quot;tick likely ones&quot;">likely</span>}
+                  </div>
+                  <div className="review-row-meta">
+                    <span>
+                      {s.action === "merge" ? "merge into" : "under"}{" "}
+                      {s.parent_track_id ? (
+                        <>
+                          <strong>{s.parent_title}</strong>
+                          {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
+                        </>
+                      ) : (
+                        <><strong>{s.create_parent_title}</strong> (new main song)</>
+                      )}
+                    </span>
+                    {showTag(s) && <span className="feature-tag">{s.version}</span>}
+                    {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
+                  </div>
+                </div>
+                <div className="review-row-actions vs-actions">
+                  <button disabled={busy} onClick={() => quick("approve", s)} title="Approve" aria-label={`approve ${s.track_title}`}>✓</button>
+                  <button disabled={busy} onClick={() => quick("dismiss", s)} title="Dismiss" aria-label={`dismiss ${s.track_title}`}>✕</button>
+                </div>
+              </div>
+            ))}
           </div>
-          {byArtist[artist].map((s) => (
-            <div key={s.id} data-row-id={s.id} className={`review-row ${selected.has(s.id) ? "is-ticked" : ""}`}>
-              <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
-              <div style={{ minWidth: 0 }}>
-                <div className="review-row-title">
-                  <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`}>{s.track_title}</Link>
-                </div>
-                <div className="review-row-meta">
-                  <span>
-                    {s.action === "merge" ? "merge into" : "version of"}{" "}
-                    {s.parent_track_id ? (
-                      <>
-                        <strong>{s.parent_title}</strong>
-                        {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
-                      </>
-                    ) : (
-                      <strong>{s.create_parent_title} (new main song)</strong>
-                    )}
-                  </span>
-                  {s.version && <span className="feature-tag">{s.version}</span>}
-                  {likelyIds.has(s.id) && <span className="feature-tag likely-tag" title="Picked by &quot;select likely ones&quot;">likely</span>}
-                  {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
-                </div>
-              </div>
-              <div className="review-row-actions">
-                <button className="rating-chip" disabled={busy} onClick={() => quick("approve", s)}>approve</button>
-                <button className="rating-chip" disabled={busy} onClick={() => quick("dismiss", s)}>dismiss</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
+        );
+      })}
 
     </div>
   );

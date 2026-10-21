@@ -28,7 +28,6 @@ export default function AdminModeNote({ what = "rate, comment, vote or suggest" 
 export function AdminModePage({ title }: { title: string }) {
   return (
     <div className="wrap">
-      <Link href="/" className="back-btn">← home</Link>
       <h1 className="detail-name page-title">{title}</h1>
       <div className="empty-state" style={{ marginTop: 10 }}>
         This page belongs to your own account, and you&apos;re in admin mode. <SwitchToAccountButton /> to see it.

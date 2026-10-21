@@ -184,9 +184,6 @@ export default function ProfilePage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>
-        ← home
-      </button>
 
       {notFound && (
         <div className="empty-state" style={{ marginTop: 18 }}>
@@ -298,7 +295,7 @@ export default function ProfilePage() {
                 your year
               </Link>
               <Link href="/collection/import" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
-                import my spreadsheet
+                import my music
               </Link>
             </div>
           )}

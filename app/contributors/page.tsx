@@ -44,7 +44,6 @@ export default function ContributorsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Contributors</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         The people building the archive. Counts approved songs and versions (suggested, found by their ChatGPT

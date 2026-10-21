@@ -83,7 +83,6 @@ export default function HelpWantedPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Help wanted</h1>
       <div className="detail-meta">Quick jobs that make the archive better. The artists people follow most come first.</div>
 

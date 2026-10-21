@@ -149,7 +149,6 @@ export default function SongView({ id }: { id: string }) {
   if (missing) {
     return (
       <div className="wrap">
-        <button className="back-btn" onClick={() => router.push("/")}>← home</button>
         <div className="empty-state" style={{ marginTop: 30 }}>This song isn&apos;t in the archive (it may have been deleted).</div>
       </div>
     );

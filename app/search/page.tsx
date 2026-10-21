@@ -101,7 +101,6 @@ function SearchInner() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Search songs</h1>
 
       <input

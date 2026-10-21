@@ -32,7 +32,6 @@ function Inner() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">On {label}</h1>
       <div className="detail-meta">Songs released or leaked on {label} in past years.</div>
       <div className="tabs">

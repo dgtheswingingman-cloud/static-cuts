@@ -45,7 +45,6 @@ function TakedownForm() {
 
   return (
     <div className="wrap" style={{ maxWidth: 620 }}>
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Request a Takedown</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Static Cuts// lists information about music and links to where it can be found. It doesn&apos;t host audio.

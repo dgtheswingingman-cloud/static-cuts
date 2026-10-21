@@ -68,6 +68,8 @@ type Counts = {
   reported_comments: number; sheet_requests: number; tracker_disagreements?: number; takedowns: number | null;
 };
 
+const rank = (n: number | null | undefined) => (typeof n === "number" ? (n > 0 ? 0 : 2) : 1);
+
 // One moderation job as a card: what it is, and how many are waiting.
 function JobCard({ href, title, blurb, n }: { href: string; title: string; blurb: string; n?: number | null }) {
   const waiting = typeof n === "number" && n > 0;
@@ -75,7 +77,7 @@ function JobCard({ href, title, blurb, n }: { href: string; title: string; blurb
     <Link href={href} className={`mod-card ${waiting ? "waiting" : ""} ${n === 0 ? "clear" : ""}`}>
       <span className="mod-card-top">
         <span className="mod-card-title">{title}</span>
-        {typeof n === "number" && <span className="mod-card-count">{n === 0 ? "✓" : n.toLocaleString("en-GB")}</span>}
+        {typeof n === "number" && <span className="mod-card-count">{n === 0 ? "all clear" : n.toLocaleString("en-GB")}</span>}
       </span>
       <span className="mod-card-blurb">{blurb}</span>
     </Link>
@@ -474,30 +476,27 @@ export default function ReviewHub() {
     <div>
       <div className="section-label" style={{ marginTop: 0 }}>Lists to work through</div>
       <div className="mod-grid">
-        <JobCard href="/review/imports" title="Imported songs" n={counts?.imported_songs}
-          blurb="Songs found by Genius, Last.fm and sheets, waiting for a yes or no." />
-        <JobCard href="/review/tracker" title="Tracker disagrees" n={counts?.tracker_disagreements}
-          blurb="A community tracker gives a different status from ours: pick one." />
-        <JobCard href="/review/versions" title="Sub-versions" n={counts?.sub_versions}
-          blurb="Songs that look like a version of another song." />
-        <JobCard href="/review/guests" title="Guest artists" n={counts?.guest_artists}
-          blurb="Featured artists Spotify couldn't confirm: add, match or skip." />
-        <JobCard href="/review/comments" title="Reported comments" n={counts?.reported_comments}
-          blurb="Comments people have reported: keep or remove." />
-        <JobCard href="/review/duplicates" title="Duplicates"
-          blurb="The same song entered twice: pick one to keep and merge." />
-        <JobCard href="/review/trusted" title="Trusted contributors"
-          blurb="People whose suggestions go live straight away." />
-        <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
-          blurb="Import a community sheet, or handle ones people have sent in." />
+        {[
+          { href: "/review/imports", title: "Imported songs", n: counts?.imported_songs, blurb: "Songs found by Genius, Last.fm and sheets, waiting for a yes or no." },
+          { href: "/review/tracker", title: "Tracker disagrees", n: counts?.tracker_disagreements, blurb: "A community tracker gives a different status from ours: pick one." },
+          { href: "/review/versions", title: "Sub-versions", n: counts?.sub_versions, blurb: "Songs that look like a version of another song." },
+          { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
+          { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
+          ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
+          { href: "/review/duplicates", title: "Duplicates", n: undefined, blurb: "The same song entered twice: pick one to keep and merge." },
+        ]
+          // Lists with something waiting first, then ones without a count, then the clear ones.
+          .sort((a, b) => rank(a.n) - rank(b.n))
+          .map((c) => <JobCard key={c.href} {...c} />)}
       </div>
 
-      {isAdmin && (
-        <div className="mod-grid" style={{ marginTop: 10 }}>
-          <JobCard href="/review/takedowns" title="Takedowns" n={counts?.takedowns ?? undefined}
-            blurb="Requests from rights holders to remove a song." />
-        </div>
-      )}
+      <div className="section-label">Tools</div>
+      <div className="mod-grid">
+        <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
+          blurb="Import a community sheet, or handle ones people have sent in." />
+        <JobCard href="/review/trusted" title="Trusted contributors"
+          blurb="People whose suggestions go live straight away." />
+      </div>
 
       {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}
       {!error && user && <Discoveries onPromoted={load} />}

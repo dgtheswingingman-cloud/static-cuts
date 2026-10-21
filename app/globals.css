@@ -1213,15 +1213,19 @@ a.listen-link {
   font-size: 0.92rem;
 }
 .mod-card-count {
-  font-family: var(--font-anton), sans-serif;
-  font-size: 1.3rem;
-  color: var(--bone);
+  flex-shrink: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  color: var(--void);
+  background: var(--bone);
+  padding: 1px 7px;
   font-variant-numeric: tabular-nums;
 }
+.mod-card.clear { opacity: 0.6; }
 .mod-card.clear .mod-card-count {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.8rem;
   color: var(--smoke);
+  background: none;
+  border: 1px solid var(--hair);
 }
 .mod-card-blurb {
   font-size: 0.76rem;
@@ -1427,3 +1431,37 @@ a.listen-link {
 .tidy-field { display: flex; flex-direction: column; gap: 2px; }
 .tidy-field .search-input { padding: 6px 8px; font-size: 0.85rem; }
 @media (max-width: 760px) { .local-folder-main { display: none; } }
+
+/* Wordmark on every page but the homepage: tap to go home. */
+.site-top {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 22px 20px 0;
+  position: relative;
+  z-index: 2;
+}
+.site-home {
+  font-family: var(--font-anton), sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  text-decoration: none;
+}
+.site-home .slash { color: var(--smoke); }
+.site-home:hover .slash { color: var(--bone); }
+.site-top + .wrap { padding-top: 22px; }
+
+/* Sub-versions review: one quiet toolbar, actions only when something's ticked. */
+.tab-count { opacity: 0.6; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.vs-help { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; font-size: 0.72rem; color: var(--smoke); margin-bottom: 10px; line-height: 1.45; }
+.vs-plain { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 0.72rem; white-space: nowrap; }
+.vs-plain:disabled { opacity: 0.4; cursor: default; }
+.vs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vs-check-all { display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--bone); cursor: pointer; min-width: 92px; }
+.vs-spacer { flex: 1; }
+.vs-select { background: var(--surface); color: var(--bone); border: 1px solid var(--hair); font: inherit; font-size: 0.72rem; padding: 4px 6px; }
+.vs-group { justify-content: flex-start; align-items: center; cursor: pointer; margin-top: 14px; }
+.vs-dim { color: var(--smoke); margin-left: 4px; }
+.review-row-title .likely-tag { margin-left: 8px; vertical-align: middle; }
+.vs-actions button { width: 30px; height: 28px; background: none; border: 1px solid var(--hair); color: var(--smoke); cursor: pointer; font-size: 0.85rem; }
+.vs-actions button:hover:not(:disabled) { color: var(--bone); border-color: var(--hair-strong); }

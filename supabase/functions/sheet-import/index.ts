@@ -58,13 +58,20 @@ function parseSheetUrl(url: string) {
   return { id, gid };
 }
 
+// The normal CSV export first. Many trackers turn off "viewers can download",
+// which blocks that export (Google answers 401), so then read it through
+// Google's chart-data route instead, which still works for view-only sheets
+// (headers=0: every row as it is, header row included).
 async function fetchCsv(id: string, gid: string) {
+  const ok = (res: Response) => res.ok && !(res.headers.get("content-type") ?? "").includes("text/html");
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`, { redirect: "follow" });
-  const type = res.headers.get("content-type") ?? "";
-  if (!res.ok || type.includes("text/html")) {
-    throw new Error("Couldn't read the sheet. Make sure it's shared as \"anyone with the link can view\".");
+  if (ok(res)) return await res.text();
+  const alt = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=0&gid=${gid}`, { redirect: "follow" });
+  if (ok(alt)) {
+    const text = await alt.text();
+    if (text.trim()) return text;
   }
-  return await res.text();
+  throw new Error("Couldn't read the sheet. Make sure it's shared as \"anyone with the link can view\".");
 }
 
 // Sheet title and tab names (best effort: read from the public page).

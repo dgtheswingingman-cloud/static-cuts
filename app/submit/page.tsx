@@ -426,7 +426,6 @@ function SubmitForm() {
   if (submitted) {
     return (
       <div className="wrap">
-        <button className="back-btn" onClick={() => router.push("/")}>← home</button>
         <h1 className="detail-name page-title">Thanks!</h1>
         <div className="empty-state" style={{ marginTop: 16 }}>
           Your submission is in the queue for review. Check{" "}
@@ -460,7 +459,6 @@ function SubmitForm() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">{titles[type]}</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Reviewed before it goes live — nothing you submit appears in the archive automatically.

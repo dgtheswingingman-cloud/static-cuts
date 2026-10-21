@@ -81,7 +81,6 @@ export default function WhatsNewPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">What&apos;s new</h1>
       <div className="detail-meta">Songs added to the archive and status changes, newest first.</div>
 

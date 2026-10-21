@@ -156,7 +156,6 @@ export default function MySubmissionsPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <h1 className="detail-name page-title">My submissions</h1>
         {submissions && submissions.length > 0 && (

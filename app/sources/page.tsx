@@ -55,7 +55,6 @@ export default function SourcesPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Sources</h1>
       <div className="detail-meta">
         A lot of what&apos;s here was first put together by fan communities in their own trackers. These are the sheets

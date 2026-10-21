@@ -80,7 +80,6 @@ export default function RadarPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Release radar</h1>
       <div className="detail-meta">
         What&apos;s coming and what just dropped. Press &ldquo;remind me&rdquo; and you&apos;ll get a notification when it&apos;s

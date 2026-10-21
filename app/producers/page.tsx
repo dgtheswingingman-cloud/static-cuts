@@ -23,7 +23,6 @@ export default function ProducersPage() {
 
   return (
     <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/")}>← home</button>
       <h1 className="detail-name page-title">Producers</h1>
       <div className="detail-meta">Everyone credited with producing songs here. Credits fill in over time from Genius and community sheets.</div>
       <input className="search-input" style={{ width: "100%", marginBottom: 14 }} placeholder="Find a producer…" value={q} onChange={(e) => setQ(e.target.value)} />
