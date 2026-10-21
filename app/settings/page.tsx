@@ -58,7 +58,6 @@ export default function SettingsPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const providerToken = sessionData.session?.provider_token;
-      console.log("Spotify import — provider_token present:", !!providerToken, providerToken ? `(length ${providerToken.length})` : "");
       if (!providerToken) {
         throw new Error("Your Spotify session expired — click the button again to reconnect.");
       }
@@ -88,14 +87,11 @@ export default function SettingsPage() {
       let checked = 0;
       const matchedTrackIds = new Set<string>();
       let next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
-      let pageCount = 0;
       while (next) {
         const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${providerToken}` } });
         const data: any = await res.json();
-        pageCount++;
-        console.log(`Spotify import — page ${pageCount}, status ${res.status}:`, data);
         if (!res.ok) {
-          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"} — check the browser console for the full response.`);
+          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
         }
         for (const item of data.items ?? []) {
           checked++;
@@ -140,7 +136,6 @@ export default function SettingsPage() {
       provider: "spotify",
       options: { redirectTo: window.location.origin + "/settings", scopes: "user-library-read" },
     });
-    console.log("Spotify import — signInWithOAuth result:", { data, error: err });
     if (err) {
       localStorage.removeItem("static_cuts_spotify_import_pending");
       setImportError(err.message);
@@ -161,7 +156,6 @@ export default function SettingsPage() {
       if (cancelled) return;
       attempts++;
       const { data } = await supabase.auth.getSession();
-      console.log(`Spotify import — poll attempt ${attempts}, provider_token present:`, !!data.session?.provider_token);
       if (data.session?.provider_token) {
         localStorage.removeItem("static_cuts_spotify_import_pending");
         runSpotifyImport();
