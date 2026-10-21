@@ -1,11 +1,12 @@
 "use client";
 
-// Computers only: the homepage's right column. What's coming out next (with
-// a countdown) and what just dropped, from the release radar.
+// Computers only: the homepage's right column. The leaderboard, then what's
+// coming out next (with a countdown) and what just dropped.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import Leaderboard from "./Leaderboard";
 
 type Row = {
   section: "upcoming" | "dropped" | "tba"; track_id: string; title: string; artist_id: string; artist: string;
@@ -52,13 +53,13 @@ export default function RadarColumn() {
     .sort((a, b) => a.release_date!.localeCompare(b.release_date!)).slice(0, 7);
   const dropped = rows.filter((r) => r.section === "dropped" && r.release_date)
     .sort((a, b) => b.release_date!.localeCompare(a.release_date!)).slice(0, 5);
-  if (upcoming.length === 0 && dropped.length === 0) return null;
   return (
-    <aside className="live radar-col" aria-label="Release radar">
-      <div className="live-head">
+    <aside className="live radar-col" aria-label="Leaderboard and release radar">
+      <Leaderboard />
+      {upcoming.length > 0 && <div className="live-head" style={{ marginTop: 16 }}>
         <span className="live-title">Coming up</span>
         <Link href="/radar" className="text-link">release radar →</Link>
-      </div>
+      </div>}
       {upcoming.map((r) => <Item key={r.track_id} r={r} />)}
       {dropped.length > 0 && (
         <>
