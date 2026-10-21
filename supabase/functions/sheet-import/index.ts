@@ -421,7 +421,7 @@ Era banners: many trackers put a row before each era (album/period) with the era
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
   });
   if (res.status === 429 || res.status === 529) {
     const wait = Number(res.headers.get("retry-after")) || 60;
@@ -430,10 +430,14 @@ Era banners: many trackers put a row before each era (album/period) with the era
   }
   const body: any = await res.json().catch(() => null);
   if (!res.ok) throw new Error(`The AI couldn't read this tab (${body?.error?.message ?? res.status}).`);
-  const text = String((body?.content ?? []).map((c: any) => c.text ?? "").join(""));
+  const text = String((body?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""))
+    .replace(/```(?:json)?/g, "");
   const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
   let out: any;
-  try { out = JSON.parse(json); } catch { throw new Error("The AI's answer couldn't be read. Try again."); }
+  try { out = JSON.parse(json); } catch {
+    console.error("ai_mapping unreadable", body?.stop_reason, text.slice(0, 300));
+    throw new Error(body?.stop_reason === "max_tokens" ? "The AI's answer was too long. Try again." : "The AI's answer couldn't be read. Try again.");
+  }
 
   // Keep only what makes sense for this sheet.
   const header_row = Number.isInteger(out.header_row) && out.header_row >= 0 && out.header_row < Math.min(rows.length, 40) ? out.header_row : guess.header_row;

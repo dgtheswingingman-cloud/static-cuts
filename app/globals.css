@@ -1465,3 +1465,10 @@ a.listen-link {
 .review-row-title .likely-tag { margin-left: 8px; vertical-align: middle; }
 .vs-actions button { width: 30px; height: 28px; background: none; border: 1px solid var(--hair); color: var(--smoke); cursor: pointer; font-size: 0.85rem; }
 .vs-actions button:hover:not(:disabled) { color: var(--bone); border-color: var(--hair-strong); }
+
+/* Import a spreadsheet: the "work it out" box. */
+.ai-box { display: flex; gap: 14px; align-items: center; justify-content: space-between; border: 1.5px solid var(--hair-strong); background: var(--surface); padding: 12px 14px; margin-bottom: 14px; font-size: 0.85rem; color: var(--bone); }
+.ai-box .comment-meta { margin-top: 3px; }
+@media (max-width: 560px) { .ai-box { flex-direction: column; align-items: stretch; } }
+.sheet-group { border: 1px solid var(--hair); padding: 10px 12px 2px; margin-bottom: 10px; }
+.sheet-group-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
