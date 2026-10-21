@@ -108,6 +108,7 @@ export default function SheetsPage() {
 
   const [sources, setSources] = useState<Source[]>([]);
   const [aiNote, setAiNote] = useState<string | null>(null);
+  const [allLog, setAllLog] = useState<string[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
 
   async function loadLists() {
@@ -180,6 +181,41 @@ export default function SheetsPage() {
     setBusy(null);
   }
 
+  // Every tab at once: the AI works out each tab, then it's imported with the
+  // same artist and credit. Tabs already imported and info tabs (credits,
+  // stats, key...) are left out; a tab with hardly any songs is skipped.
+  const INFO_TAB = /info|credit|stat|faq|key|legend|about|changelog|guide|read ?me|rules|template|links?$/i;
+  async function importAllTabs() {
+    if (!preview || !artist) return;
+    const todo = preview.tabs.filter((t) => !INFO_TAB.test(t.name)
+      && !sources.some((x) => sheetIdOf(x.url) === preview.sheet_id && gidOf(x.url) === t.gid));
+    setBusy("all");
+    setMessage(null);
+    const log: string[] = [];
+    const say = (line: string) => { log.push(line); setAllLog([...log]); };
+    for (const t of todo) {
+      const tabUrl = `https://docs.google.com/spreadsheets/d/${preview.sheet_id}/edit#gid=${t.gid}`;
+      try {
+        say(`${t.name}: working it out…`);
+        const ai = await callFn({ action: "ai_mapping", url: tabUrl });
+        const p = (await callFn({ action: "parse", url: tabUrl, mapping: ai.mapping })) as Parsed;
+        if (p.total < 3) { log[log.length - 1] = `${t.name}: skipped (not a list of songs).`; setAllLog([...log]); continue; }
+        const r = await callFn({
+          action: "import", url: tabUrl, mapping: ai.mapping, title: `${preview.title ?? "Tracker"} (${t.name})`,
+          credit, artist_id: artist.id, tab_name: t.name, auto_sync: autoSync, permission_confirmed: permission,
+        });
+        log[log.length - 1] = `${t.name}: ${p.total} songs read, ${r.suggested} new sent to review.`;
+        setAllLog([...log]);
+      } catch (e: any) {
+        log[log.length - 1] = `${t.name}: stopped (${e.message})`;
+        setAllLog([...log]);
+      }
+    }
+    if (todo.length === 0) say("Every tab is already imported.");
+    setBusy(null);
+    loadLists();
+  }
+
   async function runParse() {
     if (!mapping) return;
     setBusy("parse");
@@ -244,6 +280,18 @@ export default function SheetsPage() {
   }
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
+  const artistPicker = artist ? (
+    <span className="feature-tag" style={{ cursor: "pointer" }} onClick={() => setArtist(null)}>{artist.name} ✕</span>
+  ) : (
+    <>
+      <input className="search-input" placeholder="Search artists…" value={artistQuery} onChange={(e) => setArtistQuery(e.target.value)} />
+      {artistResults.map((a) => (
+        <button key={a.id} className="rating-chip" onClick={() => { setArtist(a); setArtistQuery(""); }}>{a.name}</button>
+      ))}
+    </>
+  );
+  const tabsLeft = preview ? preview.tabs.filter((t) => !INFO_TAB.test(t.name)
+    && !sources.some((x) => sheetIdOf(x.url) === preview.sheet_id && gidOf(x.url) === t.gid)) : [];
   const statusValues = mapping?.status_column ? preview?.values[mapping.status_column] ?? [] : [];
 
   return (
@@ -284,9 +332,36 @@ export default function SheetsPage() {
             </div>
           )}
 
+          {tabsLeft.length > 1 && (
+            <div className="ai-box" style={{ flexDirection: "column", alignItems: "stretch" }}>
+              <div>
+                <strong>Do every tab at once</strong>
+                <div className="comment-meta">
+                  The AI works out each tab ({tabsLeft.map((t) => t.name).join(", ")}) and imports it. Songs still go to the review list.
+                  Info tabs and tabs already imported are left out.
+                </div>
+              </div>
+              <div className="sheet-map">
+                <label className="sheet-map-row"><span>Artist</span><span>{artistPicker}</span></label>
+                <label className="sheet-map-row"><span>Made by</span>
+                  <input className="search-input" value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="e.g. the Carti tracker team" /></label>
+              </div>
+              <label className="comment-body" style={{ display: "flex", gap: 10 }}>
+                <input type="checkbox" checked={permission} onChange={(e) => setPermission(e.target.checked)} />
+                I made this sheet, or its makers are happy for it to be imported here
+              </label>
+              <div>
+                <button className="tab active" disabled={busy !== null || !artist || !permission} onClick={importAllTabs}>
+                  {busy === "all" ? "working…" : `work out and import ${tabsLeft.length} tabs`}
+                </button>
+              </div>
+              {allLog.length > 0 && <div className="comment-meta" style={{ whiteSpace: "pre-line" }}>{allLog.join("\n")}</div>}
+            </div>
+          )}
+
           <div className="ai-box">
             <div>
-              <strong>Let the AI work it out</strong>
+              <strong>{tabsLeft.length > 1 ? "Or just this tab" : "Let the AI work it out"}</strong>
               <div className="comment-meta">Reads a sample of this tab and fills in every setting below (columns, statuses, era rows), then shows the songs. About a quarter of a penny. You can still change anything.</div>
             </div>
             <button className="tab active" disabled={busy !== null} onClick={workItOut}>{busy === "ai" ? "working it out…" : "work it out"}</button>
@@ -434,18 +509,7 @@ export default function SheetsPage() {
           <div className="sheet-map">
             <label className="sheet-map-row">
               <span>Artist this sheet is for</span>
-              <span>
-                {artist ? (
-                  <span className="feature-tag" style={{ cursor: "pointer" }} onClick={() => setArtist(null)}>{artist.name} ✕</span>
-                ) : (
-                  <>
-                    <input className="search-input" placeholder="Search artists…" value={artistQuery} onChange={(e) => setArtistQuery(e.target.value)} />
-                    {artistResults.map((a) => (
-                      <button key={a.id} className="rating-chip" onClick={() => { setArtist(a); setArtistQuery(""); }}>{a.name}</button>
-                    ))}
-                  </>
-                )}
-              </span>
+              <span>{artistPicker}</span>
             </label>
             <label className="sheet-map-row">
               <span>Sheet name</span>

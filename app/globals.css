@@ -1456,7 +1456,7 @@ a.listen-link {
 .vs-help { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; font-size: 0.72rem; color: var(--smoke); margin-bottom: 10px; line-height: 1.45; }
 .vs-plain { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 0.72rem; white-space: nowrap; }
 .vs-plain:disabled { opacity: 0.4; cursor: default; }
-.vs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vs-toolbar { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 12px; }
 .vs-check-all { display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--bone); cursor: pointer; min-width: 92px; }
 .vs-spacer { flex: 1; }
 .vs-select { background: var(--surface); color: var(--bone); border: 1px solid var(--hair); font: inherit; font-size: 0.72rem; padding: 4px 6px; }

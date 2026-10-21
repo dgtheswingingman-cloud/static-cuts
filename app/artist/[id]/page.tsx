@@ -1585,9 +1585,6 @@ export default function ArtistPage() {
 
   return (
     <div className="wrap">
-      <Link href="/" style={{ textDecoration: "none", fontFamily: "var(--font-anton)", fontSize: "1.1rem", letterSpacing: "0.01em", color: "var(--bone)", display: "block", marginBottom: 14 }}>
-        STATIC CUTS<span style={{ color: "var(--smoke)" }}>//</span>
-      </Link>
 
       {error && (
         <div className="empty-state error" style={{ marginTop: 18 }}>
