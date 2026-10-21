@@ -2041,7 +2041,7 @@ export default function ArtistPage() {
               boxShadow: "0 6px 20px rgba(0,0,0,0.5)",
             }}
           >
-            🎲 random deep cut
+            <span aria-hidden="true" className="deep-cut-icon">🎲</span><span className="deep-cut-label"> random deep cut</span>
           </button>
         </>
       )}
