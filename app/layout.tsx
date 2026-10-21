@@ -10,7 +10,6 @@ import RegisterServiceWorker from "./RegisterServiceWorker";
 import ModeBar from "./ModeBar";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
-import SideRails from "./SideRails";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -47,7 +46,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="scanlines" />
               <ModeBar />
               <SiteHome />
-              <SideRails />
               {children}
               <footer className="site-credit">
                 <nav className="site-credit-links">
