@@ -1,10 +1,12 @@
 "use client";
 
-// Local Cuts: bring music files you already have. Their details are read on
-// your device (nothing is uploaded), matched to the archive's songs and exact
-// versions, and you can play them here, fix matches, and add them to your
-// collection. Only the matched song ids ever leave the device (for the
-// collection); file names and audio stay on it.
+// Local Cuts: tidy your music files with the archive. Pick your download
+// folder; each file's details are read on your computer (nothing uploaded),
+// matched to the exact song and version (best guesses marked), then saved as
+// clean copies: right title, artist, album, year and cover art, consistent
+// names, sorted into folders, ready for Spotify Local Files or any player.
+// Originals are never touched. Extras: play your files here, add them to
+// your collection, "play my file" on song pages.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -14,6 +16,7 @@ import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import { readDuration, readTags } from "./tags";
 import { setLocalFile } from "./store";
+import Tidy from "./Tidy";
 
 type Status = "sure" | "check" | "none";
 type Item = {
@@ -21,6 +24,7 @@ type Item = {
   title: string | null; artist: string | null; album: string | null; from: "tags" | "name"; duration: number | null;
   track_id: string | null; match_title: string | null; match_artist: string | null; artist_id: string | null;
   parent_id: string | null; status: Status; reason: string; owned: boolean; added_at: number;
+  edit?: { title?: string; artist?: string; album?: string; year?: string };
 };
 type Version = { id: string; title: string; status: string | null; is_main: boolean };
 
@@ -59,6 +63,7 @@ export default function LocalCutsPage() {
   const [fixing, setFixing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<string[]>([]);
+  const [view, setView] = useState<"tidy" | "library">("tidy");
   const audio = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
 
@@ -210,20 +215,21 @@ export default function LocalCutsPage() {
     <div className="wrap local-cuts" style={{ maxWidth: 760 }}>
       <h1 className="detail-name page-title">Local Cuts</h1>
       <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Your own music files, matched to the archive. Pick songs you already have: we read their details on your
-        device, find the exact song and version, and you can play them here, fix matches and add them to your
-        collection. <b>Nothing is uploaded</b>; only matched songs you add go to your collection.
+        Tidy your music with the archive. Add your download folder and every file gets the right title, artist,
+        album, year and cover art, a clean name and a proper folder, ready to copy to your phone for Spotify Local
+        Files or any music app. Unsure matches get a best guess, marked for you to check. <b>Nothing is uploaded and
+        your originals are never touched</b>: you get tidied copies.
       </div>
 
       <div className="local-pick">
-        <label className="tab active local-pick-btn">
-          + add songs
-          <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
-        </label>
-        <label className="tab local-folder-btn">
+        <label className="tab active local-pick-btn local-folder-main">
           + add a folder
           <input type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+        </label>
+        <label className="tab local-pick-btn">
+          + add songs
+          <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
         </label>
         {items.length > 0 && <button className="tab" onClick={removeAll}>clear</button>}
       </div>
@@ -248,12 +254,24 @@ export default function LocalCutsPage() {
 
       {items.length === 0 && !progress && (
         <div className="empty-state">
-          Pick a few songs to start. MP3, M4A, FLAC, WAV and OGG work. Got them in Spotify instead? See{" "}
+          Add the folder you download music into (or a few songs) to start. MP3 and FLAC get their details rewritten;
+          M4A, WAV and OGG are renamed and sorted. Got them in Spotify instead? See{" "}
           <Link href="/listen" className="text-link">how to listen</Link>.
         </div>
       )}
 
       {items.length > 0 && (
+        <div className="tabs" style={{ marginBottom: 12 }}>
+          <button className={`tab ${view === "tidy" ? "active" : ""}`} onClick={() => setView("tidy")}>tidy &amp; save</button>
+          <button className={`tab ${view === "library" ? "active" : ""}`} onClick={() => setView("library")}>matches &amp; player</button>
+        </div>
+      )}
+      {items.length > 0 && view === "tidy" && (
+        <Tidy items={items} files={files.current}
+          onEdit={(key, edit) => setItems((prev) => prev.map((x) => (x.key === key ? { ...x, edit } : x)))} />
+      )}
+
+      {items.length > 0 && view === "library" && (
         <>
           <div className="tabs" style={{ marginBottom: 8 }}>
             <button className={`tab ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>all ({items.length})</button>
