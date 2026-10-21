@@ -1472,3 +1472,35 @@ a.listen-link {
 @media (max-width: 560px) { .ai-box { flex-direction: column; align-items: stretch; } }
 .sheet-group { border: 1px solid var(--hair); padding: 10px 12px 2px; margin-bottom: 10px; }
 .sheet-group-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+/* Computers: the sides of the page. Left: browse + your artists. Right: a
+   live feed of what's changing. Only on screens wide enough not to crowd
+   the page (the column is 780px). */
+.rail { display: none; }
+@media (min-width: 1320px) {
+  .rail {
+    display: block;
+    position: fixed;
+    top: 120px;
+    bottom: 84px;
+    width: 220px;
+    overflow-y: auto;
+    z-index: 2;
+    scrollbar-width: thin;
+  }
+  .rail-left { left: max(24px, calc(50vw - 390px - 220px - 48px)); }
+  .rail-right { right: max(24px, calc(50vw - 390px - 220px - 48px)); }
+}
+.rail-label { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.rail-dot { width: 7px; height: 7px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.6); animation: rail-pulse 2s infinite; }
+@keyframes rail-pulse { 0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.6); } 70% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); } }
+@media (prefers-reduced-motion: reduce) { .rail-dot { animation: none; } }
+.rail-link { display: block; font-size: 0.82rem; color: var(--smoke); text-decoration: none; padding: 4px 0 4px 10px; border-left: 2px solid transparent; }
+.rail-link:hover { color: var(--bone); }
+.rail-link.on { color: var(--bone); border-left-color: var(--bone); }
+.rail-item { padding: 8px 0; border-bottom: 1px solid var(--hair); }
+.rail-meta { font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
+.rail-artist { display: block; color: var(--bone); font-size: 0.82rem; text-decoration: none; margin-top: 2px; }
+.rail-artist:hover { text-decoration: underline; }
+.rail-what { font-size: 0.74rem; color: var(--smoke); line-height: 1.4; overflow-wrap: anywhere; }
+.rail-song { color: var(--smoke); }

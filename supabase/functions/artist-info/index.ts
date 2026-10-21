@@ -2,7 +2,7 @@
 //
 // Fills in artist pages' photo and short "about" text, a few artists at a
 // time (timer twice an hour, followed artists first):
-//   photo: from Spotify (one request covers up to 50 artists)
+//   photo: from Spotify (one artist per request), or Genius if Spotify has none
 //   about: the short bio from Last.fm, with a link back (their text is
 //          shared under Creative Commons). Skipped when Last.fm's page is
 //          about several artists with the same name.
@@ -53,34 +53,51 @@ Deno.serve(async (req) => {
   const out: Record<string, Record<string, unknown>> = {};
   for (const a of artists) out[a.artist_id] = { artist_id: a.artist_id };
 
-  // Photos from Spotify, all in one request.
-  const ids = artists.filter((a) => a.need_image && a.spotify_artist_id).map((a) => a.spotify_artist_id as string);
+  // Photos: Spotify first, one artist per request (Spotify no longer allows
+  // asking for several artists at once for apps like ours), then Genius for
+  // any still without one. Each request takes a ticket.
+  const needPhoto = artists.filter((a) => a.need_image);
   const cid = Deno.env.get("SPOTIFY_CLIENT_ID"), csec = Deno.env.get("SPOTIFY_CLIENT_SECRET");
-  if (ids.length && cid && csec && !(await paused("spotify"))) {
-    const { data: t1 } = await db.rpc("sc_spotify_allow", { p_want: 2 });
-    if (t1 === 2) {
-      const tok = await fetch("https://accounts.spotify.com/api/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${cid}:${csec}`) },
-        body: "grant_type=client_credentials",
-      });
-      const token = tok.ok ? (await tok.json())?.access_token : null;
-      if (token) {
-        const res = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.slice(0, 50).join(",")}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.status === 429) {
-          const wait = parseInt(res.headers.get("Retry-After") || "60", 10);
-          await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString() }, { onConflict: "key" });
-        } else if (res.ok) {
-          const body = await res.json();
-          for (const sa of (body?.artists ?? []) as any[]) {
-            if (!sa) continue;
-            const imgs = ((sa.images ?? []) as { url: string; width: number }[]).sort((x, y) => (x.width ?? 0) - (y.width ?? 0));
-            const pick = imgs.find((i) => (i.width ?? 0) >= 300) ?? imgs[imgs.length - 1];
-            const ours = artists.find((a) => a.spotify_artist_id === sa.id);
-            if (ours && pick?.url) out[ours.artist_id].image_url = pick.url;
-          }
-        }
+  if (needPhoto.some((a) => a.spotify_artist_id) && cid && csec && !(await paused("spotify"))) {
+    const { data: t0 } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+    const tok = t0 === 1 ? await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${cid}:${csec}`) },
+      body: "grant_type=client_credentials",
+    }) : null;
+    const token = tok?.ok ? (await tok.json())?.access_token : null;
+    for (const a of needPhoto.filter((x) => x.spotify_artist_id)) {
+      if (!token) break;
+      const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+      if (t !== 1) break;
+      const res = await fetch(`https://api.spotify.com/v1/artists/${a.spotify_artist_id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await sleep(1500);
+      if (res.status === 429) {
+        const wait = parseInt(res.headers.get("Retry-After") || "60", 10);
+        await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString() }, { onConflict: "key" });
+        break;
       }
+      if (!res.ok) continue;
+      const sa = await res.json();
+      const imgs = ((sa?.images ?? []) as { url: string; width: number }[]).sort((x, y) => (x.width ?? 0) - (y.width ?? 0));
+      const pick = imgs.find((i) => (i.width ?? 0) >= 300) ?? imgs[imgs.length - 1];
+      if (pick?.url) out[a.artist_id].image_url = pick.url;
+    }
+  }
+  const gtoken = Deno.env.get("GENIUS_ACCESS_TOKEN");
+  const stillNone = needPhoto.filter((a) => !out[a.artist_id].image_url);
+  if (stillNone.length && gtoken && !(await paused("genius"))) {
+    const { data: rows } = await db.from("artists").select("id, genius_artist_id").in("id", stillNone.map((a) => a.artist_id));
+    for (const r of (rows ?? []) as { id: string; genius_artist_id: string | null }[]) {
+      if (!r.genius_artist_id || !/^\d+$/.test(r.genius_artist_id)) continue;
+      const { data: t, error: te } = await db.rpc("sc_api_allow", { p_service: "genius", p_want: 1 });
+      if (!te && t !== 1) break;
+      const res = await fetch(`https://api.genius.com/artists/${r.genius_artist_id}`, { headers: { Authorization: `Bearer ${gtoken}` } });
+      await sleep(1000);
+      if (!res.ok) continue;
+      const url = (await res.json())?.response?.artist?.image_url as string | undefined;
+      // Genius uses a placeholder picture for artists without a photo.
+      if (url && !/default_avatar|placeholder/i.test(url)) out[r.id].image_url = url;
     }
   }
 
