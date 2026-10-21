@@ -10,6 +10,8 @@
 --     Control room -> Owner): the artist's own songs, no version words in the
 --     title, nothing similar already on the page. Added as "unconfirmed"
 --     (no status claim), all in the undo history.
+--  5. Your Last.fm: link your username to see your most-played songs and
+--     artists matched to the archive.
 
 -- ----------------------------------------------------------------- 1
 
@@ -282,3 +284,70 @@ as $$
 $$;
 revoke execute on function owner_genius_auto() from public, anon;
 grant execute on function owner_genius_auto() to authenticated;
+
+-- ----------------------------------------------------------------- 5
+
+-- Your Last.fm: link your Last.fm username to see your most-played songs and
+-- artists matched to the archive (collect / follow in one tap). Kept
+-- private: only you can see your username.
+create table if not exists user_lastfm (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  username text not null,
+  linked_at timestamptz not null default now()
+);
+alter table user_lastfm enable row level security;
+revoke all on user_lastfm from anon, authenticated;
+
+create or replace function rpc_set_lastfm(p_username text)
+returns text
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  u text := trim(coalesce(p_username, ''));
+begin
+  if auth.uid() is null or is_oauth_client() then raise exception 'Sign in first.'; end if;
+  if u = '' then
+    delete from user_lastfm where user_id = auth.uid();
+    return null;
+  end if;
+  if u !~ '^[A-Za-z][A-Za-z0-9_-]{1,14}$' then raise exception 'That doesn''t look like a Last.fm username.'; end if;
+  insert into user_lastfm (user_id, username) values (auth.uid(), u)
+  on conflict (user_id) do update set username = excluded.username, linked_at = now();
+  return u;
+end;
+$$;
+revoke execute on function rpc_set_lastfm(text) from public, anon;
+grant execute on function rpc_set_lastfm(text) to authenticated;
+
+create or replace function rpc_my_lastfm()
+returns text
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select username from user_lastfm where user_id = auth.uid();
+$$;
+revoke execute on function rpc_my_lastfm() from public, anon;
+grant execute on function rpc_my_lastfm() to authenticated;
+
+-- Artist names -> pages here, and whether you follow them.
+create or replace function rpc_match_artists(p_names text[])
+returns jsonb
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('name', x.n, 'artist_id', x.id,
+           'following', x.id is not null and exists (select 1 from follows f where f.user_id = auth.uid() and f.artist_id = x.id))
+           order by x.i), '[]'::jsonb)
+  from (select n, i, sc_find_artist(n) id from unnest(p_names[1:100]) with ordinality u(n, i)) x;
+$$;
+revoke execute on function rpc_match_artists(text[]) from public, anon;
+grant execute on function rpc_match_artists(text[]) to authenticated;
+
+-- Last.fm's allowance is shared with the imports; personal pages take at most
+-- 2 calls a look, and the page keeps the result for an hour.
