@@ -1381,3 +1381,7 @@ a.listen-link {
 
 /* Control room: live */
 .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4caf6a; margin-right: 4px; animation: wrapped-pulse 1.2s ease infinite; }
+
+/* Review lists: ticked rows stand out; "likely" picks are labelled */
+.review-row.is-ticked { background: var(--surface2); box-shadow: inset 3px 0 0 var(--bone); }
+.likely-tag { border-color: var(--bone); color: var(--bone); }
