@@ -11,7 +11,11 @@
 //   2. if one is already an artist here (same Spotify id) -> link
 //   3. else it needs 1,000+ followers (when Spotify reports them) AND one of
 //      the guest's songs here found on Spotify under that artist -> create
-//   4. otherwise -> review list
+//   4. none of their songs here on Spotify (usually because they're
+//      unreleased features)? Find the guest on Genius, take their most
+//      popular released songs there and look for those on Spotify instead.
+//      A hit under one of the same-name Spotify artists confirms who they are.
+//   5. otherwise -> review list
 // While followed artists still have songs waiting for their Spotify or
 // Genius check, step 3 waits: existing artists are filled in first.
 
@@ -44,6 +48,50 @@ async function ticket() {
 }
 // Shared with the other Spotify jobs: see match-spotify.
 const PAUSE_KEY = "spotify_pause_until";
+
+// Genius: a ticket from its shared allowance (sc_api_allow 'genius') before
+// every call, and the shared pause.
+const GENIUS_PAUSE = "genius_pause_until";
+const NOT_A_SONG = /tracklist|album art|liner notes|credits|setlist|discography|translation|romanized|annotated|\binterview\b|\bspeech\b|cover art|snippet/i;
+async function genius(path: string, token: string) {
+  const { data: p } = await db.from("sc_private_settings").select("value").eq("key", GENIUS_PAUSE).maybeSingle();
+  if (p?.value && Date.parse(p.value) > Date.now()) return null;
+  const { data, error } = await db.rpc("sc_api_allow", { p_service: "genius", p_want: 1 });
+  if (!error && data !== 1) return null; // no Genius tickets right now: skip the extra check this time
+  const res = await fetch(`https://api.genius.com${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  await pause();
+  if (res.status === 429) {
+    const wait = Number(res.headers.get("Retry-After")) || 60;
+    const until = new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString();
+    await db.from("sc_private_settings").upsert({ key: GENIUS_PAUSE, value: until }, { onConflict: "key" });
+    return null;
+  }
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// The guest's most popular released songs on Genius (their own, not
+// features), from up to two Genius artists with exactly this name.
+async function geniusTitles(name: string, token: string): Promise<{ titles: string[]; found: boolean }> {
+  const s = await genius(`/search?per_page=20&q=${encodeURIComponent(name)}`, token);
+  const ids: string[] = [];
+  for (const h of (s?.response?.hits ?? []) as any[]) {
+    const a = h.result?.primary_artist;
+    if (a && norm(a.name) === norm(name) && !ids.includes(String(a.id))) ids.push(String(a.id));
+  }
+  const titles: string[] = [];
+  for (const id of ids.slice(0, 2)) {
+    const d = await genius(`/artists/${id}/songs?per_page=20&sort=popularity`, token);
+    for (const song of (d?.response?.songs ?? []) as any[]) {
+      const t = String(song.title || "").trim();
+      if (!t || NOT_A_SONG.test(t) || String(song.primary_artist?.id) !== id) continue;
+      if (!song.release_date_components?.year) continue; // released songs are the ones on Spotify
+      if (!titles.some((x) => norm(x) === norm(t))) titles.push(t);
+      if (titles.length >= 3 * (ids.indexOf(id) + 1)) break;
+    }
+  }
+  return { titles, found: ids.length > 0 };
+}
 
 function norm(s: string) {
   return (s || "").toLowerCase()
@@ -88,6 +136,7 @@ Deno.serve(async (req) => {
   const token = (await tok.json())?.access_token as string;
   if (!token) return json({ error: "no Spotify token" }, 500);
 
+  const geniusToken = Deno.env.get("GENIUS_ACCESS_TOKEN");
   const done: Record<string, string>[] = [];
   let stopped: string | null = null;
   try {
@@ -108,16 +157,30 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Confirm with one of their songs here.
-      let confirmed: any = null;
-      for (const title of (g.titles ?? []).slice(0, 3)) {
-        const t = await spotify(`/search?type=track&limit=10&q=${encodeURIComponent(`${title} ${g.name}`)}`, token);
-        for (const tr of (t?.tracks?.items ?? []) as any[]) {
-          if (norm(tr.name) !== norm(title)) continue;
-          const hit = exact.find((a) => (tr.artists ?? []).some((x: any) => x.id === a.id));
-          if (hit) { confirmed = hit; break; }
+      // Confirm with one of their songs: first the ones here, then (if none
+      // of those are on Spotify) their popular released songs on Genius.
+      const onSpotify = async (titles: string[]) => {
+        for (const title of titles) {
+          const t = await spotify(`/search?type=track&limit=10&q=${encodeURIComponent(`${title} ${g.name}`)}`, token);
+          for (const tr of (t?.tracks?.items ?? []) as any[]) {
+            if (norm(tr.name) !== norm(title)) continue;
+            const hit = exact.find((a) => (tr.artists ?? []).some((x: any) => x.id === a.id));
+            if (hit) return hit;
+          }
         }
-        if (confirmed) break;
+        return null;
+      };
+      let confirmed: any = await onSpotify((g.titles ?? []).slice(0, 3));
+      let via = "";
+      let geniusNote = "";
+      if (!confirmed && geniusToken) {
+        const gen = await geniusTitles(g.name, geniusToken);
+        const fresh = gen.titles.filter((t) => !(g.titles ?? []).some((x) => norm(x) === norm(t))).slice(0, 4);
+        confirmed = fresh.length ? await onSpotify(fresh) : null;
+        if (confirmed) via = "genius";
+        else geniusNote = !gen.found ? " Not found on Genius either."
+          : fresh.length === 0 ? " No released songs on Genius to compare."
+          : " Their Genius songs aren't on Spotify under this name either.";
       }
       const followers = confirmed?.followers?.total;
       if (confirmed && next?.new_pages === false && (followers === undefined || followers === null || followers >= 1000)) {
@@ -128,14 +191,15 @@ Deno.serve(async (req) => {
         await db.rpc("sc_guest_result", {
           p_secret: secret, p_key: g.key, p_action: "create", p_spotify_id: confirmed.id, p_spotify_name: confirmed.name,
         });
-        done.push({ name: g.name, result: "created" });
+        done.push({ name: g.name, result: via ? "created (Genius check)" : "created" });
       } else {
         const note = confirmed ? `On Spotify but only ${followers} followers.`
           : exact.length > 1 ? `${exact.length} artists on Spotify with this name; none matched their songs.`
           : "On Spotify, but their songs here didn't match.";
+        const fullNote = confirmed ? note : note + geniusNote;
         // Keep the Spotify profile we found (if we're sure of it), so adding
         // them from the review list links it straight away.
-        await db.rpc("sc_guest_result", { p_secret: secret, p_key: g.key, p_action: "review", p_note: note, p_spotify_id: confirmed?.id ?? null });
+        await db.rpc("sc_guest_result", { p_secret: secret, p_key: g.key, p_action: "review", p_note: fullNote, p_spotify_id: confirmed?.id ?? null });
         done.push({ name: g.name, result: "review" });
       }
     }
