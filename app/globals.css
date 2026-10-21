@@ -1786,3 +1786,18 @@ a.listen-link {
   table { display: block; overflow-x: auto; max-width: 100%; }
   .site-credit { padding-bottom: 12px; }
 }
+
+/* Phones: fixes from the first look at an artist page. */
+@media (max-width: 1023px) {
+  /* The app bar is solid, so rows scrolling under it don't show through. */
+  .site-top { background: var(--void); }
+  /* Filter groups inside a swipe row: the row swipes, the groups don't. */
+  .filter-groups .filter-group { margin: 0; padding: 0; overflow: visible; flex-shrink: 0; display: flex; gap: 6px; }
+  .filter-groups { gap: 14px; }
+  /* Small pill buttons instead of big boxes. */
+  .sort-select { border-radius: 999px; padding: 7px 12px; font-size: 0.72rem !important; }
+  /* Random deep cut: a round dice button above the tab bar. */
+  .deep-cut-fab { width: 52px; height: 52px; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
+  .deep-cut-fab .deep-cut-label { display: none; }
+  .deep-cut-fab .deep-cut-icon { font-size: 1.4rem; }
+}
