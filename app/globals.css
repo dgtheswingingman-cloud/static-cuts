@@ -1519,7 +1519,7 @@ a.listen-link {
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--hair);
   }
-  .dnav-inner { max-width: min(1760px, 94vw); margin: 0 auto; padding: 12px 0; display: flex; align-items: center; gap: 28px; }
+  .dnav-inner { max-width: calc(100vw - 72px); margin: 0 auto; padding: 12px 0; display: flex; align-items: center; gap: 28px; }
   .dnav-logo { font-family: var(--font-anton), sans-serif; font-size: 1.3rem; color: var(--bone); text-decoration: none; letter-spacing: 0.01em; white-space: nowrap; }
   .dnav-logo .slash { color: var(--smoke); }
   .dnav-links { display: flex; gap: 20px; flex: 1; flex-wrap: wrap; }
@@ -1534,10 +1534,10 @@ a.listen-link {
 
   /* Use the width: most pages get more room, the homepage most of the screen. */
   .wrap { max-width: 1080px; }
-  .wrap.home-wide { max-width: min(1760px, 94vw); padding: 0 0 80px; }
+  .wrap.home-wide { max-width: calc(100vw - 72px); padding: 0 0 80px; }
   /* Live on the left, artists in the middle; on big screens the release
      radar on the right too. With a search typed, just the results. */
-  .home-cols { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 36px; align-items: start; }
+  .home-cols { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 56px; align-items: start; }
   .home-cols > .live:not(.radar-col) { grid-column: 1; grid-row: 1; }
   .home-cols > .home-main { grid-column: 2; grid-row: 1; }
   .home-cols.searching { grid-template-columns: minmax(0, 1fr); }
