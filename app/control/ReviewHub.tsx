@@ -493,9 +493,12 @@ export default function ReviewHub() {
       <div className="section-label">Tools</div>
       <div className="mod-grid">
         <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
-          blurb="Import a community sheet, or handle ones people have sent in." />
+          blurb="Import a community tracker, re-check one, or handle ones people have sent in." />
+        {isAdmin && <JobCard href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />}
+        {isAdmin && <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />}
         <JobCard href="/review/trusted" title="Trusted contributors"
           blurb="People whose suggestions go live straight away." />
+        {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
       </div>
 
       {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}
