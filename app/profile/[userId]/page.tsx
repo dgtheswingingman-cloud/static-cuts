@@ -75,6 +75,11 @@ export default function ProfilePage() {
   const [editingAbout, setEditingAbout] = useState(false);
   const [aboutDraft, setAboutDraft] = useState("");
   const [savingAbout, setSavingAbout] = useState(false);
+  // Following people: one way. Friends: following each other. Friends see
+  // each other's collection, ratings and artists even when they're private.
+  type Social = { followers: number; following: number; i_follow: boolean; follows_me: boolean; friends: { id: string; name: string | null; avatar_url: string | null }[] };
+  const [social, setSocial] = useState<Social | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -88,8 +93,11 @@ export default function ProfilePage() {
         return;
       }
       setProfile(profileRow as Profile);
+      supabase.rpc("rpc_profile_social", { p_user: userId }).then(({ data }) => setSocial((data as Social) ?? null));
 
-      if (profileRow.show_completion_pct) {
+      // Private sections are still asked for: the database only returns them
+      // to you, or to friends.
+      {
         const { data: statRow } = await supabase
           .from("user_completion_stats")
           .select("total_tracks, collected_tracks, followed_artists")
@@ -98,17 +106,17 @@ export default function ProfilePage() {
         if (statRow) setStats(statRow as any);
       }
 
-      if (profileRow.show_collected_tracks) {
+      {
         const { data } = await supabase
           .from("track_ownership")
           .select("track_id, tracks(title, artist_id, artists!artist_id(name))")
           .eq("user_id", userId)
           .order("collected_at", { ascending: false })
-          .limit(100);
+          .limit(1000);
         setCollected((data as any) ?? []);
       }
 
-      if (profileRow.show_ratings) {
+      {
         const { data } = await supabase
           .from("ratings")
           .select("track_id, value, tracks(title, artist_id, artists!artist_id(name))")
@@ -118,7 +126,7 @@ export default function ProfilePage() {
         setRated((data as any) ?? []);
       }
 
-      if (profileRow.show_followed_artists) {
+      {
         const { data } = await supabase
           .from("follows")
           .select("artist_id, artists!artist_id(name)")
@@ -131,6 +139,21 @@ export default function ProfilePage() {
   }, [userId]);
 
   const isOwnProfile = viewer?.id === userId;
+  const isFriend = !!social?.i_follow && !!social?.follows_me;
+  const seesAll = isOwnProfile || isFriend;
+
+  async function toggleFollow() {
+    if (!viewer || !social) return;
+    setFollowBusy(true);
+    const { error: err } = social.i_follow
+      ? await supabase.from("user_follows").delete().eq("follower", viewer.id).eq("followee", userId)
+      : await supabase.from("user_follows").insert({ follower: viewer.id, followee: userId });
+    if (!err) {
+      const { data } = await supabase.rpc("rpc_profile_social", { p_user: userId });
+      setSocial((data as Social) ?? null);
+    }
+    setFollowBusy(false);
+  }
 
   async function saveName() {
     if (!viewer) return;
@@ -247,6 +270,25 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {social && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+              <span className="comment-meta">
+                {social.followers.toLocaleString("en-GB")} follower{social.followers === 1 ? "" : "s"} · {social.following.toLocaleString("en-GB")} following
+                {social.friends.length > 0 && <> · {social.friends.length} friend{social.friends.length === 1 ? "" : "s"}</>}
+              </span>
+              {viewer && !isOwnProfile && (
+                <button className={`tab ${social.i_follow ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}
+                  title={social.i_follow ? "Unfollow" : social.follows_me ? "They follow you: follow back to be friends" : undefined}>
+                  {isFriend ? "friends ✓" : social.i_follow ? "following" : social.follows_me ? "follow back" : "follow"}
+                </button>
+              )}
+              {!isOwnProfile && social.follows_me && !social.i_follow && <span className="feature-tag">follows you</span>}
+              {isOwnProfile && (
+                <Link href="/friends" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>friends&apos; activity</Link>
+              )}
+            </div>
+          )}
+
           {editingAbout ? (
             <div style={{ maxWidth: 480, marginBottom: 16 }}>
               <textarea
@@ -303,7 +345,7 @@ export default function ProfilePage() {
           {isOwnProfile && (
             <div className="detail-meta" style={{ marginBottom: 16 }}>
               This is your own profile — visitors only see what you&apos;ve turned on in privacy
-              settings.
+              settings. Friends (people you follow who follow you back) see everything.
             </div>
           )}
 
@@ -311,7 +353,7 @@ export default function ProfilePage() {
           <ProfileLists userId={userId} />
           {isOwnProfile && <ExportCollection userId={userId} />}
 
-          {stats && (
+          {stats && (profile.show_completion_pct || seesAll) && (
             <div style={{ marginBottom: 20 }}>
               <div className="detail-meta">
                 {Number(stats.followed_artists ?? 0) === 0
@@ -326,13 +368,29 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {nothingPublic && (
+          {social && social.friends.length > 0 && (
+            <Section title="Friends" count={social.friends.length}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                {social.friends.map((f) => (
+                  <Link key={f.id} href={`/profile/${f.id}`} style={{ display: "flex", gap: 8, alignItems: "center", textDecoration: "none", color: "var(--bone)" }}>
+                    {f.avatar_url
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={f.avatar_url} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+                      : <span style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface)", display: "inline-block" }} />}
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.88rem" }}>{f.name ?? "anonymous"}</span>
+                  </Link>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {nothingPublic && !seesAll && (
             <div className="empty-state" style={{ marginTop: 16 }}>
               This user hasn&apos;t made anything public on their profile yet.
             </div>
           )}
 
-          {profile.show_collected_tracks && (
+          {(profile.show_collected_tracks || seesAll) && (
             <Section title="Collected tracks" count={collected.length}>
               {collected.map((c) => (
                 <div key={c.track_id} className="track-row" style={{ cursor: "default" }}>
@@ -347,7 +405,7 @@ export default function ProfilePage() {
             </Section>
           )}
 
-          {profile.show_ratings && (
+          {(profile.show_ratings || seesAll) && (
             <Section title="Ratings" count={rated.length}>
               {rated.map((r) => (
                 <div key={r.track_id} className="track-row" style={{ cursor: "default" }}>
@@ -363,7 +421,7 @@ export default function ProfilePage() {
             </Section>
           )}
 
-          {profile.show_followed_artists && (
+          {(profile.show_followed_artists || seesAll) && (
             <Section title="Following" count={followedArtists.length}>
               <div className="grid" style={{ marginTop: 4 }}>
                 {followedArtists.map((f) => (
