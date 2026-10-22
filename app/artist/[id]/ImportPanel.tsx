@@ -40,6 +40,10 @@ function chatGptBuildUrl(artistId: string, artistName: string) {
 
 function summary(source: Source, r: any) {
   const parts: string[] = [];
+  if (source === "spotify" && r.queued) {
+    return "Queued. Spotify only lets us ask a few times a minute, so this artist's releases are being read in the background " +
+      "and their songs will be added over the next few hours. You can close this.";
+  }
   if (source === "spotify") {
     parts.push(`${r.added} song${r.added === 1 ? "" : "s"} added`);
     if (r.updated) parts.push(`${r.updated} already here, links or albums filled in`);
@@ -89,7 +93,7 @@ export default function ImportPanel({
 
   async function run(source: Source) {
     setBusy(source);
-    setMessages((m) => ({ ...m, [source]: "Importing… this can take up to a minute." }));
+    setMessages((m) => ({ ...m, [source]: source === "spotify" ? "Checking Spotify…" : "Importing… this can take up to a minute." }));
     try {
       const { data: s } = await supabase.auth.getSession();
       const res = await fetch(IMPORT_URL, {
@@ -134,6 +138,9 @@ export default function ImportPanel({
               {messages[s.key] ?? (
                 <>
                   {s.what}
+                  {last && !last.finished_at && s.key === "spotify" && (
+                    <> · adding songs in the background now</>
+                  )}
                   {last && last.finished_at && !last.error && (
                     <> · last imported {new Date(last.started_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>
                   )}

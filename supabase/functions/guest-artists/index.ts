@@ -40,8 +40,8 @@ const pause = () => new Promise((r) => setTimeout(r, 1500));
 class SlowDown extends Error { constructor(msg: string, public wait: number) { super(msg); } }
 class OutOfTickets extends Error {}
 
-// A ticket from the shared Spotify allowance (sc_spotify_allow: 15 a minute,
-// 3,000 a day across every job) before every Spotify call.
+// A ticket from the shared Spotify allowance (sc_spotify_allow: a few a minute,
+// 25 an hour, 600 a day across every job) before every Spotify call.
 async function ticket() {
   const { data } = await db.rpc("sc_spotify_allow", { p_want: 1 });
   if (data !== 1) throw new OutOfTickets("Spotify allowance used up for now; carrying on next run");
@@ -112,6 +112,37 @@ async function spotify(path: string, token: string) {
   return res.json();
 }
 
+// One Spotify sign-in lasts an hour, so it's kept and shared by every
+// Spotify job instead of signing in again each run (each sign-in takes a
+// ticket). Returns null when there's no ticket for a new one right now.
+async function cachedSpotifyToken(): Promise<string | null> {
+  const { data: rows } = await db.from("sc_private_settings").select("key, value")
+    .in("key", ["spotify_token", "spotify_token_expires"]);
+  const saved = Object.fromEntries(((rows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+  if (saved.spotify_token && Date.parse(saved.spotify_token_expires ?? "") > Date.now() + 5 * 60_000) return saved.spotify_token;
+  const id = Deno.env.get("SPOTIFY_CLIENT_ID"), secret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+  if (!id || !secret) return null;
+  const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+  if (t !== 1) return null;
+  const resp = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${id}:${secret}`) },
+    body: "grant_type=client_credentials",
+  });
+  if (resp.status === 429) {
+    const wait = Math.max(parseInt(resp.headers.get("Retry-After") || "60", 10) || 60, 600);
+    await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + wait * 1000).toISOString() }, { onConflict: "key" });
+    return null;
+  }
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data?.access_token) return null;
+  await db.from("sc_private_settings").upsert([
+    { key: "spotify_token", value: data.access_token },
+    { key: "spotify_token_expires", value: new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString() },
+  ], { onConflict: "key" });
+  return data.access_token as string;
+}
+
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
@@ -124,17 +155,8 @@ Deno.serve(async (req) => {
   const { data: pauseRow } = await db.from("sc_private_settings").select("value").eq("key", PAUSE_KEY).maybeSingle();
   if (pauseRow?.value && Date.parse(pauseRow.value) > Date.now()) return json({ ok: true, paused_until: pauseRow.value });
 
-  const id = Deno.env.get("SPOTIFY_CLIENT_ID"), sec = Deno.env.get("SPOTIFY_CLIENT_SECRET");
-  if (!id || !sec) return json({ error: "Spotify keys aren't set up" }, 500);
-  try { await ticket(); } catch { return json({ ok: true, stopped: "Spotify allowance used up for now" }); }
-  const tok = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${id}:${sec}`) },
-    body: "grant_type=client_credentials",
-  });
-  if (tok.status === 429) return json({ ok: true, stopped: "Spotify asked to slow down" });
-  const token = (await tok.json())?.access_token as string;
-  if (!token) return json({ error: "no Spotify token" }, 500);
+  const token = await cachedSpotifyToken();
+  if (!token) return json({ ok: true, stopped: "Spotify allowance used up for now" });
 
   const geniusToken = Deno.env.get("GENIUS_ACCESS_TOKEN");
   const done: Record<string, string>[] = [];

@@ -5,6 +5,10 @@
 // takedowns, etc). If a link is dead, it's cleared and the track becomes
 // eligible for the regular matcher to find a replacement.
 //
+// Released songs rarely disappear, so each link is checked at most once
+// every 90 days. Links match-spotify has just seen (on a search or on one of
+// the artist's releases) count as checked, so most never need a call here.
+//
 // Required secrets (same as match-spotify):
 //   SPOTIFY_CLIENT_ID
 //   SPOTIFY_CLIENT_SECRET
@@ -50,8 +54,8 @@ async function pauseSpotify(seconds: number) {
 }
 const breather = () => new Promise((r) => setTimeout(r, 1000));
 
-// Tickets from the shared Spotify allowance (sc_spotify_allow: 15 a minute,
-// 3,000 a day across every job). Returns how many calls we may make.
+// Tickets from the shared Spotify allowance (sc_spotify_allow: a few a minute,
+// 25 an hour, 600 a day across every job). Returns how many calls we may make.
 async function spotifyTickets(want: number): Promise<number> {
   const { data } = await supabase.rpc("sc_spotify_allow", { p_want: want });
   return typeof data === "number" ? data : 0;
@@ -65,7 +69,15 @@ async function allowed(req: Request): Promise<boolean> {
   return !!data?.value && data.value === secret;
 }
 
-async function getSpotifyToken(): Promise<string> {
+// One Spotify sign-in lasts an hour, so it's kept and shared by every
+// Spotify job instead of signing in again each run (each sign-in takes a
+// ticket). Returns null when there's no ticket for a new one right now.
+async function cachedSpotifyToken(): Promise<string | null> {
+  const { data: rows } = await supabase.from("sc_private_settings").select("key, value")
+    .in("key", ["spotify_token", "spotify_token_expires"]);
+  const saved = Object.fromEntries(((rows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+  if (saved.spotify_token && Date.parse(saved.spotify_token_expires ?? "") > Date.now() + 5 * 60_000) return saved.spotify_token;
+  if ((await spotifyTickets(1)) < 1) return null;
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
@@ -75,14 +87,20 @@ async function getSpotifyToken(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   if (resp.status === 429) {
-    const header = resp.headers.get("Retry-After");
-    const err: any = new Error("Spotify token endpoint rate limited");
-    err.retryAfterSeconds = header ? parseInt(header, 10) : 60;
-    throw err;
+    await pauseSpotify(parseInt(resp.headers.get("Retry-After") || "60", 10));
+    return null;
   }
-  const data = await resp.json();
-  if (!resp.ok) throw new Error("Spotify token error: " + JSON.stringify(data));
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data?.access_token) return null;
+  await supabase.from("sc_private_settings").upsert([
+    { key: "spotify_token", value: data.access_token },
+    { key: "spotify_token_expires", value: new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString() },
+  ], { onConflict: "key" });
   return data.access_token as string;
+}
+// Spotify said the saved sign-in is no good: forget it.
+async function dropSpotifyToken() {
+  await supabase.from("sc_private_settings").upsert({ key: "spotify_token_expires", value: new Date(0).toISOString() }, { onConflict: "key" });
 }
 
 function extractSpotifyTrackId(url: string): string | null {
@@ -116,6 +134,7 @@ Deno.serve(async (req) => {
       .from("tracks")
       .select("id, spotify_url")
       .not("spotify_url", "is", null)
+      .or(`spotify_link_verified_at.is.null,spotify_link_verified_at.lt.${new Date(Date.now() - 90 * 86400_000).toISOString()}`)
       .order("spotify_link_verified_at", { ascending: true, nullsFirst: true })
       .limit(limit);
     if (error) throw error;
@@ -126,26 +145,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // One ticket for the sign-in, one per song.
-    const tickets = await spotifyTickets(tracks.length + 1);
-    if (tickets < 2) {
+    const token = await cachedSpotifyToken();
+    if (!token) {
       return new Response(
         JSON.stringify({ done: false, checked: 0, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    tracks.splice(tickets - 1);
-
-    let token: string;
-    try {
-      token = await getSpotifyToken();
-    } catch (e: any) {
-      if (e?.retryAfterSeconds) await pauseSpotify(e.retryAfterSeconds);
+    // One ticket per song.
+    const tickets = await spotifyTickets(tracks.length);
+    if (tickets < 1) {
       return new Response(
-        JSON.stringify({ done: false, checked: 0, deadFound: 0, rateLimited: true, retryAfterSeconds: e?.retryAfterSeconds || 60 }),
+        JSON.stringify({ done: false, checked: 0, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    tracks.splice(tickets);
 
     let checked = 0;
     let deadFound = 0;
@@ -175,6 +190,7 @@ Deno.serve(async (req) => {
         await pauseSpotify(retryAfterSeconds);
         break;
       }
+      if (res.status === 401) { await dropSpotifyToken(); break; }
 
       checked++;
 
