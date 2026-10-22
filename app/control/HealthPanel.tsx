@@ -75,13 +75,15 @@ const TIMER_INFO: Record<string, string> = {
   "leaderboard-refresh": "works out the contributors leaderboard (hourly, :23)",
   "artist-counts-refresh": "counts each artist's songs for the homepage (every 10 min)",
   "push-alerts": "sends phone alerts (every 2 min)",
-  "artist-info": "fills in artist photos (Spotify, else Genius) and about text (Last.fm), 8 artists twice an hour",
+  "artist-info": "fills in artist photos (Spotify, else Genius), about text and genres (Last.fm), and finds Spotify profiles for artists without one (twice an hour)",
+  "deezer-sync": "reads artists' releases from Deezer: fills in albums, dates and covers, marks songs released and adds missing ones (every 2 min)",
+  "genre-cache": "works out genre scores for the genre pages and filters (every 10 min)",
   "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
 };
 
 type Budget = { today: number; last_hour: number; per_day: number | null; per_minute: number | null; paused_until: string | null };
 type DeadLinks = { checked: number; dead: number; songs: { track_id: string; title: string; artist_id: string; artist: string; url: string }[] };
-const SERVICE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", youtube: "YouTube (link checks)", soundcloud: "SoundCloud", ytsearch: "YouTube search" };
+const SERVICE_NAMES: Record<string, string> = { spotify: "Spotify", genius: "Genius", lastfm: "Last.fm", deezer: "Deezer", claude: "Claude (AI)", youtube: "YouTube (link checks)", soundcloud: "SoundCloud", ytsearch: "YouTube search" };
 
 type TrackerRow = {
   id: string; title: string; artist_id: string; artist: string; auto_sync: boolean; last_synced_at: string | null;
@@ -380,16 +382,18 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
             </div>
           )}
           {timers.map((t) => (
-            <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+            <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
               <div style={{ minWidth: 0 }}>
-                <div className="review-row-title">{t.name}</div>
+                <div className="review-row-title">
+                  {t.name}{" "}
+                  <span className="comment-meta" style={{ whiteSpace: "nowrap" }}>· {t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
+                </div>
                 <div className="review-row-meta">
                   <span>{TIMER_INFO[t.name] ?? t.schedule}</span>
                   {!t.active && <span className="feature-tag">off</span>}
                   {t.failed_24h > 0 && <span className="feature-tag disputed-tag">{t.failed_24h} failed today</span>}
                 </div>
               </div>
-              <span className="comment-meta">{t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
             </div>
           ))}
 
