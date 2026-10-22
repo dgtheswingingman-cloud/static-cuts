@@ -97,6 +97,7 @@ export default function ReviewHub() {
   const [currentTracks, setCurrentTracks] = useState<Record<string, CurrentTrack>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<string | null>(null);
   const [excludedFields, setExcludedFields] = useState<Record<string, Set<string>>>({});
 
   function toggleFieldExcluded(submissionId: string, key: string) {
@@ -162,17 +163,18 @@ export default function ReviewHub() {
     }
   }
 
-  async function approve(id: string) {
+  async function approve(id: string, bulk = false): Promise<string | null> {
+    const fail = (m: string) => { if (!bulk) alert(m); return m; };
     const sub = submissions?.find((s) => s.id === id);
     const excluded = Array.from(excludedFields[id] ?? []);
 
     let note: string | null = "";
-    if (excluded.length > 0) {
+    if (excluded.length > 0 && !bulk) {
       const labels = excluded.map((k) => FIELD_LABELS[k] ?? k).join(", ");
       note = window.prompt(
         `Approving everything except: ${labels}. Add a note explaining why for the submitter? (optional, leave blank to skip)`
       );
-      if (note === null) return; // cancelled
+      if (note === null) return null; // cancelled
     }
 
     setBusyId(id);
@@ -180,9 +182,9 @@ export default function ReviewHub() {
       // Status changes from ChatGPT routines have their own approve function.
       const { error: err } = await supabase.rpc("approve_status_change", { submission_id: id, p_note: note || null });
       setBusyId(null);
-      if (err) { alert(err.message); return; }
-      load();
-      return;
+      if (err) return fail(err.message);
+      if (!bulk) load();
+      return null;
     }
     const { data: resultingId, error: err } = await supabase.rpc("approve_submission", {
       submission_id: id,
@@ -190,7 +192,7 @@ export default function ReviewHub() {
       p_note: note || null,
     });
     setBusyId(null);
-    if (err) { alert(err.message); return; }
+    if (err) return fail(err.message);
 
     // A status carried by a correction (e.g. from a link suggestion) isn't
     // applied by approve_submission; set it here so unticking it still works.
@@ -199,7 +201,7 @@ export default function ReviewHub() {
         p_track_id: sub.payload.track_id,
         p_status: sub.payload.release_status,
       });
-      if (statusErr) alert("Approved, but the status couldn't be set: " + statusErr.message);
+      if (statusErr) fail("Approved, but the status couldn't be set: " + statusErr.message);
     }
 
     // Featured-artist picks are now real artist IDs chosen via the tag
@@ -231,7 +233,23 @@ export default function ReviewHub() {
     }
 
     setExcludedFields((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    if (!bulk) load();
+    return null;
+  }
+
+  // "approve all" for one category: approves each entry in turn (no
+  // prompts), then reloads once and lists anything that failed.
+  async function approveAll(label: string, entries: Submission[]) {
+    if (!window.confirm(`Approve all ${entries.length} in "${label}"?`)) return;
+    const failed: string[] = [];
+    for (let i = 0; i < entries.length; i++) {
+      setBulkProgress(`${label}: ${i + 1} / ${entries.length}`);
+      const err = await approve(entries[i].id, true);
+      if (err) failed.push(`${describeSimple(entries[i])}: ${err}`);
+    }
+    setBulkProgress(null);
     load();
+    if (failed.length) alert(`${failed.length} couldn't be approved:\n\n${failed.slice(0, 15).join("\n")}${failed.length > 15 ? "\n…" : ""}`);
   }
 
   async function reject(id: string) {
@@ -555,7 +573,14 @@ export default function ReviewHub() {
         if (entries.length === 0) return null;
         return (
           <div key={cat.key} style={{ marginBottom: 10 }}>
-            <div className="section-label">{cat.label} ({entries.length})</div>
+            <div className="section-label" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <span>{cat.label} ({entries.length})</span>
+              {cat.key !== "deletions" && cat.key !== "same_artist" && (
+                <button className="listen-link" disabled={!!bulkProgress} onClick={() => approveAll(cat.label, entries)}>
+                  {bulkProgress?.startsWith(cat.label + ":") ? bulkProgress.slice(cat.label.length + 2) : "approve all"}
+                </button>
+              )}
+            </div>
             {entries.map((s) => renderEntry(s))}
           </div>
         );
