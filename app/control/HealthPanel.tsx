@@ -72,6 +72,7 @@ const TIMER_INFO: Record<string, string> = {
   "youtube-search": "searches YouTube for songs with no link, into possible links (1 every 15 min, needs the YouTube key)",
   "collab-refresh": "works out the collab map (nightly)",
   "duplicate-refresh": "works out possible duplicate songs for the duplicates page (hourly, :17)",
+  "leaderboard-refresh": "works out the contributors leaderboard (hourly, :23)",
   "push-alerts": "sends phone alerts (every 2 min)",
   "artist-info": "fills in artist photos (Spotify, else Genius) and about text (Last.fm), 8 artists twice an hour",
   "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
