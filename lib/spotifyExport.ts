@@ -2,6 +2,8 @@
 // account. Uses Spotify's sign-in for browser apps (PKCE): no secret, the
 // token stays in this browser tab, and it's separate from signing in to
 // Static Cuts. Only songs with a Spotify track link can go in a playlist.
+// While our Spotify app is in development mode, only Spotify accounts added
+// in its developer dashboard (a handful) can sign in here.
 //
 // Needs NEXT_PUBLIC_SPOTIFY_CLIENT_ID (the app's client ID, which isn't
 // secret) and https://static-cuts.com/spotify-callback added as a redirect
@@ -57,6 +59,10 @@ async function api(token: string, path: string, init?: RequestInit) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
   if (res.status === 429) throw new Error("Spotify is busy right now. Try again in a few minutes.");
+  // Development mode: accounts not added in the Spotify dashboard get 403.
+  if (res.status === 403) {
+    throw new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours.");
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const err = new Error(body?.error?.message ?? `Spotify said no (${res.status}).`) as Error & { status?: number };
@@ -85,22 +91,15 @@ export async function finishSpotifyExport(code: string, state: string | null) {
   if (!tokenRes.ok || !tok?.access_token) throw new Error("Spotify sign-in didn't work. Try again.");
   const token = tok.access_token as string;
 
-  const me = await api(token, "/me");
-  const playlist = await api(token, `/users/${encodeURIComponent(me.id)}/playlists`, {
+  // Spotify's 2026 changes: playlists are made with POST /me/playlists, and
+  // songs are added at /playlists/{id}/items.
+  const playlist = await api(token, "/me/playlists", {
     method: "POST",
     body: JSON.stringify({ name: saved.pending.name.slice(0, 100), description: saved.pending.description.slice(0, 300), public: false }),
   });
   const uris = [...new Set(saved.pending.uris)];
   for (let i = 0; i < uris.length; i += 100) {
-    const body = JSON.stringify({ uris: uris.slice(i, i + 100) });
-    try {
-      await api(token, `/playlists/${playlist.id}/tracks`, { method: "POST", body });
-    } catch (e) {
-      // Newer API name for the same thing.
-      if ((e as { status?: number }).status === 404 || (e as { status?: number }).status === 410) {
-        await api(token, `/playlists/${playlist.id}/items`, { method: "POST", body });
-      } else throw e;
-    }
+    await api(token, `/playlists/${playlist.id}/items`, { method: "POST", body: JSON.stringify({ uris: uris.slice(i, i + 100) }) });
   }
   return { url: playlist.external_urls?.spotify as string, name: playlist.name as string, count: uris.length, back: saved.pending.back };
 }
