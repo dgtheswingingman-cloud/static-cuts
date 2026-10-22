@@ -12,6 +12,7 @@ import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
 import DesktopNav from "./DesktopNav";
 import MobileTabBar from "./MobileTabBar";
+import SpotifyImportResume from "./SpotifyImportResume";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AdminViewProvider>
               <RegisterServiceWorker />
               <StaticOverlay />
+              <SpotifyImportResume />
               <div className="scanlines" />
               <ModeBar />
               <DesktopNav />
