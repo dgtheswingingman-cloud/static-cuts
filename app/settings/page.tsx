@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import ExportCollection from "./ExportCollection";
+import ExportifyImport from "./ExportifyImport";
 import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
@@ -408,6 +409,8 @@ export default function SettingsPage() {
           {importResult.skipped.length > 0 && ` Spotify wouldn't share: ${importResult.skipped.join(", ")}.`}
         </div>
       )}
+
+      <ExportifyImport />
 
       <div className="comment-meta" style={{ marginBottom: 24 }}>
         Other ways to fill your collection (a spreadsheet, ticking songs off by artist):{" "}
