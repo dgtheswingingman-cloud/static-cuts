@@ -12,9 +12,11 @@ import { usePersonalUser } from "./useIsAdmin";
 export default function SiteHome() {
   const user = usePersonalUser();
   const [unread, setUnread] = useState(0);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
   useEffect(() => {
-    if (!user) { setUnread(0); return; }
+    if (!user) { setUnread(0); setUnreadMsgs(0); return; }
     supabase.rpc("rpc_unread_notifications", { p_admin: false }).then(({ data }) => setUnread(typeof data === "number" ? data : 0));
+    supabase.rpc("rpc_unread_messages").then(({ data }) => setUnreadMsgs(typeof data === "number" ? data : 0));
   }, [user]);
   return (
     <div className="site-top">
@@ -25,6 +27,12 @@ export default function SiteHome() {
         <Link href="/search" aria-label="Search songs" className="site-icon">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         </Link>
+        {user && (
+          <Link href="/messages" aria-label={`Messages${unreadMsgs ? `, ${unreadMsgs} unread` : ""}`} className="site-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z" /></svg>
+            {unreadMsgs > 0 && <span className="site-icon-dot">{unreadMsgs > 9 ? "9+" : unreadMsgs}</span>}
+          </Link>
+        )}
         {user && (
           <Link href="/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} className="site-icon">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>

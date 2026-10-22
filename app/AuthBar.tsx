@@ -17,10 +17,12 @@ export default function AuthBar() {
   const isModerator = useIsModerator();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
 
   useEffect(() => {
     if (!user || isAdmin) { setUnread(0); return; }
     supabase.rpc("rpc_unread_notifications", { p_admin: false }).then(({ data }) => setUnread(typeof data === "number" ? data : 0));
+    supabase.rpc("rpc_unread_messages").then(({ data }) => setUnreadMsgs(typeof data === "number" ? data : 0));
   }, [user, isAdmin]);
 
   useEffect(() => {
@@ -55,6 +57,9 @@ export default function AuthBar() {
       <Link href={`/profile/${user.id}`} className="auth-link">profile</Link>
       <Link href="/notifications" className="auth-link" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
         notifications{unread > 0 && <span className="notif-count">{unread}</span>}
+      </Link>
+      <Link href="/messages" className="auth-link" aria-label={`Messages${unreadMsgs ? `, ${unreadMsgs} unread` : ""}`}>
+        messages{unreadMsgs > 0 && <span className="notif-count">{unreadMsgs}</span>}
       </Link>
       <Link href="/my-submissions" className="auth-link">my submissions</Link>
       {isModerator && <Link href="/control" className="auth-link">control room</Link>}
