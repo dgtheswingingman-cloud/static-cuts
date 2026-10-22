@@ -162,7 +162,7 @@ const SECTIONS: Section[] = [
         q: "I track my own collection in a spreadsheet. Can I bring it?",
         a: (
           <p>
-            Yes: <Link href="/collection/import">import my spreadsheet</Link> (also on your profile) ticks the songs you
+            Yes: <Link href="/collection/import">import my spreadsheet</Link> (also linked from Settings) ticks the songs you
             list in your collection here. Only your collection changes.
           </p>
         ),
