@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import { AdminModePage } from "../../components/AdminModeNote";
+import ExportifyImport from "./ExportifyImport";
 
 type Match = { row: number; artist_in: string | null; title_in: string; artist_id: string | null; track_id: string | null; title: string | null; owned: boolean };
 
@@ -179,6 +180,7 @@ export default function CollectionImportPage() {
       <Link href="/settings#spotify-import" className="tab active" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
         import from Spotify
       </Link>
+      <ExportifyImport />
 
       <div className="section-label">From a spreadsheet</div>
       <div className="detail-meta" style={{ marginBottom: 12 }}>

@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import ExportCollection from "./ExportCollection";
-import ExportifyImport from "./ExportifyImport";
 import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
@@ -410,10 +409,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <ExportifyImport />
-
       <div className="comment-meta" style={{ marginBottom: 24 }}>
-        Other ways to fill your collection (a spreadsheet, ticking songs off by artist):{" "}
+        Other ways to fill your collection (Exportify files, a spreadsheet, ticking songs off by artist):{" "}
         <Link href="/collection/import" className="text-link">more import options</Link>
       </div>
 

@@ -186,7 +186,7 @@ export default function ExportifyImport() {
   return (
     <div style={{ maxWidth: 520, marginBottom: 16 }}>
       <div className="comment-meta" style={{ marginBottom: 8 }}>
-        Or upload files from <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a>:
+        Spotify busy, or not on the invite list? Upload files from <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a>:
         it saves your liked songs and playlists as files, and works for anyone (no invite needed). Export the ones you want,
         then pick the files (or the whole .zip from &ldquo;Export All&rdquo;) here.
       </div>
