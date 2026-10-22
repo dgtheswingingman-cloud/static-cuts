@@ -44,8 +44,10 @@ export default function SettingsPage() {
   const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Runs straight after coming back from Spotify, usually before the page
+  // knows who's signed in (useAuth's user is still empty then), so it works
+  // from the session itself. It used to stop silently at that point.
   async function runSpotifyImport() {
-    if (!user) return;
     setImportBusy(true);
     setImportError(null);
     setImportResult(null);
@@ -53,7 +55,8 @@ export default function SettingsPage() {
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      const providerToken = sessionData.session?.provider_token;
+      if (!sessionData.session) throw new Error("Log in first, then try the import again.");
+      const providerToken = sessionData.session.provider_token;
       if (!providerToken) {
         throw new Error("Your Spotify session expired — click the button again to reconnect.");
       }
