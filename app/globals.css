@@ -1802,6 +1802,72 @@ a.listen-link {
   .deep-cut-fab .deep-cut-icon { font-size: 1.4rem; }
 }
 
+/* Eras take the colour of their cover. */
+.era.tinted { padding: 14px 14px 22px; margin-bottom: 14px; margin-left: -8px; border-left: 3px solid var(--era); background: linear-gradient(105deg, var(--era-deep) 0%, transparent 75%); }
+.era.tinted .era-dot { background: var(--era); left: -21px; top: 20px; }
+.era.tinted .era-name { color: var(--era); }
+.era.tinted .era-cover { border-color: var(--era); box-shadow: 0 6px 22px var(--era-deep); }
+[data-theme="light"] .era.tinted { background: linear-gradient(105deg, color-mix(in srgb, var(--era) 14%, transparent) 0%, transparent 75%); }
+
+/* ---------- Artist pages: their own look ---------- */
+body { overflow-x: clip; }
+.artist-hero {
+  position: relative; width: 100vw; margin: -22px calc(50% - 50vw) 18px; min-height: 280px;
+  display: flex; align-items: flex-end; overflow: hidden; background: var(--hero-deep, var(--surface));
+}
+.artist-hero.has-img::before {
+  content: ""; position: absolute; inset: -40px; background: var(--hero-img) center 30% / cover no-repeat;
+  filter: blur(22px) saturate(1.25); opacity: 0.6; transform: scale(1.1);
+}
+.artist-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to top, var(--void) 0%, color-mix(in srgb, var(--void) 35%, transparent) 45%, transparent 80%),
+              radial-gradient(ellipse at 20% 100%, var(--hero-glow, transparent) 0%, transparent 60%);
+}
+.artist-hero-inner {
+  position: relative; z-index: 1; width: 100%; max-width: 780px; margin: 0 auto; padding: 90px 20px 20px;
+  display: flex; gap: 22px; align-items: flex-end;
+}
+.artist-hero-photo {
+  width: 150px; height: 150px; border-radius: 50%; object-fit: cover; flex: none;
+  border: 3px solid var(--accent); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6);
+}
+.artist-hero-name { margin: 0 0 4px; overflow-wrap: anywhere; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.55); }
+.artist-hero-aka { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); letter-spacing: 0.04em; }
+[data-theme="light"] .artist-hero-name { text-shadow: none; }
+@media (min-width: 1024px) { .artist-hero-inner { max-width: 1080px; } .artist-hero { min-height: 340px; } }
+@media (max-width: 1023px) { .artist-hero { margin-top: -16px; } }
+@media (max-width: 600px) {
+  .artist-hero { min-height: 220px; }
+  .artist-hero-inner { padding: 70px 16px 16px; gap: 14px; }
+  .artist-hero-photo { width: 92px; height: 92px; }
+}
+/* The page's accent is the artist's colour (set on .artist-page). */
+.artist-page .tab.active, .artist-page .rating-chip.rated { border-color: var(--accent); }
+.artist-page .section-label { color: color-mix(in srgb, var(--accent) 70%, var(--smoke)); }
+
+.artist-intro { margin: 4px 0 22px; }
+.artist-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 1px; background: var(--hair); border: 1px solid var(--hair); margin-bottom: 18px; }
+.artist-fact { background: var(--void); padding: 10px 12px; }
+.artist-fact-value { font-family: var(--font-anton), sans-serif; font-size: 1.35rem; line-height: 1.1; color: var(--accent); }
+.artist-fact-label { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+.start-here-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.start-here-item { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--hair); background: var(--surface); text-decoration: none; }
+.start-here-item:hover { border-color: var(--accent); }
+.start-here-item img, .start-here-blank { width: 44px; height: 44px; object-fit: cover; flex: none; background: var(--surface2); }
+.start-here-num { font-family: var(--font-anton), sans-serif; font-size: 1.2rem; color: var(--accent); width: 16px; text-align: center; flex: none; }
+.start-here-title { display: block; color: var(--bone); font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-here-meta { display: block; font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--smoke); }
+
+.era-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
+.era-card {
+  flex: 0 0 150px; display: flex; flex-direction: column; gap: 4px; padding: 10px; text-decoration: none;
+  border: 1px solid var(--era, var(--hair)); background: linear-gradient(to bottom, var(--era-deep, var(--surface)), var(--surface));
+}
+.era-card img, .era-card-blank { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--surface2); }
+.era-card-name { color: var(--era, var(--bone)); font-family: var(--font-anton), sans-serif; text-transform: uppercase; font-size: 0.95rem; line-height: 1.1; overflow-wrap: anywhere; }
+.era-card-meta { font-family: var(--font-mono), monospace; font-size: 0.58rem; color: var(--smoke); }
+[data-theme="light"] .era-card { background: color-mix(in srgb, var(--era, var(--surface)) 10%, var(--surface)); }
 /* Artist page: "Fans also like" -- a sideways row of round photos. */
 .similar-row { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
 .similar-item { flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; text-align: center; }

@@ -4,67 +4,12 @@
 // project; songs with no album go under their year). Leaks sit in the era
 // they belong to, using their leak date.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
-type Song = {
-  id: string; title: string; album: string | null; status: string; release_date: string | null; leak_date: string | null;
-  track_number: number | null; cover_url: string | null; spotify_url: string | null; versions: number;
-};
-type Era = { key: string; name: string; kind: "album" | "year" | "undated"; from: string | null; to: string | null; cover: string | null; songs: Song[] };
-type Filter = "all" | "released" | "unreleased";
-
-const UNRELEASED = ["leaked", "snippet", "teased", "rumored", "announced", "unconfirmed"];
-const STATUS_ORDER = ["released", "leaked", "snippet", "teased", "announced", "rumored", "unconfirmed", "removed"];
-
-function dateOf(s: Song) {
-  return s.release_date ?? s.leak_date;
-}
-
-function buildEras(songs: Song[]): Era[] {
-  const map = new Map<string, Era>();
-  for (const s of songs) {
-    const d = dateOf(s);
-    const key = s.album ? `album:${s.album.toLowerCase()}` : d ? `year:${d.slice(0, 4)}` : "undated";
-    let e = map.get(key);
-    if (!e) {
-      e = {
-        key,
-        name: s.album ?? (d ? d.slice(0, 4) : "Undated"),
-        kind: s.album ? "album" : d ? "year" : "undated",
-        from: null, to: null, cover: null, songs: [],
-      };
-      map.set(key, e);
-    }
-    e.songs.push(s);
-    if (d) {
-      if (!e.from || d < e.from) e.from = d;
-      if (!e.to || d > e.to) e.to = d;
-    }
-    if (!e.cover && s.cover_url) e.cover = s.cover_url;
-  }
-  for (const e of map.values()) {
-    e.songs.sort((a, b) =>
-      (a.track_number ?? 999) - (b.track_number ?? 999) || (dateOf(a) ?? "9").localeCompare(dateOf(b) ?? "9") || a.title.localeCompare(b.title));
-  }
-  // Dated eras in time order; albums with no dates after them; undated last.
-  return [...map.values()].sort((a, b) => {
-    if (a.kind === "undated") return 1;
-    if (b.kind === "undated") return -1;
-    if (a.from && b.from) return a.from.localeCompare(b.from);
-    if (a.from) return -1;
-    if (b.from) return 1;
-    return a.name.localeCompare(b.name);
-  });
-}
-
-function span(e: Era) {
-  if (!e.from) return null;
-  const a = e.from.slice(0, 4), b = e.to?.slice(0, 4);
-  return b && b !== a ? `${a}–${b}` : a;
-}
+import { buildEras, dateOf, span, STATUS_ORDER, UNRELEASED, type Filter, type Song } from "@/lib/eras";
+import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
 
 export default function ErasPage() {
   const { id } = useParams<{ id: string }>();
@@ -74,6 +19,8 @@ export default function ErasPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [newestFirst, setNewestFirst] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
+  // Each era takes the main colour of its cover.
+  const [colours, setColours] = useState<Record<string, Rgb>>({});
 
   useEffect(() => {
     supabase.rpc("rpc_artist_eras", { p_artist: id }).then(({ data }) => {
@@ -91,6 +38,16 @@ export default function ErasPage() {
     const undated = list.filter((e) => e.kind === "undated");
     return [...list.filter((e) => e.kind !== "undated").reverse(), ...undated];
   }, [songs, filter, newestFirst]);
+
+  useEffect(() => {
+    let alive = true;
+    for (const e of eras) {
+      if (!e.cover || colours[e.key]) continue;
+      swatch(e.cover).then((rgb) => { if (alive && rgb) setColours((p) => ({ ...p, [e.key]: rgb })); });
+    }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eras]);
 
   const dated = (songs ?? []).filter((s) => dateOf(s) || s.album).length;
 
@@ -120,7 +77,8 @@ export default function ErasPage() {
           const isOpen = open.has(e.key) || e.songs.length <= 8;
           const shown = isOpen ? e.songs : e.songs.slice(0, 8);
           return (
-            <section key={e.key} className="era">
+            <section key={e.key} id={e.key} className={`era ${colours[e.key] ? "tinted" : ""}`}
+              style={colours[e.key] ? ({ "--era": accentCss(colours[e.key]), "--era-deep": deepCss(colours[e.key], 0.45) } as CSSProperties) : undefined}>
               <div className="era-dot" aria-hidden />
               <div className="era-head">
                 {e.cover ? (
