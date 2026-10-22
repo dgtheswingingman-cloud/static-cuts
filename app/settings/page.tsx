@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import ExportCollection from "./ExportCollection";
+import SpotifySync from "./SpotifySync";
 import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
@@ -413,6 +414,8 @@ export default function SettingsPage() {
         Other ways to fill your collection (Exportify files, a spreadsheet, ticking songs off by artist):{" "}
         <Link href="/collection/import" className="text-link">more import options</Link>
       </div>
+
+      <SpotifySync />
 
       <div className="section-label" id="export" style={{ scrollMarginTop: 20 }}>Export to Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 10, maxWidth: 520 }}>

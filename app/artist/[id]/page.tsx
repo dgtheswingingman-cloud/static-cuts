@@ -20,6 +20,7 @@ import StoryButton from "../../components/StoryButton";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import AdminModeNote from "../../components/AdminModeNote";
+import { likeOnSpotify } from "@/lib/spotifyLikes";
 
 type Track = {
   id: string;
@@ -520,6 +521,8 @@ export default function ArtistPage() {
         const { error: insErr } = await supabase.from("track_ownership").insert({ user_id: user.id, track_id: trackId });
         if (insErr) throw insErr;
         setOwned((prev) => new Set(prev).add(trackId));
+        // Also save it to Spotify Liked Songs, if that's switched on in Settings.
+        likeOnSpotify(tracks?.find((t) => t.id === trackId)?.spotify_url).catch(() => {});
       }
     } catch (e) {
       console.error(e);
