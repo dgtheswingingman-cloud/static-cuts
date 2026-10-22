@@ -27,6 +27,7 @@ type Artist = {
   avgRating: number | null;
   ratingCount: number;
   aliases: string[];
+  genres: { slug: string; tag: string }[];
 };
 
 type TrackResult = {
@@ -45,6 +46,7 @@ export default function HomePage() {
   const isAdmin = useIsAdmin();
   const [creatingArtist, setCreatingArtist] = useState(false);
   const [artists, setArtists] = useState<Artist[] | null>(null);
+  const [genreFilter, setGenreFilter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [trackResults, setTrackResults] = useState<TrackResult[]>([]);
@@ -91,6 +93,7 @@ export default function HomePage() {
         type Row = {
           id: string; name: string; status: string | null; track_count: number; collected: number;
           avg_rating: number | null; rating_count: number; aliases: string[] | null;
+          genres: { slug: string; tag: string }[] | null;
         };
         setArtists(((data as Row[]) ?? []).map((a) => ({
           id: a.id,
@@ -101,6 +104,7 @@ export default function HomePage() {
           avgRating: a.avg_rating === null ? null : Number(a.avg_rating),
           ratingCount: a.rating_count,
           aliases: a.aliases ?? [],
+          genres: a.genres ?? [],
         })));
       } catch (e: any) {
         setError(e?.message ?? String(e));
@@ -232,9 +236,20 @@ export default function HomePage() {
     return artists;
   })();
 
+  // Genres among the artists shown, most common first, for the filter chips.
+  const genreChips = (() => {
+    const counts = new Map<string, { slug: string; tag: string; n: number }>();
+    for (const a of baseList ?? []) for (const g of a.genres) {
+      const c = counts.get(g.slug) ?? { ...g, n: 0 };
+      c.n++;
+      counts.set(g.slug, c);
+    }
+    return [...counts.values()].filter((c) => c.n >= 2 || c.slug === genreFilter).sort((a, b) => b.n - a.n).slice(0, 14);
+  })();
+
   const matchedArtists = (() => {
     if (!baseList) return null;
-    const sorted = [...baseList];
+    const sorted = genreFilter ? baseList.filter((a) => a.genres.some((g) => g.slug === genreFilter)) : [...baseList];
     const pct = (a: Artist) => (a.trackCount > 0 ? a.collectedCount / a.trackCount : 0);
     switch (artistSort) {
       case "name-asc": sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
@@ -409,6 +424,19 @@ export default function HomePage() {
           </select>
         </div>
       </div>
+
+      {genreChips.length > 0 && (
+        <div className="genre-chips">
+          {genreChips.map((g) => (
+            <button key={g.slug} className={`rating-chip ${genreFilter === g.slug ? "rated" : ""}`}
+              onClick={() => setGenreFilter(genreFilter === g.slug ? null : g.slug)}>
+              {g.tag} <span style={{ opacity: 0.6 }}>{g.n}</span>
+            </button>
+          ))}
+          {genreFilter && <button className="rating-clear" onClick={() => setGenreFilter(null)}>clear</button>}
+          <Link href="/genres" className="comment-meta" style={{ marginLeft: 4 }}>all genres →</Link>
+        </div>
+      )}
 
       {error && (
         <div className="empty-state error">
