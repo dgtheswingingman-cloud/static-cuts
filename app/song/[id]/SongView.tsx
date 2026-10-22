@@ -20,6 +20,7 @@ import StoryButton from "../../components/StoryButton";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 import FriendsWhoHaveIt from "./FriendsWhoHaveIt";
+import { likeOnSpotify } from "@/lib/spotifyLikes";
 
 type Track = {
   id: string;
@@ -125,7 +126,11 @@ export default function SongView({ id }: { id: string }) {
       ? await supabase.from("track_ownership").delete().eq("user_id", user.id).eq("track_id", song.track.id)
       : await supabase.from("track_ownership").insert({ user_id: user.id, track_id: song.track.id });
     setBusy(false);
-    if (!error) setSong({ ...song, owned: !song.owned, collectors: song.collectors + (song.owned ? -1 : 1) });
+    if (!error) {
+      // Collecting also saves it to Spotify Liked Songs, if that's switched on in Settings.
+      if (!song.owned) likeOnSpotify(song.track.spotify_url).catch(() => {});
+      setSong({ ...song, owned: !song.owned, collectors: song.collectors + (song.owned ? -1 : 1) });
+    }
   }
 
   async function rate(value: number | null) {

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { finishSpotifyExport } from "@/lib/spotifyExport";
+import { finishConnectLikes, isLikesCallback } from "@/lib/spotifyLikes";
 
 function Inner() {
   const params = useSearchParams();
@@ -18,6 +19,13 @@ function Inner() {
     started.current = true;
     const code = params.get("code");
     if (params.get("error") || !code) { setError("Spotify sign-in was cancelled."); return; }
+    // Connecting "collect → Liked Songs" (Settings) rather than a playlist export.
+    if (isLikesCallback(params.get("state"))) {
+      finishConnectLikes(code, params.get("state"))
+        .then(() => window.location.replace("/settings#spotify-sync"))
+        .catch((e) => setError(e.message));
+      return;
+    }
     finishSpotifyExport(code, params.get("state")).then(setResult).catch((e) => setError(e.message));
   }, [params]);
 
