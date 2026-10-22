@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { importBatch, suggestArtists } from "@/lib/importBatch";
+import { importBatch, suggestArtists, type ImportTotals } from "@/lib/importBatch";
 
 // A small CSV reader: quoted fields, commas and line breaks inside quotes,
 // doubled quotes.
@@ -170,7 +170,7 @@ export default function ExportifyImport() {
         }
       }
       if (items.length === 0) throw new Error("No songs found in those files. They need Exportify's \"Track URI\" column.");
-      const totals = { collected: 0, added: 0, waiting: 0 };
+      const totals: ImportTotals = { collected: 0, added: 0, waiting: 0 };
       for (let i = 0; i < items.length; i += 500) {
         setNote(`Importing… ${Math.min(i + 500, items.length).toLocaleString("en-GB")} of ${items.length.toLocaleString("en-GB")} songs`);
         await importBatch(items.slice(i, i + 500), totals);
@@ -180,7 +180,8 @@ export default function ExportifyImport() {
         `Done: ${items.length.toLocaleString("en-GB")} songs checked. ${totals.collected.toLocaleString("en-GB")} newly collected` +
         (totals.added ? `, ${totals.added.toLocaleString("en-GB")} added to the archive` : "") +
         (totals.waiting ? `, ${totals.waiting.toLocaleString("en-GB")} more will be added once we've read their releases` : "") +
-        (suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") + "." +
+        (suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") +
+        (totals.held ? ` (${totals.held.toLocaleString("en-GB")} of your songs by them are kept and added when each artist is approved)` : "") + "." +
         (noArtistIds ? " (These files only have artist names, so songs were matched to artists here by name.)" : ""));
     } catch (e: any) {
       setError(e?.message ?? String(e));
