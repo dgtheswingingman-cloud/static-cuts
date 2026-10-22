@@ -4,7 +4,7 @@
 
 import { supabase } from "./supabase";
 
-export type ImportTotals = { collected: number; added: number; waiting: number };
+export type ImportTotals = { collected: number; added: number; waiting: number; held?: number };
 
 async function sendOne(items: Record<string, unknown>[], totals: ImportTotals): Promise<void> {
   if (items.length === 0) return;
@@ -21,6 +21,7 @@ async function sendOne(items: Record<string, unknown>[], totals: ImportTotals): 
   totals.collected += data?.collected ?? 0;
   totals.added += data?.added ?? 0;
   totals.waiting += data?.waiting ?? 0;
+  totals.held = (totals.held ?? 0) + (data?.held ?? 0);
 }
 
 export async function importBatch(items: Record<string, unknown>[], totals: ImportTotals, size = 100) {
