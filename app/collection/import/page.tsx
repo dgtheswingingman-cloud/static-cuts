@@ -164,7 +164,7 @@ export default function CollectionImportPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push(user ? `/profile/${user.id}` : "/")}>← profile</button>
+      <button className="back-btn" onClick={() => router.push("/settings")}>← settings</button>
       <h1 className="detail-name page-title">Import Your Music</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Tick the songs you already have in your collection, so you don&apos;t start from zero. Only your collection

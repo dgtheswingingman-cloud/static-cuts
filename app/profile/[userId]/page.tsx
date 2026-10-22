@@ -8,7 +8,6 @@ import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
-import ExportCollection from "./ExportCollection";
 import ShareButton from "../../components/ShareButton";
 
 type Profile = {
@@ -336,9 +335,6 @@ export default function ProfilePage() {
               <Link href="/year" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
                 your year
               </Link>
-              <Link href="/collection/import" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>
-                import my music
-              </Link>
             </div>
           )}
 
@@ -351,7 +347,6 @@ export default function ProfilePage() {
 
           <Contributions userId={userId} />
           <ProfileLists userId={userId} />
-          {isOwnProfile && <ExportCollection userId={userId} />}
 
           {stats && (profile.show_completion_pct || seesAll) && (
             <div style={{ marginBottom: 20 }}>

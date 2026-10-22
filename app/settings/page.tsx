@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
+import ExportCollection from "./ExportCollection";
+import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
 import LastfmLink from "./LastfmLink";
@@ -331,6 +333,18 @@ export default function SettingsPage() {
           {importResult.skipped.length > 0 && ` Spotify wouldn't share: ${importResult.skipped.join(", ")}.`}
         </div>
       )}
+
+      <div className="comment-meta" style={{ marginBottom: 24 }}>
+        Other ways to fill your collection (a spreadsheet, ticking songs off by artist):{" "}
+        <Link href="/collection/import" className="text-link">more import options</Link>
+      </div>
+
+      <div className="section-label" id="export" style={{ scrollMarginTop: 20 }}>Export to Spotify</div>
+      <div className="detail-meta" style={{ marginBottom: 10, maxWidth: 520 }}>
+        Makes a private Spotify playlist of everything you&apos;ve collected that&apos;s on Spotify (unreleased songs
+        can&apos;t go on Spotify). Lists have their own export button. Invited testers only for now.
+      </div>
+      {user && <ExportCollection userId={user.id} />}
 
       {user && <ChatGPTRoutine userId={user.id} />}
 
