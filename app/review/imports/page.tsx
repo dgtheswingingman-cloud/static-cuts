@@ -24,8 +24,9 @@ type Suggestion = {
   release_date: string | null;
   main_artist_name: string | null;
   extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null } | null;
-  created_at: string;
-  version_of: string | null;
+  created_at?: string;
+  version_of?: string | null;
+  decided_at?: string | null;
 };
 
 const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Community sheet" };
@@ -39,9 +40,12 @@ export default function ImportReviewPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Waiting songs, or ones dismissed before (kept so mistakes can be undone).
+  const [view, setView] = useState<"waiting" | "dismissed">("waiting");
 
-  async function load() {
-    const { data, error: err } = await supabase.rpc("admin_import_suggestions", { p_limit: 5000 });
+  async function load(which = view) {
+    const { data, error: err } = await supabase.rpc(
+      which === "waiting" ? "admin_import_suggestions" : "admin_dismissed_import_suggestions", { p_limit: 5000 });
     if (err) { setError(err.message); setItems([]); return; }
     setError(null);
     setItems((data as Suggestion[]) ?? []);
@@ -53,8 +57,9 @@ export default function ImportReviewPage() {
   }, [isRealAdmin]);
 
   const popularity = (s: Suggestion) => s.extra?.listeners ?? s.extra?.pageviews ?? -1;
-  // Most popular first.
-  const shown = useMemo(() => [...(items ?? [])].sort((a, b) => popularity(b) - popularity(a) || a.title.localeCompare(b.title)), [items]);
+  // Waiting: most popular first. Dismissed: most recently dismissed first.
+  const shown = useMemo(() => view === "dismissed" ? (items ?? [])
+    : [...(items ?? [])].sort((a, b) => popularity(b) - popularity(a) || a.title.localeCompare(b.title)), [items, view]);
   const groups = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
     shown.forEach((s) => {
@@ -72,7 +77,13 @@ export default function ImportReviewPage() {
     });
   }
 
-  async function run(kind: "approve" | "dismiss", ids: string[]) {
+  function switchView(v: "waiting" | "dismissed") {
+    if (v === view) return;
+    setView(v); setItems(null); setMessage(null); setSelected(new Set());
+    load(v);
+  }
+
+  async function run(kind: "approve" | "dismiss" | "restore", ids: string[]) {
     if (ids.length === 0) return;
     setBusy(true);
     setMessage(null);
@@ -83,9 +94,11 @@ export default function ImportReviewPage() {
     const size = kind === "approve" ? 20 : 100;
     for (let i = 0; i < ids.length; i += size) {
       const chunk = ids.slice(i, i + size);
-      if (ids.length > size) setMessage(`${kind === "approve" ? "Adding" : "Dismissing"}… ${Math.min(i, ids.length)} of ${ids.length}`);
+      if (ids.length > size) setMessage(`${kind === "approve" ? "Adding" : kind === "restore" ? "Restoring" : "Dismissing"}… ${Math.min(i, ids.length)} of ${ids.length}`);
       const { data, error: err } = kind === "approve"
         ? await supabase.rpc("admin_apply_import_suggestions", { p_ids: chunk, p_status: null })
+        : kind === "restore"
+        ? await supabase.rpc("admin_restore_import_suggestions", { p_ids: chunk })
         : await supabase.rpc("admin_dismiss_import_suggestions", { p_ids: chunk });
       if (err) { problem = err.message; break; }
       done += (data as number) ?? 0;
@@ -93,7 +106,9 @@ export default function ImportReviewPage() {
     setBusy(false);
     const summary = kind === "approve"
       ? `${done} song${done === 1 ? "" : "s"} added. You can reverse this from the undo history.`
-      : `${done} dismissed. They won't be suggested again.`;
+      : kind === "restore"
+      ? `${done} put back on the waiting list.`
+      : `${done} dismissed. They won't be suggested again (they're kept under "dismissed" if you change your mind).`;
     setMessage(problem ? `Stopped after ${done}: ${problem}` : summary);
     load();
   }
@@ -112,14 +127,31 @@ export default function ImportReviewPage() {
         <UndoHistoryLink />.
       </div>
 
+      <div className="tabs" style={{ marginBottom: 12 }}>
+        <button className={`tab ${view === "waiting" ? "active" : ""}`} onClick={() => switchView("waiting")}>waiting</button>
+        <button className={`tab ${view === "dismissed" ? "active" : ""}`} onClick={() => switchView("dismissed")}>dismissed</button>
+      </div>
+
       {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
       {error && <div className="comment-meta" style={{ marginBottom: 12 }}>Couldn&apos;t load imports: {error}</div>}
       {items === null && <div className="empty-state">loading…</div>}
       {items && items.length === 0 && !error && (
-        <div className="empty-state">Nothing waiting. Imports from Genius and Last.fm will show up here.</div>
+        <div className="empty-state">{view === "waiting" ? "Nothing waiting. Imports from Genius and Last.fm will show up here." : "Nothing dismissed."}</div>
       )}
 
-      {items && items.length > 0 && (
+      {items && items.length > 0 && view === "dismissed" && (
+        <div className="review-toolbar import-actions">
+          <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("restore", selectedHere)}>
+            {busy ? "working…" : `restore selected (${selectedHere.length})`}
+          </button>
+          <button className="tab" disabled={busy || shown.length === 0}
+            onClick={() => { if (confirm(`Put all ${shown.length} dismissed songs back on the waiting list?`)) run("restore", shown.map((s) => s.id)); }}>
+            restore all ({shown.length})
+          </button>
+        </div>
+      )}
+
+      {items && items.length > 0 && view === "waiting" && (
         <div className="review-toolbar import-actions">
           <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
             {busy ? "working…" : `approve selected (${selectedHere.length})`}
@@ -133,7 +165,7 @@ export default function ImportReviewPage() {
           </button>
           <button className="tab danger-tab" disabled={busy || shown.length === 0}
             onClick={() => {
-              if (confirm(`Dismiss all ${shown.length} songs? They won't be suggested again. This can't be undone.`)) run("dismiss", shown.map((s) => s.id));
+              if (confirm(`Dismiss all ${shown.length} songs? They won't be suggested again (you can bring them back from "dismissed").`)) run("dismiss", shown.map((s) => s.id));
             }}>
             dismiss all
           </button>
@@ -158,6 +190,7 @@ export default function ImportReviewPage() {
                   {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
                   {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
                   {s.release_date && <span>{s.release_date}</span>}
+                  {view === "dismissed" && s.decided_at && <span>dismissed {new Date(s.decided_at).toLocaleDateString("en-GB")}</span>}
                   {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
                   {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
                 </div>
