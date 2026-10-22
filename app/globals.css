@@ -1887,3 +1887,9 @@ body { overflow-x: clip; }
 /* Imported songs: four actions, in a 2×2 grid on phones. */
 .import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 1023px) { .import-actions { display: grid; grid-template-columns: 1fr 1fr; } .import-actions .tab { width: 100%; } }
+
+/* Sticky review toolbars sit under the top bar instead of behind it. */
+@media (max-width: 1023px) { .review-toolbar { top: calc(57px + env(safe-area-inset-top)); } }
+@media (min-width: 1024px) { .review-toolbar { top: 58px; } }
+.dnav-msg { position: relative; color: var(--bone); display: flex; padding: 4px; }
+.dnav-msg .site-icon-dot { position: absolute; top: -4px; right: -8px; background: #e5484d; color: #fff; font-family: var(--font-mono), monospace; font-size: 0.55rem; line-height: 1; border-radius: 999px; padding: 2px 4px; }
