@@ -168,12 +168,13 @@ export default function CollectionImportPage() {
       <h1 className="detail-name page-title">Import Your Music</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Tick the songs you already have in your collection, so you don&apos;t start from zero. Only your collection
-        changes; nothing is added to the archive.
+        changes; nothing is added to the archive (except from Spotify, below).
       </div>
 
       <div className="section-label">From Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 10 }}>
-        Your saved songs on Spotify, matched exactly to songs here that have a Spotify link (so official releases only).
+        Your Liked Songs on Spotify: ones already here are collected, and official songs by artists in the archive
+        that are missing get added too. Invited testers only for now (Spotify limits new sites to a few accounts).
       </div>
       <Link href="/settings#spotify-import" className="tab active" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
         import from Spotify

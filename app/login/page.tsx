@@ -82,23 +82,6 @@ export default function LoginPage() {
       <h1 className="detail-name page-title">{mode === "login" ? "Log in" : "Sign up"}</h1>
 
       <div className="search-shell" style={{ marginTop: 20, marginLeft: 0 }}>
-        <button onClick={() => handleOAuth()} style={oauthButtonStyle}>
-          Continue with Spotify
-        </button>
-
-        <div
-          style={{
-            textAlign: "center",
-            color: "var(--smoke)",
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.68rem",
-            margin: "18px 0",
-            letterSpacing: "0.08em",
-          }}
-        >
-          OR USE EMAIL
-        </div>
-
         <form onSubmit={handleSubmit}>
           <input
             className="search-input"
@@ -132,6 +115,19 @@ export default function LoginPage() {
             Forgot your password?
           </button>
         )}
+
+        {/* Spotify only lets new apps like ours have a handful of Spotify
+            accounts (added by hand in its developer dashboard), so this is
+            for invited testers. Everyone else uses email. */}
+        <div style={{ marginTop: 26, paddingTop: 16, borderTop: "1px solid var(--hair)" }}>
+          <button onClick={() => handleOAuth()} style={{ ...oauthButtonStyle, opacity: 0.8 }}>
+            Continue with Spotify (invited testers)
+          </button>
+          <div className="comment-meta" style={{ marginTop: 8 }}>
+            Spotify only lets new sites like ours have a few Spotify sign-ins, so this works for invited testers only
+            for now. Everyone else: use email above.
+          </div>
+        </div>
       </div>
 
       {error && (

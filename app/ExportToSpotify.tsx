@@ -20,7 +20,8 @@ export default function ExportToSpotify({ name, description, urls, back }: {
 
   return (
     <>
-      <button className="tab" onClick={go} title={`${uris.length} of ${urls.length} songs are on Spotify`}>
+      <button className="tab" onClick={go}
+        title={`${uris.length} of ${urls.length} songs are on Spotify. Invited testers only for now: Spotify limits how many accounts new sites can use.`}>
         export to Spotify ({uris.length})
       </button>
       {note && <span className="comment-meta" style={{ alignSelf: "center" }}>{note}</span>}

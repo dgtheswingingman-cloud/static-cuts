@@ -41,13 +41,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importProgress, setImportProgress] = useState<number | null>(null);
-  const [importResult, setImportResult] = useState<{ checked: number; matched: number; newlyCollected: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-
-  function extractSpotifyTrackId(url: string): string | null {
-    const match = url.match(/track\/([a-zA-Z0-9]+)/);
-    return match ? match[1] : null;
-  }
 
   async function runSpotifyImport() {
     if (!user) return;
@@ -63,61 +58,50 @@ export default function SettingsPage() {
         throw new Error("Your Spotify session expired — click the button again to reconnect.");
       }
 
-      // Every Static Cuts track with a confirmed link, mapped by the
-      // Spotify track ID embedded in its URL -- paginated since this
-      // could be a few thousand rows.
-      const idMap: Record<string, string> = {};
-      let from = 0;
-      const PAGE_SIZE = 1000;
-      while (true) {
-        const { data: page, error: err } = await supabase
-          .from("tracks")
-          .select("id, spotify_url")
-          .not("spotify_url", "is", null)
-          .range(from, from + PAGE_SIZE - 1);
-        if (err) throw err;
-        (page ?? []).forEach((t: any) => {
-          const sid = extractSpotifyTrackId(t.spotify_url);
-          if (sid) idMap[sid] = t.id;
-        });
-        if (!page || page.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-      }
-
-      // Page through the user's actual Spotify library.
+      // Page through the listener's Liked Songs and send them to the
+      // archive in chunks: songs already here get collected, and songs from
+      // artists in the archive that aren't here yet get added once our own
+      // reading of that release confirms them (rpc_import_liked_songs).
       let checked = 0;
-      const matchedTrackIds = new Set<string>();
+      const totals = { collected: 0, added: 0, waiting: 0 };
+      let chunk: { spotify_url: string; album_id: string | null; album_type: string | null; artist_ids: string[] }[] = [];
+      const send = async () => {
+        if (chunk.length === 0) return;
+        const { data, error: err } = await supabase.rpc("rpc_import_liked_songs", { p_items: chunk });
+        if (err) throw new Error(err.message);
+        totals.collected += data?.collected ?? 0;
+        totals.added += data?.added ?? 0;
+        totals.waiting += data?.waiting ?? 0;
+        chunk = [];
+      };
       let next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
       while (next) {
         const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${providerToken}` } });
-        const data: any = await res.json();
+        const data: any = await res.json().catch(() => null);
+        if (res.status === 403) {
+          throw new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours.");
+        }
         if (!res.ok) {
           throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
         }
         for (const item of data.items ?? []) {
           checked++;
-          const sid = item.track?.id;
-          if (sid && idMap[sid]) matchedTrackIds.add(idMap[sid]);
+          const t = item.track;
+          if (!t?.external_urls?.spotify) continue;
+          chunk.push({
+            spotify_url: t.external_urls.spotify,
+            album_id: t.album?.id ?? null,
+            album_type: t.album?.album_type ?? null,
+            artist_ids: (t.artists ?? []).map((a: any) => a.id).filter(Boolean),
+          });
         }
+        if (chunk.length >= 1000) await send();
         setImportProgress(checked);
         next = data.next;
       }
+      await send();
 
-      // Mark matches as collected -- upsert so already-collected ones are a no-op.
-      const rows = Array.from(matchedTrackIds).map((trackId) => ({ user_id: user.id, track_id: trackId }));
-      let newlyCollected = 0;
-      if (rows.length > 0) {
-        const { data: already } = await supabase
-          .from("track_ownership")
-          .select("track_id")
-          .eq("user_id", user.id)
-          .in("track_id", Array.from(matchedTrackIds));
-        const alreadySet = new Set((already ?? []).map((r: any) => r.track_id));
-        newlyCollected = rows.filter((r) => !alreadySet.has(r.track_id)).length;
-        await supabase.from("track_ownership").upsert(rows, { onConflict: "user_id,track_id", ignoreDuplicates: true });
-      }
-
-      setImportResult({ checked, matched: matchedTrackIds.size, newlyCollected });
+      setImportResult({ checked, ...totals });
     } catch (e: any) {
       setImportError(e?.message ?? String(e));
     } finally {
@@ -224,10 +208,13 @@ export default function SettingsPage() {
 
       <div className="section-label" id="spotify-import" style={{ scrollMarginTop: 20 }}>Import from Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 16, maxWidth: 520 }}>
-        Checks your actual Spotify library against tracks Static Cuts already has a confirmed link
-        for, and marks any matches as collected. Exact ID matching, not a title guess — but it can
-        only find tracks the archive already has a Spotify link for, so it'll only ever cover your
-        official-release collection, not unreleased or leaked material.
+        Goes through your Liked Songs on Spotify. Songs already in the archive are marked as collected. Songs by
+        artists in the archive that aren&apos;t here yet get added (and collected): straight away if we&apos;ve already
+        read that release on Spotify, otherwise once we have (usually within a day, Spotify only lets us ask a few times a minute). Songs by artists who aren&apos;t in the
+        archive are left alone.
+      </div>
+      <div className="comment-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
+        Invited testers only for now: Spotify limits new sites like ours to a few Spotify accounts.
       </div>
       <button className="comment-post-btn" disabled={importBusy} onClick={startSpotifyImport} style={{ marginBottom: 12 }}>
         {importBusy
@@ -246,9 +233,9 @@ export default function SettingsPage() {
       )}
       {importResult && (
         <div className="detail-meta" style={{ maxWidth: 520, marginBottom: 20 }}>
-          Checked {importResult.checked} tracks in your Spotify library — {importResult.matched} matched
-          something in the archive, {importResult.newlyCollected} newly marked collected
-          {importResult.matched > importResult.newlyCollected && ` (${importResult.matched - importResult.newlyCollected} were already marked)`}.
+          Checked {importResult.checked} liked songs. {importResult.collected} newly marked collected
+          {importResult.added > 0 && `, ${importResult.added} added to the archive`}
+          {importResult.waiting > 0 && `, ${importResult.waiting} more will be added once we've read their releases (usually within a day)`}.
         </div>
       )}
 
