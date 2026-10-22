@@ -63,15 +63,31 @@ export default function SettingsPage() {
     return token;
   }
 
+  // Reading a big library is hundreds of requests. Spotify's limit is shared
+  // by everyone using our Spotify app (the background jobs too), so go at a
+  // steady pace, and when Spotify says "too many requests", wait as long as
+  // it asks and carry on rather than giving up.
+  const [waitNote, setWaitNote] = useState<string | null>(null);
   async function spotifyGet(url: string, token: string) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    const data: any = await res.json().catch(() => null);
-    if (res.status === 403) {
-      throw Object.assign(new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours."), { status: 403 });
+    for (let attempt = 0; ; attempt++) {
+      await new Promise((r) => setTimeout(r, 350));
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 429 && attempt < 8) {
+        const wait = Math.min(Math.max(parseInt(res.headers.get("Retry-After") || "10", 10) || 10, 5), 120);
+        setWaitNote(`Spotify asked us to slow down, carrying on in ${wait}s…`);
+        await new Promise((r) => setTimeout(r, wait * 1000));
+        setWaitNote(null);
+        continue;
+      }
+      const data: any = await res.json().catch(() => null);
+      if (res.status === 403) {
+        throw Object.assign(new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours."), { status: 403 });
+      }
+      if (res.status === 401) throw new Error("Your Spotify session expired — press the button again to reconnect.");
+      if (res.status === 429) throw new Error("Spotify is very busy right now. Try again in a few minutes: songs already done won't be done twice.");
+      if (!res.ok) throw new Error(`Spotify said no (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
+      return data;
     }
-    if (res.status === 401) throw new Error("Your Spotify session expired — press the button again to reconnect.");
-    if (!res.ok) throw new Error(`Spotify said no (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
-    return data;
   }
 
   async function loadSources() {
@@ -316,6 +332,7 @@ export default function SettingsPage() {
           {importBusy ? "connecting to Spotify…" : "import from Spotify"}
         </button>
       )}
+      {waitNote && <div className="comment-meta" style={{ marginBottom: 10 }}>{waitNote}</div>}
       {importBusy && importProgress !== null && (
         <div className="bar-track" style={{ height: 4, maxWidth: 520, marginBottom: 12 }}>
           <div className="bar-fill" style={{ width: importProgress > 0 ? "100%" : "8%", transition: "width 0.3s" }} />
