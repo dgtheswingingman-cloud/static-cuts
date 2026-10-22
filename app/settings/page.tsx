@@ -85,12 +85,17 @@ export default function SettingsPage() {
   const [waitNote, setWaitNote] = useState<string | null>(null);
   async function spotifyGet(url: string, token: string) {
     for (let attempt = 0; ; attempt++) {
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 700));
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 429 && attempt < 8) {
-        const wait = Math.min(Math.max(parseInt(res.headers.get("Retry-After") || "10", 10) || 10, 5), 120);
-        setWaitNote(`Spotify asked us to slow down, carrying on in ${wait}s…`);
-        await new Promise((r) => setTimeout(r, wait * 1000));
+      if (res.status === 429 && attempt < 6) {
+        const wait = Math.max(parseInt(res.headers.get("Retry-After") || "30", 10) || 30, 5);
+        if (wait > 15 * 60) {
+          throw new Error(`Spotify asked us to wait ${Math.ceil(wait / 60)} minutes. Come back later and press import again: it carries on where it stopped.`);
+        }
+        for (let left = wait; left > 0; left--) {
+          setWaitNote(`Spotify asked us to slow down. Carrying on in ${left}s…`);
+          await new Promise((r) => setTimeout(r, 1000));
+        }
         setWaitNote(null);
         continue;
       }
@@ -98,8 +103,8 @@ export default function SettingsPage() {
       if (res.status === 403) {
         throw Object.assign(new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours."), { status: 403 });
       }
-      if (res.status === 401) throw new Error("Your Spotify session expired — press the button again to reconnect.");
-      if (res.status === 429) throw new Error("Spotify is very busy right now. Try again in a few minutes: songs already done won't be done twice.");
+      if (res.status === 401) throw new Error("Your Spotify session expired — press the button again to reconnect. It carries on where it stopped.");
+      if (res.status === 429) throw new Error("Spotify is very busy right now. Try again later: it carries on where it stopped.");
       if (!res.ok) throw new Error(`Spotify said no (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
       return data;
     }
@@ -161,6 +166,14 @@ export default function SettingsPage() {
       const suggest = suggestNow;
       const totals = { collected: 0, added: 0, waiting: 0 };
       let chunk: Record<string, unknown>[] = [];
+      // Where each list got to, kept in this browser after every batch sent,
+      // so a stopped import (Spotify saying slow down, a closed tab) carries
+      // on instead of starting again from the first song.
+      const PROGRESS_KEY = "static_cuts_spotify_import_progress";
+      let progress: Record<string, string> = {};
+      try { progress = JSON.parse(local.get(PROGRESS_KEY) ?? "{}") ?? {}; } catch { progress = {}; }
+      const saveProgress = () => local.set(PROGRESS_KEY, JSON.stringify(progress));
+      if (Object.keys(progress).length > 0) setWaitNote("Carrying on from where your last import stopped…");
       const send = async () => {
         if (chunk.length === 0) return;
         const { data, error: err } = await supabase.rpc("rpc_import_liked_songs", { p_items: chunk });
@@ -171,7 +184,8 @@ export default function SettingsPage() {
         chunk = [];
       };
       for (const src of sources.filter((x) => picked.has(x.id))) {
-        let next: string | null = src.id === "liked"
+        if (progress[src.id] === "done") continue;
+        let next: string | null = progress[src.id]?.startsWith("https://api.spotify.com/") ? progress[src.id] : src.id === "liked"
           ? "https://api.spotify.com/v1/me/tracks?limit=50"
           : `https://api.spotify.com/v1/playlists/${src.id}/items?limit=50`;
         try {
@@ -206,18 +220,27 @@ export default function SettingsPage() {
                 artists: (t.artists ?? []).map((a: any) => ({ id: a.id, name: a.name })),
               });
             }
-            if (chunk.length >= 1000) await send();
             setImportProgress(checked);
+            if (checked > 0) setWaitNote(null);
             next = data?.next ?? null;
+            if (chunk.length >= 500) {
+              await send();
+              progress[src.id] = next ?? "done";
+              saveProgress();
+            }
           }
+          await send();
+          progress[src.id] = "done";
+          saveProgress();
         } catch (e: any) {
           // One playlist Spotify won't share shouldn't stop the rest.
-          if (src.id !== "liked" && e?.status === 403) { skipped.push(src.name); continue; }
+          if (src.id !== "liked" && e?.status === 403) { skipped.push(src.name); progress[src.id] = "done"; saveProgress(); continue; }
           throw e;
         }
       }
       await send();
       const suggested = await suggest();
+      local.remove(PROGRESS_KEY);
       setImportResult({ checked, ...totals, skipped, suggested });
       setSources(null);
     } catch (e: any) {
