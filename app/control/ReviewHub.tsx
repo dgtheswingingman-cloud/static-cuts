@@ -243,7 +243,11 @@ export default function ReviewHub() {
   }
 
   function describeSimple(s: Submission) {
-    if (s.type === "new_artist") return `New artist: "${s.payload.name}"`;
+    if (s.type === "new_artist") {
+      return s.payload.from_spotify
+        ? `New artist: "${s.payload.name}" (${s.payload.library_songs} songs in ${s.payload.library_people} ${s.payload.library_people === 1 ? "person's" : "people's"} Spotify)`
+        : `New artist: "${s.payload.name}"`;
+    }
     if (s.type === "new_track") {
       const flags = [s.payload.is_featured && "featured", s.payload.is_official && "official"].filter(Boolean).join(", ");
       const linkPart = s.payload.spotify_url ? ` — link: ${s.payload.spotify_url}` : "";

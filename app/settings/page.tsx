@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importProgress, setImportProgress] = useState<number | null>(null);
-  const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number; skipped: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number; skipped: string[]; suggested: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
   // After coming back from Spotify: the listener picks what to import —
@@ -114,6 +114,9 @@ export default function SettingsPage() {
       let checked = 0;
       const skipped: string[] = [];
       const seen = new Set<string>();
+      // Main artist of every song, so artists not in the archive yet can be
+      // suggested as new artists (rpc_suggest_library_artists).
+      const byArtist = new Map<string, { id: string; name: string; songs: number }>();
       const totals = { collected: 0, added: 0, waiting: 0 };
       let chunk: { spotify_url: string; album_id: string | null; album_type: string | null; artist_ids: string[] }[] = [];
       const send = async () => {
@@ -138,6 +141,12 @@ export default function SettingsPage() {
               if (!t || t.type === "episode" || t.is_local || !t.external_urls?.spotify) continue;
               if (seen.has(t.external_urls.spotify)) continue;
               seen.add(t.external_urls.spotify);
+              const main = t.artists?.[0];
+              if (main?.id && main?.name) {
+                const cur = byArtist.get(main.id) ?? { id: main.id, name: main.name, songs: 0 };
+                cur.songs++;
+                byArtist.set(main.id, cur);
+              }
               chunk.push({
                 spotify_url: t.external_urls.spotify,
                 album_id: t.album?.id ?? null,
@@ -156,7 +165,8 @@ export default function SettingsPage() {
         }
       }
       await send();
-      setImportResult({ checked, ...totals, skipped });
+      const { data: suggested } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
+      setImportResult({ checked, ...totals, skipped, suggested: typeof suggested === "number" ? suggested : 0 });
       setSources(null);
     } catch (e: any) {
       setImportError(e?.message ?? String(e));
@@ -267,7 +277,7 @@ export default function SettingsPage() {
         Goes through your Liked Songs and any of your own playlists you pick. Songs already in the archive are marked as collected. Songs by
         artists in the archive that aren&apos;t here yet get added (and collected): straight away if we&apos;ve already
         read that release on Spotify, otherwise once we have (usually within a day, Spotify only lets us ask a few times a minute). Songs by artists who aren&apos;t in the
-        archive are left alone.
+        archive are suggested as new artists (once they have a few songs), for a moderator to add.
       </div>
       <div className="comment-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
         Invited testers only for now: Spotify limits new sites like ours to a few Spotify accounts.
@@ -317,6 +327,7 @@ export default function SettingsPage() {
           Checked {importResult.checked} songs. {importResult.collected} newly marked collected
           {importResult.added > 0 && `, ${importResult.added} added to the archive`}
           {importResult.waiting > 0 && `, ${importResult.waiting} more will be added once we've read their releases (usually within a day)`}.
+          {importResult.suggested > 0 && ` ${importResult.suggested} artist${importResult.suggested === 1 ? "" : "s"} you listen to that aren't here yet ${importResult.suggested === 1 ? "has" : "have"} been suggested as new artists.`}
           {importResult.skipped.length > 0 && ` Spotify wouldn't share: ${importResult.skipped.join(", ")}.`}
         </div>
       )}
