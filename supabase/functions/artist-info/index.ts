@@ -41,6 +41,37 @@ function cleanBio(html: string) {
     .trim();
 }
 
+// One Spotify sign-in lasts an hour, so it's kept and shared by every
+// Spotify job instead of signing in again each run (each sign-in takes a
+// ticket). Returns null when there's no ticket for a new one right now.
+async function cachedSpotifyToken(): Promise<string | null> {
+  const { data: rows } = await db.from("sc_private_settings").select("key, value")
+    .in("key", ["spotify_token", "spotify_token_expires"]);
+  const saved = Object.fromEntries(((rows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+  if (saved.spotify_token && Date.parse(saved.spotify_token_expires ?? "") > Date.now() + 5 * 60_000) return saved.spotify_token;
+  const id = Deno.env.get("SPOTIFY_CLIENT_ID"), secret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+  if (!id || !secret) return null;
+  const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+  if (t !== 1) return null;
+  const resp = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${id}:${secret}`) },
+    body: "grant_type=client_credentials",
+  });
+  if (resp.status === 429) {
+    const wait = Math.max(parseInt(resp.headers.get("Retry-After") || "60", 10) || 60, 600);
+    await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + wait * 1000).toISOString() }, { onConflict: "key" });
+    return null;
+  }
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data?.access_token) return null;
+  await db.from("sc_private_settings").upsert([
+    { key: "spotify_token", value: data.access_token },
+    { key: "spotify_token_expires", value: new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString() },
+  ], { onConflict: "key" });
+  return data.access_token as string;
+}
+
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
@@ -57,15 +88,8 @@ Deno.serve(async (req) => {
   // asking for several artists at once for apps like ours), then Genius for
   // any still without one. Each request takes a ticket.
   const needPhoto = artists.filter((a) => a.need_image);
-  const cid = Deno.env.get("SPOTIFY_CLIENT_ID"), csec = Deno.env.get("SPOTIFY_CLIENT_SECRET");
-  if (needPhoto.some((a) => a.spotify_artist_id) && cid && csec && !(await paused("spotify"))) {
-    const { data: t0 } = await db.rpc("sc_spotify_allow", { p_want: 1 });
-    const tok = t0 === 1 ? await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${cid}:${csec}`) },
-      body: "grant_type=client_credentials",
-    }) : null;
-    const token = tok?.ok ? (await tok.json())?.access_token : null;
+  if (needPhoto.some((a) => a.spotify_artist_id) && !(await paused("spotify"))) {
+    const token = await cachedSpotifyToken();
     for (const a of needPhoto.filter((x) => x.spotify_artist_id)) {
       if (!token) break;
       const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });

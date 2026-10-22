@@ -4,6 +4,7 @@
 // button on the artist page, or on a timer overnight (see
 // 20261018150000_scheduled_imports.sql):
 //   spotify  every album, single and feature -> added straight to the page
+//            (read in the background by match-spotify; see importSpotify)
 //   genius   every song on the artist's Genius profile -> import review list
 //   lastfm   the artist's most-played tracks -> import review list
 //
@@ -85,13 +86,6 @@ function splitCredits(t: string): { title: string; credits: string[] } {
   return { title: title.replace(/\s{2,}/g, " ").trim(), credits: credits.filter(Boolean) };
 }
 
-// " - 2011 Remaster", " - Single Version" etc. aren't part of the song name.
-function cleanSpotifyTitle(t: string): string {
-  return splitCredits(t).title
-    .replace(/\s+-\s+(\d{4}\s+)?(remaster(ed)?( version)?|single version|radio edit|mono|stereo|bonus track)\b.*$/i, "")
-    .trim();
-}
-
 // Every call to Spotify, Genius or Last.fm takes a ticket from that
 // service's shared allowance first (sc_api_allow: a set number a minute and
 // a day across all jobs). When this minute's tickets are gone it waits for
@@ -137,84 +131,60 @@ type Artist = { id: string; name: string; spotify_artist_id: string | null; geni
 
 // ---------------------------------------------------------------- Spotify
 
-async function spotifyToken() {
-  const id = Deno.env.get("SPOTIFY_CLIENT_ID");
-  const secret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
-  if (!id || !secret) throw new Error("Spotify keys aren't set up.");
-  const data = await getJson("https://accounts.spotify.com/api/token", {
+// One Spotify sign-in lasts an hour, so it's kept and shared by every
+// Spotify job instead of signing in again each run (each sign-in takes a
+// ticket). Returns null when there's no ticket for a new one right now.
+async function cachedSpotifyToken(): Promise<string | null> {
+  const { data: rows } = await db.from("sc_private_settings").select("key, value")
+    .in("key", ["spotify_token", "spotify_token_expires"]);
+  const saved = Object.fromEntries(((rows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+  if (saved.spotify_token && Date.parse(saved.spotify_token_expires ?? "") > Date.now() + 5 * 60_000) return saved.spotify_token;
+  const id = Deno.env.get("SPOTIFY_CLIENT_ID"), secret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+  if (!id || !secret) return null;
+  const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+  if (t !== 1) return null;
+  const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + btoa(`${id}:${secret}`) },
     body: "grant_type=client_credentials",
-  }, "Spotify");
+  });
+  if (resp.status === 429) {
+    const wait = Math.max(parseInt(resp.headers.get("Retry-After") || "60", 10) || 60, 600);
+    await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + wait * 1000).toISOString() }, { onConflict: "key" });
+    return null;
+  }
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data?.access_token) return null;
+  await db.from("sc_private_settings").upsert([
+    { key: "spotify_token", value: data.access_token },
+    { key: "spotify_token_expires", value: new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString() },
+  ], { onConflict: "key" });
   return data.access_token as string;
 }
 
+// Spotify only lets us make a few calls a minute, so a whole discography
+// can't be read while someone waits. match-spotify reads every artist's
+// releases in the background and keeps their songs. Pressing "import from
+// Spotify" adds those songs now if they're up to date, or moves the artist
+// to the front of that queue and the songs are added when it's finished.
 async function importSpotify(artist: Artist, runId: string) {
-  const token = await spotifyToken();
-  const h = { headers: { Authorization: `Bearer ${token}` } };
-  let spotifyId = artist.spotify_artist_id;
   let profileNote: string | null = null;
 
-  if (!spotifyId) {
-    const s = await getJson(`https://api.spotify.com/v1/search?type=artist&limit=10&q=${encodeURIComponent(artist.name)}`, h, "Spotify");
+  if (!artist.spotify_artist_id) {
+    const token = await cachedSpotifyToken();
+    if (!token) throw new Error("Spotify is busy with other jobs right now. Try this import again in a few minutes.");
+    const s = await getJson(`https://api.spotify.com/v1/search?type=artist&limit=10&q=${encodeURIComponent(artist.name)}`,
+      { headers: { Authorization: `Bearer ${token}` } }, "Spotify");
     const exact = (s?.artists?.items ?? []).filter((a: any) => norm(a.name) === norm(artist.name));
-    exact.sort((a: any, b: any) => (b.followers?.total ?? 0) - (a.followers?.total ?? 0));
     if (!exact.length) throw new NotFound(`Couldn't find "${artist.name}" on Spotify. Add their Spotify link with the "profiles" button and try again.`);
-    spotifyId = exact[0].id as string;
-    await db.rpc("sc_import_set_profile", { p_artist_id: artist.id, p_field: "spotify", p_value: spotifyId });
-    profileNote = `Linked to Spotify profile "${exact[0].name}" (${exact[0].followers?.total ?? 0} followers). Check it's the right one under "profiles".`;
+    await db.rpc("sc_import_set_profile", { p_artist_id: artist.id, p_field: "spotify", p_value: exact[0].id });
+    profileNote = `Linked to Spotify profile "${exact[0].name}". Check it's the right one under "profiles".`;
   }
 
-  // Every release the artist is on.
-  const albums: any[] = [];
-  let next: string | null =
-    `https://api.spotify.com/v1/artists/${spotifyId}/albums?include_groups=album,single,appears_on&limit=50&market=GB`;
-  for (let page = 0; next && page < 8; page++) {
-    const data: any = await getJson(next, h, "Spotify");
-    albums.push(...(data.items ?? []));
-    next = data.next;
-  }
-
-  // Full track lists, 20 releases per request. Albums before singles, so a
-  // song keeps its album name rather than the single's.
-  const ordered = albums
-    .filter((a) => a.album_type !== "compilation")
-    .sort((a, b) => (a.album_group === "album" ? 0 : a.album_group === "single" ? 1 : 2) - (b.album_group === "album" ? 0 : b.album_group === "single" ? 1 : 2));
-  const items = new Map<string, Record<string, unknown>>();
-  for (let i = 0; i < ordered.length; i += 20) {
-    const ids = ordered.slice(i, i + 20).map((a) => a.id).join(",");
-    const data: any = await getJson(`https://api.spotify.com/v1/albums?ids=${ids}&market=GB`, h, "Spotify");
-    for (const album of data.albums ?? []) {
-      if (!album) continue;
-      for (const tr of album.tracks?.items ?? []) {
-        const names: any[] = tr.artists ?? [];
-        if (!names.some((a) => a.id === spotifyId)) continue; // not on this song
-        const title = cleanSpotifyTitle(tr.name);
-        const titleCredits = splitCredits(tr.name).credits;
-        const key = norm(title);
-        if (!key || items.has(key)) continue;
-        const isFeature = names[0]?.id !== spotifyId;
-        items.set(key, {
-          title,
-          spotify_url: tr.external_urls?.spotify,
-          album: album.album_type === "single" && album.total_tracks === 1 ? null : album.name,
-          release_date: album.release_date_precision === "day" ? album.release_date : null,
-          track_number: album.album_type === "album" ? tr.track_number : null,
-          main_artist_name: isFeature ? names[0]?.name : null,
-          featured: [...new Set([...names.filter((a) => a.id !== spotifyId && a.id !== names[0]?.id).map((a) => a.name), ...titleCredits])].join(", ") || null,
-        });
-      }
-    }
-  }
-
-  const all = [...items.values()];
-  const totals = { added: 0, updated: 0, skipped: 0 };
-  for (let i = 0; i < all.length; i += 150) {
-    const { data, error } = await db.rpc("sc_import_add_tracks", { p_run: runId, p_items: all.slice(i, i + 150) });
-    if (error) throw new Error(error.message);
-    totals.added += data.added; totals.updated += data.updated; totals.skipped += data.skipped;
-  }
-  return { ...totals, found: all.length, profileNote };
+  const { data, error } = await db.rpc("sc_spotify_import_request", { p_run: runId });
+  if (error) throw new Error(error.message);
+  if (data?.done) return { added: data.added ?? 0, updated: data.updated ?? 0, skipped: data.skipped ?? 0, profileNote };
+  return { queued: true, releases_left: data?.releases_left ?? null, profileNote };
 }
 
 // ----------------------------------------------------------------- Genius
@@ -382,10 +352,11 @@ Deno.serve(async (req) => {
     const { data: artist, error } = await db.from("artists")
       .select("id, name, spotify_artist_id, genius_artist_id, lastfm_name").eq("id", artistId).single();
     if (error || !artist) throw new Error("Unknown artist.");
-    const result = source === "spotify" ? await importSpotify(artist as Artist, runId)
+    const result: Record<string, unknown> = source === "spotify" ? await importSpotify(artist as Artist, runId)
       : source === "genius" ? await importGenius(artist as Artist, runId)
       : await importLastfm(artist as Artist, runId);
-    await db.rpc("sc_import_finish", { p_run: runId, p_error: null });
+    // A queued Spotify import stays open; match-spotify closes it when done.
+    if (!result.queued) await db.rpc("sc_import_finish", { p_run: runId, p_error: null });
     return json({ ok: true, source, ...result });
   } catch (e: any) {
     if (e instanceof NotFound && cronSecret) {
