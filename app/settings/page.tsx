@@ -35,6 +35,21 @@ const LABELS: Record<keyof Prefs, string> = {
 };
 const NOTIFY_KEYS: (keyof Prefs)[] = ["notify_followed_daily", "notify_collected"];
 
+// Pull "(feat. X)", "(with X)", "ft. X" out of a song title (the archive keeps
+// titles without them and the guests separately).
+function splitCredits(t: string): { title: string; credits: string[] } {
+  const credits: string[] = [];
+  let title = t.replace(/\s*[\(\[]\s*(?:feat\.|ft\.|feat\s|ft\s|featuring\s|with\s)\s*([^\)\]]*)[\)\]]/gi, (_m, who) => {
+    credits.push(String(who).trim());
+    return "";
+  });
+  title = title.replace(/\s+(?:feat\.?|ft\.?|featuring)\s+(.*)$/i, (_m, who) => {
+    credits.push(String(who).trim());
+    return "";
+  });
+  return { title: title.replace(/\s{2,}/g, " ").trim(), credits: credits.filter(Boolean) };
+}
+
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -145,7 +160,7 @@ export default function SettingsPage() {
       };
       const suggest = suggestNow;
       const totals = { collected: 0, added: 0, waiting: 0 };
-      let chunk: { spotify_url: string; album_id: string | null; album_type: string | null; artist_ids: string[] }[] = [];
+      let chunk: Record<string, unknown>[] = [];
       const send = async () => {
         if (chunk.length === 0) return;
         const { data, error: err } = await supabase.rpc("rpc_import_liked_songs", { p_items: chunk });
@@ -174,11 +189,21 @@ export default function SettingsPage() {
                 cur.songs++;
                 byArtist.set(main.id, cur);
               }
+              const named = splitCredits(t.name || "");
               chunk.push({
                 spotify_url: t.external_urls.spotify,
                 album_id: t.album?.id ?? null,
                 album_type: t.album?.album_type ?? null,
                 artist_ids: (t.artists ?? []).map((a: any) => a.id).filter(Boolean),
+                // Used to add the song straight away for trusted people.
+                title: named.title.replace(/\s+-\s+(\d{4}\s+)?(remaster(ed)?( version)?|single version|radio edit|mono|stereo|bonus track)\b.*$/i, "").trim(),
+                credits: named.credits,
+                album_name: t.album?.name ?? null,
+                total_tracks: t.album?.total_tracks ?? null,
+                release_date: t.album?.release_date ?? null,
+                release_precision: t.album?.release_date_precision ?? null,
+                track_number: t.track_number ?? null,
+                artists: (t.artists ?? []).map((a: any) => ({ id: a.id, name: a.name })),
               });
             }
             if (chunk.length >= 1000) await send();
