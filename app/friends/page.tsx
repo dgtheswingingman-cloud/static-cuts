@@ -77,7 +77,8 @@ export default function FriendsPage() {
       <h1 className="detail-name page-title">Friends</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>
         Friends are people you follow who follow you back. You can see each other&apos;s collections and ratings, even
-        private ones. Follow someone from their profile.
+        private ones. Find people by typing their name in <Link href="/search" className="text-link">search</Link>, or send
+        them your profile link (the &ldquo;share profile&rdquo; button on your profile), then follow from their profile.
       </div>
 
       {followBack.length > 0 && (

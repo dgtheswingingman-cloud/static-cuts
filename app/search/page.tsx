@@ -32,6 +32,8 @@ function SearchInner() {
   const [fuzzy, setFuzzy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  // People whose name matches, so you can find friends.
+  const [people, setPeople] = useState<{ id: string; display_name: string | null; avatar_url: string | null }[]>([]);
 
   function update(changes: Record<string, string | null>) {
     const next = new URLSearchParams(params.toString());
@@ -64,6 +66,13 @@ function SearchInner() {
   }
 
   const key = params.toString();
+  useEffect(() => {
+    const words = (params.get("q") ?? "").trim().replace(/[%_,()\\]/g, " ").trim();
+    if (words.length < 2) { setPeople([]); return; }
+    supabase.from("profiles").select("id, display_name, avatar_url").ilike("display_name", `%${words}%`).limit(6)
+      .then(({ data }) => setPeople((data as typeof people) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.get("q")]);
   const hasAnything = !!(params.get("q") || statuses.length || from || to || link);
   useEffect(() => {
     setError(null);
@@ -148,8 +157,24 @@ function SearchInner() {
       </div>
 
       {error && <div className="empty-state">Search failed: {error}</div>}
-      {!hasAnything && <div className="empty-state">Type a song name, or pick a filter (try “leaked” and “no link”).</div>}
+      {!hasAnything && <div className="empty-state">Type a song name or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>}
       {hasAnything && !error && !results && <div className="empty-state">searching…</div>}
+      {people.length > 0 && (
+        <>
+          <div className="section-label">People</div>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            {people.map((p) => (
+              <Link key={p.id} href={`/profile/${p.id}`} style={{ display: "flex", gap: 8, alignItems: "center", textDecoration: "none", color: "var(--bone)" }}>
+                {p.avatar_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={p.avatar_url} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+                  : <span style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface)", display: "inline-block" }} />}
+                <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{p.display_name ?? "anonymous"}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
       {results && (
         <div className="section-label">
           {fuzzy
