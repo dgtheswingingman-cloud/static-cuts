@@ -138,6 +138,7 @@ export default function ArtistPage() {
   // imports and guest artists. The admin edits them.
   const [aliases, setAliases] = useState<string[]>([]);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [sameOpen, setSameOpen] = useState(false);
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
@@ -1682,7 +1683,16 @@ export default function ArtistPage() {
                   find links ↗
                 </a>
               )}
+              {user && !isAdmin && (
+                <button className={`tab ${sameOpen ? "active" : ""}`} title="Report that this page and another one are the same artist."
+                  onClick={() => setSameOpen(!sameOpen)}>
+                  same artist as…
+                </button>
+              )}
             </div>
+          )}
+          {user && !isAdmin && headerMore && sameOpen && (
+            <MergeArtist mode="report" artistId={id} artistName={artist.name} onClose={() => setSameOpen(false)} />
           )}
           {isAdmin && (
             <div className="artist-actions artist-admin">

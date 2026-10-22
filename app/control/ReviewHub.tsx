@@ -59,6 +59,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
   { key: "new_tracks", label: "New Tracks", types: ["new_track"] },
   { key: "new_versions", label: "New Versions (Alt Takes)", types: ["new_version"] },
   { key: "new_artists", label: "New Artists", types: ["new_artist"] },
+  { key: "same_artist", label: "Same Artist Reports", types: ["artist_merge"] },
   { key: "flags", label: "Flagged Links", types: ["flag_link"] },
   { key: "deletions", label: "Flagged for Deletion", types: ["flag_deletion"] },
 ];
@@ -257,6 +258,9 @@ export default function ReviewHub() {
       const linkPart = s.payload.spotify_url ? ` — link: ${s.payload.spotify_url}` : "";
       return `New sub-entry for ${artistNames[s.artist_id ?? ""] ?? s.artist_id}: "${s.payload.title}"${linkPart}`;
     }
+    if (s.type === "artist_merge") {
+      return `"${s.payload.from_name}" and "${s.payload.into_name}" are the same artist${s.payload.note ? ` — "${s.payload.note}"` : ""}`;
+    }
     if (s.type === "flag_link") {
       const replacement = s.payload.suggested_replacement_url;
       return `Link flagged as broken/wrong${s.payload.reason ? `: "${s.payload.reason}"` : ""}${replacement ? ` — suggested replacement: ${replacement}` : ""}`;
@@ -331,6 +335,15 @@ export default function ReviewHub() {
       return `/artist/${s.artist_id}?highlight=${s.payload.parent_track_id}`;
     }
     return null;
+  }
+
+  async function mergeReport(s: Submission, keep: string, keepName: string, otherName: string) {
+    if (!window.confirm(`Merge "${otherName}" into "${keepName}"? Its songs, followers and links move over, "${otherName}" becomes a nickname, and its page is removed.`)) return;
+    setBusyId(s.id);
+    const { error: err } = await supabase.rpc("admin_approve_artist_merge", { p_submission: s.id, p_keep: keep });
+    setBusyId(null);
+    if (err) { alert(err.message); return; }
+    load();
   }
 
   function renderEntry(s: Submission) {
@@ -453,6 +466,21 @@ export default function ReviewHub() {
             by {names[s.submitted_by] ?? "…"}{fromRoutine ? " (via ChatGPT routine)" : ""} · {new Date(s.created_at).toLocaleString()}
           </div>
         </div>
+        {s.type === "artist_merge" ? (
+          <>
+            <Link href={`/artist/${s.artist_id}`} className="listen-link">view {s.payload.from_name}</Link>
+            <Link href={`/artist/${s.payload.into}`} className="listen-link">view {s.payload.into_name}</Link>
+            <button className="listen-link" disabled={busyId === s.id}
+              onClick={() => mergeReport(s, s.payload.into, s.payload.into_name, s.payload.from_name)}>
+              keep {s.payload.into_name}
+            </button>
+            <button className="listen-link" disabled={busyId === s.id}
+              onClick={() => mergeReport(s, s.artist_id ?? "", s.payload.from_name, s.payload.into_name)}>
+              keep {s.payload.from_name}
+            </button>
+            <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>not the same</button>
+          </>
+        ) : (<>
         {link && (
           <Link href={link} className="listen-link">
             view live page
@@ -470,6 +498,7 @@ export default function ReviewHub() {
         <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
           {isDeletion ? "keep track" : isFlag ? "keep link" : "reject"}
         </button>
+        </>)}
       </div>
     );
   }
