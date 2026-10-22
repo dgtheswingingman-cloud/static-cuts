@@ -132,11 +132,17 @@ export default function ExportifyImport() {
           seen.add(url);
           const uris = cArtistUris >= 0 ? (r[cArtistUris] ?? "").split(",").map((u) => idOf(u.trim(), "artist")).filter((x): x is string => !!x) : [];
           const names = cArtists >= 0 ? (r[cArtists] ?? "").split(",").map((n) => n.trim()).filter(Boolean) : [];
-          const artists = uris.map((id, i) => ({ id, name: uris.length === names.length ? names[i] : i === 0 ? names[0] ?? "" : "" }));
-          if (artists[0]?.id && artists[0].name) {
-            const cur = byArtist.get(artists[0].id) ?? { id: artists[0].id, name: artists[0].name, songs: 0 };
+          // exportify.net gives artist names only (no Spotify artist IDs):
+          // those are matched to artists here by name.
+          const artists: { id?: string; name: string }[] = uris.length > 0
+            ? uris.map((id, i) => ({ id, name: uris.length === names.length ? names[i] : i === 0 ? names[0] ?? "" : "" }))
+            : names.map((name) => ({ name }));
+          const main = artists[0];
+          if (main?.name) {
+            const key = main.id ?? `name:${main.name.toLowerCase()}`;
+            const cur = byArtist.get(key) ?? { id: key, name: main.name, songs: 0 };
             cur.songs++;
-            byArtist.set(artists[0].id, cur);
+            byArtist.set(key, cur);
           }
           const trackName = cName >= 0 ? r[cName] ?? "" : "";
           const albumName = cAlbum >= 0 ? r[cAlbum] ?? "" : "";
@@ -147,6 +153,7 @@ export default function ExportifyImport() {
             album_id: idOf(cAlbumUri >= 0 ? r[cAlbumUri] : undefined, "album"),
             album_type: albumName && albumName.toLowerCase() === trackName.toLowerCase() ? "single" : "album",
             artist_ids: uris,
+            artist_names: names,
             title: named.title,
             credits: named.credits,
             album_name: albumName || null,
@@ -174,7 +181,7 @@ export default function ExportifyImport() {
         (totals.added ? `, ${totals.added.toLocaleString("en-GB")} added to the archive` : "") +
         (totals.waiting ? `, ${totals.waiting.toLocaleString("en-GB")} more will be added once we've read their releases` : "") +
         (typeof suggested === "number" && suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") + "." +
-        (noArtistIds ? " (Those files had no artist links, so only songs already here could be matched: export again with all the columns turned on.)" : ""));
+        (noArtistIds ? " (These files only have artist names, so songs were matched to artists here by name.)" : ""));
     } catch (e: any) {
       setError(e?.message ?? String(e));
       setNote(null);
