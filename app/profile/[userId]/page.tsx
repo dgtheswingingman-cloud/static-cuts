@@ -282,6 +282,12 @@ export default function ProfilePage() {
                 </button>
               )}
               {!isOwnProfile && social.follows_me && !social.i_follow && <span className="feature-tag">follows you</span>}
+              {viewer && !isOwnProfile && isFriend && (
+                <Link href={`/messages/${userId}`} className="tab" style={{ textDecoration: "none", display: "inline-block" }}>message</Link>
+              )}
+              {isOwnProfile && (
+                <Link href="/messages" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>messages</Link>
+              )}
               {isOwnProfile && (
                 <Link href="/friends" className="tab" style={{ textDecoration: "none", display: "inline-block" }}>friends&apos; activity</Link>
               )}
