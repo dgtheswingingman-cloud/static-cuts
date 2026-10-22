@@ -39,6 +39,15 @@ async function deezer(path: string): Promise<{ ok: true; body: any } | { ok: fal
   return { ok: true, body };
 }
 
+// Deezer has clean (edited) copies of explicit albums and labels songs
+// "(Album Version)", "(Explicit)" and so on. Clean copies are skipped and the
+// labels taken off, so they match the songs already on the page.
+const CLEAN = /[\(\[][^\)\]]*\b(edited|clean)\b[^\)\]]*[\)\]]|\s-\s(edited|clean)( version)?$|radio edit/i;
+const tidyTitle = (t: string) => t
+  .replace(/\s*[\(\[](album version( explicit)?|explicit( version)?|explicit album version|lp version|album|main version|(\d{4} )?remaster(ed)?( explicit)?( version)?( \d{4})?)[\)\]]/gi, "")
+  .replace(/\s+-\s+(album version|explicit|main version|(\d{4} )?remaster(ed)?( version)?( \d{4})?)$/i, "")
+  .trim();
+
 const plain = (x: string) => {
   const p = x.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
   return p || x.toLowerCase().trim();
@@ -70,8 +79,13 @@ Deno.serve(async (req) => {
     } else if (next.kind === "list") {
       const r = await deezer(`/artist/${next.deezer_id}/albums?limit=100&index=${next.index ?? 0}`);
       if (!r.ok) break; // try again next run
-      const albums = ((r.body?.data ?? []) as { id: number; title: string; record_type: string; release_date: string; cover_xl?: string; cover_big?: string; link: string }[])
+      const raw = ((r.body?.data ?? []) as { id: number; title: string; record_type: string; release_date: string; cover_xl?: string; cover_big?: string; link: string; explicit_lyrics?: boolean }[]);
+      // Same title twice (explicit and clean copies): keep the explicit one.
+      const explicitTitles = new Set(raw.filter((a) => a.explicit_lyrics).map((a) => a.title.toLowerCase()));
+      const albums = raw
         .filter((a) => ["album", "ep", "single"].includes(a.record_type))
+        .filter((a) => a.explicit_lyrics || !explicitTitles.has(a.title.toLowerCase()))
+        .filter((a) => !CLEAN.test(a.title))
         .map((a) => ({ id: String(a.id), title: a.title, kind: a.record_type, release_date: a.release_date, cover: a.cover_xl || a.cover_big || null, link: a.link }));
       const total = Number(r.body?.total ?? 0);
       const nextIndex = r.body?.next && (next.index ?? 0) + 100 < Math.max(total, 1) ? (next.index ?? 0) + 100 : null;
@@ -81,7 +95,8 @@ Deno.serve(async (req) => {
       const r = await deezer(`/album/${next.album_id}/tracks?limit=300`);
       if (!r.ok) break; // try again next run
       const tracks = ((r.body?.data ?? []) as { title: string; track_position: number; disk_number: number; link: string; artist?: { name: string } }[])
-        .map((t) => ({ title: t.title, position: t.track_position, disk: t.disk_number, link: t.link, artist: t.artist?.name ?? "" }));
+        .filter((t) => !CLEAN.test(t.title))
+        .map((t) => ({ title: tidyTitle(t.title), position: t.track_position, disk: t.disk_number, link: t.link, artist: t.artist?.name ?? "" }));
       const { data: res } = await db.rpc("sc_deezer_album_save", { p_secret: secret, p_artist: next.artist_id, p_album: next.album_id, p_tracks: tracks });
       done.releases++;
       done.matched += (res?.matched as number) ?? 0;
