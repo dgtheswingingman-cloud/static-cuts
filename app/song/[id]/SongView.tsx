@@ -27,6 +27,7 @@ type Track = {
   title: string;
   artist_id: string;
   spotify_url: string | null;
+  deezer_url?: string | null;
   parent_track_id: string | null;
   is_featured: boolean;
   is_official: boolean;
@@ -257,6 +258,11 @@ export default function SongView({ id }: { id: string }) {
           </a>
         )}
         <InlinePlayer url={t.spotify_url} />
+        {t.deezer_url && (
+          <a className={`tab ${t.spotify_url ? "" : "active"}`} href={t.deezer_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+            Deezer ↗
+          </a>
+        )}
         {!isAdmin && (
           <>
             <button className={`tab ${song.owned ? "active" : ""}`} disabled={busy} onClick={toggleOwned}>
@@ -283,7 +289,7 @@ export default function SongView({ id }: { id: string }) {
       <FriendsWhoHaveIt trackId={t.id} signedIn={!!user} />
       <MyFile trackId={t.id} />
       <FileNote trackId={t.id} />
-      {!t.spotify_url && (
+      {!t.spotify_url && !t.deezer_url && (
         <div className="comment-meta" style={{ marginTop: 8 }}>
           No listen link yet: we know about this song but not of a place to play it.{" "}
           <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">Know one? Add it</Link>

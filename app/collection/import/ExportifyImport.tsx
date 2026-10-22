@@ -5,6 +5,11 @@
 // Spotify is making our app wait. The songs then go through exactly the same
 // import as "import from Spotify" (rpc_import_liked_songs), and artists who
 // aren't here yet are suggested (rpc_suggest_library_artists).
+//
+// Also reads Spotify's own "Download your data" zip (Account data): its
+// YourLibrary.json has your liked songs and the artists you follow, and
+// Playlist*.json your playlists. Followed artists that are here get followed;
+// the rest are suggested.
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -56,7 +61,7 @@ const idOf = (uri: string | undefined, kind: string) =>
 
 // Exportify's "Export All" gives a .zip of CSV files. Read the CSVs out of it
 // with the browser's own decompression (no extra library).
-async function csvsFromZip(file: File): Promise<{ name: string; text: string }[]> {
+async function filesFromZip(file: File): Promise<{ name: string; text: string }[]> {
   const buf = new Uint8Array(await file.arrayBuffer());
   const view = new DataView(buf.buffer);
   // Find the central directory (end record is in the last 64 KB).
@@ -78,7 +83,7 @@ async function csvsFromZip(file: File): Promise<{ name: string; text: string }[]
     const local = view.getUint32(p + 42, true);
     const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nameLen));
     p += 46 + nameLen + extraLen + commentLen;
-    if (!/\.csv$/i.test(name)) continue;
+    if (!/\.(csv|json)$/i.test(name)) continue;
     const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
     const data = buf.subarray(start, start + compSize);
     let bytes: Uint8Array;
@@ -107,10 +112,65 @@ export default function ExportifyImport() {
       let noArtistIds = false;
       const texts: { name: string; text: string }[] = [];
       for (const f of Array.from(files)) {
-        if (/\.zip$/i.test(f.name) || f.type.includes("zip")) texts.push(...(await csvsFromZip(f)));
+        if (/\.zip$/i.test(f.name) || f.type.includes("zip")) texts.push(...(await filesFromZip(f)));
         else texts.push({ name: f.name, text: await f.text() });
       }
-      for (const file of texts) {
+      // Spotify's own data download (JSON): liked songs, playlists, followed artists.
+      const followedIds = new Map<string, string>();
+      const addSong = (uri: string | undefined, trackName: string, artist: string, album: string) => {
+        const tid = idOf(uri, "track");
+        if (!tid || !trackName) return;
+        const url = `https://open.spotify.com/track/${tid}`;
+        if (seen.has(url)) return;
+        seen.add(url);
+        const named = splitCredits(trackName);
+        if (artist) {
+          const key = `name:${artist.toLowerCase()}`;
+          const cur = byArtist.get(key) ?? { id: key, name: artist, songs: 0 };
+          cur.songs++;
+          byArtist.set(key, cur);
+        }
+        items.push({
+          spotify_url: url, album_id: null, album_type: album && album.toLowerCase() === trackName.toLowerCase() ? "single" : "album",
+          artist_ids: [], artist_names: artist ? [artist] : [], title: named.title, credits: named.credits,
+          album_name: album || null, total_tracks: null, release_date: null, release_precision: null, track_number: null,
+          artists: artist ? [{ name: artist }] : [],
+        });
+      };
+      for (const file of texts.filter((x) => /\.json$/i.test(x.name))) {
+        let data: any;
+        try { data = JSON.parse(file.text); } catch { continue; }
+        if (Array.isArray(data?.tracks)) {
+          noArtistIds = true;
+          for (const t of data.tracks) addSong(t?.uri, t?.track ?? "", t?.artist ?? "", t?.album ?? "");
+        }
+        if (Array.isArray(data?.artists)) {
+          for (const a of data.artists) { const id = idOf(a?.uri, "artist"); if (id && a?.name) followedIds.set(id, a.name); }
+        }
+        if (Array.isArray(data?.playlists)) {
+          noArtistIds = true;
+          for (const pl of data.playlists) for (const it of pl?.items ?? []) {
+            const t = it?.track;
+            if (t) addSong(t.trackUri, t.trackName ?? "", t.artistName ?? "", t.albumName ?? "");
+          }
+        }
+      }
+      let followed = 0;
+      if (followedIds.size > 0) {
+        setNote(`Following the artists you follow on Spotify…`);
+        const ids = [...followedIds.keys()];
+        const { data: ours } = await supabase.rpc("rpc_artists_by_spotify", { p_ids: ids });
+        const here = ((ours as string[]) ?? []);
+        if (here.length) { await supabase.rpc("rpc_follow_many", { p_artist_ids: here }); followed = here.length; }
+        // The rest are suggested (following someone counts like having songs by them).
+        for (const [id, name] of followedIds) {
+          const cur = byArtist.get(id) ?? { id, name, songs: 0 };
+          cur.songs = Math.max(cur.songs, 3);
+          byArtist.set(id, cur);
+        }
+      }
+
+      for (const file of texts.filter((x) => !/\.json$/i.test(x.name))) {
         const rows = parseCsv(file.text);
         if (rows.length < 2) continue;
         const head = rows[0].map((h) => h.trim().toLowerCase());
@@ -169,7 +229,7 @@ export default function ExportifyImport() {
           });
         }
       }
-      if (items.length === 0) throw new Error("No songs found in those files. They need Exportify's \"Track URI\" column.");
+      if (items.length === 0 && followedIds.size === 0) throw new Error("No songs found in those files. Exportify files need the \"Track URI\" column; from Spotify's own download, pick the Account data zip (or YourLibrary.json).");
       const totals: ImportTotals = { collected: 0, added: 0, waiting: 0 };
       for (let i = 0; i < items.length; i += 500) {
         setNote(`Importing… ${Math.min(i + 500, items.length).toLocaleString("en-GB")} of ${items.length.toLocaleString("en-GB")} songs`);
@@ -180,6 +240,7 @@ export default function ExportifyImport() {
         `Done: ${items.length.toLocaleString("en-GB")} songs checked. ${totals.collected.toLocaleString("en-GB")} newly collected` +
         (totals.added ? `, ${totals.added.toLocaleString("en-GB")} added to the archive` : "") +
         (totals.waiting ? `, ${totals.waiting.toLocaleString("en-GB")} more will be added once we've read their releases` : "") +
+        (followed > 0 ? `. Now following ${followed} artist${followed === 1 ? "" : "s"} you follow on Spotify` : "") +
         (suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") +
         (totals.held ? ` (${totals.held.toLocaleString("en-GB")} of your songs by them are kept and added when each artist is approved)` : "") + "." +
         (noArtistIds ? " (These files only have artist names, so songs were matched to artists here by name.)" : ""));
@@ -198,9 +259,15 @@ export default function ExportifyImport() {
         it saves your liked songs and playlists as files, and works for anyone (no invite needed). Export the ones you want,
         then pick the files (or the whole .zip from &ldquo;Export All&rdquo;) here.
       </div>
+      <div className="comment-meta" style={{ marginBottom: 8 }}>
+        Or use Spotify&apos;s own download: in Spotify go to{" "}
+        <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener noreferrer" className="text-link">Account → Privacy → Download your data</a>,
+        tick <b>Account data</b> and request it. Spotify emails a .zip within a few days. Upload that zip here: it brings in your
+        liked songs and playlists, and follows the artists you follow on Spotify.
+      </div>
       <label className="tab" style={{ display: "inline-block", cursor: busy ? "default" : "pointer" }}>
-        {busy ? "importing…" : "upload Exportify files or .zip"}
-        <input type="file" accept=".csv,text/csv,.zip,application/zip" multiple disabled={busy} style={{ display: "none" }}
+        {busy ? "importing…" : "upload Exportify or Spotify data files / .zip"}
+        <input type="file" accept=".csv,text/csv,.json,application/json,.zip,application/zip" multiple disabled={busy} style={{ display: "none" }}
           onChange={(e) => { run(e.target.files); e.target.value = ""; }} />
       </label>
       {note && <div className="detail-meta" style={{ marginTop: 10 }}>{note}</div>}
