@@ -46,15 +46,15 @@ export default function OwnerPanel() {
     setGenius({ ...genius, on: !genius.on });
   }
 
-  // New artist pages (guests on songs getting their own page): pausable,
-  // to focus on filling in the artists we have.
-  const [newArtists, setNewArtists] = useState<{ on: boolean } | null>(null);
+  // New artists' catalogues: new pages are still made, but while this is off
+  // their songs aren't filled in automatically (calls go on existing artists).
+  const [newArtists, setNewArtists] = useState<{ on: boolean; held: number } | null>(null);
   useEffect(() => { supabase.rpc("owner_new_artists").then(({ data }) => setNewArtists((data as typeof newArtists) ?? null)); }, []);
   async function toggleNewArtists() {
     if (!newArtists) return;
     const { error } = await supabase.rpc("owner_set_new_artists", { p_on: !newArtists.on });
     if (error) { setMessage(error.message); return; }
-    setNewArtists({ on: !newArtists.on });
+    setNewArtists({ on: !newArtists.on, held: newArtists.on ? newArtists.held : 0 });
   }
 
   return (
@@ -64,12 +64,15 @@ export default function OwnerPanel() {
           <div className="section-label">New artists</div>
           <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
             <div style={{ minWidth: 0 }}>
-              <div className="review-row-title">Make pages for guests on songs</div>
+              <div className="review-row-title">Fill in new artists&apos; songs automatically</div>
               <div className="review-row-meta">
-                <span>When off, no new artist pages are made automatically and that job makes no Spotify calls, so everything goes on filling in the artists you have. Adding an artist by hand still works.</span>
+                <span>New artist pages (guests on songs, trackers) are still made. When this is held, their songs aren&apos;t filled in from Spotify, Genius or Last.fm, so every call goes on the artists you already have. Import buttons on their pages still work. Turning it on fills them in as usual.</span>
               </div>
+              {newArtists.held > 0 && (
+                <div className="review-row-meta"><span>{newArtists.held.toLocaleString("en-GB")} new artist{newArtists.held === 1 ? "" : "s"} waiting</span></div>
+              )}
             </div>
-            <button className={`tab ${newArtists.on ? "active" : ""}`} onClick={toggleNewArtists}>{newArtists.on ? "on" : "paused"}</button>
+            <button className={`tab ${newArtists.on ? "active" : ""}`} onClick={toggleNewArtists}>{newArtists.on ? "on" : "held"}</button>
           </div>
         </>
       )}
