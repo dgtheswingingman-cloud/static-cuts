@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { importBatch } from "@/lib/importBatch";
 
 // A small CSV reader: quoted fields, commas and line breaks inside quotes,
 // doubled quotes.
@@ -169,11 +170,7 @@ export default function ExportifyImport() {
       const totals = { collected: 0, added: 0, waiting: 0 };
       for (let i = 0; i < items.length; i += 500) {
         setNote(`Importing… ${Math.min(i + 500, items.length).toLocaleString("en-GB")} of ${items.length.toLocaleString("en-GB")} songs`);
-        const { data, error: err } = await supabase.rpc("rpc_import_liked_songs", { p_items: items.slice(i, i + 500) });
-        if (err) throw new Error(err.message);
-        totals.collected += data?.collected ?? 0;
-        totals.added += data?.added ?? 0;
-        totals.waiting += data?.waiting ?? 0;
+        await importBatch(items.slice(i, i + 500), totals);
       }
       const { data: suggested } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
       setNote(

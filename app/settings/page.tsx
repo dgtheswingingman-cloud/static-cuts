@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import ExportCollection from "./ExportCollection";
+import { importBatch } from "@/lib/importBatch";
 import SpotifySync from "./SpotifySync";
 import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
@@ -177,11 +178,7 @@ export default function SettingsPage() {
       if (Object.keys(progress).length > 0) setWaitNote("Carrying on from where your last import stopped…");
       const send = async () => {
         if (chunk.length === 0) return;
-        const { data, error: err } = await supabase.rpc("rpc_import_liked_songs", { p_items: chunk });
-        if (err) throw new Error(err.message);
-        totals.collected += data?.collected ?? 0;
-        totals.added += data?.added ?? 0;
-        totals.waiting += data?.waiting ?? 0;
+        await importBatch(chunk, totals);
         chunk = [];
       };
       for (const src of sources.filter((x) => picked.has(x.id))) {
