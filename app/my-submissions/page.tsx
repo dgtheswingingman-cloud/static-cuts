@@ -101,11 +101,17 @@ export default function MySubmissionsPage() {
       const title = s.payload.track_id ? trackTitles[s.payload.track_id] : null;
       return `Flagged link on "${title ?? "an existing track"}"`;
     }
+    if (s.type === "flag_deletion") {
+      const title = s.payload.track_id ? trackTitles[s.payload.track_id] : null;
+      return `Asked to delete "${title ?? s.payload.track_title ?? "a track"}"`;
+    }
+    if (s.type === "artist_merge") return `Same artist: "${s.payload.from_name}" and "${s.payload.into_name}"`;
     return s.type;
   }
 
   async function viewEntry(s: Submission) {
-    if (s.type === "new_artist") {
+    if (s.type === "new_artist" || s.type === "artist_merge") {
+      if (s.type === "artist_merge" && s.status !== "approved") { router.push(`/artist/${s.artist_id}`); return; }
       if (s.status !== "approved" || !s.resulting_id) return;
       const { data } = await supabase.from("artists").select("id").eq("id", s.resulting_id).maybeSingle();
       if (data) {
