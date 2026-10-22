@@ -131,8 +131,11 @@ export default function ExportifyImport() {
           const url = `https://open.spotify.com/track/${tid}`;
           if (seen.has(url)) continue;
           seen.add(url);
-          const uris = cArtistUris >= 0 ? (r[cArtistUris] ?? "").split(",").map((u) => idOf(u.trim(), "artist")).filter((x): x is string => !!x) : [];
-          const names = cArtists >= 0 ? (r[cArtists] ?? "").split(",").map((n) => n.trim()).filter(Boolean) : [];
+          // exportify.net separates artists with ";" (names can contain commas,
+          // like "Tyler, The Creator"). Older Exportify files used ",".
+          const sep = (v: string) => (v.includes(";") ? v.split(";") : cArtistUris >= 0 ? v.split(",") : [v]);
+          const uris = cArtistUris >= 0 ? sep(r[cArtistUris] ?? "").map((u) => idOf(u.trim(), "artist")).filter((x): x is string => !!x) : [];
+          const names = cArtists >= 0 ? sep(r[cArtists] ?? "").map((n) => n.trim()).filter(Boolean) : [];
           // exportify.net gives artist names only (no Spotify artist IDs):
           // those are matched to artists here by name.
           const artists: { id?: string; name: string }[] = uris.length > 0
