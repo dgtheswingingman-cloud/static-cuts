@@ -26,3 +26,16 @@ async function sendOne(items: Record<string, unknown>[], totals: ImportTotals): 
 export async function importBatch(items: Record<string, unknown>[], totals: ImportTotals, size = 100) {
   for (let i = 0; i < items.length; i += size) await sendOne(items.slice(i, i + size), totals);
 }
+
+// Suggest artists who aren't here yet (rpc_suggest_library_artists takes up
+// to 3,000 at a time; big libraries have more). Returns how many were
+// suggested.
+export async function suggestArtists(artists: { id: string; name: string; songs: number }[]) {
+  let n = 0;
+  for (let i = 0; i < artists.length; i += 1000) {
+    const { data, error } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: artists.slice(i, i + 1000) });
+    if (error) throw new Error(error.message);
+    if (typeof data === "number") n += data;
+  }
+  return n;
+}

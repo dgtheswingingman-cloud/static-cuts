@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import ChatGPTRoutine from "./ChatGPTRoutine";
 import ExportCollection from "./ExportCollection";
-import { importBatch } from "@/lib/importBatch";
+import { importBatch, suggestArtists } from "@/lib/importBatch";
 import SpotifySync from "./SpotifySync";
 import Link from "next/link";
 import PhoneAlerts from "./PhoneAlerts";
@@ -162,8 +162,7 @@ export default function SettingsPage() {
       // import that stops part way still counts.
       suggestNow = async () => {
         if (byArtist.size === 0) return 0;
-        const { data } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
-        return typeof data === "number" ? data : 0;
+        return suggestArtists([...byArtist.values()]);
       };
       const suggest = suggestNow;
       const totals = { collected: 0, added: 0, waiting: 0 };

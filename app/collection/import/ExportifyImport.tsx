@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { importBatch } from "@/lib/importBatch";
+import { importBatch, suggestArtists } from "@/lib/importBatch";
 
 // A small CSV reader: quoted fields, commas and line breaks inside quotes,
 // doubled quotes.
@@ -172,12 +172,12 @@ export default function ExportifyImport() {
         setNote(`Importing… ${Math.min(i + 500, items.length).toLocaleString("en-GB")} of ${items.length.toLocaleString("en-GB")} songs`);
         await importBatch(items.slice(i, i + 500), totals);
       }
-      const { data: suggested } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
+      const suggested = await suggestArtists([...byArtist.values()]);
       setNote(
         `Done: ${items.length.toLocaleString("en-GB")} songs checked. ${totals.collected.toLocaleString("en-GB")} newly collected` +
         (totals.added ? `, ${totals.added.toLocaleString("en-GB")} added to the archive` : "") +
         (totals.waiting ? `, ${totals.waiting.toLocaleString("en-GB")} more will be added once we've read their releases` : "") +
-        (typeof suggested === "number" && suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") + "." +
+        (suggested > 0 ? `. ${suggested} artists suggested as new artists` : "") + "." +
         (noArtistIds ? " (These files only have artist names, so songs were matched to artists here by name.)" : ""));
     } catch (e: any) {
       setError(e?.message ?? String(e));
