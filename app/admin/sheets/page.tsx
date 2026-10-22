@@ -297,7 +297,7 @@ export default function SheetsPage() {
   const statusValues = mapping?.status_column ? preview?.values[mapping.status_column] ?? [] : [];
 
   return (
-    <div className="wrap" style={{ maxWidth: 860 }}>
+    <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Import a spreadsheet</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
