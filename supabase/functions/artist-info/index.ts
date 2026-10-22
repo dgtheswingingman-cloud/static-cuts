@@ -6,6 +6,8 @@
 //   about: the short bio from Last.fm, with a link back (their text is
 //          shared under Creative Commons). Skipped when Last.fm's page is
 //          about several artists with the same name.
+//   genres: Last.fm's top tags for up to 30 artists a run (junk like "seen
+//          live" left out), plus their "similar artists" list
 // Every call takes a ticket from that service's shared allowance.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,6 +32,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function paused(service: string) {
   const { data } = await db.from("sc_private_settings").select("value").eq("key", `${service}_pause_until`).maybeSingle();
   return !!(data?.value && Date.parse(data.value) > Date.now());
+}
+
+// Last.fm tags are whatever listeners typed. Keep the ones that are genres.
+const JUNK = /seen live|favou?rite|^\d{2,4}s?$|\bbest\b|\blove\b|awesome|albums i own|under \d|beautiful|\bcool\b|sexy|amazing|check ?out|spotify|vocalists?|^(all|male|female|usa?|uk|american|british|english|swedish|canadian|german|french|australian|new york|atlanta|chicago|california|london|florida|texas|memphis|houston|los angeles|philadelphia|detroit|black|white|soundcloud|youtube|tiktok|music|artist|singer|rapper|producer|dj|band|other|misc|unknown|my music|instrumental|good|cute|sad|chill|hype)$/i;
+const FIXED: Record<string, string> = {
+  "hip hop": "Hip-Hop", "hip-hop": "Hip-Hop", "hiphop": "Hip-Hop", "rnb": "R&B", "r&b": "R&B", "r and b": "R&B",
+  "rhythm and blues": "R&B", "contemporary r&b": "Contemporary R&B", "edm": "EDM", "idm": "IDM", "uk drill": "UK Drill",
+  "uk garage": "UK Garage", "uk hip hop": "UK Hip-Hop", "uk rap": "UK Rap", "lo-fi": "Lo-Fi", "lofi": "Lo-Fi", "emo": "Emo",
+};
+function tidyTag(raw: string, artistName: string): string | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  if (t.length < 2 || t.length > 30 || JUNK.test(t)) return null;
+  const plain = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (plain(t) === plain(artistName)) return null;
+  if (FIXED[t]) return FIXED[t];
+  return t.replace(/(^|[\s-])([a-z])/g, (_m, sep, c) => sep + c.toUpperCase()).replace(/\bUk\b/g, "UK").replace(/\bUs\b/g, "US").replace(/\bHip Hop\b/g, "Hip-Hop");
 }
 
 function cleanBio(html: string) {
@@ -79,7 +97,6 @@ Deno.serve(async (req) => {
   const { data: next, error } = await db.rpc("sc_artist_info_next", { p_secret: secret, p_limit: 8 });
   if (error) return json({ error: error.message }, 403);
   const artists = (next ?? []) as { artist_id: string; name: string; spotify_artist_id: string | null; lastfm_name: string | null; need_image: boolean; need_bio: boolean }[];
-  if (artists.length === 0) return json({ ok: true, idle: true });
 
   const out: Record<string, Record<string, unknown>> = {};
   for (const a of artists) out[a.artist_id] = { artist_id: a.artist_id };
@@ -145,5 +162,33 @@ Deno.serve(async (req) => {
   }
 
   const { data: saved } = await db.rpc("sc_artist_info_save", { p_secret: secret, p_items: Object.values(out) });
-  return json({ ok: true, saved, photos: Object.values(out).filter((o) => o.image_url).length, abouts: Object.values(out).filter((o) => o.bio).length });
+
+  // Genres and similar artists from Last.fm, up to 30 artists a run.
+  const genreItems: { artist_id: string; tags: string[]; similar: string[] }[] = [];
+  if (key && !(await paused("lastfm"))) {
+    const { data: todo } = await db.rpc("sc_artist_genres_next", { p_secret: secret, p_limit: 30 });
+    for (const a of (todo ?? []) as { artist_id: string; name: string; lastfm_name: string | null }[]) {
+      const { data: ok } = await db.rpc("sc_api_allow", { p_service: "lastfm", p_want: 1 });
+      if (ok !== 1) break;
+      const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&autocorrect=1&artist=${encodeURIComponent(a.lastfm_name || a.name)}&api_key=${key}&format=json`);
+      await sleep(1000);
+      if (!res.ok && res.status !== 404) continue;
+      const body = await res.json().catch(() => null);
+      if (body?.error === 29) break; // Last.fm says slow down
+      const rawTags = ((body?.artist?.tags?.tag ?? []) as { name: string }[]).map((t) => t?.name ?? "");
+      const tags: string[] = [];
+      for (const r of rawTags) {
+        const t = tidyTag(r, a.name);
+        if (t && !tags.some((x) => x.toLowerCase() === t.toLowerCase())) tags.push(t);
+      }
+      const similar = ((body?.artist?.similar?.artist ?? []) as { name: string }[]).map((x) => x?.name ?? "").filter(Boolean);
+      genreItems.push({ artist_id: a.artist_id, tags: tags.slice(0, 5), similar: similar.slice(0, 10) });
+    }
+  }
+  let genres = 0;
+  if (genreItems.length) {
+    const { data: g } = await db.rpc("sc_artist_genres_save", { p_secret: secret, p_items: genreItems });
+    genres = (g as number) ?? 0;
+  }
+  return json({ ok: true, saved, photos: Object.values(out).filter((o) => o.image_url).length, abouts: Object.values(out).filter((o) => o.bio).length, genres });
 });
