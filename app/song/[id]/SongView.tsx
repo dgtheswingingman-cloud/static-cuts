@@ -19,6 +19,7 @@ import MyFile from "./MyFile";
 import StoryButton from "../../components/StoryButton";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
+import FriendsWhoHaveIt from "./FriendsWhoHaveIt";
 
 type Track = {
   id: string;
@@ -274,6 +275,7 @@ export default function SongView({ id }: { id: string }) {
         {!isAdmin && statusOf(t) !== "released" && <WantButton trackId={t.id} />}
         {!isAdmin && <AddToList trackId={t.id} />}
       </div>
+      <FriendsWhoHaveIt trackId={t.id} signedIn={!!user} />
       <MyFile trackId={t.id} />
       <FileNote trackId={t.id} />
       {!t.spotify_url && (

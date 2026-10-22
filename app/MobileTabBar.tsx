@@ -31,7 +31,7 @@ export default function MobileTabBar() {
     ["new", "/new", "New", (p) => p === "/new" || p === "/radar" || p === "/weekly"],
     ["search", "/search", "Search", (p) => p.startsWith("/search")],
     ["local", "/local", "Local Cuts", (p) => p.startsWith("/local")],
-    ["you", youHref, youLabel, (p) => p.startsWith("/profile") || p.startsWith("/settings") || p === "/login" || p.startsWith("/control")],
+    ["you", youHref, youLabel, (p) => p.startsWith("/profile") || p.startsWith("/friends") || p.startsWith("/settings") || p === "/login" || p.startsWith("/control")],
   ];
   return (
     <nav className="tabbar" aria-label="Main">
