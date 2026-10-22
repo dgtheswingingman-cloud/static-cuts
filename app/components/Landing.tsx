@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 
 const HIDE_KEY = "static_cuts_landing_hidden";
 
@@ -17,12 +16,6 @@ export default function Landing({ artists, songs }: { artists: number; songs: nu
   }, []);
   if (hidden) return null;
 
-  async function spotify() {
-    await supabase.auth.signInWithOAuth({
-      provider: "spotify",
-      options: { redirectTo: window.location.origin + "/start", scopes: "user-follow-read" },
-    });
-  }
   const n = (x: number) => x.toLocaleString("en-GB");
 
   return (
@@ -35,7 +28,8 @@ export default function Landing({ artists, songs }: { artists: number; songs: nu
       </p>
       <div className="landing-ctas">
         <Link href="/start" className="tab active landing-cta">Pick your artists</Link>
-        <button className="tab landing-cta" onClick={spotify}>Continue with Spotify</button>
+        {/* Email sign-up: Spotify sign-in only works for a few invited testers. */}
+        <Link href="/login?mode=signup" className="tab landing-cta">Sign up</Link>
       </div>
       <div className="landing-grid">
         <div className="landing-card">

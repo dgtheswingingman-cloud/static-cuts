@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 
 // Where to go after logging in. Only same-site paths, so ?next= can't be
 // used to bounce people to another website.
@@ -30,6 +30,10 @@ export default function LoginPage() {
   const { signUp, signIn } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
+  // /login?mode=signup opens on the sign-up form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "signup") setMode("signup");
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
