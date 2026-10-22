@@ -168,6 +168,8 @@ Deno.serve(async (req) => {
         await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString() }, { onConflict: "key" });
         break;
       }
+      // Only a clear answer counts (found, or not on Spotify); anything else is tried next time.
+      if (!res.ok && res.status !== 404 && res.status !== 400) continue;
       let found: string | null = null;
       if (res.ok) {
         const body = await res.json().catch(() => null);
@@ -175,7 +177,7 @@ Deno.serve(async (req) => {
         const exact = list.filter((x) => x?.name && plain(x.name) === plain(a.name));
         // A song of theirs names them for sure; a search only when there's no doubt.
         if (a.track_id ? exact.length >= 1 : exact.length === 1) found = exact[0].id;
-      } else if (res.status >= 500) continue; // try again next time
+      }
       lookups.push({ artist_id: a.artist_id, spotify_artist_id: found });
     }
   }
