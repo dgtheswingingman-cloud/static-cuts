@@ -123,6 +123,7 @@ export default function SettingsPage() {
   // them (rpc_import_liked_songs).
   async function runSpotifyImport() {
     if (!sources || picked.size === 0) return;
+    let suggestNow: (() => Promise<number>) | null = null;
     setImportBusy(true);
     setImportError(null);
     setImportResult(null);
@@ -135,6 +136,14 @@ export default function SettingsPage() {
       // Main artist of every song, so artists not in the archive yet can be
       // suggested as new artists (rpc_suggest_library_artists).
       const byArtist = new Map<string, { id: string; name: string; songs: number }>();
+      // Suggest artists who aren't here yet from whatever was read, so an
+      // import that stops part way still counts.
+      suggestNow = async () => {
+        if (byArtist.size === 0) return 0;
+        const { data } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
+        return typeof data === "number" ? data : 0;
+      };
+      const suggest = suggestNow;
       const totals = { collected: 0, added: 0, waiting: 0 };
       let chunk: { spotify_url: string; album_id: string | null; album_type: string | null; artist_ids: string[] }[] = [];
       const send = async () => {
@@ -183,11 +192,12 @@ export default function SettingsPage() {
         }
       }
       await send();
-      const { data: suggested } = await supabase.rpc("rpc_suggest_library_artists", { p_artists: [...byArtist.values()] });
-      setImportResult({ checked, ...totals, skipped, suggested: typeof suggested === "number" ? suggested : 0 });
+      const suggested = await suggest();
+      setImportResult({ checked, ...totals, skipped, suggested });
       setSources(null);
     } catch (e: any) {
-      setImportError(e?.message ?? String(e));
+      const n = suggestNow ? await suggestNow().catch(() => 0) : 0;
+      setImportError((e?.message ?? String(e)) + (n > 0 ? ` (Before it stopped: ${n} artist${n === 1 ? "" : "s"} suggested as new artists.)` : ""));
     } finally {
       setImportBusy(false);
       setImportProgress(null);
