@@ -13,19 +13,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-const oauthButtonStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "12px",
-  marginTop: 10,
-  fontFamily: "var(--font-inter)",
-  fontSize: "0.9rem",
-  border: "1.5px solid var(--hair)",
-  background: "var(--surface)",
-  color: "var(--bone)",
-  cursor: "pointer",
-  textAlign: "center",
-};
-
 export default function LoginPage() {
   const { signUp, signIn } = useAuth();
   const router = useRouter();
@@ -117,17 +104,16 @@ export default function LoginPage() {
         )}
 
         {/* Spotify only lets new apps like ours have a handful of Spotify
-            accounts (added by hand in its developer dashboard), so this is
-            for invited testers. Everyone else uses email. */}
-        <div style={{ marginTop: 26, paddingTop: 16, borderTop: "1px solid var(--hair)" }}>
-          <button onClick={() => handleOAuth()} style={{ ...oauthButtonStyle, opacity: 0.8 }}>
-            Continue with Spotify (invited testers)
-          </button>
-          <div className="comment-meta" style={{ marginTop: 8 }}>
-            Spotify only lets new sites like ours have a few Spotify sign-ins, so this works for invited testers only
-            for now. Everyone else: use email above.
+            accounts (added by hand in its developer dashboard), and it often
+            refuses even those when busy. Sign-up is email only; invited
+            testers can still log in with Spotify from a small link. */}
+        {mode === "login" && (
+          <div style={{ marginTop: 26, paddingTop: 12, borderTop: "1px solid var(--hair)" }}>
+            <button className="inline-link-btn comment-meta" onClick={() => handleOAuth()}>
+              Invited Spotify tester? Log in with Spotify
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
       {error && (

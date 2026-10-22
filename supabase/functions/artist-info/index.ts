@@ -8,6 +8,9 @@
 //          about several artists with the same name.
 //   genres: Last.fm's top tags for up to 30 artists a run (junk like "seen
 //          live" left out), plus their "similar artists" list
+//   Spotify link: for up to 4 artists without one, from one of their songs'
+//          Spotify links, or a search accepted only when exactly one
+//          Spotify artist has that name
 // Every call takes a ticket from that service's shared allowance.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -142,6 +145,44 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Spotify links for artists without one (their releases can then be read).
+  const { data: look } = await db.rpc("sc_spotify_lookup_next", { p_secret: secret, p_limit: 4 });
+  const lookups: { artist_id: string; spotify_artist_id: string | null }[] = [];
+  if (((look ?? []) as unknown[]).length && !(await paused("spotify"))) {
+    const token = await cachedSpotifyToken();
+    const plain = (x: string) => {
+      const p = x.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+      return p || x.toLowerCase().trim();
+    };
+    for (const a of (look ?? []) as { artist_id: string; name: string; track_id: string | null }[]) {
+      if (!token) break;
+      const { data: t } = await db.rpc("sc_spotify_allow", { p_want: 1 });
+      if (t !== 1) break;
+      const url = a.track_id
+        ? `https://api.spotify.com/v1/tracks/${a.track_id}`
+        : `https://api.spotify.com/v1/search?type=artist&limit=10&q=${encodeURIComponent(a.name)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      await sleep(1500);
+      if (res.status === 429) {
+        const wait = parseInt(res.headers.get("Retry-After") || "60", 10);
+        await db.from("sc_private_settings").upsert({ key: "spotify_pause_until", value: new Date(Date.now() + Math.max(wait, 600) * 1000).toISOString() }, { onConflict: "key" });
+        break;
+      }
+      // Only a clear answer counts (found, or not on Spotify); anything else is tried next time.
+      if (!res.ok && res.status !== 404 && res.status !== 400) continue;
+      let found: string | null = null;
+      if (res.ok) {
+        const body = await res.json().catch(() => null);
+        const list = ((a.track_id ? body?.artists : body?.artists?.items) ?? []) as { id: string; name: string }[];
+        const exact = list.filter((x) => x?.name && plain(x.name) === plain(a.name));
+        // A song of theirs names them for sure; a search only when there's no doubt.
+        if (a.track_id ? exact.length >= 1 : exact.length === 1) found = exact[0].id;
+      }
+      lookups.push({ artist_id: a.artist_id, spotify_artist_id: found });
+    }
+  }
+  if (lookups.length) await db.rpc("sc_spotify_lookup_save", { p_secret: secret, p_items: lookups });
+
   // About text from Last.fm, one artist at a time.
   const key = Deno.env.get("LASTFM_API_KEY");
   if (key && !(await paused("lastfm"))) {
@@ -190,5 +231,5 @@ Deno.serve(async (req) => {
     const { data: g } = await db.rpc("sc_artist_genres_save", { p_secret: secret, p_items: genreItems });
     genres = (g as number) ?? 0;
   }
-  return json({ ok: true, saved, photos: Object.values(out).filter((o) => o.image_url).length, abouts: Object.values(out).filter((o) => o.bio).length, genres });
+  return json({ ok: true, saved, photos: Object.values(out).filter((o) => o.image_url).length, abouts: Object.values(out).filter((o) => o.bio).length, genres, spotify_links: lookups.filter((l) => l.spotify_artist_id).length });
 });
