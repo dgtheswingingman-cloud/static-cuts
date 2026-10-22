@@ -41,31 +41,79 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importProgress, setImportProgress] = useState<number | null>(null);
-  const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number; skipped: string[] } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Runs straight after coming back from Spotify, usually before the page
-  // knows who's signed in (useAuth's user is still empty then), so it works
-  // from the session itself. It used to stop silently at that point.
+  // After coming back from Spotify: the listener picks what to import —
+  // Liked Songs and/or their own playlists (Spotify only lets apps read
+  // playlists you made or collaborate on).
+  type Source = { id: string; name: string; count: number | null };
+  const [sources, setSources] = useState<Source[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  async function spotifyToken() {
+    // Works from the session itself: straight after coming back from
+    // Spotify, the page may not know who's signed in yet.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) throw new Error("Log in first, then try the import again.");
+    const token = sessionData.session.provider_token;
+    if (!token) throw new Error("Your Spotify session expired — press the button again to reconnect.");
+    return token;
+  }
+
+  async function spotifyGet(url: string, token: string) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data: any = await res.json().catch(() => null);
+    if (res.status === 403) {
+      throw Object.assign(new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours."), { status: 403 });
+    }
+    if (res.status === 401) throw new Error("Your Spotify session expired — press the button again to reconnect.");
+    if (!res.ok) throw new Error(`Spotify said no (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
+    return data;
+  }
+
+  async function loadSources() {
+    setImportBusy(true);
+    setImportError(null);
+    setImportResult(null);
+    try {
+      const token = await spotifyToken();
+      const me = await spotifyGet("https://api.spotify.com/v1/me", token);
+      const liked = await spotifyGet("https://api.spotify.com/v1/me/tracks?limit=1", token);
+      const list: Source[] = [{ id: "liked", name: "Liked Songs", count: liked?.total ?? null }];
+      let next: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
+      for (let page = 0; next && page < 10; page++) {
+        const data = await spotifyGet(next, token);
+        for (const pl of data?.items ?? []) {
+          if (!pl?.id) continue;
+          if (pl.owner?.id !== me?.id && !pl.collaborative) continue; // Spotify won't share other people's playlists
+          list.push({ id: pl.id, name: pl.name || "Untitled playlist", count: pl.items?.total ?? pl.tracks?.total ?? null });
+        }
+        next = data?.next ?? null;
+      }
+      setSources(list);
+      setPicked(new Set(["liked"]));
+    } catch (e: any) {
+      setImportError(e?.message ?? String(e));
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  // Songs already here get collected; songs by artists in the archive that
+  // aren't here yet get added once our own reading of that release confirms
+  // them (rpc_import_liked_songs).
   async function runSpotifyImport() {
+    if (!sources || picked.size === 0) return;
     setImportBusy(true);
     setImportError(null);
     setImportResult(null);
     setImportProgress(0);
-
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) throw new Error("Log in first, then try the import again.");
-      const providerToken = sessionData.session.provider_token;
-      if (!providerToken) {
-        throw new Error("Your Spotify session expired — click the button again to reconnect.");
-      }
-
-      // Page through the listener's Liked Songs and send them to the
-      // archive in chunks: songs already here get collected, and songs from
-      // artists in the archive that aren't here yet get added once our own
-      // reading of that release confirms them (rpc_import_liked_songs).
+      const token = await spotifyToken();
       let checked = 0;
+      const skipped: string[] = [];
+      const seen = new Set<string>();
       const totals = { collected: 0, added: 0, waiting: 0 };
       let chunk: { spotify_url: string; album_id: string | null; album_type: string | null; artist_ids: string[] }[] = [];
       const send = async () => {
@@ -77,34 +125,39 @@ export default function SettingsPage() {
         totals.waiting += data?.waiting ?? 0;
         chunk = [];
       };
-      let next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
-      while (next) {
-        const res: Response = await fetch(next, { headers: { Authorization: `Bearer ${providerToken}` } });
-        const data: any = await res.json().catch(() => null);
-        if (res.status === 403) {
-          throw new Error("Spotify won't let this account in yet. Spotify limits new sites to a few invited accounts, so ask us to add yours.");
+      for (const src of sources.filter((x) => picked.has(x.id))) {
+        let next: string | null = src.id === "liked"
+          ? "https://api.spotify.com/v1/me/tracks?limit=50"
+          : `https://api.spotify.com/v1/playlists/${src.id}/items?limit=50`;
+        try {
+          while (next) {
+            const data = await spotifyGet(next, token);
+            for (const item of data?.items ?? []) {
+              checked++;
+              const t = item?.track ?? item?.item;
+              if (!t || t.type === "episode" || t.is_local || !t.external_urls?.spotify) continue;
+              if (seen.has(t.external_urls.spotify)) continue;
+              seen.add(t.external_urls.spotify);
+              chunk.push({
+                spotify_url: t.external_urls.spotify,
+                album_id: t.album?.id ?? null,
+                album_type: t.album?.album_type ?? null,
+                artist_ids: (t.artists ?? []).map((a: any) => a.id).filter(Boolean),
+              });
+            }
+            if (chunk.length >= 1000) await send();
+            setImportProgress(checked);
+            next = data?.next ?? null;
+          }
+        } catch (e: any) {
+          // One playlist Spotify won't share shouldn't stop the rest.
+          if (src.id !== "liked" && e?.status === 403) { skipped.push(src.name); continue; }
+          throw e;
         }
-        if (!res.ok) {
-          throw new Error(`Spotify API error (${res.status}): ${data?.error?.message ?? "unknown error"}. Try again in a minute.`);
-        }
-        for (const item of data.items ?? []) {
-          checked++;
-          const t = item.track;
-          if (!t?.external_urls?.spotify) continue;
-          chunk.push({
-            spotify_url: t.external_urls.spotify,
-            album_id: t.album?.id ?? null,
-            album_type: t.album?.album_type ?? null,
-            artist_ids: (t.artists ?? []).map((a: any) => a.id).filter(Boolean),
-          });
-        }
-        if (chunk.length >= 1000) await send();
-        setImportProgress(checked);
-        next = data.next;
       }
       await send();
-
-      setImportResult({ checked, ...totals });
+      setImportResult({ checked, ...totals, skipped });
+      setSources(null);
     } catch (e: any) {
       setImportError(e?.message ?? String(e));
     } finally {
@@ -122,7 +175,7 @@ export default function SettingsPage() {
     local.set("static_cuts_spotify_import_pending", "true");
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
-      options: { redirectTo: window.location.origin + "/settings", scopes: "user-library-read" },
+      options: { redirectTo: window.location.origin + "/settings", scopes: "user-library-read playlist-read-private playlist-read-collaborative" },
     });
     if (err) {
       local.remove("static_cuts_spotify_import_pending");
@@ -146,7 +199,7 @@ export default function SettingsPage() {
       const { data } = await supabase.auth.getSession();
       if (data.session?.provider_token) {
         local.remove("static_cuts_spotify_import_pending");
-        runSpotifyImport();
+        loadSources();
         return;
       }
       if (attempts < 15) {
@@ -211,7 +264,7 @@ export default function SettingsPage() {
 
       <div className="section-label" id="spotify-import" style={{ scrollMarginTop: 20 }}>Import from Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 16, maxWidth: 520 }}>
-        Goes through your Liked Songs on Spotify. Songs already in the archive are marked as collected. Songs by
+        Goes through your Liked Songs and any of your own playlists you pick. Songs already in the archive are marked as collected. Songs by
         artists in the archive that aren&apos;t here yet get added (and collected): straight away if we&apos;ve already
         read that release on Spotify, otherwise once we have (usually within a day, Spotify only lets us ask a few times a minute). Songs by artists who aren&apos;t in the
         archive are left alone.
@@ -219,13 +272,38 @@ export default function SettingsPage() {
       <div className="comment-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
         Invited testers only for now: Spotify limits new sites like ours to a few Spotify accounts.
       </div>
-      <button className="comment-post-btn" disabled={importBusy} onClick={startSpotifyImport} style={{ marginBottom: 12 }}>
-        {importBusy
-          ? importProgress !== null
-            ? `checking your library… (${importProgress} so far)`
-            : "starting…"
-          : "import from Spotify"}
-      </button>
+      {sources ? (
+        <div style={{ maxWidth: 520, marginBottom: 12 }}>
+          <div className="comment-meta" style={{ marginBottom: 8 }}>
+            Pick what to import. Only playlists you made (or collaborate on) are listed: Spotify won&apos;t share other people&apos;s.
+          </div>
+          {sources.map((src) => (
+            <label key={src.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--hair)", cursor: "pointer" }}>
+              <input type="checkbox" checked={picked.has(src.id)} disabled={importBusy}
+                onChange={() => setPicked((cur) => { const n = new Set(cur); if (n.has(src.id)) n.delete(src.id); else n.add(src.id); return n; })} />
+              <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-inter)", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{src.name}</span>
+              {src.count !== null && <span className="comment-meta">{src.count.toLocaleString("en-GB")}</span>}
+            </label>
+          ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button className="comment-post-btn" disabled={importBusy || picked.size === 0} onClick={runSpotifyImport}>
+              {importBusy
+                ? `importing… (${importProgress ?? 0} songs so far)`
+                : `import ${picked.size} ${picked.size === 1 ? "choice" : "choices"}`}
+            </button>
+            {sources.length > 1 && !importBusy && (
+              <button className="tab" onClick={() => setPicked(picked.size === sources.length ? new Set() : new Set(sources.map((x) => x.id)))}>
+                {picked.size === sources.length ? "none" : "all"}
+              </button>
+            )}
+            {!importBusy && <button className="tab" onClick={() => setSources(null)}>cancel</button>}
+          </div>
+        </div>
+      ) : (
+        <button className="comment-post-btn" disabled={importBusy} onClick={startSpotifyImport} style={{ marginBottom: 12 }}>
+          {importBusy ? "connecting to Spotify…" : "import from Spotify"}
+        </button>
+      )}
       {importBusy && importProgress !== null && (
         <div className="bar-track" style={{ height: 4, maxWidth: 520, marginBottom: 12 }}>
           <div className="bar-fill" style={{ width: importProgress > 0 ? "100%" : "8%", transition: "width 0.3s" }} />
@@ -236,9 +314,10 @@ export default function SettingsPage() {
       )}
       {importResult && (
         <div className="detail-meta" style={{ maxWidth: 520, marginBottom: 20 }}>
-          Checked {importResult.checked} liked songs. {importResult.collected} newly marked collected
+          Checked {importResult.checked} songs. {importResult.collected} newly marked collected
           {importResult.added > 0 && `, ${importResult.added} added to the archive`}
           {importResult.waiting > 0 && `, ${importResult.waiting} more will be added once we've read their releases (usually within a day)`}.
+          {importResult.skipped.length > 0 && ` Spotify wouldn't share: ${importResult.skipped.join(", ")}.`}
         </div>
       )}
 

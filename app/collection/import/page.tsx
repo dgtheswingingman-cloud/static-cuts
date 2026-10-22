@@ -173,7 +173,7 @@ export default function CollectionImportPage() {
 
       <div className="section-label">From Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 10 }}>
-        Your Liked Songs on Spotify: ones already here are collected, and official songs by artists in the archive
+        Your Liked Songs and playlists on Spotify: songs already here are collected, and official songs by artists in the archive
         that are missing get added too. Invited testers only for now (Spotify limits new sites to a few accounts).
       </div>
       <Link href="/settings#spotify-import" className="tab active" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
