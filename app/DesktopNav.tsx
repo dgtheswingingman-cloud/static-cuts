@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const LINKS: [string, string][] = [
   ["/new", "What's new"], ["/radar", "Radar"], ["/wanted", "Most wanted"], ["/lists", "Lists"],
-  ["/collabs", "Collabs"], ["/local", "Local Cuts"], ["/help", "Help wanted"],
+  ["/collabs", "Collabs"], ["/genres", "Genres"], ["/local", "Local Cuts"], ["/help", "Help wanted"],
 ];
 
 export default function DesktopNav() {

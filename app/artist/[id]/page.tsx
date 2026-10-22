@@ -17,6 +17,8 @@ import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
 import EraStrip from "./EraStrip";
 import { accentCss, type Rgb } from "@/lib/swatch";
+import SimilarArtists from "./SimilarArtists";
+
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
@@ -26,6 +28,7 @@ import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
+const genreSlug = (t: string) => t.toLowerCase().replace(/&/g, "n").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Track = {
   id: string;
@@ -149,7 +152,7 @@ export default function ArtistPage() {
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [profileCount, setProfileCount] = useState(0);
-  const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean }[]>([]);
+  const [genreTags, setGenreTags] = useState<{ id: string; tag: string; vote_count: number; my_vote: boolean; weight: number }[]>([]);
   const [genreTagInput, setGenreTagInput] = useState("");
   const [genreTagsExpanded, setGenreTagsExpanded] = useState(false);
   const [genreTagBusy, setGenreTagBusy] = useState(false);
@@ -424,7 +427,7 @@ export default function ArtistPage() {
   }
 
   async function loadGenreTags() {
-    const { data: stats } = await supabase.from("artist_genre_tag_stats").select("id, tag, vote_count").eq("artist_id", id);
+    const { data: stats } = await supabase.from("artist_genre_tag_stats").select("id, tag, vote_count, weight").eq("artist_id", id);
     let myVoteIds = new Set<string>();
     if (user && stats && stats.length > 0) {
       const { data: myVotes } = await supabase
@@ -436,8 +439,9 @@ export default function ArtistPage() {
     }
     setGenreTags(
       (stats ?? [])
-        .map((s: any) => ({ id: s.id, tag: s.tag, vote_count: s.vote_count, my_vote: myVoteIds.has(s.id) }))
-        .sort((a, b) => b.vote_count - a.vote_count)
+        .map((s: any) => ({ id: s.id, tag: s.tag, vote_count: s.vote_count, my_vote: myVoteIds.has(s.id), weight: s.weight ?? 0 }))
+        // Same score as genre pages: each vote 3, Last.fm's order 5..1.
+        .sort((a, b) => (b.vote_count * 3 + b.weight) - (a.vote_count * 3 + a.weight))
     );
   }
 
@@ -1884,13 +1888,20 @@ export default function ArtistPage() {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {(genreTagsExpanded ? genreTags : genreTags.slice(0, 3)).map((t) => (
                 <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <button
-                    className={`rating-chip ${t.my_vote ? "rated" : ""}`}
-                    disabled={genreTagBusy || isAdmin}
-                    onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
-                  >
-                    {t.tag} ({t.vote_count})
-                  </button>
+                  <Link href={`/genre/${genreSlug(t.tag)}`} className="rating-chip" style={{ textDecoration: "none", color: "var(--bone)" }}>
+                    {t.tag}
+                  </Link>
+                  {!isAdmin && (
+                    <button
+                      className={`rating-chip ${t.my_vote ? "rated" : ""}`}
+                      style={{ padding: "6px 7px" }}
+                      disabled={genreTagBusy}
+                      title={t.my_vote ? "Remove your vote" : "Vote for this genre"}
+                      onClick={() => toggleGenreTagVote(t.id, t.my_vote)}
+                    >
+                      {t.my_vote ? "✓" : "+"}{t.vote_count > 0 ? ` ${t.vote_count}` : ""}
+                    </button>
+                  )}
                   {canModerate && genreTagsExpanded && (
                     <span style={{ cursor: "pointer", opacity: 0.5, fontSize: "0.7rem" }} onClick={() => deleteGenreTag(t.id)} title="Remove this tag entirely">✕</span>
                   )}
@@ -1922,6 +1933,8 @@ export default function ArtistPage() {
               )
             )}
           </div>
+
+          <SimilarArtists artistId={id} />
 
           {!authLoading && !user && !isAdmin && (
             <div className="empty-state" style={{ marginBottom: 20 }}>

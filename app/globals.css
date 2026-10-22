@@ -1868,3 +1868,18 @@ body { overflow-x: clip; }
 .era-card-name { color: var(--era, var(--bone)); font-family: var(--font-anton), sans-serif; text-transform: uppercase; font-size: 0.95rem; line-height: 1.1; overflow-wrap: anywhere; }
 .era-card-meta { font-family: var(--font-mono), monospace; font-size: 0.58rem; color: var(--smoke); }
 [data-theme="light"] .era-card { background: color-mix(in srgb, var(--era, var(--surface)) 10%, var(--surface)); }
+/* Artist page: "Fans also like" -- a sideways row of round photos. */
+.similar-row { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.similar-item { flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; text-align: center; }
+.similar-item img, .similar-blank { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--hair); background: var(--surface2); }
+.similar-blank { display: flex; align-items: center; justify-content: center; font-family: var(--font-anton), sans-serif; font-size: 2rem; color: var(--smoke); }
+.similar-item:hover img, .similar-item:hover .similar-blank { border-color: var(--accent); }
+.similar-name { font-size: 0.8rem; color: var(--bone); line-height: 1.2; }
+.similar-why { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--smoke); line-height: 1.2; }
+
+/* Homepage: filter the artist list by genre. Swipes sideways on phones. */
+.genre-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: -4px 0 16px; }
+@media (max-width: 1023px) {
+  .genre-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .genre-chips > * { flex-shrink: 0; }
+}
