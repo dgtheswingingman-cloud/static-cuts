@@ -1,7 +1,7 @@
 // Supabase Edge Function: deezer-sync
 //
 // Reads artists' releases from Deezer's public catalogue (no sign-in), a
-// little at a time (timer every 2 minutes, up to 20 calls a run, each with a
+// little at a time (timer every 2 minutes, up to 60 calls a run, each with a
 // 'deezer' ticket). The database decides what's next (sc_deezer_next):
 //   search: find the artist on Deezer by name
 //   list:   a page of their albums, EPs and singles
@@ -13,7 +13,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const MAX_CALLS = 20;
+const MAX_CALLS = 60;
 
 async function paused() {
   const { data } = await db.from("sc_private_settings").select("value").eq("key", "deezer_pause_until").maybeSingle();
@@ -26,7 +26,7 @@ async function pause(minutes: number) {
 // Deezer answers errors with 200 and {error: {code}}. Code 4 = too many calls.
 async function deezer(path: string): Promise<{ ok: true; body: any } | { ok: false; stop: boolean }> {
   const res = await fetch(`https://api.deezer.com${path}`).catch(() => null);
-  await sleep(400);
+  await sleep(300);
   if (!res) return { ok: false, stop: false };
   if (res.status === 429) { await pause(5); return { ok: false, stop: true }; }
   if (!res.ok) return { ok: false, stop: res.status >= 500 };
