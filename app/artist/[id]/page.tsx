@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, useIsModerator, usePersonalUser } from "../../useIsAdmin";
 import ArtistProfiles from "./ArtistProfiles";
+import MergeArtist from "./MergeArtist";
 import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
@@ -136,6 +137,7 @@ export default function ArtistPage() {
   // Nicknames (Ye for Kanye West): shown under the name, used when matching
   // imports and guest artists. The admin edits them.
   const [aliases, setAliases] = useState<string[]>([]);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
@@ -1698,9 +1700,11 @@ export default function ArtistPage() {
                 profiles{profileCount ? ` (${profileCount}/3)` : ""}
               </button>
               <span className="artist-actions-spacer" />
+              <button className={`tab ${mergeOpen ? "active" : ""}`} onClick={() => setMergeOpen(!mergeOpen)}>merge into…</button>
               <button className="tab danger-tab" disabled={adminBusy} onClick={deleteArtist}>delete artist</button>
             </div>
           )}
+          {isAdmin && mergeOpen && <MergeArtist artistId={id} artistName={artist.name} onClose={() => setMergeOpen(false)} />}
           {isAdmin && aliasesOpen && (
             <div className="comments-panel" style={{ maxWidth: 520, marginBottom: 14 }}>
               <div className="comment-meta" style={{ marginBottom: 6 }}>
