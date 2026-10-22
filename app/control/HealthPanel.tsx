@@ -73,6 +73,7 @@ const TIMER_INFO: Record<string, string> = {
   "collab-refresh": "works out the collab map (nightly)",
   "duplicate-refresh": "works out possible duplicate songs for the duplicates page (hourly, :17)",
   "leaderboard-refresh": "works out the contributors leaderboard (hourly, :23)",
+  "artist-counts-refresh": "counts each artist's songs for the homepage (every 10 min)",
   "push-alerts": "sends phone alerts (every 2 min)",
   "artist-info": "fills in artist photos (Spotify, else Genius) and about text (Last.fm), 8 artists twice an hour",
   "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
