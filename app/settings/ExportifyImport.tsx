@@ -53,6 +53,44 @@ function splitCredits(t: string): { title: string; credits: string[] } {
 const idOf = (uri: string | undefined, kind: string) =>
   uri?.match(new RegExp(`spotify:${kind}:([A-Za-z0-9]{22})`))?.[1] ?? uri?.match(new RegExp(`/${kind}/([A-Za-z0-9]{22})`))?.[1] ?? null;
 
+// Exportify's "Export All" gives a .zip of CSV files. Read the CSVs out of it
+// with the browser's own decompression (no extra library).
+async function csvsFromZip(file: File): Promise<{ name: string; text: string }[]> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(buf.buffer);
+  // Find the central directory (end record is in the last 64 KB).
+  let end = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { end = i; break; }
+  }
+  if (end < 0) throw new Error(`${file.name} isn't a zip file we can read.`);
+  const count = view.getUint16(end + 10, true);
+  let p = view.getUint32(end + 16, true);
+  const out: { name: string; text: string }[] = [];
+  for (let n = 0; n < count; n++) {
+    if (view.getUint32(p, true) !== 0x02014b50) break;
+    const method = view.getUint16(p + 10, true);
+    const compSize = view.getUint32(p + 20, true);
+    const nameLen = view.getUint16(p + 28, true);
+    const extraLen = view.getUint16(p + 30, true);
+    const commentLen = view.getUint16(p + 32, true);
+    const local = view.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if (!/\.csv$/i.test(name)) continue;
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const data = buf.subarray(start, start + compSize);
+    let bytes: Uint8Array;
+    if (method === 0) bytes = data;
+    else if (method === 8) {
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else continue;
+    out.push({ name, text: new TextDecoder().decode(bytes) });
+  }
+  return out;
+}
+
 export default function ExportifyImport() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -66,8 +104,13 @@ export default function ExportifyImport() {
       const items: Record<string, unknown>[] = [];
       const byArtist = new Map<string, { id: string; name: string; songs: number }>();
       let noArtistIds = false;
-      for (const file of Array.from(files)) {
-        const rows = parseCsv(await file.text());
+      const texts: { name: string; text: string }[] = [];
+      for (const f of Array.from(files)) {
+        if (/\.zip$/i.test(f.name) || f.type.includes("zip")) texts.push(...(await csvsFromZip(f)));
+        else texts.push({ name: f.name, text: await f.text() });
+      }
+      for (const file of texts) {
+        const rows = parseCsv(file.text);
         if (rows.length < 2) continue;
         const head = rows[0].map((h) => h.trim().toLowerCase());
         const col = (...names: string[]) => head.findIndex((h) => names.includes(h));
@@ -79,7 +122,7 @@ export default function ExportifyImport() {
         const cArtistUris = col("artist uri(s)", "artist uris", "artist uri");
         const cDate = col("release date", "album release date");
         const cNumber = col("track number");
-        if (cTrack < 0) throw new Error(`${file.name} doesn't look like an Exportify file (no "Track URI" column).`);
+        if (cTrack < 0) continue; // not a song list (e.g. saved albums)
         if (cArtistUris < 0) noArtistIds = true;
         for (const r of rows.slice(1)) {
           const tid = idOf(r[cTrack], "track");
@@ -115,7 +158,7 @@ export default function ExportifyImport() {
           });
         }
       }
-      if (items.length === 0) throw new Error("No songs found in those files.");
+      if (items.length === 0) throw new Error("No songs found in those files. They need Exportify's \"Track URI\" column.");
       const totals = { collected: 0, added: 0, waiting: 0 };
       for (let i = 0; i < items.length; i += 500) {
         setNote(`Importing… ${Math.min(i + 500, items.length).toLocaleString("en-GB")} of ${items.length.toLocaleString("en-GB")} songs`);
@@ -145,11 +188,11 @@ export default function ExportifyImport() {
       <div className="comment-meta" style={{ marginBottom: 8 }}>
         Or upload files from <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a>:
         it saves your liked songs and playlists as files, and works for anyone (no invite needed). Export the ones you want,
-        then pick them all here.
+        then pick the files (or the whole .zip from &ldquo;Export All&rdquo;) here.
       </div>
       <label className="tab" style={{ display: "inline-block", cursor: busy ? "default" : "pointer" }}>
-        {busy ? "importing…" : "upload Exportify files"}
-        <input type="file" accept=".csv,text/csv" multiple disabled={busy} style={{ display: "none" }}
+        {busy ? "importing…" : "upload Exportify files or .zip"}
+        <input type="file" accept=".csv,text/csv,.zip,application/zip" multiple disabled={busy} style={{ display: "none" }}
           onChange={(e) => { run(e.target.files); e.target.value = ""; }} />
       </label>
       {note && <div className="detail-meta" style={{ marginTop: 10 }}>{note}</div>}
