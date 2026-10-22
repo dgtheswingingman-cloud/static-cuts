@@ -5,7 +5,8 @@
 -- new_artists_paused = 'on' it does nothing at all, so it doesn't spend
 -- Spotify calls either. Artists you or moderators add by hand still work.
 --
--- Switch back on later with:
+-- Switch back on later with the "New artist pages" switch in the control
+-- room (Owner tab), or:
 --   update sc_private_settings set value = 'off' where key = 'new_artists_paused';
 --
 -- Also: "work left on followed artists" (which makes guest-artists wait
@@ -53,3 +54,32 @@ begin
     execute d;
   end if;
 end $$;
+
+-- Owner switch in the control room (Owner tab, next to Genius imports).
+create or replace function owner_set_new_artists(p_on boolean)
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+begin
+  if not is_owner() then raise exception 'Only the owner can change this.'; end if;
+  insert into sc_private_settings (key, value) values ('new_artists_paused', case when p_on then 'off' else 'on' end)
+  on conflict (key) do update set value = excluded.value;
+end;
+$$;
+revoke execute on function owner_set_new_artists(boolean) from public, anon;
+grant execute on function owner_set_new_artists(boolean) to authenticated;
+
+create or replace function owner_new_artists()
+returns jsonb
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select case when is_owner() then jsonb_build_object(
+    'on', coalesce((select value from sc_private_settings where key = 'new_artists_paused'), 'off') <> 'on') end;
+$$;
+revoke execute on function owner_new_artists() from public, anon;
+grant execute on function owner_new_artists() to authenticated;

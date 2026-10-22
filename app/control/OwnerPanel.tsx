@@ -46,8 +46,34 @@ export default function OwnerPanel() {
     setGenius({ ...genius, on: !genius.on });
   }
 
+  // New artist pages (guests on songs getting their own page): pausable,
+  // to focus on filling in the artists we have.
+  const [newArtists, setNewArtists] = useState<{ on: boolean } | null>(null);
+  useEffect(() => { supabase.rpc("owner_new_artists").then(({ data }) => setNewArtists((data as typeof newArtists) ?? null)); }, []);
+  async function toggleNewArtists() {
+    if (!newArtists) return;
+    const { error } = await supabase.rpc("owner_set_new_artists", { p_on: !newArtists.on });
+    if (error) { setMessage(error.message); return; }
+    setNewArtists({ on: !newArtists.on });
+  }
+
   return (
     <>
+      {newArtists && (
+        <>
+          <div className="section-label">New artists</div>
+          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="review-row-title">Make pages for guests on songs</div>
+              <div className="review-row-meta">
+                <span>When off, no new artist pages are made automatically and that job makes no Spotify calls, so everything goes on filling in the artists you have. Adding an artist by hand still works.</span>
+              </div>
+            </div>
+            <button className={`tab ${newArtists.on ? "active" : ""}`} onClick={toggleNewArtists}>{newArtists.on ? "on" : "paused"}</button>
+          </div>
+        </>
+      )}
+
       {genius && (
         <>
           <div className="section-label">Genius imports</div>
