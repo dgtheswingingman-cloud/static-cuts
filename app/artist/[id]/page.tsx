@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
 import InlinePlayer, { embedFor } from "../../components/InlinePlayer";
 import Link from "next/link";
@@ -139,6 +139,8 @@ export default function ArtistPage() {
   const [aliases, setAliases] = useState<string[]>([]);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [sameOpen, setSameOpen] = useState(false);
+  // The page's own colour, from the artist's photo.
+  const [artistColour, setArtistColour] = useState<Rgb | null>(null);
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
@@ -1589,8 +1591,12 @@ export default function ArtistPage() {
     );
   }
 
+  const accentStyle = artistColour
+    ? ({ "--accent": accentCss(artistColour, typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light") } as CSSProperties)
+    : undefined;
+
   return (
-    <div className="wrap">
+    <div className="wrap artist-page" style={accentStyle}>
 
       {error && (
         <div className="empty-state error" style={{ marginTop: 18 }}>
@@ -1615,9 +1621,10 @@ export default function ArtistPage() {
             </div>
           ) : (
             <>
-              <h1 className="detail-name">{artist.name}</h1>
-              {aliases.length > 0 && <div className="detail-meta artist-aka">also known as {aliases.join(", ")}</div>}
-              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} />
+              <ArtistHero artistId={id} name={artist.name} aliases={aliases} onColour={setArtistColour} />
+              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
+              <ArtistIntro artistId={id} />
+              <EraStrip artistId={id} />
             </>
           )}
           <div className="artist-actions">

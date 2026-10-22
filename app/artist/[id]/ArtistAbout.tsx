@@ -12,8 +12,8 @@ type Info = { image_url: string | null; bio: string | null; bio_source: string |
 type Group = { id: string; name: string; songs: number; recent: { id: string; title: string; status: string | null }[] };
 type Groups = { members: { id: string; name: string }[]; groups: Group[] };
 
-export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate }: {
-  artistId: string; artistName: string; isAdmin: boolean; canModerate: boolean;
+export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate, hidePhoto = false }: {
+  artistId: string; artistName: string; isAdmin: boolean; canModerate: boolean; hidePhoto?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null);
   const [groups, setGroups] = useState<Groups | null>(null);
@@ -62,7 +62,7 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
 
   return (
     <div className="artist-about">
-      {info?.image_url && (
+      {info?.image_url && !hidePhoto && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={info.image_url} alt={artistName} className="artist-photo" width={120} height={120} />
       )}
