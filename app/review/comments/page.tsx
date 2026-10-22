@@ -49,7 +49,7 @@ export default function ReportedCommentsPage() {
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   return (
-    <div className="wrap" style={{ maxWidth: 760 }}>
+    <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Reported comments</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>

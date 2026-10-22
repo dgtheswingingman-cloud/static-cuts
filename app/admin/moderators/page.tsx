@@ -67,7 +67,7 @@ export default function TeamPage() {
   if (!isOwner) return <NoAccess loading={authLoading} who="owner" />;
 
   return (
-    <div className="wrap" style={{ maxWidth: 680 }}>
+    <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/control?tab=owner")}>← control room</button>
       <h1 className="detail-name page-title">Team</h1>
       <div className="detail-meta" style={{ marginBottom: 20 }}>

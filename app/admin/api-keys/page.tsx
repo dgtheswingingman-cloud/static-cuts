@@ -56,7 +56,7 @@ export default function ApiKeysPage() {
   if (!isAdmin) return <NoAccess loading={authLoading} who="owner" />;
 
   return (
-    <div className="wrap" style={{ maxWidth: 760 }}>
+    <div className="wrap">
       <button className="back-btn" onClick={() => router.push("/control?tab=owner")}>← control room</button>
       <h1 className="detail-name page-title">API Keys</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
