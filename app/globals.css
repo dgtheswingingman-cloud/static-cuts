@@ -1883,3 +1883,7 @@ body { overflow-x: clip; }
   .genre-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .genre-chips > * { flex-shrink: 0; }
 }
+
+/* Imported songs: four actions, in a 2×2 grid on phones. */
+.import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1023px) { .import-actions { display: grid; grid-template-columns: 1fr 1fr; } .import-actions .tab { width: 100%; } }
