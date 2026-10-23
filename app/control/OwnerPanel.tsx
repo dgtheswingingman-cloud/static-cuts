@@ -57,8 +57,9 @@ export default function OwnerPanel() {
     setNewArtists({ on: !newArtists.on, held: newArtists.on ? newArtists.held : 0 });
   }
 
-  // Deezer reading releases: normal pace or flat out.
-  type Deezer = { turbo: boolean; mode: "normal" | "flat" | "extreme"; until: string | null; artists: number; searched: number; linked: number; releases_read: number; releases_left: number; songs_linked: number; calls_last_hour: number };
+  // Deezer reading releases: normal pace or extreme. Only one of Deezer
+  // extreme and Genius extreme (max) can run at a time.
+  type Deezer = { turbo: boolean; mode: "normal" | "extreme"; until: string | null; artists: number; searched: number; linked: number; releases_read: number; releases_left: number; songs_linked: number; calls_last_hour: number };
   const [deezer, setDeezer] = useState<Deezer | null>(null);
   useEffect(() => { supabase.rpc("owner_deezer").then(({ data }) => setDeezer((data as Deezer) ?? null)); }, []);
   async function setDeezerMode(mode: Deezer["mode"]) {
@@ -91,7 +92,7 @@ export default function OwnerPanel() {
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">How fast to fill in producers, features, dates and artwork</div>
               <div className="review-row-meta">
-                <span>Normal: 15 songs every 10 minutes. Fast: about 1 song a second. Max: three at once. Genius doesn&apos;t publish a limit; if it ever says &ldquo;too many requests&rdquo;, this pauses for at least 10 minutes and drops down a pace by itself.</span>
+                <span>Normal: 15 songs every 10 minutes. Fast: about 1 song a second. Extreme: three at once. Only one of Genius and Deezer can be on extreme at a time. Genius doesn&apos;t publish a limit; if it ever says &ldquo;too many requests&rdquo;, this pauses for at least 10 minutes and drops down a pace by itself.</span>
               </div>
               <div className="review-row-meta">
                 <span>
@@ -106,7 +107,9 @@ export default function OwnerPanel() {
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {(["normal", "fast", "max"] as const).map((m) => (
-                <button key={m} className={`tab ${geniusPace.pace === m ? "active" : ""}`} onClick={() => setGeniusMode(m)}>{m}</button>
+                <button key={m} className={`tab ${geniusPace.pace === m ? "active" : ""} ${m === "max" ? "danger-tab" : ""}`} onClick={() => setGeniusMode(m)}>
+                  {m === "max" ? "extreme" : m}
+                </button>
               ))}
             </div>
           </div>
@@ -120,7 +123,7 @@ export default function OwnerPanel() {
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">How fast to read releases</div>
               <div className="review-row-meta">
-                <span>Normal: about 30 Deezer calls a minute. Flat out: about 100+ a minute. Extreme: five workers at once (about 450 a minute) with the site paused for everyone else; it turns itself off when everything&apos;s read or after 3 hours. Deezer allows around 600 a minute. Once everyone&apos;s been read it only checks for new releases monthly, so normal is fine after that.</span>
+                <span>Normal: about 30 Deezer calls a minute. Extreme: five workers at once (about 450 a minute) with the site paused for everyone else; it turns itself off when everything&apos;s read or after 3 hours. Only one of Deezer and Genius can be on extreme at a time. Deezer allows around 600 a minute. Once everyone&apos;s been read it only checks for new releases monthly, so normal is fine after that.</span>
               </div>
               {deezer.mode === "extreme" && deezer.until && (
                 <div className="review-row-meta"><span>Extreme until {new Date(deezer.until).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} at the latest; the site is paused for everyone else.</span></div>
@@ -134,9 +137,9 @@ export default function OwnerPanel() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {(["normal", "flat", "extreme"] as const).map((m) => (
+              {(["normal", "extreme"] as const).map((m) => (
                 <button key={m} className={`tab ${deezer.mode === m ? "active" : ""} ${m === "extreme" ? "danger-tab" : ""}`} onClick={() => setDeezerMode(m)}>
-                  {m === "flat" ? "flat out" : m}
+                  {m}
                 </button>
               ))}
             </div>
