@@ -1,8 +1,10 @@
 // Supabase Edge Function: deezer-sync
 //
 // Reads artists' releases from Deezer's public catalogue (no sign-in), a
-// little at a time (timer every 2 minutes, up to 60 calls a run, each with a
-// 'deezer' ticket). The database decides what's next (sc_deezer_next):
+// little at a time, each call with a 'deezer' ticket. The timer runs every
+// minute: normally the job works every other minute (up to 60 calls); with
+// the owner's "flat out" switch on it works every minute for up to 50
+// seconds. The database decides what's next (sc_deezer_next):
 //   search: find the artist on Deezer by name
 //   list:   a page of their albums, EPs and singles
 //   album:  one release's songs, matched to the page and added if missing
@@ -13,7 +15,8 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const MAX_CALLS = 60;
+const NORMAL = { calls: 60, gap: 300, seconds: 50 };
+const TURBO = { calls: 300, gap: 100, seconds: 50 };
 
 async function paused() {
   const { data } = await db.from("sc_private_settings").select("value").eq("key", "deezer_pause_until").maybeSingle();
@@ -24,9 +27,10 @@ async function pause(minutes: number) {
 }
 
 // Deezer answers errors with 200 and {error: {code}}. Code 4 = too many calls.
+let gap = NORMAL.gap;
 async function deezer(path: string): Promise<{ ok: true; body: any } | { ok: false; stop: boolean }> {
   const res = await fetch(`https://api.deezer.com${path}`).catch(() => null);
-  await sleep(300);
+  await sleep(gap);
   if (!res) return { ok: false, stop: false };
   if (res.status === 429) { await pause(5); return { ok: false, stop: true }; }
   if (!res.ok) return { ok: false, stop: res.status >= 500 };
@@ -57,9 +61,16 @@ Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
   if (await paused()) return json({ ok: true, paused: true });
+  const { data: t } = await db.from("sc_private_settings").select("value").eq("key", "deezer_turbo").maybeSingle();
+  const turbo = t?.value === "on";
+  // Normal pace: every other minute.
+  if (!turbo && new Date().getUTCMinutes() % 2 === 1) return json({ ok: true, skipped: "normal pace" });
+  const mode = turbo ? TURBO : NORMAL;
+  gap = mode.gap;
+  const started = Date.now();
 
-  const done = { searched: 0, linked: 0, listed: 0, releases: 0, matched: 0, added: 0 };
-  for (let calls = 0; calls < MAX_CALLS; calls++) {
+  const done = { turbo, searched: 0, linked: 0, listed: 0, releases: 0, matched: 0, added: 0 };
+  for (let calls = 0; calls < mode.calls && Date.now() - started < mode.seconds * 1000; calls++) {
     const { data: next, error } = await db.rpc("sc_deezer_next", { p_secret: secret });
     if (error) return json({ error: error.message }, 403);
     if (!next) break;

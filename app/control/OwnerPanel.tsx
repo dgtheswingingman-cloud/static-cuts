@@ -57,8 +57,41 @@ export default function OwnerPanel() {
     setNewArtists({ on: !newArtists.on, held: newArtists.on ? newArtists.held : 0 });
   }
 
+  // Deezer reading releases: normal pace or flat out.
+  type Deezer = { turbo: boolean; artists: number; searched: number; linked: number; releases_read: number; releases_left: number; songs_linked: number; calls_last_hour: number };
+  const [deezer, setDeezer] = useState<Deezer | null>(null);
+  useEffect(() => { supabase.rpc("owner_deezer").then(({ data }) => setDeezer((data as Deezer) ?? null)); }, []);
+  async function toggleDeezer() {
+    if (!deezer) return;
+    const { error } = await supabase.rpc("owner_set_deezer_turbo", { p_on: !deezer.turbo });
+    if (error) { setMessage(error.message); return; }
+    setDeezer({ ...deezer, turbo: !deezer.turbo });
+  }
+
   return (
     <>
+      {deezer && (
+        <>
+          <div className="section-label">Deezer</div>
+          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="review-row-title">Read releases flat out</div>
+              <div className="review-row-meta">
+                <span>Normal pace is about 30 Deezer calls a minute. Flat out is about 100+ a minute (Deezer allows around 600). Turn it off once everyone&apos;s been read; after that it only checks for new releases monthly.</span>
+              </div>
+              <div className="review-row-meta">
+                <span>
+                  {deezer.searched.toLocaleString("en-GB")} of {deezer.artists.toLocaleString("en-GB")} artists looked up ·{" "}
+                  {deezer.releases_read.toLocaleString("en-GB")} releases read ({deezer.releases_left.toLocaleString("en-GB")} waiting) ·{" "}
+                  {deezer.songs_linked.toLocaleString("en-GB")} songs with a Deezer link · {deezer.calls_last_hour.toLocaleString("en-GB")} calls in the last hour
+                </span>
+              </div>
+            </div>
+            <button className={`tab ${deezer.turbo ? "active" : ""}`} onClick={toggleDeezer}>{deezer.turbo ? "flat out" : "normal"}</button>
+          </div>
+        </>
+      )}
+
       {newArtists && (
         <>
           <div className="section-label">New artists</div>
