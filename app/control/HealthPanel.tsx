@@ -77,6 +77,7 @@ const TIMER_INFO: Record<string, string> = {
   "push-alerts": "sends phone alerts (every 2 min)",
   "artist-info": "fills in artist photos (Spotify, else Genius), about text and genres (Last.fm), and finds Spotify profiles for artists without one (twice an hour)",
   "deezer-sync": "reads artists' releases from Deezer: fills in albums, dates and covers, marks songs released and adds missing ones (every 2 min)",
+  "guest-refresh": "tidies the guest artist list and moves songs onto guests' new pages (every 20 min, before guest-artists)",
   "genre-cache": "works out genre scores for the genre pages and filters (every 10 min)",
   "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
 };
