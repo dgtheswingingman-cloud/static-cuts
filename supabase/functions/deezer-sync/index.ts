@@ -11,6 +11,7 @@
 //   search: find the artist on Deezer by name
 //   list:   a page of their albums, EPs and singles
 //   album:  one release's songs, matched to the page and added if missing
+//   photo:  the artist's Deezer picture, for artists with no photo
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
   gap = mode.gap;
   const started = Date.now();
 
-  const done = { mode: modeName, searched: 0, linked: 0, listed: 0, releases: 0, matched: 0, added: 0 };
+  const done = { mode: modeName, searched: 0, linked: 0, listed: 0, releases: 0, matched: 0, added: 0, photos: 0 };
   let stop = false, empty = 0, calls = 0;
   let failed: string | null = null;
 
@@ -92,12 +93,14 @@ Deno.serve(async (req) => {
       if (next.kind === "search") {
         const r = await deezer(`/search/artist?q=${encodeURIComponent(next.name)}&limit=10`);
         if (!r.ok) { if (r.stop) stop = true; return; } // try again next run
-        const exact = ((r.body?.data ?? []) as { id: number; name: string; nb_fan: number }[])
+        const exact = ((r.body?.data ?? []) as { id: number; name: string; nb_fan: number; picture_xl?: string; picture_big?: string }[])
           .filter((a) => plain(a.name) === plain(next.name))
           .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0));
         // One exact match, or a clear favourite (5× the fans of the next one).
         const pick = exact.length === 1 || (exact.length > 1 && (exact[0].nb_fan ?? 0) >= 5 * Math.max(1, exact[1].nb_fan ?? 0)) ? exact[0] : null;
         await db.rpc("sc_deezer_link", { p_secret: secret, p_artist: next.artist_id, p_deezer_id: pick ? String(pick.id) : null });
+        // Their picture comes with the search: no extra call.
+        if (pick) await db.rpc("sc_deezer_photo", { p_secret: secret, p_artist: next.artist_id, p_picture: pick.picture_xl || pick.picture_big || null });
         await db.rpc("sc_deezer_unclaim", { p_secret: secret, p_artist: next.artist_id });
         done.searched++; if (pick) done.linked++;
       } else if (next.kind === "list") {
@@ -126,6 +129,12 @@ Deno.serve(async (req) => {
         done.releases++;
         done.matched += (res?.matched as number) ?? 0;
         done.added += (res?.added as number) ?? 0;
+      } else if (next.kind === "photo") {
+        const r = await deezer(`/artist/${next.deezer_id}`);
+        if (!r.ok) { if (r.stop) stop = true; return; } // try again next run
+        await db.rpc("sc_deezer_photo", { p_secret: secret, p_artist: next.artist_id, p_picture: r.body?.picture_xl || r.body?.picture_big || null });
+        await db.rpc("sc_deezer_unclaim", { p_secret: secret, p_artist: next.artist_id });
+        done.photos++;
       } else return;
   }
 

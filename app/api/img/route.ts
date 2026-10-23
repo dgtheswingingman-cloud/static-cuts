@@ -2,7 +2,7 @@
 // colours (pages pick their accent colour from the artist's photo). Only
 // image hosts the archive already uses are allowed; results are cached.
 
-const ALLOWED = [/(^|\.)genius\.com$/, /^images\.rapgenius\.com$/, /(^|\.)spotifycdn\.com$/, /^i\.scdn\.co$/, /(^|\.)sndcdn\.com$/, /\.supabase\.co$/];
+const ALLOWED = [/(^|\.)genius\.com$/, /^images\.rapgenius\.com$/, /(^|\.)spotifycdn\.com$/, /^i\.scdn\.co$/, /(^|\.)sndcdn\.com$/, /\.supabase\.co$/, /(^|\.)dzcdn\.net$/];
 
 export async function GET(req: Request) {
   const raw = new URL(req.url).searchParams.get("u") ?? "";
