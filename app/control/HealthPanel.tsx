@@ -57,7 +57,7 @@ type Timer = { name: string; schedule: string; active: boolean; last_run: string
 // What each timer does, in plain words.
 const TIMER_INFO: Record<string, string> = {
   "genius-import": "imports an artist's songs from Genius (every 10 min)",
-  "genius-credits": "fills producers, features, dates and artwork from Genius (every 10 min)",
+  "genius-credits": "fills producers, features, dates and artwork from Genius (pace set in Owner: normal every 10 min, fast/max every minute)",
   "fetch-covers": "fetches Spotify artwork (every 10 min)",
   "sheet-sync": "re-reads community sheets that are due (hourly)",
   "radar-daily": "release-day reminders (07:05 UTC)",

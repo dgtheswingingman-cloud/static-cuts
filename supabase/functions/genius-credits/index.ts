@@ -2,8 +2,12 @@
 //
 // Fills empty producer, featured-artist, release-date and artwork fields from
 // Genius, a few songs at a time (see 20261019190000_genius_credits.sql).
-// Called by a database timer every 10 minutes: up to 15 songs, about 2
-// seconds between Genius requests, stops if Genius asks it to slow down.
+// The timer runs every minute. Owner's pace setting (sc_genius_pace):
+//   normal: every 10 minutes, up to 15 songs, 1.5 seconds between requests
+//   fast:   every minute, one worker for up to 50 seconds
+//   max:    every minute, three workers for up to 50 seconds
+// If Genius says "too many requests" it pauses (10 minutes or what Genius
+// asks) and drops down a pace by itself (sc_genius_slowed).
 // Only confident matches are used: the title must match and the artist must
 // be the song's main artist or one of its featured artists.
 
@@ -24,7 +28,13 @@ async function steadyFetch(input: RequestInfo | URL, init?: RequestInit): Promis
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { global: { fetch: steadyFetch } });
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-const pause = () => new Promise((r) => setTimeout(r, 2000));
+let gapMs = 2000;
+const pause = () => new Promise((r) => setTimeout(r, gapMs));
+const PACES: Record<string, { workers: number; songs: number; gap: number; seconds: number }> = {
+  normal: { workers: 1, songs: 15, gap: 1500, seconds: 50 },
+  fast: { workers: 1, songs: 120, gap: 400, seconds: 50 },
+  max: { workers: 3, songs: 300, gap: 300, seconds: 50 },
+};
 
 class SlowDown extends Error {}
 
@@ -71,50 +81,82 @@ Deno.serve(async (req) => {
   const token = Deno.env.get("GENIUS_ACCESS_TOKEN");
   if (!token) return json({ error: "GENIUS_ACCESS_TOKEN isn't set" }, 500);
 
-  const { data: todo, error } = await db.rpc("sc_genius_credit_next", { p_secret: secret, p_limit: 15 });
+  const { data: paceName } = await db.rpc("sc_genius_pace", { p_secret: secret });
+  const paceKey = typeof paceName === "string" && PACES[paceName] ? paceName : "normal";
+  // Normal pace: every 10 minutes (at :06, :16, …).
+  if (paceKey === "normal" && new Date().getUTCMinutes() % 10 !== 6) return json({ ok: true, skipped: "normal pace" });
+  const pace = PACES[paceKey];
+  gapMs = pace.gap;
+  const started = Date.now();
+
+  const { data: todo, error } = await db.rpc("sc_genius_credit_next", { p_secret: secret, p_limit: pace.songs });
   if (error) return json({ error: error.message }, 403);
+  const queue = [...((todo ?? []) as Todo[])];
 
   const results: Record<string, unknown>[] = [];
   let stopped: string | null = null;
-  try {
-    for (const t of (todo ?? []) as Todo[]) {
-      let id = t.genius_song_id;
-      if (!id) {
-        const q = `${t.title.replace(/[([].*?[)\]]/g, " ")} ${t.artist}`.replace(/\s+/g, " ").trim();
-        const s = await genius(`/search?per_page=10&q=${encodeURIComponent(q)}`, token);
-        await pause();
-        const want = key(t.title);
-        const artistId = t.genius_artist_id && /^\d+$/.test(t.genius_artist_id) ? Number(t.genius_artist_id) : null;
-        const hit = (s?.hits ?? []).map((h: any) => h.result).find((r: any) =>
-          r && key(r.title) === want &&
-          ((artistId && (r.primary_artist?.id === artistId || (r.featured_artists ?? []).some((a: any) => a.id === artistId))) ||
-           key(r.primary_artist?.name) === key(t.artist) ||
-           (r.featured_artists ?? []).some((a: any) => key(a.name) === key(t.artist))));
-        if (!hit) { results.push({ track_id: t.track_id }); continue; }
-        id = hit.id;
-      }
-      const song = (await genius(`/songs/${id}?text_format=plain`, token))?.song;
-      await pause();
-      if (!song) { results.push({ track_id: t.track_id }); continue; }
-      const c = song.release_date_components;
-      results.push({
-        track_id: t.track_id,
-        genius_song_id: song.id,
-        producers: (song.producer_artists ?? []).map((a: any) => a.name).join(", ") || null,
-        featuring: (song.featured_artists ?? []).map((a: any) => a.name).join(", ") || null,
-        release_date: c?.year && c?.month && c?.day
-          ? `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}` : null,
-        cover_url: song.song_art_image_thumbnail_url && !/default_cover/.test(song.song_art_image_thumbnail_url)
-          ? song.song_art_image_thumbnail_url : null,
-      });
-    }
-  } catch (e) {
-    if (e instanceof SlowDown) stopped = "Genius asked to slow down";
-    else if (e instanceof OutOfTickets) stopped = e.message;
-    else stopped = String((e as Error)?.message ?? e);
+  let slowed = false;
+  let saved = 0;
+  // Saved as it goes, so a run cut short keeps what it found.
+  async function flush() {
+    if (results.length === 0) return;
+    const batch = results.splice(0, results.length);
+    const { data } = await db.rpc("sc_genius_credit_save", { p_secret: secret, p_items: batch });
+    saved += (data as number) ?? 0;
   }
 
-  const { data: saved, error: saveErr } = await db.rpc("sc_genius_credit_save", { p_secret: secret, p_items: results });
-  if (saveErr) return json({ error: saveErr.message }, 500);
-  return json({ ok: true, checked: results.length, matched: saved, stopped });
+  async function one(t: Todo) {
+
+    let id = t.genius_song_id;
+    if (!id) {
+      const q = `${t.title.replace(/[([].*?[)\]]/g, " ")} ${t.artist}`.replace(/\s+/g, " ").trim();
+      const s = await genius(`/search?per_page=10&q=${encodeURIComponent(q)}`, token);
+      await pause();
+      const want = key(t.title);
+      const artistId = t.genius_artist_id && /^\d+$/.test(t.genius_artist_id) ? Number(t.genius_artist_id) : null;
+      const hit = (s?.hits ?? []).map((h: any) => h.result).find((r: any) =>
+        r && key(r.title) === want &&
+        ((artistId && (r.primary_artist?.id === artistId || (r.featured_artists ?? []).some((a: any) => a.id === artistId))) ||
+         key(r.primary_artist?.name) === key(t.artist) ||
+         (r.featured_artists ?? []).some((a: any) => key(a.name) === key(t.artist))));
+      if (!hit) { results.push({ track_id: t.track_id }); return; }
+      id = hit.id;
+    }
+    const song = (await genius(`/songs/${id}?text_format=plain`, token))?.song;
+    await pause();
+    if (!song) { results.push({ track_id: t.track_id }); return; }
+    const c = song.release_date_components;
+    results.push({
+      track_id: t.track_id,
+      genius_song_id: song.id,
+      producers: (song.producer_artists ?? []).map((a: any) => a.name).join(", ") || null,
+      featuring: (song.featured_artists ?? []).map((a: any) => a.name).join(", ") || null,
+      release_date: c?.year && c?.month && c?.day
+        ? `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}` : null,
+      cover_url: song.song_art_image_thumbnail_url && !/default_cover/.test(song.song_art_image_thumbnail_url)
+        ? song.song_art_image_thumbnail_url : null,
+    });
+  }
+
+  async function worker() {
+    while (!stopped && queue.length && Date.now() - started < pace.seconds * 1000) {
+      const t = queue.shift()!;
+      try {
+        await one(t);
+      } catch (e) {
+        if (e instanceof SlowDown) { stopped = "Genius asked to slow down"; slowed = true; }
+        else if (e instanceof OutOfTickets) stopped = e.message;
+        else stopped = String((e as Error)?.message ?? e);
+      }
+      if (results.length >= 10) await flush();
+    }
+  }
+  await Promise.all(Array.from({ length: pace.workers }, () => worker()));
+  await flush();
+  let pacedDown: string | null = null;
+  if (slowed && paceKey !== "normal") {
+    const { data: np } = await db.rpc("sc_genius_slowed", { p_secret: secret });
+    pacedDown = (np as string) ?? null;
+  }
+  return json({ ok: true, pace: paceKey, checked: (todo ?? []).length - queue.length, matched: saved, stopped, paced_down: pacedDown });
 });

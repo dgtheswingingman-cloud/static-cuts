@@ -70,8 +70,49 @@ export default function OwnerPanel() {
     setDeezer((data as Deezer) ?? { ...deezer, mode });
   }
 
+  // Genius credits (producers, features, dates, artwork): pace.
+  type Genius = { pace: "normal" | "fast" | "max"; note: string | null; paused_until: string | null; unchecked: number; checked_last_hour: number; calls_last_hour: number };
+  const [geniusPace, setGeniusPace] = useState<Genius | null>(null);
+  useEffect(() => { supabase.rpc("owner_genius").then(({ data }) => setGeniusPace((data as Genius) ?? null)); }, []);
+  async function setGeniusMode(pace: Genius["pace"]) {
+    if (!geniusPace || pace === geniusPace.pace) return;
+    const { error } = await supabase.rpc("owner_set_genius_pace", { p_pace: pace });
+    if (error) { setMessage(error.message); return; }
+    const { data } = await supabase.rpc("owner_genius");
+    setGeniusPace((data as Genius) ?? { ...geniusPace, pace });
+  }
+
   return (
     <>
+      {geniusPace && (
+        <>
+          <div className="section-label">Genius credits</div>
+          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="review-row-title">How fast to fill in producers, features, dates and artwork</div>
+              <div className="review-row-meta">
+                <span>Normal: 15 songs every 10 minutes. Fast: about 1 song a second. Max: three at once. Genius doesn&apos;t publish a limit; if it ever says &ldquo;too many requests&rdquo;, this pauses for at least 10 minutes and drops down a pace by itself.</span>
+              </div>
+              <div className="review-row-meta">
+                <span>
+                  {geniusPace.unchecked.toLocaleString("en-GB")} songs not checked yet · {geniusPace.checked_last_hour.toLocaleString("en-GB")} checked in the last hour ·{" "}
+                  {geniusPace.calls_last_hour.toLocaleString("en-GB")} calls in the last hour
+                </span>
+              </div>
+              {geniusPace.note && <div className="review-row-meta"><span>{geniusPace.note}</span></div>}
+              {geniusPace.paused_until && Date.parse(geniusPace.paused_until) > Date.now() && (
+                <div className="review-row-meta"><span>Paused by Genius until {new Date(geniusPace.paused_until).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.</span></div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["normal", "fast", "max"] as const).map((m) => (
+                <button key={m} className={`tab ${geniusPace.pace === m ? "active" : ""}`} onClick={() => setGeniusMode(m)}>{m}</button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {deezer && (
         <>
           <div className="section-label">Deezer</div>
