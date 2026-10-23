@@ -58,14 +58,16 @@ export default function OwnerPanel() {
   }
 
   // Deezer reading releases: normal pace or flat out.
-  type Deezer = { turbo: boolean; artists: number; searched: number; linked: number; releases_read: number; releases_left: number; songs_linked: number; calls_last_hour: number };
+  type Deezer = { turbo: boolean; mode: "normal" | "flat" | "extreme"; until: string | null; artists: number; searched: number; linked: number; releases_read: number; releases_left: number; songs_linked: number; calls_last_hour: number };
   const [deezer, setDeezer] = useState<Deezer | null>(null);
   useEffect(() => { supabase.rpc("owner_deezer").then(({ data }) => setDeezer((data as Deezer) ?? null)); }, []);
-  async function toggleDeezer() {
-    if (!deezer) return;
-    const { error } = await supabase.rpc("owner_set_deezer_turbo", { p_on: !deezer.turbo });
+  async function setDeezerMode(mode: Deezer["mode"]) {
+    if (!deezer || mode === deezer.mode) return;
+    if (mode === "extreme" && !window.confirm("Extreme pauses the site for everyone but you (a \"back soon\" screen) and reads Deezer with five workers. It turns itself off when everything's read, or after 3 hours. Go?")) return;
+    const { error } = await supabase.rpc("owner_set_deezer_mode", { p_mode: mode });
     if (error) { setMessage(error.message); return; }
-    setDeezer({ ...deezer, turbo: !deezer.turbo });
+    const { data } = await supabase.rpc("owner_deezer");
+    setDeezer((data as Deezer) ?? { ...deezer, mode });
   }
 
   return (
@@ -75,10 +77,13 @@ export default function OwnerPanel() {
           <div className="section-label">Deezer</div>
           <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
             <div style={{ minWidth: 0 }}>
-              <div className="review-row-title">Read releases flat out</div>
+              <div className="review-row-title">How fast to read releases</div>
               <div className="review-row-meta">
-                <span>Normal pace is about 30 Deezer calls a minute. Flat out is about 100+ a minute (Deezer allows around 600). Turn it off once everyone&apos;s been read; after that it only checks for new releases monthly.</span>
+                <span>Normal: about 30 Deezer calls a minute. Flat out: about 100+ a minute. Extreme: five workers at once (about 450 a minute) with the site paused for everyone else; it turns itself off when everything&apos;s read or after 3 hours. Deezer allows around 600 a minute. Once everyone&apos;s been read it only checks for new releases monthly, so normal is fine after that.</span>
               </div>
+              {deezer.mode === "extreme" && deezer.until && (
+                <div className="review-row-meta"><span>Extreme until {new Date(deezer.until).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} at the latest; the site is paused for everyone else.</span></div>
+              )}
               <div className="review-row-meta">
                 <span>
                   {deezer.searched.toLocaleString("en-GB")} of {deezer.artists.toLocaleString("en-GB")} artists looked up ·{" "}
@@ -87,7 +92,13 @@ export default function OwnerPanel() {
                 </span>
               </div>
             </div>
-            <button className={`tab ${deezer.turbo ? "active" : ""}`} onClick={toggleDeezer}>{deezer.turbo ? "flat out" : "normal"}</button>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["normal", "flat", "extreme"] as const).map((m) => (
+                <button key={m} className={`tab ${deezer.mode === m ? "active" : ""} ${m === "extreme" ? "danger-tab" : ""}`} onClick={() => setDeezerMode(m)}>
+                  {m === "flat" ? "flat out" : m}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}

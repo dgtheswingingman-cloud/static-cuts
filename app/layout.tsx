@@ -13,6 +13,7 @@ import SiteHome from "./SiteHome";
 import DesktopNav from "./DesktopNav";
 import MobileTabBar from "./MobileTabBar";
 import SpotifyImportResume from "./SpotifyImportResume";
+import SitePause from "./SitePause";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -54,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ModeBar />
               <DesktopNav />
               <SiteHome />
-              {children}
+              <SitePause>{children}</SitePause>
               <footer className="site-credit">
                 <nav className="site-credit-links">
                   <Link href="/faq">FAQ</Link>
