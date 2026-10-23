@@ -4,10 +4,11 @@
 // Genius, a few songs at a time (see 20261019190000_genius_credits.sql).
 // The timer runs every minute. Owner's pace setting (sc_genius_pace):
 //   normal: every 10 minutes, up to 15 songs, 1.5 seconds between requests
-//   fast:   every minute, one worker for up to 50 seconds
-//   max:    every minute, three workers for up to 50 seconds
+//   max ("extreme"): every minute, three workers for up to 50 seconds, with
+//        the site paused for everyone else; ends after 3 hours or when
+//        every song has been checked (sc_genius_extreme_done)
 // If Genius says "too many requests" it pauses (10 minutes or what Genius
-// asks) and drops down a pace by itself (sc_genius_slowed).
+// asks) and drops back to normal by itself (sc_genius_slowed).
 // Only confident matches are used: the title must match and the artist must
 // be the song's main artist or one of its featured artists.
 
@@ -32,7 +33,6 @@ let gapMs = 2000;
 const pause = () => new Promise((r) => setTimeout(r, gapMs));
 const PACES: Record<string, { workers: number; songs: number; gap: number; seconds: number }> = {
   normal: { workers: 1, songs: 15, gap: 1500, seconds: 50 },
-  fast: { workers: 1, songs: 120, gap: 400, seconds: 50 },
   max: { workers: 3, songs: 300, gap: 300, seconds: 50 },
 };
 
@@ -92,6 +92,11 @@ Deno.serve(async (req) => {
   const { data: todo, error } = await db.rpc("sc_genius_credit_next", { p_secret: secret, p_limit: pace.songs });
   if (error) return json({ error: error.message }, 403);
   const queue = [...((todo ?? []) as Todo[])];
+  // Extreme with nothing left to check: back to normal, site comes back.
+  if (queue.length === 0 && paceKey === "max") {
+    await db.rpc("sc_genius_extreme_done", { p_secret: secret });
+    return json({ ok: true, pace: paceKey, checked: 0, finished: true });
+  }
 
   const results: Record<string, unknown>[] = [];
   let stopped: string | null = null;

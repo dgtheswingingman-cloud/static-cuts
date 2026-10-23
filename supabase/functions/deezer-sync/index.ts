@@ -4,7 +4,6 @@
 // little at a time, each call with a 'deezer' ticket. The timer runs every
 // minute. Owner's pace setting (sc_deezer_mode):
 //   normal:   every other minute, up to 60 calls
-//   flat out: every minute, one worker for up to 50 seconds
 //   extreme:  every minute, five workers at once for up to 50 seconds (the
 //             site is paused for everyone else meanwhile)
 // The database hands out (and claims) what's next (sc_deezer_next):
@@ -20,7 +19,6 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const NORMAL = { workers: 1, calls: 60, gap: 300, seconds: 50 };
-const TURBO = { workers: 1, calls: 300, gap: 100, seconds: 50 };
 const EXTREME = { workers: 5, calls: 300, gap: 250, seconds: 50 };
 
 async function paused() {
@@ -70,11 +68,11 @@ Deno.serve(async (req) => {
   if (modeErr) {
     // Older database without the pace setting function: read the switch.
     const { data: t } = await db.from("sc_private_settings").select("value").eq("key", "deezer_turbo").maybeSingle();
-    modeName = t?.value === "on" ? "on" : "off";
+    modeName = t?.value === "extreme" ? "extreme" : "off";
   }
   // Normal pace: every other minute.
-  if (modeName === "off" && new Date().getUTCMinutes() % 2 === 1) return json({ ok: true, skipped: "normal pace" });
-  const mode = modeName === "extreme" ? EXTREME : modeName === "on" ? TURBO : NORMAL;
+  if (modeName !== "extreme" && new Date().getUTCMinutes() % 2 === 1) return json({ ok: true, skipped: "normal pace" });
+  const mode = modeName === "extreme" ? EXTREME : NORMAL;
   gap = mode.gap;
   const started = Date.now();
 

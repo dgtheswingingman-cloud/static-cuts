@@ -1,13 +1,13 @@
 "use client";
 
-// While the owner runs a big job (Deezer "extreme"), the site shows a "back
+// While the owner runs a big job (Deezer or Genius "extreme"), the site shows a "back
 // soon" screen to everyone else. The owner still gets in, with a reminder.
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
 
-type Pause = { paused: boolean; until: string | null; owner: boolean };
+type Pause = { paused: boolean; job?: string; until: string | null; owner: boolean };
 
 export default function SitePause({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -26,7 +26,7 @@ export default function SitePause({ children }: { children: React.ReactNode }) {
     return (
       <>
         <div className="site-pause-note">
-          Site paused for everyone else while Deezer reads flat out
+          Site paused for everyone else while {p.job ?? "Deezer"} runs on extreme
           {until ? ` (until ${until.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} at the latest)` : ""}.
           Switch it off in Control room → Owner.
         </div>
