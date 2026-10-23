@@ -6,7 +6,8 @@
 //   normal:   every other minute, up to 60 calls
 //   flat out: every minute, one worker for up to 50 seconds
 //   extreme:  every minute, five workers at once for up to 50 seconds (the
-//             site is paused for everyone else meanwhile) The database decides what's next (sc_deezer_next):
+//             site is paused for everyone else meanwhile)
+// The database hands out (and claims) what's next (sc_deezer_next):
 //   search: find the artist on Deezer by name
 //   list:   a page of their albums, EPs and singles
 //   album:  one release's songs, matched to the page and added if missing
