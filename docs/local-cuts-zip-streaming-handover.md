@@ -3,6 +3,7 @@
 **Prepared:** 2026-10-25 UTC  
 **Repo:** https://github.com/dgtheswingingman-cloud/static-cuts  
 **Branch:** `fix/local-cuts-zip-streaming-20261025`  
+**Draft PR:** [#160 — stream ZIP export and enforce ZIP32 limits](https://github.com/dgtheswingingman-cloud/static-cuts/pull/160)  
 **Base:** `main` at `262d61a6a0c62274eb29c9092c13f46eee22cb04` (includes merged recovery PR #159).  
 **Merge status:** Draft proposal; NOT merged, NOT production-deployed. The merge commit SHA is **not yet known**.  
 **Ownership:** Changes on this branch are from the hourly ChatGPT Local Cuts development task; earlier PRs #157 and #158 are **not** part of this branch's diff.
