@@ -33,9 +33,6 @@ type Version = { id: string; title: string; status: string | null; is_main: bool
 const SAVE_KEY = "static_cuts_local_cuts";
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
-function tidy(s: string | null) {
-  return (s ?? "").toLowerCase().replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/g, "").replace(/[^\p{L}\p{N}]+/gu, "");
-}
 function firstArtist(s: string | null) {
   return (s ?? "").split(/\s*(?:,|&|\bx\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|;|\/)\s*/i)[0]?.trim() || null;
 }
@@ -246,7 +243,11 @@ export default function LocalCutsPage() {
 
   function update(key: string, patch: Partial<Item>) {
     const previous = items.find((i) => i.key === key);
-    const next = previous ? { ...previous, ...patch } : null;
+    // Switching recordings must not retain ownership from the prior track ID.
+    const effectivePatch = previous && patch.track_id !== undefined && patch.track_id !== previous.track_id
+      ? { ...patch, owned: false }
+      : patch;
+    const next = previous ? { ...previous, ...effectivePatch } : null;
     const f = files.current.get(key);
     if (previous?.track_id && (previous.track_id !== next?.track_id || next?.status !== "sure")) {
       // Only clear an association if another file is not using that same song.
@@ -254,7 +255,7 @@ export default function LocalCutsPage() {
       setLocalFile(previous.track_id, replacement ? files.current.get(replacement.key) ?? null : null);
     }
     if (next?.track_id && next.status === "sure" && f) setLocalFile(next.track_id, f);
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...effectivePatch } : i)));
   }
   function removeAll() {
     if (!confirm("Clear Local Cuts on this device? Your files and your collection aren't touched.")) return;
