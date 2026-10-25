@@ -258,12 +258,16 @@ export default function LocalCutsPage() {
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...effectivePatch } : i)));
   }
   function removeAll() {
-    if (!confirm("Clear Local Cuts on this device? Your files and your collection aren't touched.")) return;
+    if (!confirm("Reset Local Cuts on this browser? This forgets local matches and formatting preferences. Your original audio files, exported copies and online collection will NOT be deleted.")) return;
     play(null);
     items.forEach((i) => i.track_id && setLocalFile(i.track_id, null));
     files.current.clear();
     setItems([]);
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* fine */ }
+    setLastAdded([]);
+    try {
+      localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem("static_cuts_tidy_prefs");
+    } catch { /* browser storage unavailable */ }
   }
 
   if (isAdmin) return <AdminModePage title="Local Cuts" />;
@@ -293,7 +297,7 @@ export default function LocalCutsPage() {
           + add songs
           <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
         </label>
-        {items.length > 0 && <button className="tab" onClick={removeAll}>clear</button>}
+        {items.length > 0 && <button className="tab" onClick={removeAll}>reset Local Cuts</button>}
       </div>
       {!loading && !user && (
         <div className="comment-meta" style={{ marginBottom: 10 }}>
