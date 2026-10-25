@@ -28,5 +28,5 @@ test("key suffixes preserve distinct items in an otherwise identical selection",
 test("large files only sample the beginning and end", async () => {
   const audio = new File([new Uint8Array(1024 * 1024)], "large.flac");
   const key = await fileKey(audio);
-  assert.match(key, /^v1\\|large.flac\\|1048576\\|[a-f0-9]{32}$/);
+  assert.match(key, /^v1\|large\.flac\|1048576\|[a-f0-9]{32}$/);
 });
