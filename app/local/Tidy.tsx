@@ -161,13 +161,18 @@ export default function Tidy({ items, files, onEdit }: {
       setDone(`Saved ${plan.length - failed} tidied copies into the "${root.name}" folder${failed ? ` (${failed} couldn't be done)` : ""}, with a list of every change. Your originals weren't touched.`);
     } else {
       zipEntries.push({ path: "Static Cuts/Static Cuts changes.csv", blob: csv });
-      const zip = await makeZip(zipEntries, (i) => setProgress(`Packing ${i} of ${zipEntries.length}…`));
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(zip);
-      a.download = `static-cuts-${new Date().toISOString().slice(0, 10)}.zip`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
-      setDone(`Downloaded ${plan.length - failed} tidied copies as a zip${failed ? ` (${failed} couldn't be done)` : ""}. Unzip it and move the folder where you keep your music.`);
+      try {
+        const zip = await makeZip(zipEntries, (i) => setProgress(`Packing ${i} of ${zipEntries.length}…`));
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(zip);
+        a.download = `static-cuts-${new Date().toISOString().slice(0, 10)}.zip`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+        setDone(`Downloaded ${plan.length - failed} tidied copies as a zip${failed ? ` (${failed} couldn't be done)` : ""}. Unzip it and move the folder where you keep your music.`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown ZIP error";
+        setDone(`Couldn't create the ZIP: ${message} Your originals are unchanged. Try a smaller batch or save to a folder in a supported browser.`);
+      }
     }
     setProgress(null);
   }

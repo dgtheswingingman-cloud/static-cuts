@@ -141,29 +141,48 @@ const CRC = (() => {
   for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
   return t;
 })();
-function crc32(b: Uint8Array) {
+async function crc32Blob(blob: Blob): Promise<number> {
   let c = 0xffffffff;
-  for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
+  const reader = blob.stream().getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const b of value) c = CRC[(c ^ b) & 255] ^ (c >>> 8);
+    }
+  } finally { reader.releaseLock(); }
   return (c ^ 0xffffffff) >>> 0;
 }
 function le16(n: number) { return new Uint8Array([n & 255, (n >>> 8) & 255]); }
 
-// A zip with no compression (music doesn't compress anyway). Fine for a few
-// hundred songs; under 4 GB in total.
+// ZIP32 without compression (audio rarely compresses). Keep the source Blob
+// as a Blob part instead of copying every recording into a full-size buffer.
 export async function makeZip(entries: { path: string; blob: Blob }[], onProgress?: (i: number) => void): Promise<Blob> {
+  const MAX_ZIP32 = 0xffffffff;
+  if (entries.length > 0xffff) throw new Error("Too many files for a ZIP archive (maximum 65,535).");
+  const names = entries.map((e) => enc.encode(e.path));
+  let expectedSize = 22; // end-of-central-directory record
+  for (let i = 0; i < entries.length; i++) {
+    const { blob } = entries[i];
+    const nameLength = names[i].length;
+    if (nameLength > 0xffff) throw new Error(`ZIP filename is too long: ${entries[i].path.slice(0, 80)}`);
+    if (blob.size > MAX_ZIP32) throw new Error("A file exceeds the 4 GB ZIP limit. Save to a folder or split the batch.");
+    expectedSize += 30 + nameLength + blob.size + 46 + nameLength;
+    if (expectedSize > MAX_ZIP32) throw new Error("ZIP exceeds the 4 GB limit. Save to a folder or split the batch.");
+  }
   const parts: BlobPart[] = [];
   const central: Uint8Array[] = [];
   let offset = 0;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
-    const data = new Uint8Array(await e.blob.arrayBuffer());
-    const name = enc.encode(e.path);
-    const crc = crc32(data);
-    const local = concat([le32(0x04034b50), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(data.length), le32(data.length), le16(name.length), le16(0), name]);
-    parts.push(local, data);
-    central.push(concat([le32(0x02014b50), le16(20), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(data.length), le32(data.length),
+    const name = names[i];
+    const crc = await crc32Blob(e.blob);
+    const size = e.blob.size;
+    const local = concat([le32(0x04034b50), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(size), le32(size), le16(name.length), le16(0), name]);
+    parts.push(local, e.blob);
+    central.push(concat([le32(0x02014b50), le16(20), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(size), le32(size),
       le16(name.length), le16(0), le16(0), le16(0), le16(0), le32(0), le32(offset), name]));
-    offset += local.length + data.length;
+    offset += local.length + size;
     onProgress?.(i + 1);
   }
   const cd = concat(central);
