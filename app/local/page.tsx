@@ -15,6 +15,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import { readDuration, readTags } from "./tags";
+import { fileKey, unusedKey } from "./fileIdentity";
 import { setLocalFile } from "./store";
 import Tidy from "./Tidy";
 
@@ -78,12 +79,22 @@ export default function LocalCutsPage() {
     if (picked.length === 0) { setMessage("None of those are music files."); return; }
     setMessage(null);
     const known = new Map<string, Item>(items.map((i: Item) => [i.key, i] as [string, Item]));
+    const reserved = new Set(known.keys());
     const fresh: Item[] = [];
     for (let i = 0; i < picked.length; i++) {
       const f = picked[i];
-      const key = `${f.name}|${f.size}`;
+      // Identify by folder-relative path, byte size and sampled file content.
+      // Reconnect previously selected files without merging different recordings.
+      const baseKey = await fileKey(f);
+      const existing = known.get(baseKey);
+      if (existing) {
+        files.current.set(baseKey, f);
+        if (existing.track_id && existing.status === "sure") setLocalFile(existing.track_id, f);
+        continue;
+      }
+      const key = unusedKey(baseKey, reserved);
+      reserved.add(key);
       files.current.set(key, f);
-      if (known.has(key)) { const k = known.get(key)!; if (k.track_id) setLocalFile(k.track_id, f); continue; }
       setProgress(`Reading ${i + 1} of ${picked.length}…`);
       const t = await readTags(f);
       const duration = await readDuration(f);
@@ -133,7 +144,7 @@ export default function LocalCutsPage() {
         .forEach((r) => meta.set(r.id, { parent: r.parent_track_id, artist: r.artists?.name ?? null }));
     }
     const done = matched.map((m) => (m.track_id ? { ...m, parent_id: meta.get(m.track_id)?.parent ?? null, match_artist: meta.get(m.track_id)?.artist ?? null } : m));
-    done.forEach((m) => { if (m.track_id) setLocalFile(m.track_id, files.current.get(m.key) ?? null); });
+    done.forEach((m) => { if (m.track_id && m.status === "sure") setLocalFile(m.track_id, files.current.get(m.key) ?? null); });
     setItems((prev) => [...prev, ...done]);
     setProgress(null);
     const sure = done.filter((d) => d.status === "sure").length, check = done.filter((d) => d.status === "check").length;
@@ -159,7 +170,7 @@ export default function LocalCutsPage() {
     setPlaying(key);
     if (!key) { el.pause(); return; }
     const f = files.current.get(key);
-    if (!f) return;
+    if (!f) { setPlaying(null); return; }
     urlRef.current = URL.createObjectURL(f);
     el.src = urlRef.current;
     el.play().catch(() => { /* needs a tap on some phones */ });
@@ -191,9 +202,16 @@ export default function LocalCutsPage() {
   }
 
   function update(key: string, patch: Partial<Item>) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+    const previous = items.find((i) => i.key === key);
+    const next = previous ? { ...previous, ...patch } : null;
     const f = files.current.get(key);
-    if (patch.track_id && f) setLocalFile(patch.track_id, f);
+    if (previous?.track_id && (previous.track_id !== next?.track_id || next?.status !== "sure")) {
+      // Only clear an association if another file is not using that same song.
+      const replacement = items.find((i) => i.key !== key && i.track_id === previous.track_id && i.status === "sure");
+      setLocalFile(previous.track_id, replacement ? files.current.get(replacement.key) ?? null : null);
+    }
+    if (next?.track_id && next.status === "sure" && f) setLocalFile(next.track_id, f);
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
   }
   function removeAll() {
     if (!confirm("Clear Local Cuts on this device? Your files and your collection aren't touched.")) return;
