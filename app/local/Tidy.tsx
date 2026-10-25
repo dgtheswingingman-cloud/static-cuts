@@ -44,7 +44,7 @@ export default function Tidy({ items, files, onEdit }: {
   useEffect(() => { try { localStorage.setItem(PREFS, JSON.stringify({ n: nameTpl, f: folderTpl, c: covers })); } catch { /* fine */ } }, [nameTpl, folderTpl, covers]);
 
   // The archive's details for every matched song (and its main song, for album and art).
-  const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id).map((i) => i.track_id!))], [items]);
+  const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id && i.status === "sure").map((i) => i.track_id!))], [items]);
   useEffect(() => {
     const want = ids.filter((id) => !info[id]);
     if (want.length === 0) return;
@@ -79,7 +79,8 @@ export default function Tidy({ items, files, onEdit }: {
 
   // What each file becomes.
   const plan = useMemo(() => items.filter((i) => files.has(i.key)).map((i) => {
-    const a = i.track_id ? info[i.track_id] : null;
+    // Only explicitly confirmed recordings may receive catalogue metadata.
+    const a = i.track_id && i.status === "sure" ? info[i.track_id] : null;
     const featIn = a?.feat && !/\b(feat|ft)\b/i.test(a.title) ? ` (feat. ${a.feat})` : "";
     const base = {
       title: a ? a.title + featIn : (i.title ?? i.name.replace(/\.[^.]+$/, "")),
