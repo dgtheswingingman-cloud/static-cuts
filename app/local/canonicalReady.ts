@@ -23,3 +23,14 @@ export function missingCanonicalIds(
 ): string[] {
   return ids.filter((id) => !Object.prototype.hasOwnProperty.call(info, id));
 }
+
+// Keep failures attached to the lookup that produced them. A changed
+// confirmed-track selection or explicit retry must not display an old error.
+export type CanonicalLookupError = { requestKey: string; message: string };
+
+export function lookupErrorForRequest(
+  error: CanonicalLookupError | null,
+  requestKey: string,
+): string | null {
+  return error?.requestKey === requestKey ? error.message : null;
+}
