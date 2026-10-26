@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds } from "../app/local/canonicalReady.ts";
+import { confirmedExportIds, lookupErrorForRequest, matchUpdatePatch, missingCanonicalIds } from "../app/local/canonicalReady.ts";
 
 const row = (key, track_id, status = "sure") => ({ key, track_id, status });
 
@@ -45,4 +45,40 @@ test("canonical lookup errors are shown only for their request", () => {
   assert.equal(lookupErrorForRequest(error, "track-1\u00012"), null);
   assert.equal(lookupErrorForRequest(error, "track-2\u00011"), null);
   assert.equal(lookupErrorForRequest(null, "track-1\u00011"), null);
+});
+
+
+test("changing to a different confirmed version clears stale manual tags and ownership", () => {
+  const previous = { track_id: "demo", owned: true, edit: { title: "Demo Edit", artist: "Old Artist", year: "2024" } };
+  assert.deepEqual(matchUpdatePatch(previous, { track_id: "official", status: "sure" }), {
+    track_id: "official", status: "sure", owned: false, edit: undefined,
+  });
+});
+
+test("reassigning a match to no track also removes old metadata overrides", () => {
+  const previous = { track_id: "wrong", owned: true, edit: { album: "Old Album" } };
+  assert.deepEqual(matchUpdatePatch(previous, { track_id: null }), {
+    track_id: null, owned: false, edit: undefined,
+  });
+});
+
+test("confirming the same track or changing only status preserves user edits", () => {
+  const previous = { track_id: "correct", owned: false, edit: { title: "Preferred Title" } };
+  assert.deepEqual(matchUpdatePatch(previous, { track_id: "correct", status: "sure" }), {
+    track_id: "correct", status: "sure",
+  });
+  assert.deepEqual(matchUpdatePatch(previous, { status: "check" }), { status: "check" });
+});
+
+test("an initial assignment clears any stale local override while keeping the new match", () => {
+  const previous = { track_id: null, owned: false, edit: { title: "Old Filename Guess" } };
+  assert.deepEqual(matchUpdatePatch(previous, { track_id: "catalogue" }), {
+    track_id: "catalogue", owned: false, edit: undefined,
+  });
+});
+
+test("unrelated updates and missing previous item are unchanged", () => {
+  const previous = { track_id: "correct", owned: false, edit: { title: "Manual" } };
+  assert.deepEqual(matchUpdatePatch(previous, { reason: "Reviewed" }), { reason: "Reviewed" });
+  assert.deepEqual(matchUpdatePatch(undefined, { track_id: "new" }), { track_id: "new" });
 });
