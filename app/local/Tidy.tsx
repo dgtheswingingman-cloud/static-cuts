@@ -210,7 +210,8 @@ export default function Tidy({ items, files, onEdit }: {
   return (
     <div>
       <div className="tidy-options">
-        <label className="comment-meta">File names
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 200 }}>
+          <label className="comment-meta">File names
           <select className="sort-select" value={nameMode === "custom" ? CUSTOM : nameTpl}
             onChange={(e) => {
               if (e.target.value === CUSTOM) { setNameMode("custom"); setNameTpl(customNameTpl); }
@@ -219,12 +220,14 @@ export default function Tidy({ items, files, onEdit }: {
             {NAMES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             <option value={CUSTOM}>Custom template…</option>
           </select>
+          </label>
           {nameMode === "custom" && (
             <input className="search-input" aria-label="Custom filename template" aria-invalid={!!nameError}
               value={nameTpl} onChange={(e) => { setNameTpl(e.target.value); setCustomNameTpl(e.target.value); }} />
           )}
-        </label>
-        <label className="comment-meta">Folders
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 200 }}>
+          <label className="comment-meta">Folders
           <select className="sort-select" value={folderMode === "custom" ? CUSTOM : folderTpl}
             onChange={(e) => {
               if (e.target.value === CUSTOM) { setFolderMode("custom"); setFolderTpl(customFolderTpl); }
@@ -233,11 +236,12 @@ export default function Tidy({ items, files, onEdit }: {
             {FOLDERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             <option value={CUSTOM}>Custom template…</option>
           </select>
+          </label>
           {folderMode === "custom" && (
             <input className="search-input" aria-label="Custom folder template" aria-invalid={!!folderError}
               value={folderTpl} onChange={(e) => { setFolderTpl(e.target.value); setCustomFolderTpl(e.target.value); }} />
           )}
-        </label>
+        </div>
         <label className="comment-meta"><input type="checkbox" checked={covers} onChange={(e) => setCovers(e.target.checked)} /> add cover art</label>
       </div>
       {(nameMode === "custom" || folderMode === "custom") && (
