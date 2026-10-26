@@ -39,3 +39,17 @@ test("literal text can be mixed with canonical tokens", () => {
   assert.equal(formatTemplate("Archive - {artist} - {title}", v), "Archive - Example Artist - Unreleased Track");
   assert.equal(templateError("Archive - {artist} - {title}"), null);
 });
+
+test("canonical title punctuation at both boundaries survives layout formatting", () => {
+  assert.equal(formatTemplate("{title}", { ...v, title: "- Intro" }), "- Intro");
+  assert.equal(formatTemplate("{title}", { ...v, title: "Track -" }), "Track -");
+  assert.equal(formatTemplate("{artist} - {title}", { ...v, title: "- Intro" }), "Example Artist - - Intro");
+});
+test("canonical title whitespace is not normalized by the template renderer", () => {
+  assert.equal(formatTemplate("{title}", { ...v, title: "A  B" }), "A  B");
+  assert.equal(formatTemplate("{artist} - {title}", { ...v, title: "A  B" }), "Example Artist - A  B");
+});
+test("empty metadata still removes only template separators", () => {
+  assert.equal(formatTemplate("{artist} - {title}", { ...v, artist: "" }), "Unreleased Track");
+  assert.equal(formatTemplate("{title} - {year}", { ...v, year: "" }), "Unreleased Track");
+});
