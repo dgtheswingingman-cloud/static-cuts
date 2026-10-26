@@ -47,7 +47,9 @@ No new package or runtime dependency. Uses existing `Blob`, `DataView`, `TextDec
 
 **Executed 2026-10-26 in the connected JavaScript V8 runtime:** extracted the original `writeFlac()` function from main and the patched function from the exact candidate source, removed TypeScript-only syntax for evaluation, and used ASCII-only TextEncoder/TextDecoder and Blob shims. **15/15 focused assertions passed**: source byte preservation, valid payload retention, original malformed-block reproduction (old exporter lost the payload), patched rejection of truncated block/header, missing audio, wrong STREAMINFO, bad signature, bad vendor/count/entry lengths, valid comment replacement, preservation of custom comments and payload. These are **in-memory harness checks**, not the committed test suite, real browser APIs or a complete checkout.
 
-**Written but NOT executed:** all twelve committed `tests/local-flac-export.test.mjs` Node tests. They are intended to run against the actual TypeScript module from a full repository checkout.
+**Additional executed check after creating the draft:** re-fetched the exact committed `tests/local-flac-export.test.mjs` (blob `f764e21b4b653c51ed5d208804654468d93f3ba6`) and patched writer (blob `8af46b8f44efd7fe71297d7480fca1154e553ad4`); evaluated **all 12 committed test bodies in V8** using a custom `test`/`assert` harness and ASCII TextEncoder/TextDecoder plus Blob/File shims. **12 passed, 0 failed**, including oversized artwork. This is *not* Node's `node:test` runner, the actual browser Blob/File implementations or a complete repository test run.
+
+**Written but NOT run in the intended Node environment:** the twelve committed `tests/local-flac-export.test.mjs` tests. They still require execution with `node --experimental-strip-types --test` against a full checkout.
 
 **Attempted:** `git ls-remote https://github.com/dgtheswingingman-cloud/static-cuts.git HEAD` from the execution container. It failed: `Could not resolve host: github.com`. Therefore no full repository checkout or `node --experimental-strip-types --test` run was possible.
 
