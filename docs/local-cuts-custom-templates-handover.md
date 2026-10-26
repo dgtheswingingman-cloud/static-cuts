@@ -340,3 +340,64 @@ PR #164 is **still draft**, so **no merge SHA exists**. To reverse only this fol
 
 ### (10) Must NOT be reverted/removed
 Preserve unrelated Claude work, all merged #157/#158/#159/#160 changes, other draft #161/#162/#163 work, the rest of #164's saved formatting and canonical metadata readiness changes, original audio, previously exported files, browser data, server catalogue and production settings. Never revert the whole `app/local` directory or force-push `main`.
+
+
+## 17. Follow-up: collision-safe duplicate export names (2026-10-26 15:03 UTC)
+
+### (1) Aim, observed defect and evidence
+Read current `main` (`ec35a82c6f7d0f04c0c93e596ba3f7899223e603`), its recent commits, all open PRs (#105 and draft #161–#164), the main recovery ledger, and previous #164 handover sections before changing anything. No new PR was opened. Source inspection of `app/local/Tidy.tsx::save()` found an export-loop hang made more reachable by section 16's extensionless-file safety fix:
+
+```ts
+let path = p.path;
+for (let k = 2; used.has(path.toLowerCase()); k++) path = p.path.replace(/(\\.[^.]+)$/, ` (${k})$1`);
+```
+
+For duplicate `Artist/Live` paths, the regular expression has no extension to replace. The path never changes and `used.has(...)` remains true, creating an unbounded synchronous loop and freezing export. The expression can also mistake a dot in a parent folder such as `Artist.v2/Live` for an extension and corrupt the intended folder structure. These are **demonstrated source-code failure modes**, not claims of a browser reproduction.
+
+### (2) Base, exact commits/paths/functions/logic/why
+**Base branch and commit:** `main` at `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`. All writes were confined to the existing draft PR #164 branch `feat/local-cuts-custom-export-templates-20261026`; no writes to `main`.
+- `60a0f56b40ca7fcbbad31403d25dd907fa6df2b4` — `app/local/formatTemplate.ts`: add `uniqueExportPath(path, used, extension)`. Return an unused path unchanged; otherwise split at the final folder slash, preserve the **actual source extension** supplied by the caller, and append ` (2)`, ` (3)`, etc. to the filename stem until a case-insensitive unused candidate is found. The loop now always produces a different candidate for each iteration, even for extensionless files and dotted song titles.
+- `ef75c088cab02484cc93267cf16cd3fb8010da2e` — `app/local/Tidy.tsx`: replace the original inline duplicate-path loop inside `save()` with `uniqueExportPath(p.path, used, sourceExtension(p.item.name))`. Retain the existing `used.add(path.toLowerCase())`, folder picker/ZIP handling, and original audio-copy pipeline.
+- `dacd8f3c1dc679b0883c17deb873b4a0cda373f9` — `tests/local-format-template.test.mjs`: import the helper and add five regression cases (extensionless duplicate, successive case-insensitive duplicates, dotted parent folder, dotted extensionless title, actual MP3/FLAC suffix preservation and distinct folders).
+- This documentation update adds the complete review/recovery record. No other code paths were intentionally modified.
+
+### (3) Before/after user behaviour
+**Before:** importing two extensionless recordings that resolve to the same destination path can hang the page when exporting; dotted folder names can be misinterpreted by collision handling. **After (proposed):** the second copy is named `Live (2)`, the next `Live (3)`, and `Song.mp3` becomes `Song (2).mp3`. A dotted folder remains the same folder. File tags, audio bytes, metadata selections and the canonical-default/user-customized formatting policy do not change.
+
+### (4) Technical assumptions, dependencies and effects on existing features
+No new dependencies. The helper assumes `path` is already sanitized into slash-delimited folder segments and the `used` set contains lowercase paths, as established by `Tidy::save()`. It uses the **source** extension to avoid guessing whether a period in the canonical title is a format suffix. This changes only naming collisions within one export batch; it does not prevent overwriting a same-named file from a **previous** folder export. ZIP entries continue using the existing ZIP writer. No changes to match/version confirmation, metadata fetches, artwork, source files or MP3/FLAC tag writer. A very large number of collisions still incurs a linear scan.
+
+### (5) Data, API, privacy, cost, storage and production consequences
+**Database migrations/writes:** none. **API requests/endpoints:** none added or changed. **Audio upload:** none. **Original audio:** unchanged and never deleted. **Browser storage keys/preferences:** unchanged. **Privacy/security:** no new data access. **Dependencies/third-party costs:** none. **Production settings or manual deployment:** none. Exported *copy names* change only when a collision occurs. Existing generated files are not retroactively renamed or removed.
+
+### (6) Tests ACTUALLY run, results and missing verification
+A separate isolated workspace was assembled from GitHub-retrieved exact file contents at `/mnt/data/local-cuts-review`. `git hash-object` of the four copied files **exactly matched GitHub blob SHAs**:
+- `app/local/formatTemplate.ts` — `ff5e0fde47af34989b0738cce888a0d3a6ce09a6`
+- `tests/local-format-template.test.mjs` — `5070ea748caf0ec7c21f9c9e9e267246b6e07f1e`
+- `app/local/canonicalReady.ts` — `c8fd24d33993799f8a6a9ca1aa446dc4706887fd`
+- `tests/local-canonical-ready.test.mjs` — `ace6d4bc66a1b3a8255bcbb8b893d7f43afc70f7`
+
+**Actually executed** with Node v22.16.0 and TypeScript 5.8.3:
+```bash
+cd /mnt/data/local-cuts-review
+node --experimental-strip-types --test tests/local-format-template.test.mjs tests/local-canonical-ready.test.mjs
+# 32 tests: 32 passed, 0 failed, 0 skipped
+tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 app/local/formatTemplate.ts app/local/canonicalReady.ts
+# exit 0
+```
+A read-only GitHub check verified `Tidy.tsx` imports and calls `uniqueExportPath` and no longer contains the old loop. **Not executed:** full checkout `npm run lint`, `npm run build`, TSX/Next integration compilation, all other Local Cuts tests, real browser folder/ZIP export, audio inspection, Spotify import. The execution container cannot clone GitHub (DNS resolution failure). These helper checks do **not** establish that PR #164 builds or works in Spotify.
+
+### (7) Edge cases and unresolved risks
+The helper treats path collisions case-insensitively; actual filesystem case/Unicode normalization rules vary. Windows-reserved names (`CON`, `AUX`), maximum path lengths, duplicate existing files from prior exports, file picker permission failures, and user-visible collision previews (preview still shows the unsuffixed planned path) remain unresolved. Extensionless files may still not be accepted by Spotify; this change only prevents a freeze. Confirmed metadata and cover art still need real-browser validation. Latest GitHub Vercel status on commit `dacd8f3c` is **failure**; deployment ID `dpl_3i1ejJNVsFW2cnVCPbvA44HLLmsS`. Build logs are inaccessible in this environment; the root cause is unknown. Do not claim this change fixes it.
+
+### (8) Precise next steps for Claude/reviewer
+1. Inspect #164 diff and commits above, confirm `main` and other drafts have not changed, and review this handover.
+2. Retrieve actual Vercel logs using authorized read-only inspection (`npx vercel inspect dpl_3i1ejJNVsFW2cnVCPbvA44HLLmsS --logs`) and identify the **actual** build failure before modifying integration code.
+3. In a real checkout, run all Local Cuts tests, `npm run lint`, `npm run build`; report exact outcomes. Test browser export of duplicate extensionless names, repeated `.mp3` and `.flac`, dotted parent folders and dotted titles in both ZIP and folder modes; verify original bytes unchanged and compare output paths to previews.
+4. Coordinate with draft MP3/FLAC safety PRs #162/#163. Do not merge/deploy without human review. After a human merge, record the **actual** merge SHA in `docs/local-cuts-claude-recovery.md` via a docs-only draft (reconcile existing #161 first).
+
+### (9) Reversible rollback, actual merge SHA once merged
+**PR #164 is still draft; no merge SHA exists.** To reverse only this follow-up before merge, selectively revert the three code/test commits **in reverse order** (`dacd8f3c`, `ef75c088`, `60a0f56b`) on its draft branch, review the resulting diff, and remove/update this handover section. To abandon all #164 changes, close the draft without merging. **After a human merge**, fetch the real merge SHA; for a two-parent merge, create a fresh review branch and use `git revert -m 1 <ACTUAL_MERGE_SHA>`; for squash/rebase identify actual resulting commits first. Inspect conflicts and preserve intervening work. Never force-push/reset `main`.
+
+### (10) What must NOT be reverted/removed
+Do not remove unrelated Claude code, merged #157/#158/#159/#160, open #161/#162/#163, other #164 formatting/canonical metadata improvements, original recordings, user exports, browser preferences, server collection/catalogue, or production settings. Never replace or revert the entire `app/local` directory. No other Claude work was intentionally touched.
