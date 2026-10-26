@@ -3,9 +3,9 @@
 **Prepared:** 2026-10-25 UTC  
 **Repo:** https://github.com/dgtheswingingman-cloud/static-cuts  
 **Branch:** `fix/local-cuts-zip-streaming-20261025`  
-**Draft PR:** [#160 — stream ZIP export and enforce ZIP32 limits](https://github.com/dgtheswingingman-cloud/static-cuts/pull/160)  
+**Merged PR:** [#160 — stream ZIP export and enforce ZIP32 limits](https://github.com/dgtheswingingman-cloud/static-cuts/pull/160)  
 **Base:** `main` at `262d61a6a0c62274eb29c9092c13f46eee22cb04` (includes merged recovery PR #159).  
-**Merge status:** Draft proposal; NOT merged, NOT production-deployed. The merge commit SHA is **not yet known**.  
+**Merge status (verified 2026-10-25 UTC):** **MERGED** into `main` at 23:10:21 UTC; actual GitHub merge commit SHA **`ec35a82c6f7d0f04c0c93e596ba3f7899223e603`**. A GitHub Vercel status of `success` was observed for that commit, but this document does **not** establish that real browser, audio-file or Spotify Local Files validation passed. Deployment state was not independently inspected.  
 **Ownership:** Changes on this branch are from the hourly ChatGPT Local Cuts development task; earlier PRs #157 and #158 are **not** part of this branch's diff.
 
 ## 1. Aim, defect and evidence
@@ -83,12 +83,12 @@ Also use an independent ZIP extractor to verify CRCs, filenames and file bytes f
 2. Execute committed regression tests, lint and full build. Review errors, if any, before merge.
 3. Test ZIP fallback in a browser, unzip with a separate utility, compare exported audio payload and tags with expected output. Use copies, never original music.
 4. Check real memory behaviour with a moderately large folder and consider adding a user-facing size warning.
-5. If approved, merge by normal reviewed PR only; record the **actual merge commit SHA and merge method** in `docs/local-cuts-claude-recovery.md` via a follow-up docs PR. Do not guess the SHA.
+5. PR #160 is already merged; do not merge it again. Its actual merge SHA is recorded above. Keep `docs/local-cuts-claude-recovery.md` current via a separate docs-only PR; the recovery ledger update was prepared after the merge.
 6. If a browser lacks Blob.stream support, address that in a separate small PR with tests.
 
 ## 9. Exact rollback / revert
 
-**Before merge:** Close the draft PR and optionally delete only `fix/local-cuts-zip-streaming-20261025`. Main stays unchanged.
+**Historical pre-merge option (no longer applicable):** Closing the draft PR would have left main unchanged, but PR #160 is now merged. Closing or deleting its old branch now does **not** revert code on main.
 
 **After merge:** Find this PR and use GitHub's **Revert** button to create a separate review PR. If merged with a regular two-parent merge commit, use:
 
@@ -97,11 +97,13 @@ git fetch origin
 git switch main
 git pull --ff-only
 git switch -c revert/local-cuts-zip-streaming
-git revert -m 1 <ACTUAL_MERGE_COMMIT_SHA>
+git show --no-patch --pretty=%P ec35a82c6f7d0f04c0c93e596ba3f7899223e603
+# Only if the SHA has two parents (regular merge):
+git revert -m 1 ec35a82c6f7d0f04c0c93e596ba3f7899223e603
 # inspect diff, test, push new branch, open review PR
 ```
 
-If squash-merged, revert the actual single-parent squash commit with `git revert <SQUASH_SHA>` (no `-m 1`). Do not blindly revert feature branch commits after a squash merge. If subsequent work touches the same functions, resolve conflicts surgically instead of deleting later code.
+If Git history unexpectedly shows a single-parent squash commit instead, use `git revert ec35a82c6f7d0f04c0c93e596ba3f7899223e603` (no `-m 1`). Verify parent count first; do not blindly revert feature-branch commits. If subsequent work touches the same functions, resolve conflicts surgically instead of deleting later code.
 
 **Selective removal:** Restore the original `crc32` and `makeZip` implementation and remove only the ZIP-specific `try/catch` in `Tidy.save()`; remove `tests/local-zip.test.mjs` and this handover if appropriate. Prefer a diff-based revert, **not** restoring entire files from an old commit.
 
@@ -109,4 +111,13 @@ If squash-merged, revert the actual single-parent squash commit with `git revert
 
 Do **not** undo merged PR #157 (file identity/mapping), #158 (version review/confirmation), #159 (Claude recovery docs), or Claude's earlier Local Cuts work while reverting this ZIP-only change. Do not reset/force-push main, delete the `app/local` folder, clear users' localStorage, delete exports, remove catalogue rows or modify source audio. Reverting this code does not stop the hourly automation.
 
-**Bottom line:** Narrow, reversible ZIP export safety change; tested as an isolated helper, pending full checkout and browser validation. Treat this handover as a review aid, not a claim that production behaviour is verified.
+## 11. Post-merge status and product fit (2026-10-25 UTC)
+
+- Verified from GitHub: PR #160 is merged, with SHA `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`; changed files match section 2. No code was changed during this documentation follow-up.
+- Verified from GitHub: the merged SHA reports a `success` Vercel commit status. The specific build logs and deployed app were **not** examined, so this is not evidence of real-file correctness or Spotify compatibility.
+- Tests **actually run during this documentation update:** none. The earlier isolated helper checks in section 6 are historical reports from the original PR, not rerun here. Full checkout Node tests, lint, build, real browser ZIP export and Spotify Local Files checks remain unverified by this handover.
+- **Current product objective:** canonical Static Cuts tagging and artwork for **Spotify Local Files**. Users should be able to override formatting defaults. This ZIP safety PR supports exporting formatted copies, but does not improve matching, tag accuracy or Spotify compatibility itself. Standalone music-player features are not a current priority.
+- **Data/API/storage/cost impact of this follow-up:** none; documentation-only. No migration, user-file modification, browser-storage change, new API request or production-setting change.
+- **Rollback of the documentation-only update:** revert only its documentation commit(s) via a reviewed PR if necessary; do not revert the merged ZIP implementation to remove stale docs. Reverting #160 code is a separate decision and procedure in section 9. Preserve #157, #158, #159 and Claude's unrelated changes.
+
+**Bottom line:** PR #160 is merged, but its end-to-end behaviour is not verified here. This remains a narrow, reversible ZIP export safety change with outstanding full checkout, browser and Spotify tests.
