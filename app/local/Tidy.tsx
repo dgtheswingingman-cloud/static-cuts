@@ -44,7 +44,7 @@ export default function Tidy({ items, files, onEdit }: {
   useEffect(() => { try { localStorage.setItem(PREFS, JSON.stringify({ n: nameTpl, f: folderTpl, c: covers })); } catch { /* fine */ } }, [nameTpl, folderTpl, covers]);
 
   // The archive's details for every matched song (and its main song, for album and art).
-  const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id && i.status === "sure").map((i) => i.track_id!))], [items]);
+  const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id).map((i) => i.track_id!))], [items]);
   useEffect(() => {
     const want = ids.filter((id) => !info[id]);
     if (want.length === 0) return;
@@ -79,8 +79,7 @@ export default function Tidy({ items, files, onEdit }: {
 
   // What each file becomes.
   const plan = useMemo(() => items.filter((i) => files.has(i.key)).map((i) => {
-    // Only explicitly confirmed recordings may receive catalogue metadata.
-    const a = i.track_id && i.status === "sure" ? info[i.track_id] : null;
+    const a = i.track_id ? info[i.track_id] : null;
     const featIn = a?.feat && !/\b(feat|ft)\b/i.test(a.title) ? ` (feat. ${a.feat})` : "";
     const base = {
       title: a ? a.title + featIn : (i.title ?? i.name.replace(/\.[^.]+$/, "")),
@@ -161,18 +160,13 @@ export default function Tidy({ items, files, onEdit }: {
       setDone(`Saved ${plan.length - failed} tidied copies into the "${root.name}" folder${failed ? ` (${failed} couldn't be done)` : ""}, with a list of every change. Your originals weren't touched.`);
     } else {
       zipEntries.push({ path: "Static Cuts/Static Cuts changes.csv", blob: csv });
-      try {
-        const zip = await makeZip(zipEntries, (i) => setProgress(`Packing ${i} of ${zipEntries.length}…`));
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(zip);
-        a.download = `static-cuts-${new Date().toISOString().slice(0, 10)}.zip`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
-        setDone(`Downloaded ${plan.length - failed} tidied copies as a zip${failed ? ` (${failed} couldn't be done)` : ""}. Unzip it and move the folder where you keep your music.`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown ZIP error";
-        setDone(`Couldn't create the ZIP: ${message} Your originals are unchanged. Try a smaller batch or save to a folder in a supported browser.`);
-      }
+      const zip = await makeZip(zipEntries, (i) => setProgress(`Packing ${i} of ${zipEntries.length}…`));
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(zip);
+      a.download = `static-cuts-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      setDone(`Downloaded ${plan.length - failed} tidied copies as a zip${failed ? ` (${failed} couldn't be done)` : ""}. Unzip it and move the folder where you keep your music.`);
     }
     setProgress(null);
   }
