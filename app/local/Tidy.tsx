@@ -33,7 +33,7 @@ export default function Tidy({ items, files, onEdit }: {
   const [nameTpl, setNameTpl] = useState(NAMES[0][0]);
   const [folderTpl, setFolderTpl] = useState(FOLDERS[0][0]);
   const [customNameTpl, setCustomNameTpl] = useState("{artist} - {title} ({year})");
-  const [customFolderTpl, setCustomFolderTpl] = useState("{artist}/{album}/{year}");
+  const [customFolderTpl, setCustomFolderTpl] = useState("{artist}/{album} - {year}");
   const [nameMode, setNameMode] = useState<"preset" | "custom">("preset");
   const [folderMode, setFolderMode] = useState<"preset" | "custom">("preset");
   const [prefsReady, setPrefsReady] = useState(false);
