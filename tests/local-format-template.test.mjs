@@ -15,6 +15,10 @@ test("missing year leaves no empty bracket suffix", () => {
   assert.equal(formatTemplate("{artist} - {title} ({year})", { ...v, year: "" }), "Example Artist - Unreleased Track");
   assert.equal(formatTemplate("{artist}/{album} - {year}", { ...v, year: "" }), "Example Artist/Unreleased");
 });
+test("canonical titles with literal empty brackets are preserved", () => {
+  assert.equal(formatTemplate("{title}", { ...v, title: "Track () [Live]" }), "Track () [Live]");
+  assert.equal(formatTemplate("{title} [{year}]", { ...v, title: "Track []", year: "" }), "Track []");
+});
 test("custom blank folder template is valid but filename must be nonempty", () => {
   assert.equal(templateError("", true), null);
   assert.match(templateError(""), /filename/);
