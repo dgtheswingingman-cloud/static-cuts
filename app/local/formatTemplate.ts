@@ -49,3 +49,9 @@ export function formatFolderSegments(template: string, values: Record<string, st
     .map((segment) => formatTemplate(segment, values))
     .filter((segment) => segment.trim().length > 0);
 }
+
+// Preserve the source format. Renaming never transcodes audio, so an
+// extensionless recording must not be disguised as an MP3 on export.
+export function sourceExtension(name: string): string {
+  return name.match(/\.[a-z0-9]{2,5}$/i)?.[0].toLowerCase() ?? "";
+}
