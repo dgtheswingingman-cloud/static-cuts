@@ -50,6 +50,23 @@ export function formatFolderSegments(template: string, values: Record<string, st
     .filter((segment) => segment.trim().length > 0);
 }
 
+// Pick a collision-free export name without ever touching source files.
+// Use the ACTUAL source extension, not a dot in a song title or folder name.
+// Without this, two extensionless files can trap the export loop forever.
+export function uniqueExportPath(path: string, used: ReadonlySet<string>, extension: string): string {
+  if (!used.has(path.toLowerCase())) return path;
+  const splitAt = path.lastIndexOf("/") + 1;
+  const directory = path.slice(0, splitAt);
+  const filename = path.slice(splitAt);
+  const suffix = extension && filename.toLowerCase().endsWith(extension.toLowerCase())
+    ? filename.slice(-extension.length) : "";
+  const stem = filename.slice(0, filename.length - suffix.length);
+  for (let n = 2; ; n++) {
+    const candidate = `${directory}${stem} (${n})${suffix}`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
 // Preserve the source format. Renaming never transcodes audio, so an
 // extensionless recording must not be disguised as an MP3 on export.
 export function sourceExtension(name: string): string {
