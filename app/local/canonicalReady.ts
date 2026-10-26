@@ -34,3 +34,17 @@ export function lookupErrorForRequest(
 ): string | null {
   return error?.requestKey === requestKey ? error.message : null;
 }
+
+
+// A manual tag override was entered for one matched recording. If that file is
+// reassigned to another archive track/version, the old title/artist/album/year
+// overrides must not silently mask the new canonical metadata. Changing only
+// confirmation status or choosing the same track keeps intentional overrides.
+export function matchUpdatePatch<T extends {
+  track_id: string | null;
+  owned: boolean;
+  edit?: { title?: string; artist?: string; album?: string; year?: string };
+}>(previous: T | undefined, patch: Partial<T>): Partial<T> {
+  if (!previous || patch.track_id === undefined || patch.track_id === previous.track_id) return patch;
+  return { ...patch, owned: false, edit: undefined };
+}
