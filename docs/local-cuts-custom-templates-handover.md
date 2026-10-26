@@ -442,3 +442,22 @@ The request key is built from confirmed IDs in their current order; a harmless r
 
 ### (10) What must NOT be reverted/removed
 Preserve unrelated Claude changes, merged #157–#160, draft #161–#163, other #164 formatting and metadata readiness work, the catalogue, production settings, existing exports, saved browser data and original audio. Never restore `Tidy.tsx` or the entire `app/local` directory wholesale from an old snapshot.
+
+
+## 19. Windows-reserved output path segments (26 October 2026)
+
+**Aim/evidence:** Existing `safeName()` removes invalid punctuation but leaves reserved Windows device basenames (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9), including names with extensions. A custom `{title}` or `{artist}` export can therefore fail when written or extracted on Windows. This is a filename issue, not a canonical track identification issue.
+
+**Base and changes:** Draft #164 branch `feat/local-cuts-custom-export-templates-20261026`, based on main `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`. In `app/local/formatTemplate.ts`, add `safeExportSegment` that prefixes an underscore to reserved device names, including extension-bearing names. In `app/local/Tidy.tsx`, apply it after `safeName` to each folder segment and to the completed filename, preserving the actual audio extension. In `tests/local-format-template.test.mjs`, add reserved and non-reserved cases. No unrelated files or original audio touched.
+
+**Before/after:** Previously an export named `CON.mp3` or an artist folder `NUL` could fail on Windows. Now its exported path becomes `_CON.mp3` or `_NUL`, while the canonical title/artist/album tags and user overrides remain unchanged. Canonical Static Cuts formatting remains default; user templates remain optional.
+
+**Assumptions and consequences:** Browser-only string processing; no new dependencies, migrations, network/API calls, storage keys, data collection, privacy or cost effects. ZIP and directory paths both use the existing shared plan. This is not transcoding, nor proof of Spotify codec support. Windows may have further path restrictions (length, collisions with existing files), which are not addressed.
+
+**Tests:** Added a Node regression case, but **not executed in a full repository checkout**. Run `node --experimental-strip-types --test tests/local-format-template.test.mjs` (or the project's supported TS-aware test command), `npm run lint`, `npm run build`, and browser-export actual files on Windows. Do not claim those passed. Earlier isolated tests are not proof of this patch.
+
+**Risks/next steps:** Check current Vercel deployment logs for the persistent preview failure; verify `Tidy.tsx` compile and hook lint, Windows extraction, folder picker collision behaviour, existing export overwrites, and actual Spotify imports. If tests reveal reserved-name edge cases, amend only this helper and its call sites.
+
+**Rollback:** Draft #164 is **unmerged**, so no merge SHA exists. Revert only the commit titled `Protect Windows-reserved Local Cuts export filenames` on the draft branch (inspect the actual commit SHA after creation), preserving all prior #164 changes. If #164 is later merged, record the actual merge SHA in the cumulative ledger and revert the relevant commit or reviewed merge using the correct parent strategy, never reset main.
+
+**Do not remove:** Unrelated Claude work, merged #157–#160, draft #161–#163, other #164 canonical metadata and formatting work, original recordings, saved browser preferences or archive data.
