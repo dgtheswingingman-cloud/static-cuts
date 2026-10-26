@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatFolderSegments, formatTemplate, sourceExtension, templateError } from "../app/local/formatTemplate.ts";
+import { formatFolderSegments, formatTemplate, sourceExtension, templateError, uniqueExportPath } from "../app/local/formatTemplate.ts";
 
 const v = { artist: "Example Artist", title: "Unreleased Track", album: "Unreleased", year: "2026", track: "03" };
 test("canonical default filename and folder presets remain unchanged", () => {
@@ -90,4 +90,25 @@ test("existing audio extensions survive renaming without transcoding", () => {
 test("unusual or long suffixes are not silently replaced with MP3", () => {
   assert.equal(sourceExtension("recording.unknown"), "");
   assert.equal(sourceExtension("recording.foo"), ".foo");
+});
+
+ 
+// Duplicate paths must always advance, even without a source extension.
+test("extensionless duplicate receives a numeric suffix instead of hanging", () => {
+  assert.equal(uniqueExportPath("Artist/Live", new Set(["artist/live"]), ""), "Artist/Live (2)");
+});
+test("successive duplicates increment case-insensitively", () => {
+  const used = new Set(["artist/song.mp3", "artist/song (2).mp3"]);
+  assert.equal(uniqueExportPath("Artist/Song.mp3", used, ".mp3"), "Artist/Song (3).mp3");
+});
+test("dots in parent folders never become mistaken file extensions", () => {
+  assert.equal(uniqueExportPath("Artist.v2/Live", new Set(["artist.v2/live"]), ""), "Artist.v2/Live (2)");
+});
+test("dots in extensionless titles stay part of the title", () => {
+  assert.equal(uniqueExportPath("Artist/Live.v2", new Set(["artist/live.v2"]), ""), "Artist/Live.v2 (2)");
+});
+test("only same-folder collisions are renamed and real extensions are retained", () => {
+  const used = new Set(["artist/song.flac"]);
+  assert.equal(uniqueExportPath("Other/Song.flac", used, ".flac"), "Other/Song.flac");
+  assert.equal(uniqueExportPath("Artist/Song.flac", used, ".flac"), "Artist/Song (2).flac");
 });
