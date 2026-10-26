@@ -31,8 +31,27 @@ test("MP3 strips a valid ID3v2.3 tag without touching audio", async () => {
 
 test("MP3 strips the optional ID3v2.4 footer and the old ID3v1 trailer", async () => {
   const trailer = new Uint8Array(128); trailer.set([84, 65, 71]);
+  const footer = id3Header(2, 4, 0x10); footer.set([51, 68, 73]); // 3DI + matching header
   const file = new File([id3Header(2, 4, 0x10), new Uint8Array([9, 9]),
-    new Uint8Array(10), audio, trailer], "song.mp3");
+    footer, audio, trailer], "song.mp3");
+  assert.deepEqual(await exportedAudio(file), audio);
+});
+
+test("MP3 rejects a claimed ID3v2.4 footer if its signature is missing", async () => {
+  const file = new File([id3Header(2, 4, 0x10), new Uint8Array([9, 9]),
+    audio, new Uint8Array(10)], "song.mp3");
+  await assert.rejects(tidiedCopy(file, tags), /Invalid MP3 ID3v2.4 footer/);
+});
+
+test("MP3 rejects a footer with mismatched size even when its signature is valid", async () => {
+  const footer = id3Header(3, 4, 0x10); footer.set([51, 68, 73]);
+  const file = new File([id3Header(2, 4, 0x10), new Uint8Array([9, 9]),
+    footer, audio], "song.mp3");
+  await assert.rejects(tidiedCopy(file, tags), /Invalid MP3 ID3v2.4 footer/);
+});
+
+test("MP3 v2.3 reserved footer bit does not discard ten audio bytes", async () => {
+  const file = new File([id3Header(2, 3, 0x10), new Uint8Array([9, 9]), audio], "song.mp3");
   assert.deepEqual(await exportedAudio(file), audio);
 });
 
