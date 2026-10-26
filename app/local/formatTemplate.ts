@@ -14,14 +14,28 @@ export function templateError(template: string, allowEmpty = false): string | nu
 }
 
 export function formatTemplate(template: string, values: Record<string, string>): string {
-  // Remove empty optional wrappers from the TEMPLATE, not from canonical
-  // song titles (which may legitimately contain literal "()" or "[]").
-  return template.replace(/\(\s*\{(artist|title|album|year|track)\}\s*\)|\[\s*\{(artist|title|album|year|track)\}\s*\]/g,
+  // Remove empty optional wrappers from the TEMPLATE, not from song metadata.
+  const withoutEmptyWrappers = template.replace(/\(\s*\{(artist|title|album|year|track)\}\s*\)|\[\s*\{(artist|title|album|year|track)\}\s*\]/g,
     (whole, parenKey: string | undefined, bracketKey: string | undefined) => {
       const key = parenKey ?? bracketKey;
       return key && values[key] ? whole : "";
-    })
-    .replace(/\{(artist|title|album|year|track)\}/g, (_, key: string) => values[key] ?? "")
+    });
+
+  // Clean only template separators and whitespace before restoring metadata.
+  // A canonical title such as "- Intro", "Track -" or "A  B" must not be
+  // silently rewritten by the filename layout renderer.
+  // Valid templates cannot contain control characters, so temporary markers
+  // cannot collide with user-entered template text.
+  const replacements: string[] = [];
+  const staged = withoutEmptyWrappers.replace(/\{(artist|title|album|year|track)\}/g, (_, key: string) => {
+    const value = values[key] ?? "";
+    if (!value) return "";
+    const marker = "\u0000" + replacements.length + "\u0000";
+    replacements.push(value);
+    return marker;
+  });
+  return staged
     .replace(/^\s*[-–—]\s*|\s*[-–—]\s*$/g, "")
-    .replace(/\s{2,}/g, " ").trim();
+    .replace(/\s{2,}/g, " ").trim()
+    .replace(/\u0000(\d+)\u0000/g, (_, index: string) => replacements[Number(index)]);
 }
