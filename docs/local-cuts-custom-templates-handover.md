@@ -127,3 +127,59 @@ Do not remove unrelated Claude changes, Static Cuts archive, catalogue, matching
 **Claude next verification:** Check branch head and this diff; run `node --experimental-strip-types --test tests/local-format-template.test.mjs`, `npm run lint`, `npm run build`, then test real filenames `- Intro`, `Track -`, `A  B`, missing year, Unicode and literal brackets in Chrome/Edge. Confirm original audio and embedded tags remain untouched by filename templating. Coordinate with draft MP3/FLAC safety PRs #162/#163; do not merge automatically.
 
 **Rollback:** PR #164 is still draft. To drop only this correction before merge, reverse the changes to `formatTemplate()` and the three new tests in a fresh review commit on this draft branch; this intentionally reintroduces the punctuation bug. To remove all of PR #164, close the draft without merging. If later merged, obtain the **actual merge SHA** from GitHub and follow section 9's conditional two-parent/squash revert procedure on a separate branch, preserving later edits. Actual merge SHA is **not yet known**. Do **NOT** revert merged #157/#158/#159/#160, unrelated Claude changes, other open drafts, original recordings, server catalogue or production settings.
+
+## 12. Follow-up — canonical metadata readiness gate (2026-10-26 UTC)
+
+### (1) Aim and observed defect/evidence
+On the current draft branch, `Tidy.tsx` fetched confirmed track metadata asynchronously but its `plan` used `a = info[track_id] || null` and fell back to the original file's title/artist/album while the query was pending or had failed. The Save button remained enabled, and fetch errors/partial results were ignored. Thus a user could confirm a recording and immediately export a copy with *local fallback tags instead of canonical Static Cuts tags*, without a warning. This is a source-level race/error-path defect; it has not been reproduced in a real browser.
+
+### (2) Base, exact changed paths/functions and why
+The PR remains based on **main `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`**. This change was added **on the existing draft PR #164 branch**, not main, after the filename-template correction:
+- `app/local/canonicalReady.ts` (new): `confirmedExportIds()` selects unique, confirmed track IDs **only for files connected for export**; `missingCanonicalIds()` identifies required archive rows not loaded, using an own-property check.
+- `app/local/Tidy.tsx` (modified): import those helpers; key the canonical metadata effect by connected confirmed IDs and an explicit retry counter; check Supabase errors, missing rows, missing canonical title/artist and missing linked parent rows; ignore results from a cancelled effect; expose loading/error/retry status; disable Save and guard `save()` until every required confirmed row is loaded. Preserve the existing explicit per-track overrides, `formatTemplate()`, `tidiedCopy()`, and cover-art toggle.
+- `tests/local-canonical-ready.test.mjs` (new): seven focused tests covering confirmation, connected files, null IDs, deduplication, partial/complete data, inherited prototype keys and unconfirmed/disconnected batches.
+- `docs/local-cuts-custom-templates-handover.md` (this file): update scope, evidence, tests, risks and rollback.
+
+The existing four paths from sections 1–11 remain part of PR #164; total expected changed paths are **six**: `app/local/Tidy.tsx`, `app/local/formatTemplate.ts`, `app/local/canonicalReady.ts`, `tests/local-format-template.test.mjs`, `tests/local-canonical-ready.test.mjs`, and this handover.
+
+### (3) Before/after user behaviour
+**Before:** Even a confirmed, connected recording could be exported before its archive lookup finished, silently using original tags and omitting canonical artwork. Archive query failures were indistinguishable from an unknown local track.
+
+**After (proposed):** A confirmed, connected recording holds the Save button until its canonical metadata is fetched and validated. The UI reports loading, or an error with **retry archive lookup**. A confirmed row that disappeared or lacks a canonical title/artist blocks export rather than quietly degrading. Unconfirmed tracks and disconnected files do not unnecessarily block exports; users can still manually edit title, artist, album and year when metadata is available. Export still creates copies, not changes to original recordings.
+
+### (4) Assumptions/dependencies/existing features
+The existing `tracks` table and `artists(name)` relation remain the source of canonical data. Linked parent records are required when a confirmed version points to one; this is conservative and may block exports if catalogue relations are broken or access is restricted. All requests use the existing Supabase client. No new library or dependency. The effect uses a stable joined-ID dependency and a cancellation flag to avoid committing stale fetch results. It does **not** prove audio identity, repair wrong manual confirmations, or guarantee cover-image download success. The existing MP3/FLAC writers and ZIP output remain unchanged.
+
+### (5) Data/API/privacy/cost/storage consequences
+**Schema/database migrations:** none. **Database writes:** none. **New API endpoints/services:** none. **New permissions:** none. **Uploaded audio:** none. **Original audio writes/deletes:** none. **Production settings:** unchanged. **New browser-storage keys/migrations:** none beyond the existing PR's optional template preferences. **Server cost:** no new service; the existing track/parent SELECT queries remain, now limited to confirmed recordings connected for export. An explicit user retry can issue additional SELECTs. **Privacy:** only existing track IDs are requested; no audio bytes are uploaded. **Output behaviour:** export is withheld until canonical details are available; no change to tag-writing code or source recordings.
+
+### (6) Tests actually run, exact commands/results, and missing checks
+- Executed in a GitHub connector V8 JavaScript harness using the **retrieved branch helper and test bodies**, after removing only TypeScript annotations and Node test imports: **7 passed, 0 failed**. Also checked eight expected source-level wiring/error-handling patterns in the retrieved `Tidy.tsx`; these are **static checks, not React integration tests**.
+- Executed on Node **v22.16.0** using an **isolated local reconstruction** of the new helper and test file (not a full checkout):
+  `node --experimental-strip-types --test /mnt/data/local-cuts-canonical-check/tests/local-canonical-ready.test.mjs` → **7 passed, 0 failed**.
+  `tsc --noEmit --strict --target es2022 --module esnext --lib es2022,dom /mnt/data/local-cuts-canonical-check/app/local/canonicalReady.ts` → **exit 0** (helper only).
+- Attempted `git ls-remote https://github.com/dgtheswingingman-cloud/static-cuts.git HEAD` in the execution container → **failed: Could not resolve host: github.com**.
+- **Not run:** complete committed repository tests, full TypeScript/Next build of `Tidy.tsx`, `npm run lint`, React/browser tests, real MP3/FLAC exports, or Spotify Local Files import.
+- **Important CI warning:** the Vercel deployment status for draft head `5ae706393400ba5ef786ba16e7897ebe48b109f2` was **failure** at 2026-10-26 10:01:24 UTC; earlier head `45d9586fd5` and the two preceding helper/test commits reported success. The exact failure reason is **not available** from the GitHub status; Claude must inspect the Vercel build logs and fix any compilation/integration error before merge. A successful isolated helper test does not override this failure.
+
+### (7) Edge cases and unresolved risks
+- Missing/renamed/deleted confirmed track, missing `artists` relation, inaccessible parent, partial batch results, intermittent network failure, and user-triggered retry: deliberately block canonical export until resolved.
+- Confirmed tracks with no connected audio are excluded from the readiness gate. Unconfirmed/local-only exports are allowed and keep their local metadata; this is intentional.
+- Multiple connected files with the same confirmed track ID are deduplicated for lookup.
+- A long-running request can leave export pending; no timeout has been implemented. Cancellation prevents stale effect updates, but needs browser verification.
+- Previously loaded metadata is cached for the session; no live refresh after catalogue edits, and artwork CORS/HTTP failures can still silently omit artwork. These are separate follow-ups.
+- Vercel failure is unresolved. **Do not treat this draft as merge-ready.**
+
+### (8) Precise next steps for Claude/reviewer
+1. Check PR #164's latest changed-file list and head; preserve the original custom-template feature and the section-11 punctuation correction.
+2. **First diagnose the Vercel failure** for `5ae706393400ba5ef786ba16e7897ebe48b109f2` via build logs; correct only the actual error on this draft branch.
+3. Run `node --experimental-strip-types --test tests/local-canonical-ready.test.mjs tests/local-format-template.test.mjs`, the existing Local Cuts suites, `npm run lint`, and `npm run build` in a real checkout; record exact outcomes.
+4. Browser-test confirmed/unknown/unconfirmed mixes, slow/failed/partial archive fetches, retries, manual overrides, version parent fallback and ZIP/folder export; inspect resulting **copies** and compare originals.
+5. Test Spotify Local Files with real MP3/FLAC recordings and report actual behaviour. Coordinate with draft writer PRs #162/#163. **Do not merge/deploy automatically.**
+6. After an approved human merge, record the **actual merge SHA** and changed paths in `docs/local-cuts-claude-recovery.md` via a documentation-only draft PR, reconciling existing #161.
+
+### (9) Reversible rollback
+**Current state:** Draft #164, **not merged**; no merge SHA exists. To remove *only* this follow-up before merge, revert the three readiness paths/edits above on the draft branch while retaining the template work. To remove the whole draft, close PR #164 without merging; main remains unchanged. **After any eventual merge**, obtain the actual merge commit SHA, inspect later changes and follow section 9's conditional `git revert -m 1 <ACTUAL_MERGE_COMMIT_SHA>` procedure on a **new review branch** if a two-parent merge was used; otherwise revert actual squash/rebase commits or surgically reverse readiness changes. Never guess a merge SHA or force-push.
+
+### (10) What must NOT be reverted/removed
+Preserve all unrelated Claude work and Static Cuts catalogue/data, merged #157/#158/#159/#160, draft #161/#162/#163, original recordings, previously exported files, and the custom template/filename-correction changes already on #164. Do not reset `main`, delete audio, alter production settings, or undo unrelated later modifications to `Tidy.tsx`.
