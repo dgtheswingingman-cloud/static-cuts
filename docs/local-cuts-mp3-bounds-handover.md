@@ -8,12 +8,12 @@
 
 ## 1. Aim and evidence
 
-The pre-change `writeMp3()` trusted any source beginning with `ID3` and computed its audio start directly from four purported synchsafe size bytes. A corrupt header claiming a tag larger than the file could make `file.slice(start, end)` empty, yet the writer would still emit a new ID3 tag, producing a metadata-only output with no audio. It also added a purported 10-byte footer whenever flag 0x10 was set, although only ID3v2.4 defines that footer. This was identified by inspecting `app/local/write.ts` on main, not by a reported production incident.
+The pre-change `writeMp3()` trusted any source beginning with `ID3` and computed its audio start directly from four purported synchsafe size bytes. A corrupt header claiming a tag larger than the file could make `file.slice(start, end)` empty, yet the writer would still emit a new ID3 tag, producing a metadata-only output with no audio. It also added a purported 10-byte footer whenever flag 0x10 was set, although only ID3v2.4 defines that footer. **Follow-up review found another data-loss path:** even for ID3v2.4, trusting the footer flag without checking the footer bytes can strip the first ten bytes of audio from a malformed file. This was identified by inspecting `app/local/write.ts` on main, not by a reported production incident.
 
 ## 2. Exact files and functions
 
-- `app/local/write.ts`: added exported, side-effect-free `mp3AudioBounds(head, fileSize, tail)`. It checks supported ID3v2 major versions (2/3/4), complete 10-byte headers, synchsafe size bytes, valid retained audio range, and optionally removes ID3v1. The 10-byte footer is skipped only for v2.4 with footer flag. Invalid/truncated/tag-only inputs throw explicit errors instead of silently losing audio. Updated `writeMp3()` to read source head/tail, use validated bounds, then build the same new ID3v2.3 tag plus original audio slice. No other writers or ZIP code changed.
-- `tests/local-mp3-export.test.mjs`: added seven regression tests for untagged audio and unchanged original, old ID3v2.3, ID3v2.4 footer plus ID3v1 tail, malformed synchsafe byte, tag size exceeding file, tag-only/truncated headers, and untagged range calculation.
+- `app/local/write.ts`: added exported, side-effect-free `mp3AudioBounds(head, fileSize, tail)`. It checks supported ID3v2 major versions (2/3/4), complete 10-byte headers, synchsafe size bytes, valid retained audio range, and optionally removes ID3v1. The 10-byte footer is skipped only for v2.4 with footer flag **and a verified `3DI` footer whose version, flags and size match the original header**. `writeMp3()` reads only the expected 10-byte footer slice for this check. Invalid/truncated/tag-only inputs throw explicit errors instead of silently losing audio. Updated `writeMp3()` to read source head/tail, use validated bounds, then build the same new ID3v2.3 tag plus original audio slice. No other writers or ZIP code changed.
+- `tests/local-mp3-export.test.mjs`: added ten regression tests for untagged audio and unchanged original, old ID3v2.3, valid ID3v2.4 footer plus ID3v1 tail, missing or mismatched v2.4 footer, reserved v2.3 footer bit, malformed synchsafe byte, tag size exceeding file, tag-only/truncated headers, and untagged range calculation.
 - `docs/local-cuts-mp3-bounds-handover.md`: this detailed recovery guide.
 
 No `app/local/Tidy.tsx`, `app/local/tags.ts`, matching, or canonical formatting rules changed.
@@ -22,13 +22,13 @@ No `app/local/Tidy.tsx`, `app/local/tags.ts`, matching, or canonical formatting 
 
 **Before:** a malformed MP3 ID3 header could lead to a downloadable MP3 containing only freshly written metadata and no source audio. The v2.4 footer logic could also skip ten valid audio bytes on a malformed v2.3 flag.
 
-**After (intended):** ordinary MP3 files retain their original audio payload and receive canonical/user-selected tags as before. Malformed ID3 size/version, a truncated header or an MP3 containing no bytes beyond its tags now fails that individual export rather than yielding an empty-audio copy. The existing Tidy export loop catches per-file errors, counts them as failed and continues other files. User originals are never written to.
+**After (intended):** ordinary MP3 files retain their original audio payload and receive canonical/user-selected tags as before. Malformed ID3 size/version, a truncated header, a claimed but missing/mismatched v2.4 footer, or an MP3 containing no bytes beyond its tags now fails that individual export rather than yielding an empty-audio copy. The existing Tidy export loop catches per-file errors, counts them as failed and continues other files. User originals are never written to.
 
 This does **not** validate MP3 frame sync or guarantee the source audio is decodable, nor does it fix source files.
 
 ## 4. Dependencies, assumptions and compatibility
 
-No new packages. Uses existing browser `Blob.slice()`, `Uint8Array`, and `File` interfaces. ID3v2.2, v2.3 and v2.4 have ten-byte headers and 28-bit synchsafe tag size fields; only v2.4 supports the optional footer. The helper validates boundaries, not the entire ID3 frame graph. The existing new tag remains ID3v2.3. Files with unsupported/invalid ID3 versions now fail closed rather than being retagged; that is an intentional conservative behaviour change. `tidiedCopy` dispatch for non-MP3 files remains unchanged.
+No new packages. Uses existing browser `Blob.slice()`, `Uint8Array`, and `File` interfaces. ID3v2.2, v2.3 and v2.4 have ten-byte headers and 28-bit synchsafe tag size fields; only v2.4 supports the optional footer. The helper validates boundaries and a declared v2.4 footer signature/header agreement, not the entire ID3 frame graph. The existing new tag remains ID3v2.3. Files with unsupported/invalid ID3 versions now fail closed rather than being retagged; that is an intentional conservative behaviour change. `tidiedCopy` dispatch for non-MP3 files remains unchanged.
 
 ## 5. Data, API, privacy, storage, cost
 
@@ -44,7 +44,9 @@ No new packages. Uses existing browser `Blob.slice()`, `Uint8Array`, and `File` 
 
 **Executed in an isolated Node 22.16.0 reproduction** (not a full repository checkout): `node --test /mnt/data/localcuts_mp3_check/test.mjs`. Result: **7 tests passed, 0 failed**. The reproduction copied the revised `mp3AudioBounds` and `writeMp3` logic and the relevant existing ID3v2.3 frame builder into a standalone JS module. Synthetic in-memory `File`/audio bytes were used. It verified retention of sample audio and original input, old-tag removal, and rejection of malformed bounds.
 
-**Written to the repository but NOT executed there:** `tests/local-mp3-export.test.mjs` (same seven scenarios, importing actual `app/local/write.ts`).
+**Written to the repository but NOT executed there:** `tests/local-mp3-export.test.mjs` (now ten scenarios, importing actual `app/local/write.ts`).
+
+**Additional review verification:** extracted the **actual updated `mp3AudioBounds` helper** from the draft branch via GitHub and executed its JavaScript body after removing only its TypeScript signature in the JavaScript tool runtime. **8/8 focused boundary assertions passed**: untagged file, v2.3 tag, valid v2.4 footer, missing footer, mismatched footer, reserved v2.3 flag, oversized tag and invalid synchsafe byte. This is **not** a full repository test or a test of `writeMp3()`'s file-slice call path. The earlier seven isolated end-to-end synthetic tests predate the footer-validation follow-up and were **not rerun**.
 
 **Not run:** `node --experimental-strip-types --test tests/local-mp3-export.test.mjs`, existing local ZIP/identity/version tests, `npm run lint`, `npm run build`, TypeScript project check, browser tests, real music files, Spotify desktop/mobile Local Files import, artwork inspection. A standalone test is not evidence that the complete application builds or works with Spotify.
 
@@ -52,7 +54,7 @@ No new packages. Uses existing browser `Blob.slice()`, `Uint8Array`, and `File` 
 
 - Validation checks only ID3 header bounds and retained byte count. A file may still contain invalid MPEG audio, corrupt frames or unsupported encodings.
 - A valid zero-length ID3 tag with zero audio now fails, as intended.
-- ID3v2.4 footer detection trusts its version/flag; it does not independently validate footer signature.
+- A declared ID3v2.4 footer is now checked for the `3DI` signature and matching version/flags/size. This protects against a missing or mismatched footer, but does not prove the remainder of the tag is well-formed.
 - A malformed v2.3 file using reserved flags is not exhaustively rejected; it does not skip a footer.
 - A source with misleading `ID3` prefix that is not a real ID3 tag now fails closed.
 - Existing `writeFlac()`, `makeZip()`, artwork fetching, M4A rename-only handling, canonical metadata lookup, and version confirmation were not changed or retested.
@@ -71,7 +73,7 @@ No new packages. Uses existing browser `Blob.slice()`, `Uint8Array`, and `File` 
    npm run lint
    npm run build
    ```
-4. Use **copies** of real tagged MP3s (ID3v2.3, v2.4, v1, no tags, broken headers) and compare exported audio payload and tags with independent tooling; then import exports into Spotify Local Files on supported clients.
+4. Use **copies** of real tagged MP3s (ID3v2.3, v2.4 with valid/missing/incorrect footer, v1, no tags, broken headers) and compare exported audio payload and tags with independent tooling; then import exports into Spotify Local Files on supported clients.
 5. Confirm per-file failures show clearly without deleting other output or touching originals. If anything fails, fix this draft branch and update this handover with actual evidence.
 6. After **reviewed merge only**, record this PR number and **actual merge SHA** in a separate documentation-only draft PR updating `docs/local-cuts-claude-recovery.md`. PR #161 already proposes a ZIP/recovery update; avoid conflicting ledger edits.
 
@@ -94,3 +96,12 @@ For a squash/single-parent commit use `git revert <ACTUAL_SQUASH_SHA>` (no `-m 1
 ## 10. Explicit preservation / non-goals
 
 Do **not** remove or revert unrelated Claude changes or Local Cuts work in merged PRs #157, #158, #159, #160 or open docs PR #161. Do not delete `app/local`, original recordings, previously exported files, user collections or database rows. Do not deploy, merge, force-push or modify production settings as part of this PR. This change does not implement automatic canonical formatting or user preference features; those remain the product priority and should be developed separately.
+
+## 11. Follow-up review history (same draft PR)
+
+- Branch commits `5c05c7ac8cc1594ef56d0252209e8e43e57cd0d3` and `62ad17c05348174464bcc1c904eb00e9075cbec7` strengthen the existing draft, **not** a new PR or main merge.
+- The review identified that a forged or absent v2.4 footer could otherwise cause the first ten audio bytes to be skipped. Added `footerBytes` validation in `mp3AudioBounds`, a narrow 10-byte read in `writeMp3`, and three additional regression cases. The original v2.4 test now uses a real `3DI` footer rather than ten zero bytes.
+- Authoritative reference: ID3v2.4.0 structure section 3.1/3.4, https://id3.org/id3v2.4.0-structure (size excludes the header and footer; footer identifier `3DI`).
+- **No extra dependencies, database migrations, browser storage changes, network/API calls, cost, or modification of source recordings.** The additional read is a local 10-byte `Blob.slice` on v2.4 files declaring a footer.
+- Rollback remains the draft-PR close or a future reviewed inverse PR for this PR's actual merge SHA, preserving #157–#161 and all unrelated Claude work. If only the footer verification must be undone after a merge, inspect later edits and revert just the two follow-up commits' hunks rather than resetting `main`.
+- **Still required before merge:** execute the ten actual repository tests, lint/build, real-file audio-payload comparisons, and Spotify import tests. The 8/8 helper assertions are narrower evidence, not end-to-end validation.
