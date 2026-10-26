@@ -72,3 +72,29 @@ test("MP3 rejects a tag-only file and truncated ID3 header", async () => {
 test("MP3 bounds leave an untagged file intact and do not mistake a short tail for ID3v1", () => {
   assert.deepEqual(mp3AudioBounds(audio, audio.length), { start: 0, end: audio.length });
 });
+
+test("MP3 accepts an ID3v2.2 tag and retains the audio payload", async () => {
+  const file = new File([id3Header(2, 2), new Uint8Array([9, 8]), audio], "song.mp3");
+  assert.deepEqual(await exportedAudio(file), audio);
+});
+
+test("MP3 accepts an ID3v2.4 tag without a footer", async () => {
+  const file = new File([id3Header(2, 4), new Uint8Array([9, 8]), audio], "song.mp3");
+  assert.deepEqual(await exportedAudio(file), audio);
+});
+
+test("MP3 rejects a v2.4 footer declared beyond end of file", async () => {
+  const file = new File([id3Header(20, 4, 0x10), audio], "song.mp3");
+  await assert.rejects(tidiedCopy(file, tags), /Invalid MP3 ID3v2.4 footer/);
+});
+
+test("MP3 rejects an unsupported ID3 version instead of guessing bounds", async () => {
+  const file = new File([id3Header(2, 5), new Uint8Array([9, 8]), audio], "song.mp3");
+  await assert.rejects(tidiedCopy(file, tags), /Invalid MP3 ID3 header/);
+});
+
+test("MP3 strips a standalone ID3v1 tail after untagged audio", async () => {
+  const trailer = new Uint8Array(128); trailer.set([84, 65, 71]);
+  const file = new File([audio, trailer], "song.mp3");
+  assert.deepEqual(await exportedAudio(file), audio);
+});
