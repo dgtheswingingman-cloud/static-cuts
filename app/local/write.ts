@@ -24,6 +24,27 @@ function be32(n: number) { return new Uint8Array([(n >>> 24) & 255, (n >>> 16) &
 function le32(n: number) { return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]); }
 function latin1(b: Uint8Array) { let s = ""; for (const c of b) s += String.fromCharCode(c); return s; }
 
+/**
+ * Find the audio bytes to retain when replacing MP3 tags. Reject malformed
+ * headers instead of accidentally exporting a new ID3 tag with no audio.
+ * ID3v2.4 is the only version with an optional 10-byte footer.
+ */
+export function mp3AudioBounds(head: Uint8Array, fileSize: number, tail?: Uint8Array): { start: number; end: number } {
+  let start = 0;
+  if (latin1(head.subarray(0, 3)) === "ID3") {
+    if (head.length < 10 || ![2, 3, 4].includes(head[3]) || head.subarray(6, 10).some((b) => (b & 0x80) !== 0)) {
+      throw new Error("Invalid MP3 ID3 header; skipped export to protect the audio.");
+    }
+    const size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9];
+    const footer = head[3] === 4 && (head[5] & 0x10) !== 0 ? 10 : 0;
+    start = 10 + size + footer;
+  }
+  let end = fileSize;
+  if (fileSize > 128 && tail?.length === 128 && latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
+  if (start >= end) throw new Error("MP3 has no audio bytes after its tags; skipped export.");
+  return { start, end };
+}
+
 // ------------------------------------------------------------------- MP3
 
 function utf16Frame(id: string, text: string) {
@@ -54,15 +75,8 @@ function id3v23(t: NewTags) {
 
 async function writeMp3(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, 10).arrayBuffer());
-  let start = 0;
-  if (latin1(head.subarray(0, 3)) === "ID3") {
-    start = 10 + ((head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9]) + (head[5] & 0x10 ? 10 : 0);
-  }
-  let end = file.size;
-  if (file.size > 128) {
-    const tail = new Uint8Array(await file.slice(file.size - 128).arrayBuffer());
-    if (latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
-  }
+  const tail = file.size > 128 ? new Uint8Array(await file.slice(file.size - 128).arrayBuffer()) : undefined;
+  const { start, end } = mp3AudioBounds(head, file.size, tail);
   return new Blob([id3v23(t), file.slice(start, end)], { type: "audio/mpeg" });
 }
 
