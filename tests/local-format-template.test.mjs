@@ -13,6 +13,7 @@ test("custom templates include user-selected album, year and track tokens", () =
 });
 test("missing year leaves no empty bracket suffix", () => {
   assert.equal(formatTemplate("{artist} - {title} ({year})", { ...v, year: "" }), "Example Artist - Unreleased Track");
+  assert.equal(formatTemplate("{artist}/{album} - {year}", { ...v, year: "" }), "Example Artist/Unreleased");
 });
 test("custom blank folder template is valid but filename must be nonempty", () => {
   assert.equal(templateError("", true), null);
