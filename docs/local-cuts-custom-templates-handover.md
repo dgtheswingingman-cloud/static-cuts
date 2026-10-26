@@ -6,13 +6,13 @@
 **PR:** [Draft PR #164 — saved custom filename and folder templates](https://github.com/dgtheswingingman-cloud/static-cuts/pull/164)
 **Base:** main at **ec35a82c6f7d0f04c0c93e596ba3f7899223e603** (includes merged PR #160).
 **Merge status:** NOT merged. Actual merge SHA is unknown until review/merge.
-**Scope:** Local Cuts formatting UI only; no catalogue, matching RPC, audio writer or production settings changes.
+**Scope:** Local Cuts formatting UI **and canonical metadata readiness checks**; no catalogue schema, matching RPC, audio writer or production settings changes.
 
 ## 1. Aim, observed limitation and evidence
 
 The user confirmed canonical Static Cuts metadata must remain the default for confirmed recordings, with saved user-customizable formatting for Spotify Local Files exports. Inspection of main's app/local/Tidy.tsx showed only three hard-coded filename presets and three folder presets. The underlying renderer already supported several tokens, but users could not type a custom layout. The old renderer also silently dropped unknown {token} placeholders. This is source evidence, **not** a claimed customer incident.
 
-This PR makes filename/folder templates editable and persistent **without changing canonical audio tags or the match-confirmation gate**. A standalone player is explicitly out of scope.
+This PR makes filename/folder templates editable and persistent **without changing the match-confirmation gate**. Later commits additionally require validated canonical metadata before a confirmed recording can be exported, avoiding silent local-tag fallback. The existing audio writer is unchanged. A standalone player is explicitly out of scope.
 
 ## 2. Base, exact changed paths, functions and why
 
@@ -20,7 +20,10 @@ This PR makes filename/folder templates editable and persistent **without changi
 | --- | --- | --- |
 | app/local/Tidy.tsx | Tidy() state and preference effects | Add customNameTpl, customFolderTpl, nameMode, folderMode, prefsReady; retain existing n/f/c keys and add cn/cf/nm/fm within static_cuts_tidy_prefs. Hydration guard prevents overwriting saved choices on initial mount. |
 | app/local/Tidy.tsx | Filename/folder controls | Keep existing preset selectors; add Custom template… option, text inputs, token guidance, inline errors, and disable export for invalid templates. Switching to a preset retains the last custom layout. |
-| app/local/Tidy.tsx | plan memo and save() | Replace local fill() with formatTemplate() for path previews/export; preserve safeName() segment sanitization and duplicate suffix logic; reject invalid templates before export. |
+| app/local/Tidy.tsx | plan memo and save() | Replace local fill() with formatTemplate() and formatFolderSegments() for path previews/export; preserve safeName() segment sanitization and duplicate suffix logic; reject invalid templates before export. Block confirmed exports until canonical metadata is loaded and validated. |
+| app/local/Tidy.tsx | metadata lookup effect and retry UI | Fetch only connected confirmed IDs; detect missing/incomplete catalogue rows and parent records, show errors and allow retry rather than silently exporting fallback tags. |
+| app/local/canonicalReady.ts | confirmedExportIds(), missingCanonicalIds() | Pure helpers for connected confirmed track IDs and canonical metadata readiness; guard against inherited prototype keys. |
+| tests/local-canonical-ready.test.mjs | 7 test cases | Regression tests for confirmed/unconfirmed/disconnected files, deduplication, missing metadata, prototype keys and readiness. |
 | app/local/formatTemplate.ts | templateError() | Reject unknown tokens, unmatched braces, control characters, >160-character templates, and blank filename templates; permit blank folder template. |
 | app/local/formatTemplate.ts | formatTemplate() | Render {artist}, {title}, {album}, {year}, {track}; remove optional empty token wrappers and dangling template separators while preserving literal brackets, leading/trailing punctuation and spacing inside canonical metadata. The follow-up correction cleans only template text before restoring values. |
 | tests/local-format-template.test.mjs | 12 test cases | Original nine cases plus regressions for canonical leading/trailing punctuation, canonical double spaces, and empty-template-field separator cleanup. |
@@ -32,27 +35,27 @@ No other files are intended. Verify the PR file list/diff.
 
 **Before:** Only Artist - Title, Title, 01 Title filenames; Artist / Album, Artist, all-in-one folders. Preset and cover-art preference saved locally.
 
-**After:** Presets remain the defaults. User can select Custom template… and enter e.g. filename {track} - {title} [{year}] or folder {artist}/{album} - {year}. The existing preview shows resulting paths; custom choices persist in browser storage. Unknown placeholders visibly error and block export rather than silently disappearing. Existing per-track title/artist/album/year overrides remain available.
+**After:** Presets remain the defaults. User can select Custom template… and enter e.g. filename {track} - {title} [{year}] or folder {artist}/{album} - {year}. The existing preview shows resulting paths; custom choices persist in browser storage. Unknown placeholders visibly error and block export rather than silently disappearing. Existing per-track title/artist/album/year overrides remain available. Confirmed connected recordings must now finish a validated canonical metadata lookup before export; lookup errors block export and offer retry.
 
 **Important:** Templates change exported filenames/directories **only**, not the tags embedded in audio. Confirmed matches continue to receive canonical archive metadata by default. Unconfirmed/unknown matches do not receive archive metadata. Original recordings remain untouched.
 
 ## 4. Technical assumptions, dependencies and existing-feature effects
 
 - Uses existing React client state, localStorage, Tidy plan, safeName(), folder picker and ZIP export. **No new dependencies**.
-- Formatting receives existing canonical-or-local values plus explicit per-track overrides. No new matching/version inference, artwork fetching, tagging logic or audio transformation.
+- Formatting receives canonical-or-local values plus explicit per-track overrides. No new matching/version inference, artwork-download implementation, tag-writing logic or audio transformation. **Existing Supabase track/parent metadata reads are now validated and retried on request** for confirmed connected files.
 - Existing extension detection and duplicate-path suffixes (2), (3) etc. are unchanged.
-- Existing safeName() sanitizes forbidden filesystem characters per segment; / separates folders. Long/deep custom layouts and empty rendered components may still cause filesystem issues; browser test required.
+- Existing safeName() sanitizes forbidden filesystem characters per segment; only template / characters separate folders. Empty folder levels are skipped. Long/deep layouts and Windows reserved names still require browser testing.
 - Saved n/f/c preferences remain readable. New mode/custom fields are additive; prefsReady gates writing until hydration finishes.
 - Empty custom folder is equivalent to all-in-one; blank filename is blocked.
 - MP3/FLAC are retagged by existing code; M4A/WAV/OGG remain rename/sort-only. Spotify codec support is **not** validated by this PR.
 
 ## 5. Data/API/privacy/cost/browser-storage consequences
 
-**Database or schema migration:** none. **New APIs or requests:** none. **External services/AI:** none. **Server costs:** none. **Permissions:** none. **Uploaded audio:** none. **Original audio writes/deletions:** none. **Production settings:** unchanged. **Catalogue/ownership:** unchanged.
+**Database or schema migration:** none. **New API endpoints:** none. **Existing API requests:** Supabase track/parent metadata reads now check completeness and errors; explicit retry may issue additional reads. **External services/AI:** none. **Incremental API/server cost:** possible extra catalogue reads on retry; no new paid service. **Permissions:** none. **Uploaded audio:** none. **Original audio writes/deletions:** none. **Production settings:** unchanged. **Catalogue/ownership data:** unchanged.
 
 **Browser storage:** existing static_cuts_tidy_prefs key adds optional cn/cf (last custom layouts) and nm/fm (selection modes). Existing n/f/c meanings are preserved. Layouts are local to this browser and not synced. Existing reset removes the whole key. Existing static_cuts_local_cuts matched-item data is not migrated.
 
-**Export copies:** Only file/folder names can change if user selects custom. Metadata writer, cover fetching and ZIP/folder output remain unchanged.
+**Export copies:** File/folder names can change if the user selects custom layouts. Confirmed connected recordings are additionally blocked until canonical metadata is validated. Metadata writer, cover downloading and ZIP/folder output implementations remain unchanged.
 
 ## 6. Tests actually RUN, exact commands/results vs missing checks
 
@@ -73,7 +76,7 @@ tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 /mnt/data
 
 - Test custom→preset→custom, reload, old n/f/c preferences and browser reset.
 - Test unknown token, malformed braces, blank filename, blank folder, missing year/track, Unicode, Windows filenames, long/deep paths and duplicate output names.
-- Existing safeName() fallback Untitled can appear for empty folder segments. Preview shows it; filesystem reliability not proven.
+- Empty template-derived folder segments are skipped after the follow-up fix in section 14. The existing safeName() fallback Untitled can still apply to nonempty segments that sanitize to an empty name; Windows reserved device names and filesystem reliability remain untested.
 - Existing folder-picker errors/permissions and ZIP fallback remain independent.
 - formatTemplate() removes empty placeholder wrappers in templates while preserving literal brackets, punctuation and whitespace inside metadata values. **Existing safeName() still normalizes spaces and removes filesystem-unsafe characters in the final exported filename**; this follow-up only protects values inside the layout renderer. Test actual filename behaviour with real recordings.
 - No artwork override UI, acoustic fingerprinting, custom embedded ID3 metadata template or automated recording identity proof.
@@ -81,8 +84,8 @@ tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 /mnt/data
 
 ## 8. Precise next steps for Claude and verification
 
-1. Inspect latest main, PRs #161/#162/#163 and this branch. Confirm base ec35a82c6f7d0f04c0c93e596ba3f7899223e603 and only the four paths above changed.
-2. Run committed tests: node --experimental-strip-types --test tests/local-format-template.test.mjs, plus existing Local Cuts test suites.
+1. Inspect latest main, PRs #161/#162/#163 and this branch. Confirm base ec35a82c6f7d0f04c0c93e596ba3f7899223e603 and the **six** changed paths in section 2 (including canonicalReady.ts and its tests).
+2. Run committed tests: node --experimental-strip-types --test tests/local-format-template.test.mjs tests/local-canonical-ready.test.mjs, plus existing Local Cuts test suites. See section 15 for the verified 24-test isolated Node run.
 3. Run npm run lint and npm run build; resolve real issues on this branch without rewriting unrelated Claude work.
 4. Browser-test Chrome/Edge folder picker and ZIP fallback; verify custom input, preset switching, reload persistence, invalid templates, Unicode, duplicate paths and preview.
 5. Export real MP3/FLAC **copies**; compare audio payloads and inspect tags. Test imports into Spotify Local Files on supported clients and report observed results.
