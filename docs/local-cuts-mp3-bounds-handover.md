@@ -112,3 +112,22 @@ Do **not** remove or revert unrelated Claude changes or Local Cuts work in merge
 - Fetched the **actual `app/local/write.ts`** from this PR branch (blob SHA `bfd872bbee0a2f6b19649eb6de7c2503caa045d1`) and executed the unchanged `mp3AudioBounds` function body in a JavaScript V8 runtime after removing its TypeScript signature. **15/15 assertions passed, 0 failed.** This checks the helper only, not `writeMp3`, `tidiedCopy`, the repository's Node test suite or Spotify. The five newly committed tests were **written, not run** in the full repository.
 - Attempted to access the repository from the local execution environment for real Node tests, but `git ls-remote` failed with `Could not resolve host: github.com`. Do not count this as a test pass or as a complete checkout.
 - No new dependencies, API calls, database changes, storage changes, billing costs, privacy impact or original-file writes. Rollback is still close the draft PR before merge, or revert the actual merge commit via a reviewed inverse PR after verifying its parentage. Preserve all unrelated work and existing merged PRs.
+
+## 13. Offline execution of all 15 committed test cases (2026-10-26 follow-up)
+
+**Purpose:** Improve verification of the existing draft without creating another PR or changing application behaviour. Direct `git ls-remote https://github.com/dgtheswingingman-cloud/static-cuts.git HEAD` failed in the execution container with `Could not resolve host: github.com`; therefore a full Git checkout was **not** available.
+
+**What was actually executed:** Fetched `tests/local-mp3-export.test.mjs` and `app/local/write.ts` from this exact draft branch using the connected GitHub API. Recreated the **15 committed test cases verbatim** in a local mirror at `/mnt/data/localcuts-pr162-review/tests/local-mp3-export.test.mjs`, alongside the MP3-related function implementations copied from `app/local/write.ts` (source blob SHA `bfd872bbee0a2f6b19649eb6de7c2503caa045d1`). The mirror intentionally **omits unrelated FLAC and ZIP code** and is not a full repository checkout; the tested MP3 code includes `mp3AudioBounds`, `writeMp3`, `id3v23`, `utf16Frame`, `apicFrame` and the MP3 `tidiedCopy` dispatch.
+
+**Command actually run** (Node.js v22.16.0):
+
+```bash
+cd /mnt/data/localcuts-pr162-review
+node --experimental-strip-types --test tests/local-mp3-export.test.mjs
+```
+
+**Result:** TAP reported **15 tests, 15 passed, 0 failed, 0 skipped** (duration 273 ms). The tests exercised synthetic `File` objects, the full MP3 retagging `Blob.slice` path, old ID3v2/ID3v1 removal, footer checks, rejection cases and source-byte retention. This is stronger evidence than the prior helper-only assertions, but **is not execution against a checked-out repository**, nor proof of production browser/Spotify compatibility. No real MP3 recordings or independent decoders were used.
+
+**Remaining mandatory checks before review/merge:** Run the original test suite from a real checkout, compare the fetched mirror with the exact committed source, run existing ZIP/identity/version tests, lint, build and TypeScript checks, test real MP3s and Spotify Local Files on supported clients. The Vercel commit status reports success, but that alone does not prove any of those manual checks. This follow-up changes **documentation only**: no code, dependencies, database, browser storage, privacy, API, audio originals, production settings or operating cost impact.
+
+**Separate investigation note (NOT changed by this PR):** `writeFlac()` in the same source file advances `p` by a metadata block's declared length without first verifying the full block fits within the loaded header or file. If a corrupted FLAC block length is larger than the actual file, it may produce an output with newly generated metadata but an empty original audio slice. This is a **code-inspection risk, not a reproduced real-file incident**. Address in a separate narrowly scoped, tested draft PR after MP3 review; do not broaden #162 without agreement. No change to rollback: close this draft before merge or revert its actual future merge SHA in a reviewed PR, preserving #157–#161 and all unrelated Claude changes.
