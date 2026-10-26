@@ -13,6 +13,7 @@ import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
 import { createUnusedExportDirectory, formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
 import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds, type CanonicalLookupError } from "./canonicalReady";
 import { canonicalArtworkMime, MAX_COVER_BYTES } from "./artwork";
+import { connectedFileSignature } from "./connectedFileSignature";
 
 export type TidyItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null;
@@ -79,6 +80,8 @@ export default function Tidy({ items, files, onEdit }: {
   const requestKey = `${idsKey}\u0001${metadataRetry}`;
   const currentMetadataError = lookupErrorForRequest(metadataError, requestKey);
   const missingCanonical = missingCanonicalIds(ids, info);
+  // Parent reconnects files into the same mutable Map; its identity stays stable.
+  const fileSignature = connectedFileSignature(files);
   useEffect(() => {
     const want = missingCanonicalIds(ids, info);
     if (want.length === 0) return;
@@ -145,7 +148,7 @@ export default function Tidy({ items, files, onEdit }: {
     const folder = folderTpl ? formatFolderSegments(folderTpl, v).map((segment) => safeExportSegment(safeName(segment))).join("/") : "";
     const flag = !i.track_id ? "not in the archive: kept the file's own details" : i.status === "check" ? "best guess: check it" : null;
     return { item: i, v, fileName, folder, path: folder ? `${folder}/${fileName}` : fileName, cover: covers ? a?.cover ?? null : null, flag };
-  }), [items, files, info, nameTpl, folderTpl, covers]);
+  }), [items, files, fileSignature, info, nameTpl, folderTpl, covers]);
   const shown = only === "flagged" ? plan.filter((p) => p.flag) : plan;
 
   async function coverBytes(url: string | null, cache: Map<string, NewTags["cover"]>) {
