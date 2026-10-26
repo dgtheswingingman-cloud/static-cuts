@@ -592,3 +592,51 @@ JPEG and PNG are the conservative artwork formats for local-file tags; this inte
 
 ### (10) What must NOT be reverted/removed
 Preserve unrelated Claude changes, merged #157–#160, draft #161–#163, all earlier #164 canonical metadata and matching work, custom templates, folder collision avoidance, existing cover-fetch failure handling, other app features, original audio, prior exports, local browser preferences, catalogue and collection data, and production settings. Do not replace the whole `Tidy.tsx` or `app/local` directory from an old snapshot.
+
+
+## 23. Reconnected recordings must refresh the Spotify export plan (26 October 2026, ~21:06 UTC)
+
+### (1) Aim and observed defect/evidence
+Checked main `8a9de3f367588788204f0eaa996458d69498abfd`, recent merges #161–#163, open draft #164 and documentation draft #165, the cumulative recovery ledger on main, and this branch's earlier handovers before editing. Source review identified a real dependency defect (not a browser-reproduced incident): `app/local/page.tsx::addFiles` reconnects a remembered recording by mutating `files.current.set(key, file)` and calling `setTick`, without changing the `items` array when all files are already remembered. `app/local/Tidy.tsx::plan` was memoized on `[items, files, info, nameTpl, folderTpl, covers]`; the `files` Map retains its identity. Consequently, while Tidy remains mounted, reconnecting saved recordings can leave the preview empty/stale and the export button disabled despite connected audio. The issue existed on main and persisted in draft #164.
+
+### (2) Base/branch, exact paths/functions/commits/why
+- **Main inspected:** `8a9de3f367588788204f0eaa996458d69498abfd`; **original #164 base:** `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`; **branch:** `feat/local-cuts-custom-export-templates-20261026`. The branch remains a **draft** and is not merged. Merged writer-safety #162/#163 must be preserved when reviewing the combined result.
+- `37318391f4f126b1a76fb1377332b75eec2a5d02` adds `app/local/connectedFileSignature.ts::connectedFileSignature`. It computes an order-independent, length-prefixed signature from connected Map **keys only**. No file contents are read.
+- `c34ecad63b2c909d4f6c44425e44661843094da8` adds `tests/local-reconnect-plan.test.mjs` with five signature regression cases.
+- `faf796a206c6270bc2c80cdacf3e56d76b6078c1` updates `app/local/Tidy.tsx` to calculate `fileSignature` each render and include it in `plan`'s `useMemo` dependencies. `page.tsx` and all existing import/match logic are unchanged.
+- This section documents the change; no new PR or production/main edit was created.
+
+### (3) Before/after user behaviour
+**Before:** On a fresh visit, remembered rows may be displayed without connected files. Re-selecting the same audio folder mutates the file Map and re-renders the parent, but the already-mounted Tidy preview may remain empty because its memo dependencies did not change. **After (proposed):** a reconnect changes the key signature and invalidates the memo; connected recordings should reappear in the export preview and become eligible for existing canonical metadata checks. The existing explicit match confirmation, custom overrides, non-destructive export and metadata readiness rules remain unchanged. This is a code-level expectation, **not yet browser-verified**.
+
+### (4) Technical assumptions, dependencies, existing features
+React re-renders the parent after `setTick`, as current `page.tsx` already does. The Map may be mutated in place; `connectedFileSignature` captures the connected key set. Sorting avoids spurious invalidations caused by insertion order, and length prefixes prevent separator ambiguity. The plan uses connected keys to decide which items are present, so replacing the File object under an unchanged key does not need to change the preview; the actual export still reads the current File object from the Map. Complexity per Tidy render is O(k log k) time and O(k) temporary memory for k connected keys. No new dependency, API or audio format logic.
+
+### (5) Data/API/privacy/cost/browser-storage consequences
+**Database/schema/migrations:** none. **Remote API calls:** none added; existing canonical metadata lookups may now become reachable when reconnected recordings correctly appear, under the existing confirmation rules. **Privacy/uploads/telemetry:** none added; signatures use local Map keys only and are not transmitted. **Network/paid service cost:** no new service or network cost. **Browser localStorage/IndexedDB/cookies:** no changes. **Original recordings:** never written to or deleted by this patch. **Existing exports:** untouched. **New exports:** only the preview's correct connected-file eligibility changes. **Production/deployment settings:** none.
+
+### (6) Tests actually run versus written/unverified
+**Actually executed:** Node v22.16.0 in an isolated local directory containing the exact intended helper and test source, **not a checkout of the GitHub repository**:
+
+```bash
+cd /mnt/data/localcuts-reconnect-check
+node --experimental-strip-types --test tests/local-reconnect-plan.test.mjs
+```
+
+Result: **5 passed, 0 failed**. Cases: empty-to-connected Map mutation, same-count key replacement, insertion-order invariance, delimiter ambiguity avoidance, and same-key File replacement. After committing, fetched the actual helper, test and Tidy files from GitHub and verified the helper/test text and the new `fileSignature` dependency wiring. **Not run:** the tests from a full repository checkout, React component integration, full Local Cuts test suite, `npm run lint`, `npm run build`, browser reconnect/export, real MP3/FLAC inspection or Spotify Local Files import. The container cannot resolve github.com to clone the repo. These five helper tests **do not prove** that the UI or Vercel build works.
+
+### (7) Edge cases, unresolved risks
+A mutation without any subsequent React render cannot invalidate a React memo; the existing reconnect path explicitly calls `setTick`, but other future callers must also cause a render. Very large batches incur key sorting per Tidy render. File content changes under the same key are not reflected in the signature, intentionally: the preview depends on item metadata and key membership, not byte identity, and the writer uses the latest File reference. Browser reconnection and Spotify exports remain unverified. **The pre-existing Vercel failure on #164 is not diagnosed or fixed by this change**; obtain actual logs before merging. Do not infer a passing deployment from the helper tests.
+
+### (8) Precise next steps for Claude/reviewer
+1. Inspect the latest #164 diff and #165 merge-ledger draft; preserve merged #162/#163 writer protections. Obtain Vercel's **actual build logs** and resolve the demonstrated build failure, not a guessed cause.
+2. From a real checkout, run `node --experimental-strip-types --test tests/local-reconnect-plan.test.mjs tests/local-canonical-ready.test.mjs tests/local-format-template.test.mjs tests/local-artwork.test.mjs`, then other Local Cuts tests, `npm run lint` and `npm run build`. Record exact outputs.
+3. Browser test: import and confirm a recording, reload, observe remembered-but-disconnected rows, reconnect the same file while Tidy remains selected, verify the preview and export button update without switching tabs. Test a mixed connected/disconnected batch and same-count file swaps.
+4. Verify canonical metadata/cover readiness, per-file overrides, source hashes, MP3/FLAC tags, and Spotify Local Files imports with **copies**. Do not merge/deploy automatically.
+5. After any human merge, record the **actual** #164 merge SHA and rollback in `docs/local-cuts-claude-recovery.md` via a **documentation-only draft PR**, reconciling #165 if merged; never update main directly.
+
+### (9) Reversible rollback and actual merge SHA
+**No merge SHA exists: #164 is still a draft.** To undo only this follow-up before merge, on a reviewed branch selectively revert `faf796a206c6270bc2c80cdacf3e56d76b6078c1`, then `c34ecad63b2c909d4f6c44425e44661843094da8`, then `37318391f4f126b1a76fb1377332b75eec2a5d02` (reverse chronological order), after checking later changes; update this handover. To abandon all #164 work, close its draft. **After a human merge**, first obtain the actual merge SHA (not the branch-head SHA); use `git revert -m 1 <ACTUAL_MERGE_SHA>` on a new review branch only if GitHub confirms a normal two-parent merge. For squash/rebase, revert the actual commits. Do not reset or force-push main.
+
+### (10) What must NOT be reverted or removed
+Preserve unrelated Claude changes, merged #157–#163 (especially MP3/FLAC safety), the separate documentation draft #165, all earlier #164 custom template/canonical metadata/artwork/non-overwrite work, user overrides, existing browser preferences and saved matches, original audio, exported copies, catalogue and user collections, and production settings. Do not wholesale replace `app/local/Tidy.tsx`, `page.tsx` or the Local Cuts directory.
