@@ -549,3 +549,46 @@ No new dependencies, imports outside `app/local`, database changes, RPC modifica
 
 ### (10) What must NOT be reverted/removed
 Do not remove unrelated Claude code, merged #157–#160, other draft #161–#163 changes, the existing #164 canonical metadata readiness, custom templates, ZIP/folder export safety, artwork handling, source audio, browser preference templates, saved catalogue, user collections or production configuration. Never replace the entire `app/local/page.tsx`, `Tidy.tsx` or `app/local` directory with an old snapshot.
+
+
+## 22. Validate canonical artwork bytes before writing MP3/FLAC covers (26 October 2026, ~19:00 UTC)
+
+### (1) Aim and observed defect/evidence
+Inspected current `main` (`ec35a82c6f7d0f04c0c93e596ba3f7899223e603`), recent commits, open PRs (#105 and draft #161–#164), cumulative ledger `docs/local-cuts-claude-recovery.md`, and earlier automated-run sections of this handover before editing. On draft #164, `app/local/Tidy.tsx::coverBytes` trusted the HTTP `Content-Type` header (or assumed `image/jpeg` if absent) and embedded any successful response bytes. A cover URL returning a 200 HTML login/error page, a wrongly labelled image, or an unsupported format could therefore be embedded as corrupt album artwork in exported MP3/FLAC copies. No real user reproduction is claimed; this is evidenced by the source logic.
+
+### (2) Base, branch, exact paths/functions, commits, why
+**Base:** unchanged `main` at `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`. **Working branch:** existing draft #164, `feat/local-cuts-custom-export-templates-20261026`. No writes to main, merges or deployments.
+- `4da066683dc1fd38dd7581db906fd8e4566aec90` adds `app/local/artwork.ts`, exporting `canonicalArtworkMime(bytes)` and `MAX_COVER_BYTES` (10 MiB). Recognizes JPEG and PNG from magic bytes; rejects HTML/empty/WebP/unknown content and images larger than the limit.
+- `735dd4732960f05c405bc36acabb1173f1da1d99` updates `app/local/Tidy.tsx::coverBytes` to precheck a declared HTTP Content-Length when exposed, check actual downloaded bytes, derive APIC/FLAC MIME from those bytes instead of trusting HTTP Content-Type, and include a reason in the per-track failure CSV. It preserves the existing cache, CORS fetch, retry and cover-art opt-out.
+- `08d3f9ace2b079f406cc994080c9585074322de2` adds `tests/local-artwork.test.mjs` with five focused regression cases. This section documents the changes; no other application path is changed by this follow-up.
+
+### (3) Before/after user behaviour
+**Before:** a 200 HTML page or a WebP image served as `image/jpeg` could be embedded as fake/corrupt artwork; very large artwork could be accepted without a size policy. **After (proposed):** JPEG/PNG magic bytes determine the stored image MIME, regardless of the response header; unsupported, empty or >10 MiB artwork causes **only that recording's export to fail** and logs a reason in the changes CSV. Other batch items continue; users may retry or explicitly turn off cover art. A catalogue track without any cover URL remains exportable without art, as before. No changes to canonical title, artist, version, album or filename customization.
+
+### (4) Technical assumptions/dependencies/existing-feature effects
+JPEG and PNG are the conservative artwork formats for local-file tags; this intentionally rejects WebP/GIF/AVIF rather than embedding formats with uncertain Spotify support. Magic bytes verify type, **not** full image decodability, dimensions, corruption after the header, or actual Spotify display. HTTP Content-Length may be absent/hidden by CORS, so the post-download byte-length check is authoritative; an unadvertised oversized response may still consume memory before rejection. No transcoding or image conversion is attempted. No new dependency. The writer and source audio are unchanged; only the pre-write cover input is validated. A previously accepted WebP cover now fails unless the catalogue artwork is replaced with JPEG/PNG or the user opts out of covers.
+
+### (5) Data, API, privacy, cost, browser-storage consequences
+**Database schema/migrations/reads/writes:** none. **New network/API calls:** none; same existing CORS fetch, with an extra inspection of response headers and bytes. **Network/data costs:** large responses may still be downloaded if Content-Length is unavailable; rejected art may be re-fetched on retry. **Browser localStorage/keys/migrations:** none. **Privacy/telemetry/uploads:** none. **Original audio:** not altered or uploaded. **Previously exported copies:** not changed or deleted. **New exported copies:** corrupt/unsupported artwork is blocked on a per-file basis rather than written; folder/ZIP paths and all other tags are unchanged. **Permissions/production:** no change.
+
+### (6) Tests actually RUN versus written/unverified
+**Actually executed** in the local container with Node v22.16.0: `cd /mnt/data/localcuts-check && node --experimental-strip-types --test tests/local-artwork.test.mjs`, on locally reconstructed **exact intended helper and test contents** (not a full GitHub checkout). **5 tests passed, 0 failed**: JPEG, PNG, HTML/empty, unsupported WebP, and 10 MiB rejection. This is a real Node test-runner execution on the reconstructed two files, **NOT** execution from the actual repository checkout, not a full TypeScript compile, and not integration with `Tidy.tsx`. The same helper and tests were then committed to the draft branch. **Not run:** actual repository `node --experimental-strip-types --test tests/local-artwork.test.mjs`, all Local Cuts tests, `npm run lint`, `npm run build`, browser CORS/downloads, real tag inspection, or Spotify Local Files import. The container cannot resolve github.com to clone the repo; do not overstate verification.
+
+### (7) Edge cases and unresolved risks
+- Header-only magic-byte checks cannot prove a complete image; malformed JPEG/PNG bodies could still fail in players. MIME whitelist intentionally rejects WebP/AVIF/GIF; no conversion is provided.
+- A missing Content-Length means the browser buffers the response before size validation; large remote responses can still be costly. The 10 MiB limit is a policy choice requiring real-cover testing.
+- Existing coverless catalogue entries remain coverless, and untagged source formats are still copied/renamed rather than transcoded.
+- **Blocking existing problem:** draft #164's latest pre-change commit `cb582f52107599e7f77349e3f433af4840f78e45` had **failed Vercel status** at 2026-10-26 18:03:48 UTC, deployment `dpl_9wyo7aZAnuiQZai2wc7PFM4eSyf7`. Only the separate `Vercel Preview Comments` check passed. The actual Vercel logs remain inaccessible; the status alone does not reveal the root cause. Earlier first failing commit `5ae706393400ba5ef786ba16e7897ebe48b109f2` added canonical-readiness effect logic; subsequent edits have not demonstrably resolved the failure. This artwork patch is **not** claimed to fix the build.
+
+### (8) Precise Claude/reviewer next steps
+1. Fetch the current #164 diff and **actual** latest Vercel deployment logs using authorized access; identify and fix a demonstrated TypeScript/Next/runtime/build problem before considering merge. Do not assume artwork validation fixed it.
+2. Run in a real checkout: `node --experimental-strip-types --test tests/local-artwork.test.mjs tests/local-canonical-ready.test.mjs tests/local-format-template.test.mjs`, then all Local Cuts tests, `npm run lint` and `npm run build`. Record commands/results.
+3. Browser-test confirmed catalogue tracks with valid JPEG/PNG, wrong Content-Type, 200 HTML, WebP/AVIF, oversized image, CORS failure, absent cover, and cover-art opt-out. Confirm per-track failure CSV and that other tracks continue.
+4. Inspect real exported MP3/FLAC image MIME and bytes, compare original audio hashes, and import exported copies into Spotify Local Files. Coordinate with draft #162/#163 MP3/FLAC bounds PRs.
+5. If human-merged, add real merge SHA and exact rollback to the cumulative recovery ledger via a documentation-only draft PR, reconciling #161 rather than duplicating it.
+
+### (9) Reversible rollback, merge SHA
+**#164 remains draft and unmerged; no merge SHA exists.** To remove only this artwork follow-up on the draft branch, inspect intervening commits and selectively revert `08d3f9ace2b079f406cc994080c9585074322de2`, then `735dd4732960f05c405bc36acabb1173f1da1d99`, then `4da066683dc1fd38dd7581db906fd8e4566aec90`; update this handover accordingly. After a human merge, fetch the actual merge SHA: use a review branch and `git revert -m 1 <ACTUAL_MERGE_SHA>` only for a normal two-parent merge; handle squash/rebase according to actual commits. Never reset/force-push main, delete original files, or remove unrelated changes.
+
+### (10) What must NOT be reverted/removed
+Preserve unrelated Claude changes, merged #157–#160, draft #161–#163, all earlier #164 canonical metadata and matching work, custom templates, folder collision avoidance, existing cover-fetch failure handling, other app features, original audio, prior exports, local browser preferences, catalogue and collection data, and production settings. Do not replace the whole `Tidy.tsx` or `app/local` directory from an old snapshot.
