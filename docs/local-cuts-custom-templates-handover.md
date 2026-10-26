@@ -183,3 +183,32 @@ The existing `tracks` table and `artists(name)` relation remain the source of ca
 
 ### (10) What must NOT be reverted/removed
 Preserve all unrelated Claude work and Static Cuts catalogue/data, merged #157/#158/#159/#160, draft #161/#162/#163, original recordings, previously exported files, and the custom template/filename-correction changes already on #164. Do not reset `main`, delete audio, alter production settings, or undo unrelated later modifications to `Tidy.tsx`.
+
+
+## 13. CI investigation and latest focused verification — 2026-10-26 11:00 UTC
+
+**Start-of-run repository state:** `main` remains at `ec35a82c6f7d0f04c0c93e596ba3f7899223e603` (merged ZIP PR #160); no subsequent main commit. Draft PRs #161 (cumulative recovery ledger), #162 (MP3 bounds), #163 (FLAC bounds) and #164 (this branch) remain open. Unrelated PR #105 is also open. The main recovery ledger still ends with #157/#158; draft #161 already records merged #160. Do **not** duplicate the ledger PR or claim #162–#164 merged.
+
+**Narrowed Vercel failure boundary (GitHub commit statuses, not build logs):**
+
+| Commit | Change | Vercel status |
+| --- | --- | --- |
+| `45d9586fd561a2cbe67bd8430e1a1e68160b01b` | Template handover | success, 09:14:52 UTC |
+| `64fe9a4ac76dcba1ad37ce8117adf5769c51a7bf` | New `canonicalReady.ts` helper | success, 10:00:41 UTC |
+| `10eb47f6164e4e620db076b5f93741a06987053e` | New helper regression tests | success, 10:01:08 UTC |
+| `5ae706393400ba5ef786ba16e7897ebe48b109f2` | Integrate metadata readiness in `Tidy.tsx` | **failure**, 10:01:24 UTC |
+| `70be668de8b43afc2a6bcca99c8ea378efc078cb` | Documentation-only handover | **failure**, 10:03:21 UTC |
+
+GitHub's actual diff for `5ae7063` modifies **only `app/local/Tidy.tsx`**. The first observed failure coincides with that integration commit, so **inspect that integration first**. This is a correlation, **not a confirmed compiler error or root cause**. GitHub's commit status provides no Vercel compiler output. The successful “Vercel Preview Comments” check is separate and **does not mean the build succeeded**. A browser attempt to open the Vercel deployment page was inaccessible. The container cannot resolve `github.com`, so it cannot clone the full repository.
+
+**Actual additional test execution this run:** Retrieved both current helper sources and both committed test files directly from GitHub at branch head `70be668`. Executed all **19/19 test bodies** (12 formatting, 7 canonical-readiness) in a V8 JavaScript harness after stripping TypeScript-only syntax and Node test imports; **19 passed, 0 failed**. This validates those helper assertions in isolation only. It does **not** execute Node's test runner, TypeScript/React compilation, the `Tidy.tsx` integration, Next build, browser export, real recordings, or Spotify Local Files.
+
+**Immediate reviewer action (before any further feature work or merge):**
+
+1. Inspect the failed deployment's actual logs, with appropriate Vercel access: `npx vercel inspect dpl_6oCo2usNbfpUsn2mhLSNsSGQwcdo --logs` (first failed code commit) and `npx vercel inspect dpl_5BwtYmgrm8YaAUNPeHYbEvBtpkoa --logs` (current previous head). Record the exact diagnostic, not a guessed TypeScript cause.
+2. Reproduce with a real checkout: `node --experimental-strip-types --test tests/local-format-template.test.mjs tests/local-canonical-ready.test.mjs`, `npm run lint`, `npm run build`. Check `Tidy.tsx` integration against React and Supabase types.
+3. Fix only the demonstrated defect **on this draft branch**, run checks again, and update this handover with actual commands/results. Keep unrelated Claude changes and writer drafts #162/#163 intact.
+4. Browser-test confirmed/unconfirmed mixes, metadata errors/retry, canonical titles/artwork, saved layouts and copy-only export; do not claim Spotify compatibility without importing real files.
+5. Do not merge, deploy, alter production settings, or overwrite originals. Before merge, closing the draft leaves `main` unchanged. If eventually merged, record the actual merge SHA and use the section-9 reviewed targeted rollback; preserve all unrelated work.
+
+**Data/API/privacy/cost/storage consequences of this investigation:** **none**. This section records observations and test evidence only; no application code, schema, APIs, browser storage, audio files, server configuration or production settings were changed.
