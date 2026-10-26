@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { confirmedExportIds, missingCanonicalIds } from "../app/local/canonicalReady.ts";
+import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds } from "../app/local/canonicalReady.ts";
 
 const row = (key, track_id, status = "sure") => ({ key, track_id, status });
 
@@ -37,4 +37,12 @@ test("prototype keys do not falsely count as loaded metadata", () => {
 test("unconfirmed-only or disconnected batches never wait for catalogue", () => {
   const ids = confirmedExportIds([row("a", "guess", "check"), row("b", "missing")], new Map([["a", {}]]));
   assert.deepEqual(missingCanonicalIds(ids, {}), []);
+});
+
+test("canonical lookup errors are shown only for their request", () => {
+  const error = { requestKey: "track-1\u00011", message: "Lookup failed" };
+  assert.equal(lookupErrorForRequest(error, "track-1\u00011"), "Lookup failed");
+  assert.equal(lookupErrorForRequest(error, "track-1\u00012"), null);
+  assert.equal(lookupErrorForRequest(error, "track-2\u00011"), null);
+  assert.equal(lookupErrorForRequest(null, "track-1\u00011"), null);
 });
