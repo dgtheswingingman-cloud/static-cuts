@@ -6,7 +6,7 @@
 **PR:** [Draft PR #164 — saved custom filename and folder templates](https://github.com/dgtheswingingman-cloud/static-cuts/pull/164)
 **Base:** main at **ec35a82c6f7d0f04c0c93e596ba3f7899223e603** (includes merged PR #160).
 **Merge status:** NOT merged. Actual merge SHA is unknown until review/merge.
-**Scope:** Local Cuts formatting UI **and canonical metadata readiness checks**; no catalogue schema, matching RPC, audio writer or production settings changes.
+**Scope:** Local Cuts formatting UI, canonical metadata readiness and match-reassignment override safety; no catalogue schema, matching RPC, audio writer or production settings changes.
 
 ## 1. Aim, observed limitation and evidence
 
@@ -29,7 +29,7 @@ This PR makes filename/folder templates editable and persistent **without changi
 | tests/local-format-template.test.mjs | 12 test cases | Original nine cases plus regressions for canonical leading/trailing punctuation, canonical double spaces, and empty-template-field separator cleanup. |
 | docs/local-cuts-custom-templates-handover.md | This handover | Evidence, compatibility, tests, risks, Claude next steps and reversible rollback. |
 
-No other files are intended. Verify the PR file list/diff.
+Follow-up section 21 additionally modifies `app/local/page.tsx` to clear stale manual tag overrides on track/version reassignment. Verify the current PR file list/diff (seven paths in total).
 
 ## 3. Before and after user behaviour
 
@@ -504,3 +504,48 @@ Browser directory race condition, filesystem quota, permission revocation, exist
 
 ### (10) What must NOT be reverted/removed
 Do not remove unrelated Claude code, merged #157–#160, draft #161–#163, other #164 canonical matching/metadata/template work, original recordings, existing user exports, browser preferences, server-side collections or catalogue, production settings or other developers' changes. Never revert the entire `app/local` directory wholesale.
+
+
+## 21. Reset stale tag overrides after manual track/version reassignment (26 October 2026, 18:00 UTC)
+
+### (1) Aim, observed defect and evidence
+At the start of this run, checked `main` at `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`, recent commits, all open PRs (#105 and draft #161–#164), `docs/local-cuts-claude-recovery.md`, and the prior #164 handover. The existing `app/local/page.tsx::update()` reset `owned` on a track-ID change but retained `item.edit` (per-file title/artist/album/year overrides entered in Tidy). `app/local/Tidy.tsx` intentionally applies `item.edit` **after** canonical catalogue fields. Therefore choosing a different version or correcting a wrong track match could silently export the new recording with the **old track's manual title, artist, album or year**. This is demonstrated by the source flow, not a claimed real-user reproduction. The fix addresses wrong metadata after manual reassignment; it does not establish acoustic identity or automatically choose the right version.
+
+### (2) Base/branch, exact paths, commits and logic
+**Base:** `main` `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`. All writes remain on the existing **draft #164** branch `feat/local-cuts-custom-export-templates-20261026`; nothing merged or deployed.
+- `7bd41f2a932b0c71bed7f6ed5aa4b47b1b6878e1` — `app/local/canonicalReady.ts`: add pure generic `matchUpdatePatch(previous, patch)`. If a patch explicitly changes `track_id`, it returns the patch with `owned: false` and `edit: undefined`. Otherwise it returns the patch unchanged. This preserves the existing ownership reset and clears only overrides that were tied to the old match.
+- `b490999f59a8d94e3ebdf49cfc2fd736399d3f7f` — `app/local/page.tsx`: import/use `matchUpdatePatch` inside `update()` in place of the inline ownership-only reassignment conditional. No change to the existing `setLocalFile` association reassignment or match-selection UI.
+- `d77475527ed30c818b5126e46f81ce2236497d11` — `tests/local-canonical-ready.test.mjs`: add five regression cases covering version switch, clearing a match, same-ID confirmation, first assignment and unrelated updates.
+- This section updates `docs/local-cuts-custom-templates-handover.md`. The PR now touches seven paths in total (the prior six plus `app/local/page.tsx`). No `write.ts` or matching RPC change.
+
+### (3) Before/after user behaviour
+**Before:** User edits a demo's title to a preferred label, later changes its match to the official release; the old demo title still overrides the official release's canonical title during export. **After (proposed):** a changed track/version ID resets the previous manual tag overrides, so the newly confirmed track's canonical fields are used by default. The user can reapply intentional overrides in Tidy. Simply confirming a suggestion, changing status or choosing the **same** track ID retains existing overrides. Clearing the match also clears stale overrides; source file tags remain available as the local fallback. Ownership is still reset on track-ID change.
+
+### (4) Technical assumptions, dependencies and existing-feature effects
+No new dependencies, imports outside `app/local`, database changes, RPC modifications, acoustic fingerprinting, metadata network requests, audio writer changes, file copies or new UI controls. Assumes `track_id` uniquely identifies a catalogue recording/version; a changed ID is a material change of canonical metadata source. `edit` is per-file browser state and is not separately keyed by track ID. This intentionally sacrifices old manual overrides **only when a different match is chosen** to prevent accidental metadata contamination. Other fields (local source tags, file identity, match title/artist, reason and association updates) continue to use the existing logic.
+
+### (5) Data/API/privacy/cost/browser-storage consequences
+**Database migrations/reads/writes:** none. **New APIs/network calls:** none. **Costs/external services/dependencies:** none. **Uploaded audio, originals, previous exports:** no changes, writes or deletion. **Browser storage:** the existing `static_cuts_local_cuts` key is used; when a user changes a track/version match, previously saved `edit` overrides for that item are cleared on the next normal save. No new keys, migrations or bulk reset. **Privacy/permissions/production settings:** unchanged. This is a user-visible loss of prior manual override values on intentional reassignment; users can reenter them if desired. No effect on `static_cuts_tidy_prefs` custom template preferences.
+
+### (6) Tests actually executed vs missing
+**Executed:** Fetched the exact post-commit `app/local/canonicalReady.ts` (GitHub blob `137d021a557700a078be349a8d2c7f34a80b9039`) and `tests/local-canonical-ready.test.mjs` (blob `56d745ec7ee84d201823e3f8a31020d2acb0b2f9`). Removed TypeScript-only annotations and Node import lines **in memory**, then executed all **13 committed synchronous test callbacks** (8 existing + 5 new) using a minimal assertion harness in the connected tool's isolated V8 runtime. **13 passed, 0 failed**. The first harness attempt stopped before execution due to an overbroad validation check that matched a comment; corrected the harness and ran the 13 cases successfully. No shell command was used for these V8 checks.
+**Not executed:** the actual Node `node --experimental-strip-types --test tests/local-canonical-ready.test.mjs`, `tsc` of the complete project, `npm run lint`, `npm run build`, React browser flow, real file retagging, Spotify imports or end-to-end user testing. The execution container again could not resolve `github.com` for `git ls-remote`. Isolated V8 success is not full TypeScript/Next integration verification.
+
+### (7) Edge cases, blockers and unresolved risks
+- `track_id: null` or a new ID intentionally clears edits; a patch without `track_id` or with the same ID does not. Check actual browser persistence and that `FixMatch` sends the intended ID.
+- If the same recording has duplicate catalogue IDs, switching IDs still clears overrides; conservative canonical safety is intentional.
+- The preexisting match suggestion can still choose the wrong version; every automatic match must be manually reviewed. No acoustic verification.
+- The **Vercel deployment status remains failing** for the prior branch head `f57bf48f876106a74782a1598d9356e911e6a771` (GitHub status dated 2026-10-26 17:02 UTC, deployment `dpl_CQpHiLehb6ic2V4MF6WdkZUAJ6YW`). Main and draft #162/#163 had successful Vercel statuses. The first confirmed failed build on this branch was `5ae706393400ba5ef786ba16e7897ebe48b109f2`, following successful `64fe9a4ac76dcba1ad37ce8117adf5769c51a7bf`; it introduced the canonical-readiness effect. Actual build logs are **not available**, so the root cause remains unknown. Do not assert this reassignment patch fixes it or that the draft is merge-ready.
+
+### (8) Precise next steps for Claude/reviewer
+1. Review the three code/test commits above, the current seven-file #164 diff and latest Vercel status. Preserve all existing #164 custom templates, canonical readiness, repeat-export and artwork fixes.
+2. Obtain **actual** Vercel logs for the first failing `5ae7063` and latest head; distinguish React Hooks lint, TypeScript compilation, missing dependencies and deployment configuration. Fix only a demonstrated cause.
+3. In a real checkout, run `node --experimental-strip-types --test tests/local-canonical-ready.test.mjs tests/local-format-template.test.mjs`, other Local Cuts tests, `npm run lint`, `npm run build`; record exact output. Check that the generic `matchUpdatePatch` infers `Item` cleanly in `page.tsx`.
+4. Browser-test edit demo tags → choose official version → Tidy preview/export canonical fields; repeat same-ID confirmation and check overrides persist. Inspect real MP3/FLAC output tags, source-file integrity and Spotify import with copies. Test browser reload and clearing a match.
+5. Coordinate review with draft #162/#163 writer safety PRs. Do not merge/deploy automatically. If human-merged, update cumulative recovery ledger through a **documentation-only draft PR**, recording the **actual** merge SHA and respecting existing #161.
+
+### (9) Reversible rollback with actual merge SHA
+**Draft #164 is unmerged; no merge SHA exists.** To reverse only this follow-up on its draft branch, selectively revert `d77475527ed30c818b5126e46f81ce2236497d11`, then `b490999f59a8d94e3ebdf49cfc2fd736399d3f7f`, then `7bd41f2a932b0c71bed7f6ed5aa4b47b1b6878e1` in reverse chronological order, after inspecting intervening commits; update this handover. To abandon all #164 work, close the draft. **After merge**, fetch the real merge commit SHA. For a normal two-parent merge, open a new review branch and `git revert -m 1 <ACTUAL_MERGE_SHA>`; for squash/rebase, identify the actual commit(s). Never reset or force-push main; preserve later unrelated changes.
+
+### (10) What must NOT be reverted/removed
+Do not remove unrelated Claude code, merged #157–#160, other draft #161–#163 changes, the existing #164 canonical metadata readiness, custom templates, ZIP/folder export safety, artwork handling, source audio, browser preference templates, saved catalogue, user collections or production configuration. Never replace the entire `app/local/page.tsx`, `Tidy.tsx` or `app/local` directory with an old snapshot.
