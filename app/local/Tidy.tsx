@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
-import { formatFolderSegments, formatTemplate, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
+import { formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
 import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds, type CanonicalLookupError } from "./canonicalReady";
 
 export type TidyItem = {
@@ -140,8 +140,8 @@ export default function Tidy({ items, files, onEdit }: {
       track: a?.track ?? "",
     };
     const v = { ...base, ...Object.fromEntries(Object.entries(i.edit ?? {}).filter(([, x]) => x !== undefined)) } as typeof base;
-    const fileName = safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + sourceExtension(i.name);
-    const folder = folderTpl ? formatFolderSegments(folderTpl, v).map(safeName).join("/") : "";
+    const fileName = safeExportSegment(safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + sourceExtension(i.name));
+    const folder = folderTpl ? formatFolderSegments(folderTpl, v).map((segment) => safeExportSegment(safeName(segment))).join("/") : "";
     const flag = !i.track_id ? "not in the archive: kept the file's own details" : i.status === "check" ? "best guess: check it" : null;
     return { item: i, v, fileName, folder, path: folder ? `${folder}/${fileName}` : fileName, cover: covers ? a?.cover ?? null : null, flag };
   }), [items, files, info, nameTpl, folderTpl, covers]);
