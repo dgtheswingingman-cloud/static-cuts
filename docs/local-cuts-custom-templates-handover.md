@@ -3,7 +3,7 @@
 **Prepared:** 2026-10-26 UTC
 **Repository:** https://github.com/dgtheswingingman-cloud/static-cuts
 **Branch:** feat/local-cuts-custom-export-templates-20261026
-**PR:** Draft PR (number and link added after creation)
+**PR:** [Draft PR #164 — saved custom filename and folder templates](https://github.com/dgtheswingingman-cloud/static-cuts/pull/164)
 **Base:** main at **ec35a82c6f7d0f04c0c93e596ba3f7899223e603** (includes merged PR #160).
 **Merge status:** NOT merged. Actual merge SHA is unknown until review/merge.
 **Scope:** Local Cuts formatting UI only; no catalogue, matching RPC, audio writer or production settings changes.
