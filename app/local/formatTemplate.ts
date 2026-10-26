@@ -17,8 +17,10 @@ export function formatTemplate(template: string, values: Record<string, string>)
   // Remove empty optional wrappers from the TEMPLATE, not from canonical
   // song titles (which may legitimately contain literal "()" or "[]").
   return template.replace(/\(\s*\{(artist|title|album|year|track)\}\s*\)|\[\s*\{(artist|title|album|year|track)\}\s*\]/g,
-    (whole, parenKey: string | undefined, bracketKey: string | undefined) =>
-      values[parenKey ?? bracketKey] ? whole : "")
+    (whole, parenKey: string | undefined, bracketKey: string | undefined) => {
+      const key = parenKey ?? bracketKey;
+      return key && values[key] ? whole : "";
+    })
     .replace(/\{(artist|title|album|year|track)\}/g, (_, key: string) => values[key] ?? "")
     .replace(/^\s*[-–—]\s*|\s*[-–—]\s*$/g, "")
     .replace(/\s{2,}/g, " ").trim();
