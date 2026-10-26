@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
 import { formatTemplate, templateError } from "./formatTemplate";
+import { confirmedExportIds, missingCanonicalIds } from "./canonicalReady";
 
 export type TidyItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null;
@@ -30,6 +31,8 @@ export default function Tidy({ items, files, onEdit }: {
   items: TidyItem[]; files: Map<string, File>; onEdit: (key: string, edit: TidyItem["edit"]) => void;
 }) {
   const [info, setInfo] = useState<Record<string, Info>>({});
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [metadataRetry, setMetadataRetry] = useState(0);
   const [nameTpl, setNameTpl] = useState(NAMES[0][0]);
   const [folderTpl, setFolderTpl] = useState(FOLDERS[0][0]);
   const [customNameTpl, setCustomNameTpl] = useState("{artist} - {title} ({year})");
@@ -69,39 +72,60 @@ export default function Tidy({ items, files, onEdit }: {
   const nameError = templateError(nameTpl);
   const folderError = templateError(folderTpl, true);
 
-  // The archive's details for every matched song (and its main song, for album and art).
-  const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id && i.status === "sure").map((i) => i.track_id!))], [items]);
+  // Confirmed recordings with connected audio must receive their actual
+  // archive metadata, not silently fall back to local tags while loading.
+  const ids = confirmedExportIds(items, files);
+  const idsKey = ids.join("\u0000");
+  const missingCanonical = missingCanonicalIds(ids, info);
   useEffect(() => {
-    const want = ids.filter((id) => !info[id]);
-    if (want.length === 0) return;
+    const want = missingCanonicalIds(ids, info);
+    if (want.length === 0) { setMetadataError(null); return; }
+    let cancelled = false;
+    setMetadataError(null);
     (async () => {
-      const got: Record<string, Info> = {};
-      for (let i = 0; i < want.length; i += 200) {
-        const { data } = await supabase.from("tracks")
-          .select("id, title, album, release_date, leak_date, track_number, featured_artists, cover_url, parent_track_id, artists(name)")
-          .in("id", want.slice(i, i + 200));
-        type Row = { id: string; title: string; album: string | null; release_date: string | null; leak_date: string | null; track_number: number | null;
-          featured_artists: string | null; cover_url: string | null; parent_track_id: string | null; artists: { name: string } | null };
-        const rows = (data as Row[] | null) ?? [];
-        const parents = [...new Set(rows.map((r) => r.parent_track_id).filter(Boolean))] as string[];
-        const pm = new Map<string, { album: string | null; cover_url: string | null }>();
-        if (parents.length) {
-          const { data: pd } = await supabase.from("tracks").select("id, album, cover_url").in("id", parents);
-          ((pd as { id: string; album: string | null; cover_url: string | null }[] | null) ?? []).forEach((p) => pm.set(p.id, p));
+      try {
+        const got: Record<string, Info> = {};
+        for (let i = 0; i < want.length; i += 200) {
+          const batch = want.slice(i, i + 200);
+          const { data, error } = await supabase.from("tracks")
+            .select("id, title, album, release_date, leak_date, track_number, featured_artists, cover_url, parent_track_id, artists(name)")
+            .in("id", batch);
+          if (error) throw new Error("Archive lookup failed.");
+          type Row = { id: string; title: string; album: string | null; release_date: string | null; leak_date: string | null; track_number: number | null;
+            featured_artists: string | null; cover_url: string | null; parent_track_id: string | null; artists: { name: string } | null };
+          const rows = (data as Row[] | null) ?? [];
+          const returned = new Set(rows.map((r) => r.id));
+          if (batch.some((id) => !returned.has(id))) throw new Error("Some confirmed songs are no longer accessible in the archive.");
+          if (rows.some((r) => !r.title?.trim() || !r.artists?.name?.trim())) {
+            throw new Error("Some confirmed songs are missing their canonical title or artist.");
+          }
+          const parents = [...new Set(rows.map((r) => r.parent_track_id).filter(Boolean))] as string[];
+          const pm = new Map<string, { album: string | null; cover_url: string | null }>();
+          if (parents.length) {
+            const { data: pd, error: parentError } = await supabase.from("tracks").select("id, album, cover_url").in("id", parents);
+            if (parentError) throw new Error("Could not load linked album and artwork details.");
+            ((pd as { id: string; album: string | null; cover_url: string | null }[] | null) ?? []).forEach((p) => pm.set(p.id, p));
+            if (parents.some((id) => !pm.has(id))) throw new Error("Some linked album or artwork records are unavailable.");
+          }
+          rows.forEach((r) => {
+            const parent = r.parent_track_id ? pm.get(r.parent_track_id) : null;
+            got[r.id] = {
+              title: r.title, artist: r.artists?.name ?? "", album: r.album ?? parent?.album ?? null,
+              year: (r.release_date ?? r.leak_date)?.slice(0, 4) ?? null, track: r.track_number ? String(r.track_number) : null,
+              feat: r.featured_artists, cover: r.cover_url ?? parent?.cover_url ?? null,
+            };
+          });
         }
-        rows.forEach((r) => {
-          const parent = r.parent_track_id ? pm.get(r.parent_track_id) : null;
-          got[r.id] = {
-            title: r.title, artist: r.artists?.name ?? "", album: r.album ?? parent?.album ?? null,
-            year: (r.release_date ?? r.leak_date)?.slice(0, 4) ?? null, track: r.track_number ? String(r.track_number) : null,
-            feat: r.featured_artists, cover: r.cover_url ?? parent?.cover_url ?? null,
-          };
-        });
+        if (!cancelled) { setInfo((prev) => ({ ...prev, ...got })); setMetadataError(null); }
+      } catch (error) {
+        if (!cancelled) setMetadataError(error instanceof Error ? error.message : "Archive lookup failed.");
       }
-      setInfo((prev) => ({ ...prev, ...got }));
     })();
+    return () => { cancelled = true; };
+    // Keep fetches keyed to the set of connected confirmed IDs and explicit retry,
+    // not to every edit/rerender or the metadata state being populated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids]);
+  }, [idsKey, metadataRetry]);
 
   // What each file becomes.
   const plan = useMemo(() => items.filter((i) => files.has(i.key)).map((i) => {
@@ -139,6 +163,7 @@ export default function Tidy({ items, files, onEdit }: {
   async function save() {
     setDone(null);
     if (nameError || folderError) { setDone("Fix the formatting template errors before saving."); return; }
+    if (missingCanonical.length > 0) { setDone("Wait for confirmed archive metadata, or retry the archive lookup before exporting."); return; }
     const picker = (window as unknown as { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     let root: FileSystemDirectoryHandle | null = null;
     if (picker) {
@@ -256,8 +281,16 @@ export default function Tidy({ items, files, onEdit }: {
           {folderError && <>Folders: {folderError}</>}
         </div>
       )}
+      {missingCanonical.length > 0 && (
+        <div className="comment-meta" role="alert" style={{ marginBottom: 8 }}>
+          {metadataError
+            ? `Cannot export ${missingCanonical.length} confirmed song${missingCanonical.length === 1 ? "" : "s"} with canonical tags: ${metadataError}`
+            : `Loading canonical metadata for ${missingCanonical.length} confirmed song${missingCanonical.length === 1 ? "" : "s"} before export.`}
+          {metadataError && <button className="text-link inline-btn" onClick={() => setMetadataRetry((n) => n + 1)}>retry archive lookup</button>}
+        </div>
+      )}
       <div className="comment-meta" style={{ marginBottom: 8 }}>
-        {plan.length} file{plan.length === 1 ? "" : "s"} ready.
+        {plan.length} file{plan.length === 1 ? "" : "s"} selected.
         {flagged > 0 && <> {flagged} marked to check. </>}
         {notTagged > 0 && <> {notTagged} aren&apos;t MP3 or FLAC: those are renamed and sorted, but their details aren&apos;t rewritten yet.</>}
         {" "}Unreleased songs go in an &ldquo;Unreleased&rdquo; album so Spotify groups them.
@@ -265,7 +298,7 @@ export default function Tidy({ items, files, onEdit }: {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         <button className={`tab ${only === "all" ? "active" : ""}`} onClick={() => setOnly("all")}>all ({plan.length})</button>
         <button className={`tab ${only === "flagged" ? "active" : ""}`} disabled={flagged === 0} onClick={() => setOnly("flagged")}>to check ({flagged})</button>
-        <button className="tab active" disabled={!!progress || plan.length === 0 || !!nameError || !!folderError} onClick={save}>
+        <button className="tab active" disabled={!!progress || plan.length === 0 || !!nameError || !!folderError || missingCanonical.length > 0} onClick={save}>
           {progress ?? "save tidied copies"}
         </button>
       </div>
