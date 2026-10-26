@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
+import { formatTemplate, templateError } from "./formatTemplate";
 
 export type TidyItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null;
@@ -21,10 +22,8 @@ type Info = { title: string; artist: string; album: string | null; year: string 
 const NAMES: [string, string][] = [["{artist} - {title}", "Artist - Title"], ["{title}", "Title"], ["{track} {title}", "01 Title"]];
 const FOLDERS: [string, string][] = [["{artist}/{album}", "Artist / Album"], ["{artist}", "Artist"], ["", "all in one folder"]];
 const PREFS = "static_cuts_tidy_prefs";
+const CUSTOM = "__custom__";
 
-function fill(tpl: string, v: Record<string, string>) {
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? "").replace(/^\s*-\s*|\s*-\s*$/g, "").replace(/\s{2,}/g, " ").trim();
-}
 function ext(name: string) { return (name.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? ".mp3").toLowerCase(); }
 
 export default function Tidy({ items, files, onEdit }: {
@@ -33,15 +32,42 @@ export default function Tidy({ items, files, onEdit }: {
   const [info, setInfo] = useState<Record<string, Info>>({});
   const [nameTpl, setNameTpl] = useState(NAMES[0][0]);
   const [folderTpl, setFolderTpl] = useState(FOLDERS[0][0]);
+  const [customNameTpl, setCustomNameTpl] = useState("{artist} - {title} ({year})");
+  const [customFolderTpl, setCustomFolderTpl] = useState("{artist}/{album}/{year}");
+  const [nameMode, setNameMode] = useState<"preset" | "custom">("preset");
+  const [folderMode, setFolderMode] = useState<"preset" | "custom">("preset");
+  const [prefsReady, setPrefsReady] = useState(false);
   const [covers, setCovers] = useState(true);
   const [only, setOnly] = useState<"all" | "flagged">("all");
   const [progress, setProgress] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
   useEffect(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREFS) ?? "{}"); if (p.n) setNameTpl(p.n); if (p.f !== undefined) setFolderTpl(p.f); if (p.c !== undefined) setCovers(p.c); } catch { /* fine */ }
+    try {
+      const p = JSON.parse(localStorage.getItem(PREFS) ?? "{}");
+      if (typeof p.n === "string") setNameTpl(p.n);
+      if (typeof p.f === "string") setFolderTpl(p.f);
+      if (typeof p.cn === "string") setCustomNameTpl(p.cn);
+      else if (typeof p.n === "string" && !NAMES.some(([v]) => v === p.n)) setCustomNameTpl(p.n);
+      if (typeof p.cf === "string") setCustomFolderTpl(p.cf);
+      else if (typeof p.f === "string" && !FOLDERS.some(([v]) => v === p.f)) setCustomFolderTpl(p.f);
+      setNameMode(p.nm === "custom" || (typeof p.n === "string" && !NAMES.some(([v]) => v === p.n)) ? "custom" : "preset");
+      setFolderMode(p.fm === "custom" || (typeof p.f === "string" && !FOLDERS.some(([v]) => v === p.f)) ? "custom" : "preset");
+      if (typeof p.c === "boolean") setCovers(p.c);
+    } catch { /* Invalid saved preferences fall back to canonical defaults. */ }
+    setPrefsReady(true);
   }, []);
-  useEffect(() => { try { localStorage.setItem(PREFS, JSON.stringify({ n: nameTpl, f: folderTpl, c: covers })); } catch { /* fine */ } }, [nameTpl, folderTpl, covers]);
+  useEffect(() => {
+    if (!prefsReady) return;
+    try {
+      localStorage.setItem(PREFS, JSON.stringify({
+        n: nameTpl, f: folderTpl, c: covers, nm: nameMode, fm: folderMode,
+        cn: customNameTpl, cf: customFolderTpl,
+      }));
+    } catch { /* Browser storage may be unavailable. */ }
+  }, [prefsReady, nameTpl, folderTpl, covers, nameMode, folderMode, customNameTpl, customFolderTpl]);
+  const nameError = templateError(nameTpl);
+  const folderError = templateError(folderTpl, true);
 
   // The archive's details for every matched song (and its main song, for album and art).
   const ids = useMemo(() => [...new Set(items.filter((i) => i.track_id && i.status === "sure").map((i) => i.track_id!))], [items]);
@@ -90,8 +116,8 @@ export default function Tidy({ items, files, onEdit }: {
       track: a?.track ?? "",
     };
     const v = { ...base, ...Object.fromEntries(Object.entries(i.edit ?? {}).filter(([, x]) => x !== undefined)) } as typeof base;
-    const fileName = safeName(fill(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + ext(i.name);
-    const folder = folderTpl ? fill(folderTpl, v).split("/").map(safeName).join("/") : "";
+    const fileName = safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + ext(i.name);
+    const folder = folderTpl ? formatTemplate(folderTpl, v).split("/").map(safeName).join("/") : "";
     const flag = !i.track_id ? "not in the archive: kept the file's own details" : i.status === "check" ? "best guess: check it" : null;
     return { item: i, v, fileName, folder, path: folder ? `${folder}/${fileName}` : fileName, cover: covers ? a?.cover ?? null : null, flag };
   }), [items, files, info, nameTpl, folderTpl, covers]);
@@ -112,6 +138,7 @@ export default function Tidy({ items, files, onEdit }: {
 
   async function save() {
     setDone(null);
+    if (nameError || folderError) { setDone("Fix the formatting template errors before saving."); return; }
     const picker = (window as unknown as { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     let root: FileSystemDirectoryHandle | null = null;
     if (picker) {
@@ -184,17 +211,47 @@ export default function Tidy({ items, files, onEdit }: {
     <div>
       <div className="tidy-options">
         <label className="comment-meta">File names
-          <select className="sort-select" value={nameTpl} onChange={(e) => setNameTpl(e.target.value)}>
+          <select className="sort-select" value={nameMode === "custom" ? CUSTOM : nameTpl}
+            onChange={(e) => {
+              if (e.target.value === CUSTOM) { setNameMode("custom"); setNameTpl(customNameTpl); }
+              else { setNameMode("preset"); setNameTpl(e.target.value); }
+            }}>
             {NAMES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <option value={CUSTOM}>Custom template…</option>
           </select>
+          {nameMode === "custom" && (
+            <input className="search-input" aria-label="Custom filename template" aria-invalid={!!nameError}
+              value={nameTpl} onChange={(e) => { setNameTpl(e.target.value); setCustomNameTpl(e.target.value); }} />
+          )}
         </label>
         <label className="comment-meta">Folders
-          <select className="sort-select" value={folderTpl} onChange={(e) => setFolderTpl(e.target.value)}>
+          <select className="sort-select" value={folderMode === "custom" ? CUSTOM : folderTpl}
+            onChange={(e) => {
+              if (e.target.value === CUSTOM) { setFolderMode("custom"); setFolderTpl(customFolderTpl); }
+              else { setFolderMode("preset"); setFolderTpl(e.target.value); }
+            }}>
             {FOLDERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <option value={CUSTOM}>Custom template…</option>
           </select>
+          {folderMode === "custom" && (
+            <input className="search-input" aria-label="Custom folder template" aria-invalid={!!folderError}
+              value={folderTpl} onChange={(e) => { setFolderTpl(e.target.value); setCustomFolderTpl(e.target.value); }} />
+          )}
         </label>
         <label className="comment-meta"><input type="checkbox" checked={covers} onChange={(e) => setCovers(e.target.checked)} /> add cover art</label>
       </div>
+      {(nameMode === "custom" || folderMode === "custom") && (
+        <div className="comment-meta" style={{ marginBottom: 8 }}>
+          Templates use {"{artist}"}, {"{title}"}, {"{album}"}, {"{year}"} and {"{track}"}.
+          Separate folder levels with /. Your layout is saved on this browser; canonical song tags are unchanged.
+        </div>
+      )}
+      {(nameError || folderError) && (
+        <div className="comment-meta" role="alert" style={{ marginBottom: 8 }}>
+          {nameError && <>File names: {nameError} </>}
+          {folderError && <>Folders: {folderError}</>}
+        </div>
+      )}
       <div className="comment-meta" style={{ marginBottom: 8 }}>
         {plan.length} file{plan.length === 1 ? "" : "s"} ready.
         {flagged > 0 && <> {flagged} marked to check. </>}
@@ -204,7 +261,7 @@ export default function Tidy({ items, files, onEdit }: {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         <button className={`tab ${only === "all" ? "active" : ""}`} onClick={() => setOnly("all")}>all ({plan.length})</button>
         <button className={`tab ${only === "flagged" ? "active" : ""}`} disabled={flagged === 0} onClick={() => setOnly("flagged")}>to check ({flagged})</button>
-        <button className="tab active" disabled={!!progress || plan.length === 0} onClick={save}>
+        <button className="tab active" disabled={!!progress || plan.length === 0 || !!nameError || !!folderError} onClick={save}>
           {progress ?? "save tidied copies"}
         </button>
       </div>
