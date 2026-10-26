@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
-import { formatFolderSegments, formatTemplate, sourceExtension, templateError } from "./formatTemplate";
+import { formatFolderSegments, formatTemplate, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
 import { confirmedExportIds, missingCanonicalIds } from "./canonicalReady";
 
 export type TidyItem = {
@@ -178,8 +178,7 @@ export default function Tidy({ items, files, onEdit }: {
       const p = plan[n];
       setProgress(`Tidying ${n + 1} of ${plan.length}…`);
       const f = files.get(p.item.key)!;
-      let path = p.path;
-      for (let k = 2; used.has(path.toLowerCase()); k++) path = p.path.replace(/(\.[^.]+)$/, ` (${k})$1`);
+      const path = uniqueExportPath(p.path, used, sourceExtension(p.item.name));
       used.add(path.toLowerCase());
       try {
         const blob = await tidiedCopy(f, {
