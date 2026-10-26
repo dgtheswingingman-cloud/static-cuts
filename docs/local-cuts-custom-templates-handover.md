@@ -212,3 +212,57 @@ GitHub's actual diff for `5ae7063` modifies **only `app/local/Tidy.tsx`**. The f
 5. Do not merge, deploy, alter production settings, or overwrite originals. Before merge, closing the draft leaves `main` unchanged. If eventually merged, record the actual merge SHA and use the section-9 reviewed targeted rollback; preserve all unrelated work.
 
 **Data/API/privacy/cost/storage consequences of this investigation:** **none**. This section records observations and test evidence only; no application code, schema, APIs, browser storage, audio files, server configuration or production settings were changed.
+
+
+## 14. Folder hierarchy from template separators only — 2026-10-26 12:15 UTC
+
+### (1) Aim, observed defect, and evidence
+The draft's existing `Tidy.tsx` built a folder with `formatTemplate(folderTpl, v).split("/").map(safeName).join("/")`. That splits **after** inserting canonical metadata. A real artist name such as `AC/DC` would be treated as two directories instead of one artist value. A blank album/year could produce `Example Artist/` or `Example Artist//`, which `safeName("")` converts to unintended `Untitled` folders. This is a deterministic source-level defect reproduced on Node 22.16.0 with a faithful isolated copy of the current formatter; not a browser incident or a Spotify import test.
+
+### (2) Base, exact paths/functions/logic/why
+PR #164 still targets `main` at **ec35a82c6f7d0f04c0c93e596ba3f7899223e603**. The change is appended to the **existing draft branch**, not main:
+- `app/local/formatTemplate.ts`: add exported `formatFolderSegments(template, values)`, which splits only the **user template** on `/`, formats each segment independently, and drops segments left empty by missing values. It deliberately leaves metadata punctuation intact for existing filesystem sanitization.
+- `app/local/Tidy.tsx`: import the new helper and replace `formatTemplate(folderTpl, v).split("/")` with `formatFolderSegments(folderTpl, v)` before the unchanged `.map(safeName).join("/")`. File naming, embedded tags, export writer and original files are untouched.
+- `tests/local-format-template.test.mjs`: add five regression tests (now **17** total), covering canonical artist/album slashes, missing optional folder levels, repeated template delimiters, blank template and canonical punctuation.
+- This handover section records the evidence, verification limits, impact and rollback.
+
+Commits for this follow-up: **447ba1c98ec6bc760fa1c251534a815e717f4788**, **08d42e81e9b283195d3703bf66ae03cfe2d3ffec**, **55a6b1e5b153d111a20fa210ddc4263892cfce13**.
+
+### (3) Before/after user behaviour
+**Before:** `{artist}/{album}` with artist `AC/DC` and album `A/B` could create `AC/DC/A/B`, four folder levels rather than the two specified. Empty album/year levels could become `Untitled` directories.
+
+**After (proposed):** Template separators alone create folder levels. `AC/DC` remains one raw segment and existing `safeName` produces `ACDC` (it removes filesystem-unsafe slashes), so the result is `ACDC/AB`, exactly two levels. Missing optional folder levels are skipped rather than creating `Untitled`. The preview and export use the same computed path. This does **not** preserve literal `/` in filesystem folder names.
+
+### (4) Technical assumptions/dependencies/existing features
+No new dependencies or libraries. Relies on existing `formatTemplate`, `safeName` and existing path preview/export plan. Slash in a **template** means a folder separator; slash in a **metadata value** is sanitized within one segment. The helper assumes template validation already runs before save. Existing presets, saved custom templates, metadata overrides, cover-art option, ZIP/folder fallback and duplicate filename handling remain. Review unusual path separators, long paths, and filesystem differences in a browser.
+
+### (5) Data/API/privacy/cost/storage consequences
+**Database migrations/writes:** none. **New APIs/permissions/requests:** none. **Audio upload:** none. **Original-file modification/deletion:** none. **Production settings/deployment:** none. **New browser-storage keys/migrations:** none; the existing custom template preferences remain unchanged. **Privacy/network/cost:** no additional data transmission or service cost. **Existing exports:** unchanged on disk; only future exported folder paths can differ. **Audio tags/artwork:** untouched by this change.
+
+### (6) Tests actually run versus missing
+- **Executed:** `node --experimental-strip-types --test /mnt/data/localcuts_review/folder-segments.test.mjs` against a faithful isolated reconstruction of the helper + seven targeted test cases → **7 passed, 0 failed** (Node.js 22.16.0). This is **not** the committed test suite or a full checkout.
+- **Executed:** `tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 /mnt/data/localcuts_review/formatTemplate.ts` → **exit 0** (isolated helper only, not the committed branch or Tidy integration).
+- **Executed:** GitHub connector V8 harness loaded the **updated GitHub branch** `formatTemplate.ts` and all **17 committed test bodies**, stripped TypeScript annotations and Node imports, and ran them with minimal assert/test implementations → **17 passed, 0 failed**. This is not Node's actual test runner.
+- **Executed:** GitHub connector V8 harness combined the updated GitHub helper with `safeName` extracted from **main** `app/local/write.ts`, checking six expected final folder paths → **6 passed, 0 failed**. This is not browser filesystem validation.
+- **Not executed:** full checkout's `node --experimental-strip-types --test tests/local-format-template.test.mjs`, all other repository tests, `npm run lint`, `npm run build`, browser/real-audio integrity tests or Spotify Local Files imports. Container still cannot resolve github.com for a repository clone.
+- **Vercel blocker:** the earlier first failure occurred after commit `5ae706393400` introduced the canonical-readiness `Tidy.tsx` integration. Exact deployment error logs remain inaccessible. At the time of this note, the latest commit's Vercel status was **pending**, not passing. Do not claim this follow-up fixes the deployment.
+
+### (7) Edge cases/unresolved risks
+- Canonical artist/album values with `/`, missing album/year, repeated template delimiters and empty template covered in focused tests; actual filesystem writes are untested.
+- A literal slash in metadata is **removed by existing `safeName`**. This is deliberate filename sanitization, not a canonical metadata tag rewrite.
+- Empty *metadata* segments are omitted. A segment containing only punctuation may still sanitize to `Untitled`; no broader sanitization change was attempted.
+- Cross-platform path length, duplicate names, Unicode, parent-directory collisions, browser picker permissions and ZIP fallback need integration tests.
+- PR #164's pre-existing Vercel failure and separate draft MP3/FLAC safety PRs #162/#163 remain unresolved.
+
+### (8) Precise next steps for Claude/reviewer
+1. Inspect current main and draft PR #164, verify these three commits and the exact diff; do not overwrite unrelated Claude work.
+2. **Obtain Vercel build logs** for the first failing `5ae706393400` and the latest head. Fix the actual build error on this draft branch; the source-level change here is not proof of a fix.
+3. Run `node --experimental-strip-types --test tests/local-format-template.test.mjs tests/local-canonical-ready.test.mjs`, existing Local Cuts tests, `npm run lint`, and `npm run build` in a real checkout. Record results.
+4. Browser-test preview and folder/ZIP exports with `AC/DC`, `A/B`, missing year/album, literal template separators, manual overrides, invalid templates, duplicates and Unicode; compare source and output audio bytes and inspect tags/art.
+5. Coordinate with #162/#163. Do **not** merge/deploy automatically. Once a human merges, record actual merge SHA in the cumulative recovery ledger via a separate documentation-only draft PR, reconciling existing #161.
+
+### (9) Reversible rollback with actual merge SHA only
+PR #164 is **still draft**; **no actual merge SHA exists**. Before merge, to remove only this folder-segment change, revert these three commits in reverse order on the draft branch (review the diff and handover impact), retaining the rest of #164. To remove the entire draft, close without merging. **After merge**, fetch the real merge SHA; for a two-parent merge use `git revert -m 1 <ACTUAL_MERGE_SHA>` on a **new review branch**; for squash/rebase identify the actual resulting commit(s). Preserve later changes and never reset or force-push main.
+
+### (10) What must NOT be reverted/removed
+Do **not** remove unrelated Claude edits, merged #157/#158/#159/#160, draft #161/#162/#163, the rest of #164's canonical metadata readiness and saved template work, archive or user data, production settings, originals or previously exported files. Never restore the entire `app/local` folder from an old commit.
