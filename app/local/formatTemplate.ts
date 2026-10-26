@@ -39,3 +39,13 @@ export function formatTemplate(template: string, values: Record<string, string>)
     .replace(/\s{2,}/g, " ").trim()
     .replace(/\u0000(\d+)\u0000/g, (_, index: string) => replacements[Number(index)]);
 }
+
+// Only '/' characters in the user-entered TEMPLATE create folder levels.
+// Archive artist/album values may themselves contain '/' (e.g. "AC/DC").
+// Split first, then interpolate each level so those values remain one segment
+// for the existing safeName() sanitizer. Skip missing/empty folder levels.
+export function formatFolderSegments(template: string, values: Record<string, string>): string[] {
+  return template.split("/")
+    .map((segment) => formatTemplate(segment, values))
+    .filter((segment) => segment.trim().length > 0);
+}
