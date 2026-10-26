@@ -78,3 +78,25 @@ export function safeExportSegment(segment: string): string {
   return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment)
     ? "_" + segment : segment;
 }
+
+
+// Directory exports must never reuse yesterday's or an earlier run's files.
+// The File System Access API has no atomic "create only if absent" operation;
+// checking each name first prevents normal repeat-export overwrites.
+export async function createUnusedExportDirectory(
+  root: Pick<FileSystemDirectoryHandle, "getDirectoryHandle">,
+  baseName: string,
+): Promise<FileSystemDirectoryHandle> {
+  for (let n = 1; n <= 10000; n++) {
+    const name = n === 1 ? baseName : `${baseName} (${n})`;
+    try {
+      await root.getDirectoryHandle(name);
+      // An existing directory must never be selected for a new export.
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "TypeMismatchError") continue;
+      if (!(error instanceof DOMException && error.name === "NotFoundError")) throw error;
+      return root.getDirectoryHandle(name, { create: true });
+    }
+  }
+  throw new Error("Could not find an unused export folder name.");
+}
