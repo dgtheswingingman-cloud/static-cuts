@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
 import { formatFolderSegments, formatTemplate, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
-import { confirmedExportIds, missingCanonicalIds } from "./canonicalReady";
+import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds, type CanonicalLookupError } from "./canonicalReady";
 
 export type TidyItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null;
@@ -30,7 +30,7 @@ export default function Tidy({ items, files, onEdit }: {
   items: TidyItem[]; files: Map<string, File>; onEdit: (key: string, edit: TidyItem["edit"]) => void;
 }) {
   const [info, setInfo] = useState<Record<string, Info>>({});
-  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [metadataError, setMetadataError] = useState<CanonicalLookupError | null>(null);
   const [metadataRetry, setMetadataRetry] = useState(0);
   const [nameTpl, setNameTpl] = useState(NAMES[0][0]);
   const [folderTpl, setFolderTpl] = useState(FOLDERS[0][0]);
@@ -75,12 +75,13 @@ export default function Tidy({ items, files, onEdit }: {
   // archive metadata, not silently fall back to local tags while loading.
   const ids = confirmedExportIds(items, files);
   const idsKey = ids.join("\u0000");
+  const requestKey = `${idsKey}\u0001${metadataRetry}`;
+  const currentMetadataError = lookupErrorForRequest(metadataError, requestKey);
   const missingCanonical = missingCanonicalIds(ids, info);
   useEffect(() => {
     const want = missingCanonicalIds(ids, info);
-    if (want.length === 0) { setMetadataError(null); return; }
+    if (want.length === 0) return;
     let cancelled = false;
-    setMetadataError(null);
     (async () => {
       try {
         const got: Record<string, Info> = {};
@@ -117,7 +118,7 @@ export default function Tidy({ items, files, onEdit }: {
         }
         if (!cancelled) { setInfo((prev) => ({ ...prev, ...got })); setMetadataError(null); }
       } catch (error) {
-        if (!cancelled) setMetadataError(error instanceof Error ? error.message : "Archive lookup failed.");
+        if (!cancelled) setMetadataError({ requestKey, message: error instanceof Error ? error.message : "Archive lookup failed." });
       }
     })();
     return () => { cancelled = true; };
@@ -282,10 +283,10 @@ export default function Tidy({ items, files, onEdit }: {
       )}
       {missingCanonical.length > 0 && (
         <div className="comment-meta" role="alert" style={{ marginBottom: 8 }}>
-          {metadataError
-            ? `Cannot export ${missingCanonical.length} confirmed song${missingCanonical.length === 1 ? "" : "s"} with canonical tags: ${metadataError}`
+          {currentMetadataError
+            ? `Cannot export ${missingCanonical.length} confirmed song${missingCanonical.length === 1 ? "" : "s"} with canonical tags: ${currentMetadataError}`
             : `Loading canonical metadata for ${missingCanonical.length} confirmed song${missingCanonical.length === 1 ? "" : "s"} before export.`}
-          {metadataError && <button className="text-link inline-btn" onClick={() => setMetadataRetry((n) => n + 1)}>retry archive lookup</button>}
+          {currentMetadataError && <button className="text-link inline-btn" onClick={() => setMetadataRetry((n) => n + 1)}>retry archive lookup</button>}
         </div>
       )}
       <div className="comment-meta" style={{ marginBottom: 8 }}>
