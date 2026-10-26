@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatFolderSegments, formatTemplate, sourceExtension, templateError, uniqueExportPath } from "../app/local/formatTemplate.ts";
+import { formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "../app/local/formatTemplate.ts";
 
 const v = { artist: "Example Artist", title: "Unreleased Track", album: "Unreleased", year: "2026", track: "03" };
 test("canonical default filename and folder presets remain unchanged", () => {
@@ -111,4 +111,9 @@ test("only same-folder collisions are renamed and real extensions are retained",
   const used = new Set(["artist/song.flac"]);
   assert.equal(uniqueExportPath("Other/Song.flac", used, ".flac"), "Other/Song.flac");
   assert.equal(uniqueExportPath("Artist/Song.flac", used, ".flac"), "Artist/Song (2).flac");
+});
+
+test("Windows-reserved output names are prefixed without modifying metadata", () => {
+  for (const s of ["CON.mp3", "nul", "LPT9", "COM1.flac", "PrN.wav"]) assert.equal(safeExportSegment(s), "_" + s);
+  for (const s of ["CONCERT.mp3", "COM10.mp3", "normal.flac"]) assert.equal(safeExportSegment(s), s);
 });
