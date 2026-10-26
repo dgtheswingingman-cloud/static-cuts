@@ -1,5 +1,8 @@
 # Claude handover — Local Cuts MP3 tag boundary guard
 
+> **CURRENT STATUS — verified 2026-10-26 19:59 UTC:** PR #162 **MERGED** into `main` at `bcdd9570fd9ebf1ffdc70c4104abe3e1da09a0d6` (19:21:28 UTC; two parents). Historical "draft"/"do not merge" wording below describes the pre-merge state and must not be read as current. The full checkout test suite, lint/build, real-file and Spotify checks are still not verified by this handover. If a rollback is approved, revert this exact merge on a **new reviewed branch** with `git revert -m 1 bcdd9570fd9ebf1ffdc70c4104abe3e1da09a0d6` after checking newer changes; preserve #163 FLAC guards and unrelated Claude work. No automatic revert or deployment was performed.
+
+
 **Prepared:** 2026-10-26 UTC  
 **Repository:** dgtheswingingman-cloud/static-cuts  
 **Draft branch:** `fix/local-cuts-mp3-tag-bounds-20261026`  
