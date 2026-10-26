@@ -1,5 +1,8 @@
 # Claude handover — Local Cuts FLAC metadata-boundary safety
 
+> **CURRENT STATUS — verified 2026-10-26 19:59 UTC:** PR #163 **MERGED** into `main` at `8a9de3f367588788204f0eaa996458d69498abfd` (19:21:44 UTC; two parents). PRs #161 and #162 are also merged. Historical "draft"/"related open drafts"/"do not merge" wording below describes the pre-merge state and must not be read as current. Full checkout tests, lint/build, real-file and Spotify checks remain unverified by this handover. If a rollback is approved, revert this exact merge on a **new reviewed branch** with `git revert -m 1 8a9de3f367588788204f0eaa996458d69498abfd` after checking newer changes; preserve #162 MP3 guards and unrelated Claude work. No automatic revert or deployment was performed.
+
+
 **Prepared:** 2026-10-26 UTC  
 **Repository:** `dgtheswingingman-cloud/static-cuts`  
 **Draft branch:** `fix/local-cuts-flac-metadata-bounds-20261026`  
