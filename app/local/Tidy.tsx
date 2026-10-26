@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
-import { formatFolderSegments, formatTemplate, templateError } from "./formatTemplate";
+import { formatFolderSegments, formatTemplate, sourceExtension, templateError } from "./formatTemplate";
 import { confirmedExportIds, missingCanonicalIds } from "./canonicalReady";
 
 export type TidyItem = {
@@ -25,7 +25,6 @@ const FOLDERS: [string, string][] = [["{artist}/{album}", "Artist / Album"], ["{
 const PREFS = "static_cuts_tidy_prefs";
 const CUSTOM = "__custom__";
 
-function ext(name: string) { return (name.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? ".mp3").toLowerCase(); }
 
 export default function Tidy({ items, files, onEdit }: {
   items: TidyItem[]; files: Map<string, File>; onEdit: (key: string, edit: TidyItem["edit"]) => void;
@@ -140,7 +139,7 @@ export default function Tidy({ items, files, onEdit }: {
       track: a?.track ?? "",
     };
     const v = { ...base, ...Object.fromEntries(Object.entries(i.edit ?? {}).filter(([, x]) => x !== undefined)) } as typeof base;
-    const fileName = safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + ext(i.name);
+    const fileName = safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + sourceExtension(i.name);
     const folder = folderTpl ? formatFolderSegments(folderTpl, v).map(safeName).join("/") : "";
     const flag = !i.track_id ? "not in the archive: kept the file's own details" : i.status === "check" ? "best guess: check it" : null;
     return { item: i, v, fileName, folder, path: folder ? `${folder}/${fileName}` : fileName, cover: covers ? a?.cover ?? null : null, flag };
@@ -231,6 +230,7 @@ export default function Tidy({ items, files, onEdit }: {
 
   const flagged = plan.filter((p) => p.flag).length;
   const notTagged = plan.filter((p) => !canTag(p.item.name)).length;
+  const extensionless = plan.filter((p) => !sourceExtension(p.item.name)).length;
 
   return (
     <div>
@@ -293,6 +293,7 @@ export default function Tidy({ items, files, onEdit }: {
         {plan.length} file{plan.length === 1 ? "" : "s"} selected.
         {flagged > 0 && <> {flagged} marked to check. </>}
         {notTagged > 0 && <> {notTagged} aren&apos;t MP3 or FLAC: those are renamed and sorted, but their details aren&apos;t rewritten yet.</>}
+        {extensionless > 0 && <> {extensionless} file{extensionless === 1 ? "" : "s"} have no extension: Local Cuts won&apos;t pretend they are MP3s, and Spotify may not recognize them.</>}
         {" "}Unreleased songs go in an &ldquo;Unreleased&rdquo; album so Spotify groups them.
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
