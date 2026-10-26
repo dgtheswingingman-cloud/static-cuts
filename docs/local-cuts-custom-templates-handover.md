@@ -266,3 +266,33 @@ PR #164 is **still draft**; **no actual merge SHA exists**. Before merge, to rem
 
 ### (10) What must NOT be reverted/removed
 Do **not** remove unrelated Claude edits, merged #157/#158/#159/#160, draft #161/#162/#163, the rest of #164's canonical metadata readiness and saved template work, archive or user data, production settings, originals or previously exported files. Never restore the entire `app/local` folder from an old commit.
+
+## 15. Follow-up: verified Node test run and export-path audit (2026-10-26 13:12 UTC)
+
+**Aim/evidence:** Prior updates relied mainly on isolated V8 execution, and the preview deployment is still failing. This run re-checked main (ec35a82c6f7d0f04c0c93e596ba3f7899223e603), open drafts #161–#164, the main recovery ledger, this branch, and the Vercel status. No new application changes were made: the highest-priority blocker remains the unexplained failed Vercel build.
+
+**Exact source verification:** The following four files were copied into an isolated Node workspace at `/mnt/data/local-cuts-review` and their `git hash-object` SHA-1 hashes matched the GitHub blobs on this branch **exactly**:
+- `app/local/formatTemplate.ts`: `f9a9c38d7c27a2aee35318ce1d90f59a74d3f0a7`
+- `app/local/canonicalReady.ts`: `c8fd24d33993799f8a6a9ca1aa446dc4706887fd`
+- `tests/local-format-template.test.mjs`: `eb94c11fb9aca3bcdabe99d21f0f2f7de1ac4451`
+- `tests/local-canonical-ready.test.mjs`: `ace6d4bc66a1b3a8255bcbb8b893d7f43afc70f7`
+
+**Tests actually RUN** on Node v22.16.0 and TypeScript 5.8.3, using exact matching helper/test files (not a full checkout):
+
+~~~bash
+cd /mnt/data/local-cuts-review
+node --experimental-strip-types --test tests/local-format-template.test.mjs tests/local-canonical-ready.test.mjs
+# 24 tests, 24 passed, 0 failed, 0 skipped
+tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 app/local/formatTemplate.ts app/local/canonicalReady.ts
+# exit code 0 (isolated helper compilation)
+~~~
+
+An additional **three** isolated assertions using the main branch's exact `safeName()` expression verified `AC/DC` remains one sanitized folder segment (`ACDC`), `- Intro` remains a valid filename, and absent album/year do not create empty folder levels. These three assertions were executed but **not committed as regression tests**. A separate read-only reproduction confirmed a **pre-existing** extensionless-file issue in `Tidy.tsx::ext()`: `audio` is given `.mp3` without transcoding. This is an unresolved Spotify-compatibility risk, **not fixed in this PR**. `safeName("CON")` remains `CON`, a potential Windows reserved-name issue; this was also **not fixed**.
+
+**Build blocker and missing verification:** GitHub's latest commit status for `edc33ed5d3cd038a009dc03f2d6461c1542acd1d` is `Vercel: failure` with deployment `dpl_E5v4Fnx3TNfQ5WcNPFg8AvCZijj8`. The public deployment URL was inaccessible and this environment cannot clone the repo (`Could not resolve host: github.com`). **No Vercel logs, full Next build, full lint, TSX integration, browser tests, real audio tag inspections or Spotify imports were executed.** Do not infer the deployment failure's cause from the test success. The first failing commit remains `5ae7063` per the prior investigation, but this is a correlation, not a diagnosis.
+
+**Data/API/privacy/cost/storage consequences:** None. This follow-up modifies documentation only on the existing draft branch; it makes no application code, database, API, browser storage, export or original-audio changes and adds no dependencies or production settings.
+
+**Precise Claude next steps:** Obtain Vercel logs with the deployment's suggested `npx vercel inspect dpl_E5v4Fnx3TNfQ5WcNPFg8AvCZijj8 --logs` under an authorized environment; identify a concrete failure before patching. Then run `npm run lint`, `npm run build`, all Local Cuts Node tests, and actual Chrome/Edge and Spotify Local Files import tests. Separately consider a narrowly scoped, reviewed extensionless-file safety fix and Windows reserved-path sanitization, without overwriting drafts #162/#163. Do not conflate filename-template success with Spotify compatibility.
+
+**Rollback / preserve:** Draft #164 is still unmerged; close it to abandon its application changes, or selectively revert this documentation commit on the draft branch if needed. There is **no actual merge SHA** for #164. After any human merge, inspect GitHub's actual merge commit and follow section 9's reviewed revert procedure. Preserve unrelated Claude work, merged #157–#160, and other open drafts. Never delete original audio, user exports or server data.
