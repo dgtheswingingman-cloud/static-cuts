@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatTemplate, templateError } from "../app/local/formatTemplate.ts";
+import { formatFolderSegments, formatTemplate, templateError } from "../app/local/formatTemplate.ts";
 
 const v = { artist: "Example Artist", title: "Unreleased Track", album: "Unreleased", year: "2026", track: "03" };
 test("canonical default filename and folder presets remain unchanged", () => {
@@ -52,4 +52,25 @@ test("canonical title whitespace is not normalized by the template renderer", ()
 test("empty metadata still removes only template separators", () => {
   assert.equal(formatTemplate("{artist} - {title}", { ...v, artist: "" }), "Unreleased Track");
   assert.equal(formatTemplate("{title} - {year}", { ...v, year: "" }), "Unreleased Track");
+});
+
+// Folder structure must be derived from the template, not from slash characters
+// inside canonical metadata values. Missing optional levels must not become
+// an unexpected "Untitled" directory via safeName().
+test("folder levels come from the template, not canonical artist slashes", () => {
+  assert.deepEqual(formatFolderSegments("{artist}/{album}", { ...v, artist: "AC/DC" }), ["AC/DC", "Unreleased"]);
+});
+test("canonical album slashes stay inside a single folder level", () => {
+  assert.deepEqual(formatFolderSegments("{artist}/{album}", { ...v, album: "A/B" }), ["Example Artist", "A/B"]);
+});
+test("missing album and year omit empty folder levels", () => {
+  assert.deepEqual(formatFolderSegments("{artist}/{album} - {year}", { ...v, album: "", year: "" }), ["Example Artist"]);
+  assert.deepEqual(formatFolderSegments("{artist}/{album}/{year}", { ...v, album: "", year: "" }), ["Example Artist"]);
+});
+test("repeated separators and blank folder template create no empty levels", () => {
+  assert.deepEqual(formatFolderSegments("{artist}//{title}", v), ["Example Artist", "Unreleased Track"]);
+  assert.deepEqual(formatFolderSegments("", v), []);
+});
+test("canonical punctuation inside folder values is preserved for sanitization", () => {
+  assert.deepEqual(formatFolderSegments("{artist}/{album}", { ...v, album: "- EP" }), ["Example Artist", "- EP"]);
 });
