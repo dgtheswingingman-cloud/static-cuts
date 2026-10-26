@@ -17,6 +17,7 @@ import { AdminModePage } from "../components/AdminModeNote";
 import { readDuration, readTags } from "./tags";
 import { fileKey, unusedKey } from "./fileIdentity";
 import { assessVersion, type VersionCandidate } from "./versionMatch";
+import { matchUpdatePatch } from "./canonicalReady";
 import { setLocalFile } from "./store";
 import Tidy from "./Tidy";
 
@@ -244,9 +245,7 @@ export default function LocalCutsPage() {
   function update(key: string, patch: Partial<Item>) {
     const previous = items.find((i) => i.key === key);
     // Switching recordings must not retain ownership from the prior track ID.
-    const effectivePatch = previous && patch.track_id !== undefined && patch.track_id !== previous.track_id
-      ? { ...patch, owned: false }
-      : patch;
+    const effectivePatch = matchUpdatePatch(previous, patch);
     const next = previous ? { ...previous, ...effectivePatch } : null;
     const f = files.current.get(key);
     if (previous?.track_id && (previous.track_id !== next?.track_id || next?.status !== "sure")) {
