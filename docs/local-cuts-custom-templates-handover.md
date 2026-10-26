@@ -401,3 +401,44 @@ The helper treats path collisions case-insensitively; actual filesystem case/Uni
 
 ### (10) What must NOT be reverted/removed
 Do not remove unrelated Claude code, merged #157/#158/#159/#160, open #161/#162/#163, other #164 formatting/canonical metadata improvements, original recordings, user exports, browser preferences, server collection/catalogue, or production settings. Never replace or revert the entire `app/local` directory. No other Claude work was intentionally touched.
+
+
+## 18. Follow-up: scope canonical lookup failures to their request (2026-10-26 16:06 UTC)
+
+### (1) Aim, observed defect and evidence
+Rechecked `main` (still `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`), recent commits, open PRs #105 and draft #161–#164, the cumulative main ledger, and prior #164 handover before editing. In `Tidy.tsx`, `metadataError` was a plain string and the canonical lookup effect called `setMetadataError(null)` synchronously. When a failed lookup was retried or the connected confirmed IDs changed, the previous failure could remain displayed until React ran the effect; this is a concrete stale-error UI path. Synchronous effect state updates may also be flagged by React Hooks lint rules, but **we have not established that this is the Vercel build failure**. GitHub reports Vercel failure on the pre-change head `3ffc078b75d6c362e6aecf5fa47996852ab7f29c`; actual deployment logs remain unavailable.
+
+### (2) Base, changed paths/functions/logic/why and commits
+**Base branch/commit:** `main` at `ec35a82c6f7d0f04c0c93e596ba3f7899223e603`. Updates were committed **only** to existing draft #164 branch `feat/local-cuts-custom-export-templates-20261026`:
+- `app/local/Tidy.tsx` — `ea645d63adc82850a489073089a855237e36454a`: represent `metadataError` as a request-keyed object, derive `requestKey` from confirmed IDs and retry counter, display only `lookupErrorForRequest(metadataError, requestKey)`, and remove synchronous `setMetadataError(null)` calls from the metadata effect. Asynchronous completion still clears errors and populates `info`; failures are tagged with their originating request.
+- `app/local/canonicalReady.ts` — `0faac56ef3ba20102ac9a303d4f25398bc96d5f9`: add `CanonicalLookupError` and pure `lookupErrorForRequest()` to reject stale failures.
+- `tests/local-canonical-ready.test.mjs` — `c92cd15cb0d836be8aa7c70f5b84259954298da9`: add one regression case with four assertions for current request, retry, changed selection and null error.
+- `docs/local-cuts-custom-templates-handover.md`: this section; no changes to other code paths. Review the actual PR diff before merge.
+
+### (3) Before/after user behaviour
+**Before:** a failed archive lookup could leave an old error visible while a retry or different confirmed selection started. **After (proposed):** errors are displayed only for the request that failed; retry/selection changes immediately hide stale messages, and a new failure displays the new error. Confirmed files still cannot export until their canonical metadata has loaded. The canonical defaults, user overrides, matching/version confirmation, cover selection, export naming, tagging and original-file handling are unchanged.
+
+### (4) Technical assumptions/dependencies/effects
+The request identity combines the existing joined confirmed-track IDs and explicit retry count. This is a UI error identity, not an audio fingerprint or a claim of recording identity. The async lookup already uses a cancellation flag; it continues to prevent superseded requests from writing results. No new libraries or services. `setInfo` and error clearing remain asynchronous after catalogue requests. There is no change to Supabase query shape or matching logic. The request-key helper is intentionally pure for isolated tests. Potential lint/build benefits are **hypotheses, not verified fixes**.
+
+### (5) Data/API/privacy/cost/browser-storage consequences
+**Schema/migrations/database writes:** none. **API endpoints or query shape:** unchanged; existing explicit retry can still make repeat catalogue reads, with the same possible query cost as before. **Audio upload/transcoding/original edits/deletions:** none. **New permissions/dependencies/external services:** none. **Browser storage keys/migrations:** none. **Privacy impact:** no new information collected or transmitted. **Production settings/deployment:** none changed. Only ephemeral React state and error presentation change; saved preferences and exported copies remain unaffected.
+
+### (6) Tests actually run versus missing
+**Executed:** In the connected GitHub tool's isolated V8 JavaScript runtime, fetched the exact post-commit `canonicalReady.ts` and `tests/local-canonical-ready.test.mjs`, extracted the three pure function bodies, removed the `Set<string>` TypeScript generic, and executed all eight committed test callbacks using a minimal synchronous `test` and assertion harness. **8 passed, 0 failed**. Also checked the retrieved `Tidy.tsx` source for request-key helper integration and removal of synchronous error-reset calls. Blob SHAs: `canonicalReady.ts` `8b5a8703ccc29f25a5f2137b66b15c8e1dd03528`; test file `63bdccb4f1099b7a2ef1e5bc4c625116a03a0dd6`; `Tidy.tsx` `107a7286a99215e0e66f8479e8e7f60af8005a4b`. **No shell command was run for these V8 tests**; this is NOT Node's test runner, a React render, TypeScript/TSX integration or a Next build.
+**Not executed:** `node --experimental-strip-types --test tests/local-canonical-ready.test.mjs tests/local-format-template.test.mjs`, `npm run lint`, `npm run build`, full Local Cuts suite, browser selection/retry testing, actual MP3/FLAC exports or Spotify imports. A full checkout is unavailable because `git ls-remote` cannot resolve `github.com` in the execution container. Do not claim Vercel was fixed.
+
+### (7) Edge cases and unresolved risks
+The request key is built from confirmed IDs in their current order; a harmless reordering may cause an extra lookup/error dismissal, but does not bypass the canonical export gate. A retry of a failed request must hide the old error and either succeed or show a fresh error. Stale async responses are guarded by cancellation; browser race testing remains outstanding. An unrelated React Hooks lint rule or a TypeScript/Next error may still be causing Vercel failure. Earlier known risks (Windows reserved filenames, existing prior-export overwrite, codec support and artwork CORS) remain unresolved.
+
+### (8) Precise next steps for Claude/reviewer
+1. Obtain authorized Vercel logs for the latest failed deployment using its GitHub status link / suggested `npx vercel inspect <deployment-id> --logs`; confirm the real error rather than attributing it to this patch.
+2. Run **actual** Node tests and `npm run lint`, `npm run build` in a full checkout. Inspect the React Hooks lint output for `Tidy.tsx` and address any concrete failure.
+3. Browser-test a failing canonical lookup, retry, changing confirmed selections, unmounting mid-request, successful completion and export disabled/enabled states. Ensure original audio is never modified.
+4. Review draft #162/#163 alongside #164 before any human merge; preserve unrelated work. If merged, update the cumulative recovery ledger in a **documentation-only draft PR** (reconcile existing #161) with the **actual** merge SHA.
+
+### (9) Reversible rollback and actual merge SHA
+**Draft #164 is not merged; no merge SHA exists.** To undo only this follow-up, on its draft branch selectively revert `c92cd15cb0d836be8aa7c70f5b84259954298da9`, `0faac56ef3ba20102ac9a303d4f25398bc96d5f9`, then `ea645d63adc82850a489073089a855237e36454a` in reverse order after inspecting later commits, and update this handover. To abandon the whole PR, close the draft without merging. **After a human merge**, fetch the actual merge SHA and use a reviewed `git revert -m 1 <ACTUAL_MERGE_SHA>` only if it is a two-parent merge; for squash/rebase identify actual resulting commits. Never invent a merge SHA, force-push or reset main.
+
+### (10) What must NOT be reverted/removed
+Preserve unrelated Claude changes, merged #157–#160, draft #161–#163, other #164 formatting and metadata readiness work, the catalogue, production settings, existing exports, saved browser data and original audio. Never restore `Tidy.tsx` or the entire `app/local` directory wholesale from an old snapshot.
