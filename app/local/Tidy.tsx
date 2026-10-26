@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
 import { createUnusedExportDirectory, formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
 import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds, type CanonicalLookupError } from "./canonicalReady";
+import { canonicalArtworkMime, MAX_COVER_BYTES } from "./artwork";
 
 export type TidyItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null;
@@ -152,12 +153,20 @@ export default function Tidy({ items, files, onEdit }: {
     if (cache.has(url)) return cache.get(url)!;
     try {
       const res = await fetch(url, { mode: "cors" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("Artwork download returned an unsuccessful response.");
+      const declaredLength = res.headers.get("content-length");
+      if (declaredLength && Number(declaredLength) > MAX_COVER_BYTES) {
+        throw new Error("Canonical cover artwork exceeds the 10 MB limit.");
+      }
       const data = new Uint8Array(await res.arrayBuffer());
-      const c = { mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg", data };
+      // Content-Type can be missing or wrong; validate actual image bytes.
+      const c = { mime: canonicalArtworkMime(data), data };
       cache.set(url, c);
       return c;
-    } catch { throw new Error("Could not download the selected canonical cover artwork. Try again, or turn off cover art to export without it."); }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Artwork download failed.";
+      throw new Error(`Could not use the selected canonical cover artwork: ${reason} Try again, or turn off cover art to export without it.`);
+    }
   }
 
   async function save() {
