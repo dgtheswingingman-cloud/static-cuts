@@ -72,3 +72,9 @@ export function uniqueExportPath(path: string, used: ReadonlySet<string>, extens
 export function sourceExtension(name: string): string {
   return name.match(/\.[a-z0-9]{2,5}$/i)?.[0].toLowerCase() ?? "";
 }
+
+// Windows device names remain reserved even with extensions. Never change tags.
+export function safeExportSegment(segment: string): string {
+  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment)
+    ? "_" + segment : segment;
+}
