@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
-import { formatTemplate, templateError } from "./formatTemplate";
+import { formatFolderSegments, formatTemplate, templateError } from "./formatTemplate";
 import { confirmedExportIds, missingCanonicalIds } from "./canonicalReady";
 
 export type TidyItem = {
@@ -141,7 +141,7 @@ export default function Tidy({ items, files, onEdit }: {
     };
     const v = { ...base, ...Object.fromEntries(Object.entries(i.edit ?? {}).filter(([, x]) => x !== undefined)) } as typeof base;
     const fileName = safeName(formatTemplate(nameTpl, { ...v, track: v.track ? v.track.padStart(2, "0") : "" })) + ext(i.name);
-    const folder = folderTpl ? formatTemplate(folderTpl, v).split("/").map(safeName).join("/") : "";
+    const folder = folderTpl ? formatFolderSegments(folderTpl, v).map(safeName).join("/") : "";
     const flag = !i.track_id ? "not in the archive: kept the file's own details" : i.status === "check" ? "best guess: check it" : null;
     return { item: i, v, fileName, folder, path: folder ? `${folder}/${fileName}` : fileName, cover: covers ? a?.cover ?? null : null, flag };
   }), [items, files, info, nameTpl, folderTpl, covers]);
