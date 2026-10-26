@@ -97,31 +97,47 @@ async function writeMp3(file: Blob, t: NewTags) {
 
 async function writeFlac(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, Math.min(file.size, 16 * 1024 * 1024)).arrayBuffer());
-  if (latin1(head.subarray(0, 4)) !== "fLaC") return file;
-  const dv = new DataView(head.buffer);
+  if (latin1(head.subarray(0, 4)) !== "fLaC") throw new Error("Invalid FLAC signature; skipped export.");
   const keep: { type: number; data: Uint8Array }[] = [];
   const oldComments: string[] = [];
   let p = 4;
   for (;;) {
-    if (p + 4 > head.length) return file; // metadata bigger than we read: leave it alone
+    if (p + 4 > head.length) throw new Error("Truncated FLAC metadata header; skipped export.");
     const last = (head[p] & 0x80) !== 0, type = head[p] & 0x7f;
     const len = (head[p + 1] << 16) | (head[p + 2] << 8) | head[p + 3];
-    const data = head.subarray(p + 4, p + 4 + len);
+    const dataStart = p + 4;
+    if (len > head.length - dataStart || len > file.size - dataStart) {
+      throw new Error("Truncated FLAC metadata block; skipped export.");
+    }
+    if (p === 4 && (type !== 0 || len !== 34)) {
+      throw new Error("Invalid FLAC STREAMINFO block; skipped export.");
+    }
+    const data = head.subarray(dataStart, dataStart + len);
     if (type === 4) {
-      let q = 4 + dv.getUint32(p + 4, true);
-      const count = dv.getUint32(p + 4 + q, true); q += 4;
+      if (data.length < 8) throw new Error("Invalid FLAC Vorbis comments; skipped export.");
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      const vendorLength = view.getUint32(0, true);
+      if (vendorLength > data.length - 8) throw new Error("Invalid FLAC Vorbis vendor length; skipped export.");
+      let q = 4 + vendorLength;
+      const count = view.getUint32(q, true); q += 4;
+      if (count > Math.floor((data.length - q) / 4)) {
+        throw new Error("Invalid FLAC Vorbis comment count; skipped export.");
+      }
       for (let i = 0; i < count; i++) {
-        const l = dv.getUint32(p + 4 + q, true); q += 4;
-        oldComments.push(new TextDecoder().decode(head.subarray(p + 4 + q, p + 4 + q + l))); q += l;
+        const length = view.getUint32(q, true); q += 4;
+        if (length > data.length - q) throw new Error("Invalid FLAC Vorbis comment length; skipped export.");
+        oldComments.push(new TextDecoder().decode(data.subarray(q, q + length)));
+        q += length;
       }
     } else if (type === 6 && t.cover) {
       // replaced by the new picture
     } else if (type !== 1) {
       keep.push({ type, data: data.slice() });
     }
-    p += 4 + len;
+    p = dataStart + len;
     if (last) break;
   }
+  if (p >= file.size) throw new Error("FLAC has no audio bytes after metadata; skipped export.");
   const ours: Record<string, string | null | undefined> = {
     TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year,
   };
@@ -138,6 +154,7 @@ async function writeFlac(file: Blob, t: NewTags) {
   }
   keep.push({ type: 1, data: new Uint8Array(1024) }); // padding for later edits
   const blocks = keep.map((b, i) => {
+    if (b.data.length > 0xffffff) throw new Error("FLAC metadata block exceeds the 24-bit size limit; skipped export.");
     const h = new Uint8Array([(i === keep.length - 1 ? 0x80 : 0) | b.type, (b.data.length >> 16) & 255, (b.data.length >> 8) & 255, b.data.length & 255]);
     return concat([h, b.data]);
   });
