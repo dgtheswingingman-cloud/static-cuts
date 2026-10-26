@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatFolderSegments, formatTemplate, templateError } from "../app/local/formatTemplate.ts";
+import { formatFolderSegments, formatTemplate, sourceExtension, templateError } from "../app/local/formatTemplate.ts";
 
 const v = { artist: "Example Artist", title: "Unreleased Track", album: "Unreleased", year: "2026", track: "03" };
 test("canonical default filename and folder presets remain unchanged", () => {
@@ -73,4 +73,21 @@ test("repeated separators and blank folder template create no empty levels", () 
 });
 test("canonical punctuation inside folder values is preserved for sanitization", () => {
   assert.deepEqual(formatFolderSegments("{artist}/{album}", { ...v, album: "- EP" }), ["Example Artist", "- EP"]);
+});
+
+// A browser can accept an extensionless File when its MIME type is audio/*.
+// Local Cuts must not label unchanged bytes as MPEG by guessing '.mp3'.
+test("extensionless audio keeps no suffix rather than a fabricated MP3 suffix", () => {
+  assert.equal(sourceExtension("recording"), "");
+  assert.equal(sourceExtension("live take"), "");
+});
+test("existing audio extensions survive renaming without transcoding", () => {
+  assert.equal(sourceExtension("track.MP3"), ".mp3");
+  assert.equal(sourceExtension("track.FLAC"), ".flac");
+  assert.equal(sourceExtension("track.m4a"), ".m4a");
+  assert.equal(sourceExtension("track.wav"), ".wav");
+});
+test("unusual or long suffixes are not silently replaced with MP3", () => {
+  assert.equal(sourceExtension("recording.unknown"), "");
+  assert.equal(sourceExtension("recording.foo"), ".foo");
 });
