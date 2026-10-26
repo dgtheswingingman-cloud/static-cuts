@@ -3,8 +3,8 @@
 **Prepared:** 25 October 2026 (UTC)
 **Repository:** https://github.com/dgtheswingingman-cloud/static-cuts
 **Purpose:** Claude should be able to understand, continue, inspect, selectively correct or **completely revert** ChatGPT's Local Cuts code, without deleting unrelated work.
-**Merge status verified 2026-10-25 UTC:** PRs #157, #158, #159 (this ledger), and #160 have all been **merged** into main. PR #160 was merged at 23:10:21 UTC. This supersedes outdated "still draft" instructions in docs/local-cuts-version-review-rollback.md and the original draft-status wording in docs/local-cuts-zip-streaming-handover.md (corrected by the accompanying docs PR).
-**Scope:** This document tracks ChatGPT's three Local Cuts code changes (#157, #158, #160) and recovery documentation (#159), not a rollback of the entire Local Cuts feature or Claude's earlier code. The ledger must be updated for later merges.
+**Merge status verified 2026-10-26 19:59 UTC:** PRs #157–#163 are **merged** into `main` (including documentation PRs #159 and #161); #161, #162 and #163 merged on 2026-10-26 at 19:21:15, 19:21:28 and 19:21:44 UTC respectively. Latest verified `main` SHA: `8a9de3f367588788204f0eaa996458d69498abfd`. **#164 remains an unmerged draft with a failed Vercel deployment status; do not merge until the actual build failure is diagnosed and tests are run.** Earlier draft-status language in individual handovers is historical and is superseded by the status notes added in this documentation update.
+**Scope:** This document tracks ChatGPT's five merged Local Cuts code changes (#157, #158, #160, #162, #163), recovery documentation (#159, #161), and unmerged draft #164. It is not a rollback of the entire Local Cuts feature or Claude's earlier code. Update the ledger after any later merge.
 
 ## 1. Source of truth / change ledger
 
@@ -13,12 +13,35 @@
 | 1 | [#157 — safer file identities and match reassignment](https://github.com/dgtheswingingman-cloud/static-cuts/pull/157) | b455f274eb51dba69201e3127d4d80404afbfba7 | app/local/fileIdentity.ts (added); app/local/page.tsx (modified); tests/local-file-identity.test.mjs (added) | Avoid conflating different local audio files by filename+size, refresh file associations on match changes. |
 | 2 | [#158 — require version confirmation before retagging](https://github.com/dgtheswingingman-cloud/static-cuts/pull/158) | fd2db01a3731d5521679e7f5da183218c2093486 | app/local/versionMatch.ts (added); app/local/page.tsx (modified); app/local/Tidy.tsx (modified); tests/local-version-match.test.mjs (added); docs/local-cuts-version-review-rollback.md (added) | Suggest demo/V2/etc. via catalogue metadata, make automatic matches review-only, block unconfirmed archive tags/collect, provide a browser-only reset. |
 | 3 | [#160 — safer ZIP exports](https://github.com/dgtheswingingman-cloud/static-cuts/pull/160) | ec35a82c6f7d0f04c0c93e596ba3f7899223e603 | app/local/write.ts (modified); app/local/Tidy.tsx (modified); tests/local-zip.test.mjs (added); docs/local-cuts-zip-streaming-handover.md (added) | Stream Blob CRC checks, avoid full-size audio buffer copies, reject unsupported ZIP32 sizes and show ZIP packaging errors. |
+| 4 | [#161 — post-#160 recovery docs](https://github.com/dgtheswingingman-cloud/static-cuts/pull/161) | d9cab3dfdfc210aa98db2b824988e2ca45150209 | docs/local-cuts-claude-recovery.md; docs/local-cuts-zip-streaming-handover.md | Documentation-only correction of #160's merge state and Spotify-first recovery guidance. |
+| 5 | [#162 — MP3 tag bounds](https://github.com/dgtheswingingman-cloud/static-cuts/pull/162) | bcdd9570fd9ebf1ffdc70c4104abe3e1da09a0d6 | app/local/write.ts; tests/local-mp3-export.test.mjs (added); docs/local-cuts-mp3-bounds-handover.md (added) | Validate ID3v2 size/version/footer and ID3v1 bounds before retagging; reject tag-only/truncated inputs instead of losing audio bytes. |
+| 6 | [#163 — FLAC metadata bounds](https://github.com/dgtheswingingman-cloud/static-cuts/pull/163) | 8a9de3f367588788204f0eaa996458d69498abfd | app/local/write.ts; tests/local-flac-export.test.mjs (added); docs/local-cuts-flac-bounds-handover.md (added) | Validate FLAC metadata block lengths, STREAMINFO and Vorbis bounds before retagging; reject malformed or audio-empty exports. |
 
-**Recovery documentation:** [#159](https://github.com/dgtheswingingman-cloud/static-cuts/pull/159) merged as `262d61a6a0c62274eb29c9092c13f46eee22cb04`. The present documentation update is separate and does not change audio processing.
+**Recovery documentation:** [#159](https://github.com/dgtheswingingman-cloud/static-cuts/pull/159) merged as `262d61a6a0c62274eb29c9092c13f46eee22cb04`; [#161](https://github.com/dgtheswingingman-cloud/static-cuts/pull/161) merged as `d9cab3dfdfc210aa98db2b824988e2ca45150209`. This follow-up documentation PR is separate and does not change audio processing.
 
-#157 and #158 were documented as regular two-parent GitHub merge commits. #160's GitHub PR is confirmed merged and the commit message identifies a GitHub merge commit; **verify the actual parent count with `git show --no-patch --pretty=%P <sha>` before using `git revert -m 1`**. For a two-parent merge, first parent follows main and `-m 1` selects it as the mainline. For a single-parent squash commit, omit `-m 1`.
+#157 and #158 were documented as regular two-parent GitHub merge commits. GitHub's commit API confirmed **two parents for #161, #162 and #163** on 2026-10-26; #160's parentage should still be verified before reverting. **Always verify the actual parent count with `git show --no-patch --pretty=%P <sha>` before using `git revert -m 1`**. For a two-parent merge, first parent follows main and `-m 1` selects it as the mainline. For a single-parent squash commit, omit `-m 1`.
 
 Inspect current main and compare the actual PR changes before any revert; other developers or automated work may have modified the same files after these merges. This ledger is a snapshot, not an instruction to overwrite later code.
+
+## 1A. 2026-10-26 merge reconciliation, safety and pending review
+
+**Verified merge sequence (GitHub PR and commit APIs):** #161 `d9cab3dfdfc210aa98db2b824988e2ca45150209` (19:21:15 UTC; two parents), #162 `bcdd9570fd9ebf1ffdc70c4104abe3e1da09a0d6` (19:21:28 UTC; two parents), #163 `8a9de3f367588788204f0eaa996458d69498abfd` (19:21:44 UTC; two parents). Each changed-file list was checked against GitHub. Vercel's **commit status** was `success` for all three merge SHAs when queried; this does **not** establish successful application test suites, browser export or Spotify imports. No full repository checkout, lint or build was executed in this ledger update.
+
+**#162 user impact:** a malformed MP3 with invalid/truncated ID3 metadata or mismatched v2.4 footer now fails that individual export rather than risking an audio-empty or truncated copy. The source recording is never written. See `docs/local-cuts-mp3-bounds-handover.md`. **#163 user impact:** malformed/truncated FLAC metadata and invalid Vorbis boundaries now fail rather than exporting a corrupt or audio-empty copy. See `docs/local-cuts-flac-bounds-handover.md`. Both preserve canonical/user-overridden tagging for valid supported inputs; neither changes matching logic. These are source-level intentions, **not verified real-file/Spotify outcomes**.
+
+**Data/API/privacy/cost/storage for #161–#163:** no migrations, new API endpoints, server writes, new dependencies, browser storage keys, uploaded audio, new paid services, production settings or original-file writes. Existing local processing may reject malformed recordings that previously yielded bad copies. No confirmed increase in remote API/hosting costs from these PRs.
+
+**Precise reviewed rollback after the merges:** create a new branch from the latest `main`, check intervening commits and `git show --no-patch --pretty=%P` for the selected merge, then use `git revert -m 1 <merge-sha>` only for a verified two-parent merge, inspect the diff, run tests/build and open a separate draft PR. If undoing both audio changes, **revert #163 before #162**; #162's `write.ts` MP3 changes must not be removed by a FLAC-only revert. #161 is documentation-only and should normally remain as provenance. Never revert the whole `app/local/write.ts` file or reset main; preserve #157/#158/#160, unrelated Claude changes, originals and exports. Reverting #163 or #162 is a separate human-reviewed decision, not an action performed by this documentation update.
+
+**Pending #164:** [draft PR #164](https://github.com/dgtheswingingman-cloud/static-cuts/pull/164), head `4e7d5a9b2f6e49b0661b8979aacb68aabf446bc9`, still based on pre-#161–#163 main `ec35a82c6f7d0f04c0c93e596ba3f7899223e603` at its original creation. Its Vercel status was `failure` when queried 2026-10-26; GitHub's separate Preview Comments check was successful but **is not a build**. The actual Vercel build logs were not available through this GitHub connection; cause unknown. Do not merge #164 until Claude diagnoses the build and verifies compatibility with newly merged #162/#163, full tests, browser copies and Spotify imports. #164's own handover is `docs/local-cuts-custom-templates-handover.md` **on its draft branch**, not on main. No #164 merge SHA exists.
+
+**Mandatory checks after these merges (not run here):**
+~~~bash
+node --experimental-strip-types --test tests/local-file-identity.test.mjs tests/local-version-match.test.mjs tests/local-zip.test.mjs tests/local-mp3-export.test.mjs tests/local-flac-export.test.mjs
+npm run lint
+npm run build
+~~~
+Then test copies of real MP3/FLAC files, compare original/exported audio bytes, inspect tags/artwork with independent tools and verify Spotify Local Files import. Do not mistake isolated V8/Node reconstructions described in the individual handovers for full checkout tests.
 
 ## 2. What this changes in user behaviour
 
@@ -193,6 +216,10 @@ Known architectural trade-offs / possible defects to investigate:
 - [Merged PR #159 — recovery docs](https://github.com/dgtheswingingman-cloud/static-cuts/pull/159)
 - [Merged PR #160 — ZIP export](https://github.com/dgtheswingingman-cloud/static-cuts/pull/160)
 - [PR #160 detailed ZIP handover](https://github.com/dgtheswingingman-cloud/static-cuts/blob/main/docs/local-cuts-zip-streaming-handover.md)
+- [Merged PR #161 — post-ZIP recovery docs](https://github.com/dgtheswingingman-cloud/static-cuts/pull/161)
+- [Merged PR #162 — MP3 bounds](https://github.com/dgtheswingingman-cloud/static-cuts/pull/162)
+- [Merged PR #163 — FLAC bounds](https://github.com/dgtheswingingman-cloud/static-cuts/pull/163)
+- [Unmerged draft PR #164 — canonical formatting and custom templates](https://github.com/dgtheswingingman-cloud/static-cuts/pull/164)
 - [Prior rollback file, now superseded for merge status](https://github.com/dgtheswingingman-cloud/static-cuts/blob/main/docs/local-cuts-version-review-rollback.md)
 
-**Bottom line:** Code rollback should use narrow reviewed inverse PRs for the specifically requested changes, not deleting Local Cuts, original audio, exports or resetting main. #160 is merged; its merge SHA is now recorded. Continue updating this ledger for later merges.
+**Bottom line (verified 2026-10-26):** Code rollback should use narrow reviewed inverse PRs, never delete Local Cuts, original audio, exports or reset main. #157–#163 are merged; #164 is an unmerged, failing-build draft. Continue updating this ledger after later merges.
