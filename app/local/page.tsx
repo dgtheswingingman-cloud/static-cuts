@@ -15,8 +15,6 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import { readDuration, readTags } from "./tags";
-import { fileKey, unusedKey } from "./fileIdentity";
-import { assessVersion, type VersionCandidate } from "./versionMatch";
 import { setLocalFile } from "./store";
 import Tidy from "./Tidy";
 
@@ -33,6 +31,9 @@ type Version = { id: string; title: string; status: string | null; is_main: bool
 const SAVE_KEY = "static_cuts_local_cuts";
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
+function tidy(s: string | null) {
+  return (s ?? "").toLowerCase().replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/g, "").replace(/[^\p{L}\p{N}]+/gu, "");
+}
 function firstArtist(s: string | null) {
   return (s ?? "").split(/\s*(?:,|&|\bx\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|;|\/)\s*/i)[0]?.trim() || null;
 }
@@ -41,15 +42,7 @@ function mmss(sec: number | null) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 function loadSaved(): Item[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(SAVE_KEY) ?? "[]");
-    if (!Array.isArray(v)) return [];
-    // Earlier builds described title-only guesses as certain. Preserve manual
-    // confirmations, but require review of those old automatic matches.
-    return v.map((i: Item) => i.status === "sure" && i.reason?.startsWith("Title and artist match")
-      ? { ...i, status: "check" as Status, reason: "Previously matched by title only. Confirm which recording you have." }
-      : i);
-  } catch { return []; }
+  try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) ?? "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 function save(items: Item[]) {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(items.slice(0, 5000))); } catch { /* full or private */ }
@@ -85,22 +78,12 @@ export default function LocalCutsPage() {
     if (picked.length === 0) { setMessage("None of those are music files."); return; }
     setMessage(null);
     const known = new Map<string, Item>(items.map((i: Item) => [i.key, i] as [string, Item]));
-    const reserved = new Set(known.keys());
     const fresh: Item[] = [];
     for (let i = 0; i < picked.length; i++) {
       const f = picked[i];
-      // Identify by folder-relative path, byte size and sampled file content.
-      // Reconnect previously selected files without merging different recordings.
-      const baseKey = await fileKey(f);
-      const existing = known.get(baseKey);
-      if (existing) {
-        files.current.set(baseKey, f);
-        if (existing.track_id && existing.status === "sure") setLocalFile(existing.track_id, f);
-        continue;
-      }
-      const key = unusedKey(baseKey, reserved);
-      reserved.add(key);
+      const key = `${f.name}|${f.size}`;
       files.current.set(key, f);
+      if (known.has(key)) { const k = known.get(key)!; if (k.track_id) setLocalFile(k.track_id, f); continue; }
       setProgress(`Reading ${i + 1} of ${picked.length}…`);
       const t = await readTags(f);
       const duration = await readDuration(f);
@@ -132,10 +115,12 @@ export default function LocalCutsPage() {
         if (!f.artist) { matched.push({ ...f, reason: "No artist in the file's details or name: fix it by hand." }); return; }
         if (!r?.artist_id) { matched.push({ ...f, reason: `"${firstArtist(f.artist)}" isn't an artist here yet.` }); return; }
         if (!r.track_id) { matched.push({ ...f, artist_id: r.artist_id, reason: "Artist found, but no song with this title." }); return; }
+        const same = tidy(r.title) === tidy(f.title);
         matched.push({
           ...f, track_id: r.track_id, match_title: r.title, artist_id: r.artist_id, owned: !!r.owned,
-          status: "check",
-          reason: `Suggested catalogue match: “${r.title}”. Confirm the exact recording before using its metadata.`,
+          status: same ? "sure" : "check",
+          reason: same ? `Title and artist match${f.from === "tags" ? " (from the file's details)" : " (from the file name)"}.`
+            : `Closest song is "${r.title}": the version or spelling differs, so check it.`,
         });
       });
     }
@@ -147,44 +132,8 @@ export default function LocalCutsPage() {
       ((data as { id: string; parent_track_id: string | null; artists: { name: string } | null }[] | null) ?? [])
         .forEach((r) => meta.set(r.id, { parent: r.parent_track_id, artist: r.artists?.name ?? null }));
     }
-    // The spreadsheet matcher returns only its first artist/title hit.
-    // Check the song's linked versions without changing that shared RPC.
-    const roots = [...new Set(ids.map((id) => meta.get(id)?.parent ?? id))];
-    const versions = new Map<string, VersionCandidate[]>();
-    const complete = new Map<string, boolean>();
-    for (let i = 0; i < roots.length; i += 40) {
-      const batch = roots.slice(i, i + 40);
-      const [mains, children] = await Promise.all([
-        supabase.from("tracks").select("id,title,parent_track_id").in("id", batch),
-        supabase.from("tracks").select("id,title,parent_track_id").in("parent_track_id", batch).limit(1000),
-      ]);
-      const safe = !mains.error && !children.error && (children.data?.length ?? 0) < 1000;
-      for (const root of batch) { versions.set(root, []); complete.set(root, safe); }
-      if (!safe) continue;
-      for (const row of [...(mains.data ?? []), ...(children.data ?? [])]) {
-        const item = row as VersionCandidate;
-        const root = item.parent_track_id ?? item.id;
-        versions.get(root)?.push(item);
-      }
-    }
-    const done = matched.map((m) => {
-      if (!m.track_id) return m;
-      const root = meta.get(m.track_id)?.parent ?? m.track_id;
-      const decision = assessVersion(m.name, m.title, firstArtist(m.artist), versions.get(root) ?? [], complete.get(root) === true);
-      const suggested = decision.candidate;
-      return {
-        ...m,
-        track_id: suggested?.id ?? m.track_id,
-        match_title: suggested?.title ?? m.match_title,
-        parent_id: suggested?.parent_track_id ?? meta.get(m.track_id)?.parent ?? null,
-        match_artist: meta.get(m.track_id)?.artist ?? null,
-        owned: suggested && suggested.id !== m.track_id ? false : m.owned,
-        status: "check" as Status,
-        reason: decision.reason,
-      };
-    });
-    // No automatically matched song is attached to the song-page player.
-    // Users must explicitly confirm the recording first.
+    const done = matched.map((m) => (m.track_id ? { ...m, parent_id: meta.get(m.track_id)?.parent ?? null, match_artist: meta.get(m.track_id)?.artist ?? null } : m));
+    done.forEach((m) => { if (m.track_id) setLocalFile(m.track_id, files.current.get(m.key) ?? null); });
     setItems((prev) => [...prev, ...done]);
     setProgress(null);
     const sure = done.filter((d) => d.status === "sure").length, check = done.filter((d) => d.status === "check").length;
@@ -210,7 +159,7 @@ export default function LocalCutsPage() {
     setPlaying(key);
     if (!key) { el.pause(); return; }
     const f = files.current.get(key);
-    if (!f) { setPlaying(null); return; }
+    if (!f) return;
     urlRef.current = URL.createObjectURL(f);
     el.src = urlRef.current;
     el.play().catch(() => { /* needs a tap on some phones */ });
@@ -224,7 +173,7 @@ export default function LocalCutsPage() {
   // --------------------------------------------------------- collection
 
   async function collect(list: Item[]) {
-    const ids = [...new Set(list.filter((i) => i.status === "sure" && i.track_id && !i.owned).map((i) => i.track_id!))];
+    const ids = [...new Set(list.filter((i) => i.track_id && !i.owned).map((i) => i.track_id!))];
     if (ids.length === 0) return;
     const { error } = await supabase.rpc("rpc_collect_many", { p_track_ids: ids });
     if (error) { setMessage(error.message); return; }
@@ -242,32 +191,17 @@ export default function LocalCutsPage() {
   }
 
   function update(key: string, patch: Partial<Item>) {
-    const previous = items.find((i) => i.key === key);
-    // Switching recordings must not retain ownership from the prior track ID.
-    const effectivePatch = previous && patch.track_id !== undefined && patch.track_id !== previous.track_id
-      ? { ...patch, owned: false }
-      : patch;
-    const next = previous ? { ...previous, ...effectivePatch } : null;
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
     const f = files.current.get(key);
-    if (previous?.track_id && (previous.track_id !== next?.track_id || next?.status !== "sure")) {
-      // Only clear an association if another file is not using that same song.
-      const replacement = items.find((i) => i.key !== key && i.track_id === previous.track_id && i.status === "sure");
-      setLocalFile(previous.track_id, replacement ? files.current.get(replacement.key) ?? null : null);
-    }
-    if (next?.track_id && next.status === "sure" && f) setLocalFile(next.track_id, f);
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...effectivePatch } : i)));
+    if (patch.track_id && f) setLocalFile(patch.track_id, f);
   }
   function removeAll() {
-    if (!confirm("Reset Local Cuts on this browser? This forgets local matches and formatting preferences. Your original audio files, exported copies and online collection will NOT be deleted.")) return;
+    if (!confirm("Clear Local Cuts on this device? Your files and your collection aren't touched.")) return;
     play(null);
     items.forEach((i) => i.track_id && setLocalFile(i.track_id, null));
     files.current.clear();
     setItems([]);
-    setLastAdded([]);
-    try {
-      localStorage.removeItem(SAVE_KEY);
-      localStorage.removeItem("static_cuts_tidy_prefs");
-    } catch { /* browser storage unavailable */ }
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* fine */ }
   }
 
   if (isAdmin) return <AdminModePage title="Local Cuts" />;
@@ -297,7 +231,7 @@ export default function LocalCutsPage() {
           + add songs
           <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
         </label>
-        {items.length > 0 && <button className="tab" onClick={removeAll}>reset Local Cuts</button>}
+        {items.length > 0 && <button className="tab" onClick={removeAll}>clear</button>}
       </div>
       {!loading && !user && (
         <div className="comment-meta" style={{ marginBottom: 10 }}>
@@ -376,10 +310,10 @@ export default function LocalCutsPage() {
                 </div>
                 {i.reason && <div className="comment-meta">{i.reason}</div>}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                  {user && i.status === "sure" && i.track_id && (i.owned ? <span className="rating-chip">✓ collected</span>
+                  {user && i.track_id && (i.owned ? <span className="rating-chip">✓ collected</span>
                     : <button className="rating-chip" onClick={() => collect([i])}>collect</button>)}
-                  {user && <button className="rating-chip" onClick={() => setFixing(fixing === i.key ? null : i.key)}>{fixing === i.key ? "close" : i.status === "sure" ? "change" : "choose version"}</button>}
-                  {i.status === "check" && <button className="rating-chip" onClick={() => update(i.key, { status: "sure", reason: "You confirmed this match." })}>confirm this recording</button>}
+                  {user && <button className="rating-chip" onClick={() => setFixing(fixing === i.key ? null : i.key)}>{fixing === i.key ? "close" : i.status === "sure" ? "change" : "fix match"}</button>}
+                  {i.status === "check" && <button className="rating-chip" onClick={() => update(i.key, { status: "sure", reason: "You confirmed this match." })}>that&apos;s right</button>}
                 </div>
                 {fixing === i.key && (
                   <FixMatch item={i} onPick={(m) => { update(i.key, m); setFixing(null); }}

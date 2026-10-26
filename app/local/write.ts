@@ -24,33 +24,6 @@ function be32(n: number) { return new Uint8Array([(n >>> 24) & 255, (n >>> 16) &
 function le32(n: number) { return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]); }
 function latin1(b: Uint8Array) { let s = ""; for (const c of b) s += String.fromCharCode(c); return s; }
 
-/**
- * Find the audio bytes to retain when replacing MP3 tags. Reject malformed
- * headers instead of accidentally exporting a new ID3 tag with no audio.
- * ID3v2.4 is the only version with an optional 10-byte footer. A declared
- * footer must match the header; never blindly skip ten possible audio bytes.
- */
-export function mp3AudioBounds(head: Uint8Array, fileSize: number, tail?: Uint8Array, footerBytes?: Uint8Array): { start: number; end: number } {
-  let start = 0;
-  if (latin1(head.subarray(0, 3)) === "ID3") {
-    if (head.length < 10 || ![2, 3, 4].includes(head[3]) || head.subarray(6, 10).some((b) => (b & 0x80) !== 0)) {
-      throw new Error("Invalid MP3 ID3 header; skipped export to protect the audio.");
-    }
-    const size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9];
-    const footer = head[3] === 4 && (head[5] & 0x10) !== 0 ? 10 : 0;
-    start = 10 + size + footer;
-    if (footer && (start > fileSize || footerBytes?.length !== 10 ||
-      latin1(footerBytes.subarray(0, 3)) !== "3DI" ||
-      footerBytes.subarray(3, 10).some((b, i) => b !== head[i + 3]))) {
-      throw new Error("Invalid MP3 ID3v2.4 footer; skipped export to protect the audio.");
-    }
-  }
-  let end = fileSize;
-  if (fileSize >= 128 && tail?.length === 128 && latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
-  if (start >= end) throw new Error("MP3 has no audio bytes after its tags; skipped export.");
-  return { start, end };
-}
-
 // ------------------------------------------------------------------- MP3
 
 function utf16Frame(id: string, text: string) {
@@ -81,15 +54,15 @@ function id3v23(t: NewTags) {
 
 async function writeMp3(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, 10).arrayBuffer());
-  const tail = file.size >= 128 ? new Uint8Array(await file.slice(file.size - 128).arrayBuffer()) : undefined;
-  let footerBytes: Uint8Array | undefined;
-  if (head.length === 10 && head[3] === 4 && (head[5] & 0x10) &&
-      head.subarray(6, 10).every((b) => (b & 0x80) === 0)) {
-    const size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9];
-    const at = 10 + size;
-    if (at + 10 <= file.size) footerBytes = new Uint8Array(await file.slice(at, at + 10).arrayBuffer());
+  let start = 0;
+  if (latin1(head.subarray(0, 3)) === "ID3") {
+    start = 10 + ((head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9]) + (head[5] & 0x10 ? 10 : 0);
   }
-  const { start, end } = mp3AudioBounds(head, file.size, tail, footerBytes);
+  let end = file.size;
+  if (file.size > 128) {
+    const tail = new Uint8Array(await file.slice(file.size - 128).arrayBuffer());
+    if (latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
+  }
   return new Blob([id3v23(t), file.slice(start, end)], { type: "audio/mpeg" });
 }
 
@@ -97,47 +70,31 @@ async function writeMp3(file: Blob, t: NewTags) {
 
 async function writeFlac(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, Math.min(file.size, 16 * 1024 * 1024)).arrayBuffer());
-  if (latin1(head.subarray(0, 4)) !== "fLaC") throw new Error("Invalid FLAC signature; skipped export.");
+  if (latin1(head.subarray(0, 4)) !== "fLaC") return file;
+  const dv = new DataView(head.buffer);
   const keep: { type: number; data: Uint8Array }[] = [];
   const oldComments: string[] = [];
   let p = 4;
   for (;;) {
-    if (p + 4 > head.length) throw new Error("Truncated FLAC metadata header; skipped export.");
+    if (p + 4 > head.length) return file; // metadata bigger than we read: leave it alone
     const last = (head[p] & 0x80) !== 0, type = head[p] & 0x7f;
     const len = (head[p + 1] << 16) | (head[p + 2] << 8) | head[p + 3];
-    const dataStart = p + 4;
-    if (len > head.length - dataStart || len > file.size - dataStart) {
-      throw new Error("Truncated FLAC metadata block; skipped export.");
-    }
-    if (p === 4 && (type !== 0 || len !== 34)) {
-      throw new Error("Invalid FLAC STREAMINFO block; skipped export.");
-    }
-    const data = head.subarray(dataStart, dataStart + len);
+    const data = head.subarray(p + 4, p + 4 + len);
     if (type === 4) {
-      if (data.length < 8) throw new Error("Invalid FLAC Vorbis comments; skipped export.");
-      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-      const vendorLength = view.getUint32(0, true);
-      if (vendorLength > data.length - 8) throw new Error("Invalid FLAC Vorbis vendor length; skipped export.");
-      let q = 4 + vendorLength;
-      const count = view.getUint32(q, true); q += 4;
-      if (count > Math.floor((data.length - q) / 4)) {
-        throw new Error("Invalid FLAC Vorbis comment count; skipped export.");
-      }
+      let q = 4 + dv.getUint32(p + 4, true);
+      const count = dv.getUint32(p + 4 + q, true); q += 4;
       for (let i = 0; i < count; i++) {
-        const length = view.getUint32(q, true); q += 4;
-        if (length > data.length - q) throw new Error("Invalid FLAC Vorbis comment length; skipped export.");
-        oldComments.push(new TextDecoder().decode(data.subarray(q, q + length)));
-        q += length;
+        const l = dv.getUint32(p + 4 + q, true); q += 4;
+        oldComments.push(new TextDecoder().decode(head.subarray(p + 4 + q, p + 4 + q + l))); q += l;
       }
     } else if (type === 6 && t.cover) {
       // replaced by the new picture
     } else if (type !== 1) {
       keep.push({ type, data: data.slice() });
     }
-    p = dataStart + len;
+    p += 4 + len;
     if (last) break;
   }
-  if (p >= file.size) throw new Error("FLAC has no audio bytes after metadata; skipped export.");
   const ours: Record<string, string | null | undefined> = {
     TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year,
   };
@@ -154,7 +111,6 @@ async function writeFlac(file: Blob, t: NewTags) {
   }
   keep.push({ type: 1, data: new Uint8Array(1024) }); // padding for later edits
   const blocks = keep.map((b, i) => {
-    if (b.data.length > 0xffffff) throw new Error("FLAC metadata block exceeds the 24-bit size limit; skipped export.");
     const h = new Uint8Array([(i === keep.length - 1 ? 0x80 : 0) | b.type, (b.data.length >> 16) & 255, (b.data.length >> 8) & 255, b.data.length & 255]);
     return concat([h, b.data]);
   });
@@ -185,48 +141,29 @@ const CRC = (() => {
   for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
   return t;
 })();
-async function crc32Blob(blob: Blob): Promise<number> {
+function crc32(b: Uint8Array) {
   let c = 0xffffffff;
-  const reader = blob.stream().getReader();
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const b of value) c = CRC[(c ^ b) & 255] ^ (c >>> 8);
-    }
-  } finally { reader.releaseLock(); }
+  for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 function le16(n: number) { return new Uint8Array([n & 255, (n >>> 8) & 255]); }
 
-// ZIP32 without compression (audio rarely compresses). Keep the source Blob
-// as a Blob part instead of copying every recording into a full-size buffer.
+// A zip with no compression (music doesn't compress anyway). Fine for a few
+// hundred songs; under 4 GB in total.
 export async function makeZip(entries: { path: string; blob: Blob }[], onProgress?: (i: number) => void): Promise<Blob> {
-  const MAX_ZIP32 = 0xffffffff;
-  if (entries.length > 0xffff) throw new Error("Too many files for a ZIP archive (maximum 65,535).");
-  const names = entries.map((e) => enc.encode(e.path));
-  let expectedSize = 22; // end-of-central-directory record
-  for (let i = 0; i < entries.length; i++) {
-    const { blob } = entries[i];
-    const nameLength = names[i].length;
-    if (nameLength > 0xffff) throw new Error(`ZIP filename is too long: ${entries[i].path.slice(0, 80)}`);
-    if (blob.size > MAX_ZIP32) throw new Error("A file exceeds the 4 GB ZIP limit. Save to a folder or split the batch.");
-    expectedSize += 30 + nameLength + blob.size + 46 + nameLength;
-    if (expectedSize > MAX_ZIP32) throw new Error("ZIP exceeds the 4 GB limit. Save to a folder or split the batch.");
-  }
   const parts: BlobPart[] = [];
   const central: Uint8Array[] = [];
   let offset = 0;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
-    const name = names[i];
-    const crc = await crc32Blob(e.blob);
-    const size = e.blob.size;
-    const local = concat([le32(0x04034b50), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(size), le32(size), le16(name.length), le16(0), name]);
-    parts.push(local, e.blob);
-    central.push(concat([le32(0x02014b50), le16(20), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(size), le32(size),
+    const data = new Uint8Array(await e.blob.arrayBuffer());
+    const name = enc.encode(e.path);
+    const crc = crc32(data);
+    const local = concat([le32(0x04034b50), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(data.length), le32(data.length), le16(name.length), le16(0), name]);
+    parts.push(local, data);
+    central.push(concat([le32(0x02014b50), le16(20), le16(20), le16(0x0800), le16(0), le16(0), le16(0), le32(crc), le32(data.length), le32(data.length),
       le16(name.length), le16(0), le16(0), le16(0), le16(0), le32(0), le32(offset), name]));
-    offset += local.length + size;
+    offset += local.length + data.length;
     onProgress?.(i + 1);
   }
   const cd = concat(central);
