@@ -46,7 +46,7 @@ export function mp3AudioBounds(head: Uint8Array, fileSize: number, tail?: Uint8A
     }
   }
   let end = fileSize;
-  if (fileSize > 128 && tail?.length === 128 && latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
+  if (fileSize >= 128 && tail?.length === 128 && latin1(tail.subarray(0, 3)) === "TAG") end -= 128;
   if (start >= end) throw new Error("MP3 has no audio bytes after its tags; skipped export.");
   return { start, end };
 }
@@ -81,7 +81,7 @@ function id3v23(t: NewTags) {
 
 async function writeMp3(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, 10).arrayBuffer());
-  const tail = file.size > 128 ? new Uint8Array(await file.slice(file.size - 128).arrayBuffer()) : undefined;
+  const tail = file.size >= 128 ? new Uint8Array(await file.slice(file.size - 128).arrayBuffer()) : undefined;
   let footerBytes: Uint8Array | undefined;
   if (head.length === 10 && head[3] === 4 && (head[5] & 0x10) &&
       head.subarray(6, 10).every((b) => (b & 0x80) === 0)) {
