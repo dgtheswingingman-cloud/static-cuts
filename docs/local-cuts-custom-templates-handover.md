@@ -22,8 +22,8 @@ This PR makes filename/folder templates editable and persistent **without changi
 | app/local/Tidy.tsx | Filename/folder controls | Keep existing preset selectors; add Custom template… option, text inputs, token guidance, inline errors, and disable export for invalid templates. Switching to a preset retains the last custom layout. |
 | app/local/Tidy.tsx | plan memo and save() | Replace local fill() with formatTemplate() for path previews/export; preserve safeName() segment sanitization and duplicate suffix logic; reject invalid templates before export. |
 | app/local/formatTemplate.ts | templateError() | Reject unknown tokens, unmatched braces, control characters, >160-character templates, and blank filename templates; permit blank folder template. |
-| app/local/formatTemplate.ts | formatTemplate() | Render {artist}, {title}, {album}, {year}, {track}; remove empty parentheses/brackets and dangling separators when optional data is missing. |
-| tests/local-format-template.test.mjs | 8 Node test cases | Test defaults, custom tokens, missing year, blank folder, unknown tokens, bad braces, size/control limits, mixed literal text. |
+| app/local/formatTemplate.ts | formatTemplate() | Render {artist}, {title}, {album}, {year}, {track}; remove optional empty year/track token wrappers and dangling separators when data is missing, while preserving literal brackets inside canonical titles. |
+| tests/local-format-template.test.mjs | 9 Node test cases | Test defaults, custom tokens, missing year, preservation of literal brackets in canonical titles, blank folder, unknown tokens, bad braces, size/control limits, mixed literal text. |
 | docs/local-cuts-custom-templates-handover.md | This handover | Evidence, compatibility, tests, risks, Claude next steps and reversible rollback. |
 
 No other files are intended. Verify the PR file list/diff.
@@ -62,8 +62,8 @@ A full checkout could not be obtained: git ls-remote https://github.com/dgtheswi
 
 ~~~bash
 node --experimental-strip-types --test /mnt/data/localcuts-format-review/tests/local-format-template.test.mjs
-# 8 passed, 0 failed (including missing-year folder assertion)
-tsc --noEmit --target es2022 --module esnext --lib dom,es2022 /mnt/data/localcuts-format-review/app/local/formatTemplate.ts
+# 9 passed, 0 failed (including missing-year folder assertion)
+tsc --noEmit --strict --target es2022 --module esnext --lib dom,es2022 /mnt/data/localcuts-format-review/app/local/formatTemplate.ts
 # Passed (isolated helper only)
 ~~~
 
@@ -75,7 +75,7 @@ tsc --noEmit --target es2022 --module esnext --lib dom,es2022 /mnt/data/localcut
 - Test unknown token, malformed braces, blank filename, blank folder, missing year/track, Unicode, Windows filenames, long/deep paths and duplicate output names.
 - Existing safeName() fallback Untitled can appear for empty folder segments. Preview shows it; filesystem reliability not proven.
 - Existing folder-picker errors/permissions and ZIP fallback remain independent.
-- formatTemplate() cleans empty literal brackets in templates; it does not modify canonical title strings.
+- formatTemplate() removes empty placeholder wrappers in templates while preserving literal bracket characters in canonical title values; test this behaviour with real filenames.
 - No artwork override UI, acoustic fingerprinting, custom embedded ID3 metadata template or automated recording identity proof.
 - Draft PRs #162 and #163 modify app/local/write.ts. This PR intentionally does not touch that file; combined export behaviour still needs regression testing.
 
