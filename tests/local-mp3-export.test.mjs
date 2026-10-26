@@ -98,3 +98,11 @@ test("MP3 strips a standalone ID3v1 tail after untagged audio", async () => {
   const file = new File([audio, trailer], "song.mp3");
   assert.deepEqual(await exportedAudio(file), audio);
 });
+
+
+test("MP3 rejects a 128-byte ID3v1-only file with no audio", async () => {
+  const trailer = new Uint8Array(128); trailer.set([84, 65, 71]);
+  const file = new File([trailer], "tag-only.mp3");
+  await assert.rejects(tidiedCopy(file, tags), /no audio bytes/);
+  assert.deepEqual(new Uint8Array(await file.arrayBuffer()), trailer, "original metadata-only input unchanged");
+});
