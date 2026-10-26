@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
-import { formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
+import { createUnusedExportDirectory, formatFolderSegments, formatTemplate, safeExportSegment, sourceExtension, templateError, uniqueExportPath } from "./formatTemplate";
 import { confirmedExportIds, lookupErrorForRequest, missingCanonicalIds, type CanonicalLookupError } from "./canonicalReady";
 
 export type TidyItem = {
@@ -157,7 +157,7 @@ export default function Tidy({ items, files, onEdit }: {
       const c = { mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg", data };
       cache.set(url, c);
       return c;
-    } catch { cache.set(url, null); return null; }
+    } catch { throw new Error("Could not download the selected canonical cover artwork. Try again, or turn off cover art to export without it."); }
   }
 
   async function save() {
@@ -167,8 +167,14 @@ export default function Tidy({ items, files, onEdit }: {
     const picker = (window as unknown as { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     let root: FileSystemDirectoryHandle | null = null;
     if (picker) {
-      try { root = await picker({ mode: "readwrite" }); } catch { return; } // cancelled
-      root = await root.getDirectoryHandle(`Static Cuts ${new Date().toISOString().slice(0, 10)}`, { create: true });
+      try {
+        const selected = await picker({ mode: "readwrite" });
+        root = await createUnusedExportDirectory(selected, `Static Cuts ${new Date().toISOString().slice(0, 10)}`);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return; // user cancelled
+        setDone("Could not create a fresh export folder. No existing exports were overwritten.");
+        return;
+      }
     }
     const cache = new Map<string, NewTags["cover"]>();
     const used = new Set<string>();
@@ -199,9 +205,11 @@ export default function Tidy({ items, files, onEdit }: {
         }
         const q = (s: string) => `"${(s ?? "").replace(/"/g, '""')}"`;
         log.push([p.item.name, path, p.v.title, p.v.artist, p.v.album, p.v.year, p.flag ?? "matched"].map(q).join(","));
-      } catch {
+      } catch (error) {
         failed++;
-        log.push(`"${p.item.name}","FAILED","","","","",""`);
+        const reason = error instanceof Error ? error.message : "Unknown export error";
+        const q = (value: string) => `"${value.replace(/"/g, '""')}"`;
+        log.push([p.item.name, path, "", "", "", "", `FAILED: ${reason}`].map(q).join(","));
       }
     }
     const csv = new Blob([log.join("\n")], { type: "text/csv" });
