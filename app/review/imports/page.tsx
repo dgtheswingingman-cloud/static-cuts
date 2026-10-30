@@ -23,7 +23,7 @@ type Suggestion = {
   album: string | null;
   release_date: string | null;
   main_artist_name: string | null;
-  extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null } | null;
+  extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null; already_on_page?: string } | null;
   created_at?: string;
   version_of?: string | null;
   decided_at?: string | null;
@@ -88,6 +88,7 @@ export default function ImportReviewPage() {
     setBusy(true);
     setMessage(null);
     let done = 0;
+    let skipped = 0; // approve: already on the site, so not added again
     let problem: string | null = null;
     // Small batches: big artists (Kanye, Carti) take longer to check for
     // duplicates, and each call has an 8-second limit.
@@ -101,11 +102,15 @@ export default function ImportReviewPage() {
         ? await supabase.rpc("admin_restore_import_suggestions", { p_ids: chunk })
         : await supabase.rpc("admin_dismiss_import_suggestions", { p_ids: chunk });
       if (err) { problem = err.message; break; }
-      done += (data as number) ?? 0;
+      const n = (data as number) ?? 0;
+      done += n;
+      if (kind === "approve") skipped += Math.max(0, chunk.length - n);
     }
     setBusy(false);
     const summary = kind === "approve"
-      ? `${done} song${done === 1 ? "" : "s"} added. You can reverse this from the undo history.`
+      ? `${done} song${done === 1 ? "" : "s"} added.` +
+        (skipped > 0 ? ` ${skipped} ${skipped === 1 ? "was" : "were"} already on the site (same song, maybe written slightly differently), so ${skipped === 1 ? "it wasn't" : "they weren't"} added again. ${skipped === 1 ? "It's" : "They're"} under "dismissed", marked "already on the site".` : "") +
+        (done > 0 ? " You can reverse this from the undo history." : "")
       : kind === "restore"
       ? `${done} put back on the waiting list.`
       : `${done} dismissed. They won't be suggested again (they're kept under "dismissed" if you change your mind).`;
@@ -115,6 +120,9 @@ export default function ImportReviewPage() {
 
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((s) => selected.has(s.id)).map((s) => s.id);
+  // Dismissed because they're already on the site: restoring them would only
+  // see them dismissed again on approval, so "restore all" leaves them out.
+  const restorable = shown.filter((s) => !s.extra?.already_on_page);
 
   return (
     <div className="wrap">
@@ -144,9 +152,9 @@ export default function ImportReviewPage() {
           <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("restore", selectedHere)}>
             {busy ? "working…" : `restore selected (${selectedHere.length})`}
           </button>
-          <button className="tab" disabled={busy || shown.length === 0}
-            onClick={() => { if (confirm(`Put all ${shown.length} dismissed songs back on the waiting list?`)) run("restore", shown.map((s) => s.id)); }}>
-            restore all ({shown.length})
+          <button className="tab" disabled={busy || restorable.length === 0}
+            onClick={() => { if (confirm(`Put all ${restorable.length} dismissed songs back on the waiting list?${restorable.length < shown.length ? ` (${shown.length - restorable.length} already on the site are left out.)` : ""}`)) run("restore", restorable.map((s) => s.id)); }}>
+            restore all ({restorable.length})
           </button>
         </div>
       )}
@@ -190,6 +198,11 @@ export default function ImportReviewPage() {
                   {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
                   {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
                   {s.release_date && <span>{s.release_date}</span>}
+                  {view === "dismissed" && s.extra?.already_on_page && (
+                    <span className="feature-tag">
+                      {s.extra.already_on_page === "yes" ? "already on the site" : `already on the site as “${s.extra.already_on_page}”`}
+                    </span>
+                  )}
                   {view === "dismissed" && s.decided_at && <span>dismissed {new Date(s.decided_at).toLocaleDateString("en-GB")}</span>}
                   {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
                   {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
