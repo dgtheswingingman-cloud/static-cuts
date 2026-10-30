@@ -102,7 +102,8 @@ Deno.serve(async (req) => {
     if (!key) return json({ error: "Claude isn't set up on the site yet." }, 500);
 
     // Premium only (the owner always has it).
-    const { data: isPremium } = await db.rpc("is_premium", { p_user: user.id });
+    const owner = user.email === "dg.theswingingman@gmail.com";
+    const { data: isPremium } = owner ? { data: true } : await db.rpc("is_premium", { p_user: user.id });
     if (isPremium !== true) return json({ error: "Asking Claude comes with premium." }, 403);
 
     // Allowances: the person's daily Local Cuts limit, then the shared one.
