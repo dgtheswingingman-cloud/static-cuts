@@ -26,7 +26,12 @@ type Item = {
   track_id: string | null; match_title: string | null; match_artist: string | null; artist_id: string | null;
   parent_id: string | null; status: Status; reason: string; owned: boolean; added_at: number;
   edit?: { title?: string; artist?: string; album?: string; year?: string };
+  // What Claude made of a file it couldn't match (for suggesting it as new).
+  clean?: Clean | null;
+  ai?: boolean; // Claude has looked at this one
 };
+export type Clean = { title: string | null; artist: string | null; status: string | null; version: string | null; producers: string | null; featuring: string | null; note: string | null };
+type AiResult = { ref: string; track_id: string | null; title: string | null; version_of: string | null; artist_id: string | null; artist_name: string | null; confidence: "high" | "medium" | "low" | null; why: string | null; clean: Clean };
 type Version = { id: string; title: string; status: string | null; is_main: boolean };
 
 const SAVE_KEY = "static_cuts_local_cuts";
@@ -191,6 +196,59 @@ export default function LocalCutsPage() {
     setLastAdded([]);
   }
 
+  // ------------------------------------------------------ ask Claude
+
+  // Files that didn't match cleanly, that Claude hasn't looked at yet.
+  const unsure = items.filter((i) => (i.status === "check" || i.status === "none") && !i.ai && (i.title || i.name));
+  async function askClaude() {
+    if (!user || unsure.length === 0) return;
+    setMessage(null);
+    let matched = 0, maybe = 0, notHere = 0;
+    let problem: string | null = null;
+    for (let i = 0; i < unsure.length; i += 25) {
+      setProgress(`Claude is looking… ${Math.min(i + 25, unsure.length)} of ${unsure.length}`);
+      const batch = unsure.slice(i, i + 25);
+      const { data, error } = await supabase.functions.invoke("local-ai", {
+        body: { items: batch.map((b) => ({ ref: b.key, title: b.title ?? "", artist: b.artist ?? "", file_name: b.name, length: b.duration })) },
+      });
+      if (error) {
+        // The function's own message (e.g. allowance used up), if there is one.
+        let msg = error.message;
+        try { const ctx = (error as { context?: Response }).context; const j = ctx ? await ctx.json() : null; if (j?.error) msg = j.error; } catch { /* keep */ }
+        problem = msg; break;
+      }
+      const results = ((data as { results?: AiResult[] } | null)?.results ?? []);
+      const byKey = new Map(results.map((r) => [r.ref, r]));
+      setItems((prev) => prev.map((it) => {
+        const r = byKey.get(it.key);
+        if (!r) return it;
+        if (r.track_id) {
+          const sure = r.confidence === "high";
+          return {
+            ...it, ai: true, clean: r.clean, track_id: r.track_id, match_title: r.title, match_artist: r.artist_name,
+            artist_id: r.artist_id, parent_id: r.version_of, status: sure ? "sure" : "check",
+            reason: `Claude${sure ? "" : ` (${r.confidence === "medium" ? "probably" : "a guess"})`}: ${r.why ?? "picked this song"}.`,
+          };
+        }
+        const t = r.clean?.title;
+        return {
+          ...it, ai: true, clean: r.clean, track_id: null, match_title: null, parent_id: null, status: "none",
+          artist_id: r.artist_id ?? it.artist_id, match_artist: r.artist_name ?? it.match_artist,
+          reason: `Claude: not on the site${t ? `. Looks like "${t}"${r.clean.version ? ` (${r.clean.version})` : ""}${r.clean.status ? `, ${r.clean.status}` : ""}` : ""}.`
+            + (r.artist_id ? "" : " The artist isn't here either."),
+        };
+      }));
+      results.forEach((r) => {
+        if (r.track_id && r.confidence === "high") matched++; else if (r.track_id) maybe++; else notHere++;
+        if (r.track_id) { const f = files.current.get(r.ref); if (f) setLocalFile(r.track_id, f); }
+      });
+    }
+    setProgress(null);
+    setMessage((problem ? `Stopped: ${problem} ` : "") +
+      `Claude matched ${matched}, thinks ${maybe} more are probably right (marked "check"), and says ${notHere} aren't on the site. ` +
+      (notHere ? `Those can be suggested as new songs from "help the archive".` : ""));
+  }
+
   function update(key: string, patch: Partial<Item>) {
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
     const f = files.current.get(key);
@@ -292,6 +350,11 @@ export default function LocalCutsPage() {
               <option value="title">by title</option>
               <option value="added">newest first</option>
             </select>
+            {user && unsure.length > 0 && (
+              <button className="tab" disabled={!!progress} onClick={askClaude} title="Claude reads the file names and details (never the music) and picks the right song or version">
+                ask Claude about {unsure.length} unsure
+              </button>
+            )}
             {user && sureNotOwned.length > 0 && (
               <button className="tab active" onClick={() => confirm(`Add ${sureNotOwned.length} matched song${sureNotOwned.length === 1 ? "" : "s"} to your collection?`) && collect(sureNotOwned)}>
                 collect {sureNotOwned.length} matched
