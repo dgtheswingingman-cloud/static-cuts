@@ -17,6 +17,8 @@ export type GiveItem = {
   key: string; name: string; title: string | null; artist: string | null; album: string | null; duration: number | null;
   track_id: string | null; match_title: string | null; match_artist: string | null; artist_id: string | null;
   status: "sure" | "check" | "none";
+  // What Claude made of it, when Claude has looked (tidy title, status...).
+  clean?: { title: string | null; status: string | null; version: string | null; producers: string | null; featuring: string | null; note: string | null } | null;
 };
 type Site = {
   id: string; title: string; album: string | null; release_date: string | null; track_number: number | null;
@@ -24,7 +26,10 @@ type Site = {
 };
 type Gap = { album?: string; release_date?: string; track_number?: string; featured_artists?: string; producers?: string; length_sec?: number; cover?: true };
 type Row = { key: string; track_id: string; title: string; artist: string; gap: Gap; differs: [string, string, string][] };
-type NewRow = { key: string; artist_id: string; artist: string; title: string; album: string | null; date: string | null; featuring: string | null; producers: string | null; length_sec: number | null };
+type NewRow = {
+  key: string; artist_id: string; artist: string; title: string; album: string | null; date: string | null;
+  featuring: string | null; producers: string | null; length_sec: number | null; status: string | null; notes: string | null; byClaude: boolean;
+};
 
 const LABELS: Record<keyof Gap, string> = {
   album: "album", release_date: "released", track_number: "track", featured_artists: "feat.", producers: "prod.", length_sec: "length", cover: "cover art",
@@ -103,10 +108,13 @@ export default function Give({ items, files, userId }: { items: GiveItem[]; file
       const u = unmatched[i], f = files.get(u.key);
       if (i % 10 === 0) setProgress(`Reading songs that aren't on the site… ${i + 1} of ${unmatched.length}`);
       const d = f ? await readDetails(f, u.artist) : null;
+      const c = u.clean ?? null; // Claude's tidy version, when it has looked
+      const title = c?.title ? (c.version && !c.title.toLowerCase().includes(c.version.toLowerCase()) ? `${c.title} [${c.version}]` : c.title) : u.title!;
       news.push({
-        key: u.key, artist_id: u.artist_id!, artist: u.artist ?? "", title: u.title!,
-        album: d?.album ?? u.album ?? null, date: d?.date ?? null, featuring: d?.featuring ?? null, producers: d?.producers ?? null,
-        length_sec: u.duration ?? null,
+        key: u.key, artist_id: u.artist_id!, artist: u.match_artist ?? u.artist ?? "", title,
+        album: d?.album ?? u.album ?? null, date: d?.date ?? null,
+        featuring: d?.featuring ?? c?.featuring ?? null, producers: d?.producers ?? c?.producers ?? null,
+        length_sec: u.duration ?? null, status: c?.status ?? null, notes: c?.note ?? null, byClaude: !!c,
       });
     }
     setRows(out); setFresh(news); setProgress(null); setBusy(false);
@@ -153,6 +161,7 @@ export default function Give({ items, files, userId }: { items: GiveItem[]; file
     }
     const songs = tickedNew.map((r) => ({
       artist_id: r.artist_id, title: r.title, album: r.album, release_date: r.date, featuring: r.featuring, producers: r.producers, length_sec: r.length_sec,
+      status: r.status, notes: r.notes,
     }));
     for (let i = 0; i < songs.length && !problem; i += 200) {
       setProgress(`Sending new songs… ${Math.min(i + 200, songs.length)} of ${songs.length}`);
@@ -253,10 +262,14 @@ export default function Give({ items, files, userId }: { items: GiveItem[]; file
               <div style={{ minWidth: 0 }}>
                 <div className="review-row-title">{r.title}<span className="comment-meta"> · {r.artist}</span></div>
                 <div className="review-row-meta">
+                  {r.status && <span className="feature-tag">{r.status}</span>}
+                  {r.byClaude && <span className="feature-tag">tidied by Claude</span>}
                   {r.album && <span>{r.album}</span>}
                   {r.date && <span>{r.date}</span>}
                   {r.featuring && <span>feat. {r.featuring}</span>}
                   {r.length_sec && <span>{mmss(r.length_sec)}</span>}
+                  {r.producers && <span>prod. {r.producers}</span>}
+                  {r.notes && <span>{r.notes}</span>}
                 </div>
               </div>
             </label>
