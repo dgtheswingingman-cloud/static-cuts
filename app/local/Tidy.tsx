@@ -27,8 +27,9 @@ function fill(tpl: string, v: Record<string, string>) {
 }
 function ext(name: string) { return (name.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? ".mp3").toLowerCase(); }
 
-export default function Tidy({ items, files, onEdit }: {
+export default function Tidy({ items, files, onEdit, locked = false }: {
   items: TidyItem[]; files: Map<string, File>; onEdit: (key: string, edit: TidyItem["edit"]) => void;
+  locked?: boolean; // no premium: see the plan, can't save
 }) {
   const [info, setInfo] = useState<Record<string, Info>>({});
   const [nameTpl, setNameTpl] = useState(NAMES[0][0]);
@@ -110,6 +111,7 @@ export default function Tidy({ items, files, onEdit }: {
   }
 
   async function save() {
+    if (locked) return;
     setDone(null);
     const picker = (window as unknown as { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     let root: FileSystemDirectoryHandle | null = null;
@@ -198,8 +200,9 @@ export default function Tidy({ items, files, onEdit }: {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         <button className={`tab ${only === "all" ? "active" : ""}`} onClick={() => setOnly("all")}>all ({plan.length})</button>
         <button className={`tab ${only === "flagged" ? "active" : ""}`} disabled={flagged === 0} onClick={() => setOnly("flagged")}>to check ({flagged})</button>
-        <button className="tab active" disabled={!!progress || plan.length === 0} onClick={save}>
-          {progress ?? "save tidied copies"}
+        <button className="tab active" disabled={locked || !!progress || plan.length === 0} onClick={save}
+          title={locked ? "Saving tidied copies comes with premium" : undefined}>
+          {progress ?? (locked ? "save tidied copies (premium)" : "save tidied copies")}
         </button>
       </div>
       {done && <div className="comments-panel" style={{ marginBottom: 10 }}>{done}</div>}
