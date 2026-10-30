@@ -23,13 +23,13 @@ type Suggestion = {
   album: string | null;
   release_date: string | null;
   main_artist_name: string | null;
-  extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null; already_on_page?: string } | null;
+  extra: { listeners?: number; playcount?: number; pageviews?: number; featuring?: string | null; already_on_page?: string; length_sec?: number; producers?: string } | null;
   created_at?: string;
   version_of?: string | null;
   decided_at?: string | null;
 };
 
-const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Community sheet" };
+const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Community sheet", local: "Someone's music files" };
 
 export default function ImportReviewPage() {
   const { user, loading: authLoading } = useAuth();
@@ -129,7 +129,7 @@ export default function ImportReviewPage() {
       <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
       <h1 className="detail-name page-title">Imported Songs</h1>
       <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Songs the Genius and Last.fm imports found that aren&apos;t on the page yet. Genius often lists unreleased songs;
+        Songs the Genius, Last.fm and spreadsheet imports, and people&apos;s own music files (Local Cuts), found that aren&apos;t on the page yet. Genius often lists unreleased songs;
         Last.fm titles come from what people play, so leaks show up. Added songs are filed under their main song
         automatically when they&apos;re a version, and can be reversed from the{" "}
         <UndoHistoryLink />.
@@ -197,6 +197,8 @@ export default function ImportReviewPage() {
                   {s.version_of && <span className="feature-tag">version of {s.version_of}</span>}
                   {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
                   {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
+                  {s.extra?.producers && <span>prod. {s.extra.producers}</span>}
+                  {s.extra?.length_sec != null && <span>{Math.floor(s.extra.length_sec / 60)}:{String(s.extra.length_sec % 60).padStart(2, "0")}</span>}
                   {s.release_date && <span>{s.release_date}</span>}
                   {view === "dismissed" && s.extra?.already_on_page && (
                     <span className="feature-tag">

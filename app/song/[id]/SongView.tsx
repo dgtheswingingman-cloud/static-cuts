@@ -28,6 +28,7 @@ type Track = {
   artist_id: string;
   spotify_url: string | null;
   deezer_url?: string | null;
+  length_sec?: number | null;
   parent_track_id: string | null;
   is_featured: boolean;
   is_official: boolean;
@@ -173,6 +174,7 @@ export default function SongView({ id }: { id: string }) {
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
+  if (t.length_sec) info.push(["Length", `${Math.floor(t.length_sec / 60)}:${String(t.length_sec % 60).padStart(2, "0")}`]);
   if (t.producers) {
     const names = t.producers.split(/\s*(?:,|&|\band\b|\+|\/)\s*/i).map((x) => x.trim()).filter(Boolean);
     info.push(["Producers", (
