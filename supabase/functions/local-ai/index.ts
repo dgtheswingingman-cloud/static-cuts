@@ -123,23 +123,30 @@ Deno.serve(async (req) => {
     const codes = new Map<string, Map<string, Cand>>();
     const prompt = buildPrompt(items, found, codes);
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
-    });
-    if (res.status === 429 || res.status === 529) {
-      const wait = Number(res.headers.get("retry-after")) || 60;
-      await db.from("sc_private_settings").upsert({ key: AI_PAUSE, value: new Date(Date.now() + Math.max(wait, 120) * 1000).toISOString() }, { onConflict: "key" });
-      return json({ error: "Claude is busy. Try again in a few minutes." }, 429);
+    // Ask Claude; a garbled answer gets one more try.
+    let answer: any = null;
+    for (let attempt = 0; attempt < 2 && !answer; attempt++) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: AI_MODEL, max_tokens: 8000,
+          messages: [{ role: "user", content: attempt === 0 ? prompt : prompt + "\n\nIMPORTANT: reply with valid JSON only (escape any quotes inside strings)." }],
+        }),
+      });
+      if (res.status === 429 || res.status === 529) {
+        const wait = Number(res.headers.get("retry-after")) || 60;
+        await db.from("sc_private_settings").upsert({ key: AI_PAUSE, value: new Date(Date.now() + Math.max(wait, 120) * 1000).toISOString() }, { onConflict: "key" });
+        return json({ error: "Claude is busy. Try again in a few minutes." }, 429);
+      }
+      const out: any = await res.json().catch(() => null);
+      if (!res.ok) return json({ error: `Claude couldn't answer (${out?.error?.message ?? res.status}).` }, 502);
+      const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join("")).replace(/```(?:json)?/g, "");
+      try { answer = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch {
+        console.error("local-ai unreadable answer", attempt, out?.stop_reason, text.length, text.slice(0, 400), "…", text.slice(-300));
+      }
     }
-    const out: any = await res.json().catch(() => null);
-    if (!res.ok) return json({ error: `Claude couldn't answer (${out?.error?.message ?? res.status}).` }, 502);
-    const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join("")).replace(/```(?:json)?/g, "");
-    let answer: any;
-    try { answer = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch {
-      return json({ error: "Claude's answer couldn't be read. Try again." }, 502);
-    }
+    if (!answer) return json({ error: "Claude's answer couldn't be read.", retry: true }, 502);
 
     // Keep only what makes sense: picks must be one of that file's songs.
     const byFile = new Map<number, any>();

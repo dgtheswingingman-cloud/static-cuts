@@ -209,19 +209,28 @@ export default function LocalCutsPage() {
   async function askClaude() {
     if (!user || locked || unsure.length === 0) return;
     setMessage(null);
-    let matched = 0, maybe = 0, notHere = 0;
-    let problem: string | null = null;
-    for (let i = 0; i < unsure.length; i += 25) {
-      setProgress(`Claude is looking… ${Math.min(i + 25, unsure.length)} of ${unsure.length}`);
-      const batch = unsure.slice(i, i + 25);
+    let matched = 0, maybe = 0, notHere = 0, skipped = 0, done = 0;
+    let problem: string | null = null; // stops everything (limits, signed out)
+    const batches: Item[][] = [];
+    for (let i = 0; i < unsure.length; i += 25) batches.push(unsure.slice(i, i + 25));
+    setProgress(`Claude is looking… 0 of ${unsure.length}`);
+
+    async function one(batch: Item[]) {
       const { data, error } = await supabase.functions.invoke("local-ai", {
         body: { items: batch.map((b) => ({ ref: b.key, title: b.title ?? "", artist: b.artist ?? "", file_name: b.name, length: b.duration })) },
       });
       if (error) {
-        // The function's own message (e.g. allowance used up), if there is one.
-        let msg = error.message;
-        try { const ctx = (error as { context?: Response }).context; const j = ctx ? await ctx.json() : null; if (j?.error) msg = j.error; } catch { /* keep */ }
-        problem = msg; break;
+        // The function's own message, and whether it's worth carrying on.
+        let msg = error.message, status = 0;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          status = ctx?.status ?? 0;
+          const j = ctx ? await ctx.json() : null;
+          if (j?.error) msg = j.error;
+        } catch { /* keep */ }
+        if ([401, 403, 429].includes(status)) problem = msg; // limits: stop
+        else skipped += batch.length;                        // a bad answer: skip this batch
+        return;
       }
       const results = ((data as { results?: AiResult[] } | null)?.results ?? []);
       const byKey = new Map(results.map((r) => [r.ref, r]));
@@ -249,10 +258,23 @@ export default function LocalCutsPage() {
         if (r.track_id) { const f = files.current.get(r.ref); if (f) setLocalFile(r.track_id, f); }
       });
     }
+
+    // Three at a time.
+    let next = 0;
+    async function worker() {
+      while (!problem && next < batches.length) {
+        const b = batches[next++];
+        await one(b);
+        done += b.length;
+        setProgress(`Claude is looking… ${Math.min(done, unsure.length)} of ${unsure.length}`);
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
     setProgress(null);
     setMessage((problem ? `Stopped: ${problem} ` : "") +
-      `Claude matched ${matched}, thinks ${maybe} more are probably right (marked "check"), and says ${notHere} aren't on the site. ` +
-      (notHere ? `Those can be suggested as new songs from "help the archive".` : ""));
+      `Claude matched ${matched}, thinks ${maybe} more are probably right (marked "check"), and says ${notHere} aren't on the site.` +
+      (skipped ? ` ${skipped} couldn't be checked this time: press the button again to try those.` : "") +
+      (notHere ? ` Ones not on the site can be suggested as new songs from "help the archive".` : ""));
   }
 
   function update(key: string, patch: Partial<Item>) {
