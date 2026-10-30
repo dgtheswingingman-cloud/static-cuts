@@ -17,6 +17,7 @@ import { AdminModePage } from "../components/AdminModeNote";
 import { readDuration, readTags } from "./tags";
 import { setLocalFile } from "./store";
 import Tidy from "./Tidy";
+import Give from "./Give";
 
 type Status = "sure" | "check" | "none";
 type Item = {
@@ -63,7 +64,7 @@ export default function LocalCutsPage() {
   const [fixing, setFixing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<string[]>([]);
-  const [view, setView] = useState<"tidy" | "library">("tidy");
+  const [view, setView] = useState<"tidy" | "library" | "give">("tidy");
   const audio = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
 
@@ -264,11 +265,16 @@ export default function LocalCutsPage() {
         <div className="tabs" style={{ marginBottom: 12 }}>
           <button className={`tab ${view === "tidy" ? "active" : ""}`} onClick={() => setView("tidy")}>tidy &amp; save</button>
           <button className={`tab ${view === "library" ? "active" : ""}`} onClick={() => setView("library")}>matches &amp; player</button>
+          <button className={`tab ${view === "give" ? "active" : ""}`} onClick={() => setView("give")}>help the archive</button>
         </div>
       )}
       {items.length > 0 && view === "tidy" && (
         <Tidy items={items} files={files.current}
           onEdit={(key, edit) => setItems((prev) => prev.map((x) => (x.key === key ? { ...x, edit } : x)))} />
+      )}
+
+      {items.length > 0 && view === "give" && (
+        <Give items={items} files={files.current} userId={user?.id ?? null} />
       )}
 
       {items.length > 0 && view === "library" && (

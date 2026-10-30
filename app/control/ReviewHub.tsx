@@ -35,6 +35,8 @@ type CurrentTrack = {
   notes: string | null;
   album?: string | null;
   release_status?: string | null;
+  length_sec?: number | null;
+  cover_url?: string | null;
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -51,7 +53,16 @@ const FIELD_LABELS: Record<string, string> = {
   notes: "Notes",
   album: "Album",
   release_status: "Status",
+  length_sec: "Length",
+  cover_url: "Cover art",
 };
+// How a field's value reads in the before/after list.
+function showValue(key: string, v: unknown): string {
+  if (v === null || v === undefined || v === "") return "(none)";
+  if (key === "length_sec") { const n = Number(v); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`; }
+  if (key === "cover_url") return "picture below";
+  return String(v);
+}
 
 const CATEGORIES: { key: string; label: string; types: string[] }[] = [
   { key: "status_changes", label: "Status Changes", types: ["status_change"] },
@@ -155,7 +166,7 @@ export default function ReviewHub() {
     if (contextTrackIds.length > 0) {
       const { data: tracks } = await supabase
         .from("tracks")
-        .select("id, title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, featured_artists, genre, notes, album, release_status")
+        .select("id, title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, featured_artists, genre, notes, album, release_status, length_sec, cover_url")
         .in("id", contextTrackIds);
       const map: Record<string, CurrentTrack> = {};
       (tracks ?? []).forEach((t: any) => { map[t.id] = t; });
@@ -296,8 +307,8 @@ export default function ReviewHub() {
       if (!(key in s.payload)) return;
       const oldRaw = (current as any)[key];
       const newRaw = s.payload[key];
-      const oldVal = oldRaw === null || oldRaw === undefined || oldRaw === "" ? "(none)" : String(oldRaw);
-      const newVal = newRaw === null || newRaw === undefined || newRaw === "" ? "(none)" : String(newRaw);
+      const oldVal = showValue(key, oldRaw);
+      const newVal = showValue(key, newRaw);
       if (oldVal !== newVal) lines.push([key, FIELD_LABELS[key], oldVal, newVal]);
     });
     if ("parent_track_id" in s.payload) {
@@ -395,7 +406,15 @@ export default function ReviewHub() {
             </>
           ) : isCorrection ? (
             <>
-              <div className="track-title" style={{ marginBottom: 6 }}>Edit for &quot;{s.payload.title}&quot;</div>
+              <div className="track-title" style={{ marginBottom: 6 }}>
+                Edit for &quot;{s.payload.title ?? currentTrack?.title ?? s.payload.track_id}&quot;
+                {s.payload.from === "local" && <span className="feature-tag" style={{ marginLeft: 6 }}>from someone&apos;s music files</span>}
+              </div>
+              {s.payload.from === "local" && (
+                <div className="comment-meta" style={{ marginBottom: 6 }}>
+                  Read from the details inside someone&apos;s own files. Only fields that are still empty are filled when you approve.
+                </div>
+              )}
               {currentTrack && afterTrack && (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
                   {trackPreviewCard(currentTrack, "Currently")}
@@ -429,6 +448,11 @@ export default function ReviewHub() {
                   </label>
                 );
               })}
+              {typeof s.payload.cover_url === "string" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={s.payload.cover_url} alt="Suggested cover art" width={120} height={120}
+                  style={{ objectFit: "cover", marginTop: 6, border: "1px solid var(--hair)" }} />
+              )}
             </>
           ) : isDeletion ? (
             <>
