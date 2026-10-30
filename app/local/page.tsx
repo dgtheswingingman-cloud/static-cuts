@@ -18,6 +18,7 @@ import { readDuration, readTags } from "./tags";
 import { setLocalFile } from "./store";
 import Tidy from "./Tidy";
 import Give from "./Give";
+import { usePremium } from "../usePremium";
 
 type Status = "sure" | "check" | "none";
 type Item = {
@@ -57,6 +58,10 @@ function save(items: Item[]) {
 export default function LocalCutsPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
+  // Premium unlocks saving, the player, collecting and Claude. Everyone can
+  // add files, see the matches and use "help the archive".
+  const { premium } = usePremium();
+  const locked = premium !== true;
   const isAdmin = useIsAdmin();
   const [items, setItems] = useState<Item[]>([]);
   const files = useRef(new Map<string, File>()); // item key -> file (this visit only)
@@ -160,7 +165,7 @@ export default function LocalCutsPage() {
 
   function play(key: string | null) {
     const el = audio.current;
-    if (!el) return;
+    if (!el || (key && locked)) return;
     if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
     setPlaying(key);
     if (!key) { el.pause(); return; }
@@ -179,6 +184,7 @@ export default function LocalCutsPage() {
   // --------------------------------------------------------- collection
 
   async function collect(list: Item[]) {
+    if (locked) return;
     const ids = [...new Set(list.filter((i) => i.track_id && !i.owned).map((i) => i.track_id!))];
     if (ids.length === 0) return;
     const { error } = await supabase.rpc("rpc_collect_many", { p_track_ids: ids });
@@ -201,7 +207,7 @@ export default function LocalCutsPage() {
   // Files that didn't match cleanly, that Claude hasn't looked at yet.
   const unsure = items.filter((i) => (i.status === "check" || i.status === "none") && !i.ai && (i.title || i.name));
   async function askClaude() {
-    if (!user || unsure.length === 0) return;
+    if (!user || locked || unsure.length === 0) return;
     setMessage(null);
     let matched = 0, maybe = 0, notHere = 0;
     let problem: string | null = null;
@@ -292,6 +298,14 @@ export default function LocalCutsPage() {
         </label>
         {items.length > 0 && <button className="tab" onClick={removeAll}>clear</button>}
       </div>
+      {premium === false && (
+        <div className="comments-panel local-premium" style={{ marginBottom: 12 }}>
+          <b>Local Cuts is a premium feature.</b> You can try it: add your music and see how every file matches the
+          archive and what it would fix. Saving tidied copies for Spotify, the player, collecting from your files and
+          asking Claude come with premium. &ldquo;Help the archive&rdquo; is free for everyone.
+          {user ? " Ask the site owner about premium." : ""}
+        </div>
+      )}
       {!loading && !user && (
         <div className="comment-meta" style={{ marginBottom: 10 }}>
           <Link href="/login?next=/local" className="text-link">Log in</Link> to match songs to the archive and add them to your collection. You can still play them here.
@@ -327,7 +341,7 @@ export default function LocalCutsPage() {
         </div>
       )}
       {items.length > 0 && view === "tidy" && (
-        <Tidy items={items} files={files.current}
+        <Tidy items={items} files={files.current} locked={locked}
           onEdit={(key, edit) => setItems((prev) => prev.map((x) => (x.key === key ? { ...x, edit } : x)))} />
       )}
 
@@ -351,11 +365,11 @@ export default function LocalCutsPage() {
               <option value="added">newest first</option>
             </select>
             {user && unsure.length > 0 && (
-              <button className="tab" disabled={!!progress} onClick={askClaude} title="Claude reads the file names and details (never the music) and picks the right song or version">
-                ask Claude about {unsure.length} unsure
+              <button className="tab" disabled={!!progress || locked} onClick={askClaude} title="Claude reads the file names and details (never the music) and picks the right song or version">
+                ask Claude about {unsure.length} unsure{locked ? " (premium)" : ""}
               </button>
             )}
-            {user && sureNotOwned.length > 0 && (
+            {user && !locked && sureNotOwned.length > 0 && (
               <button className="tab active" onClick={() => confirm(`Add ${sureNotOwned.length} matched song${sureNotOwned.length === 1 ? "" : "s"} to your collection?`) && collect(sureNotOwned)}>
                 collect {sureNotOwned.length} matched
               </button>
@@ -364,7 +378,7 @@ export default function LocalCutsPage() {
 
           {shown.map((i) => (
             <div key={i.key} className={`local-row ${playing === i.key ? "is-playing" : ""}`}>
-              <button className="local-play" disabled={!files.current.has(i.key)} aria-label={playing === i.key ? "Pause" : "Play"}
+              <button className="local-play" disabled={locked || !files.current.has(i.key)} title={locked ? "The player comes with premium" : undefined} aria-label={playing === i.key ? "Pause" : "Play"}
                 onClick={() => (playing === i.key ? play(null) : play(i.key))}>{playing === i.key ? "■" : "▶"}</button>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div className="review-row-title">
@@ -379,7 +393,7 @@ export default function LocalCutsPage() {
                 </div>
                 {i.reason && <div className="comment-meta">{i.reason}</div>}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                  {user && i.track_id && (i.owned ? <span className="rating-chip">✓ collected</span>
+                  {user && !locked && i.track_id && (i.owned ? <span className="rating-chip">✓ collected</span>
                     : <button className="rating-chip" onClick={() => collect([i])}>collect</button>)}
                   {user && <button className="rating-chip" onClick={() => setFixing(fixing === i.key ? null : i.key)}>{fixing === i.key ? "close" : i.status === "sure" ? "change" : "fix match"}</button>}
                   {i.status === "check" && <button className="rating-chip" onClick={() => update(i.key, { status: "sure", reason: "You confirmed this match." })}>that&apos;s right</button>}

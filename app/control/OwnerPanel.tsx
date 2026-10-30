@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import PremiumPanel from "./PremiumPanel";
 
 type Host = { host: string; links: number; added_at: string };
 
@@ -86,6 +87,8 @@ export default function OwnerPanel() {
 
   return (
     <>
+      <PremiumPanel />
+
       {geniusPace && (
         <>
           <div className="section-label">Genius credits</div>

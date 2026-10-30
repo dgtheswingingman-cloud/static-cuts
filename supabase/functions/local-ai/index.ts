@@ -101,6 +101,10 @@ Deno.serve(async (req) => {
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "Claude isn't set up on the site yet." }, 500);
 
+    // Premium only (the owner always has it).
+    const { data: isPremium } = await db.rpc("is_premium", { p_user: user.id });
+    if (isPremium !== true) return json({ error: "Asking Claude comes with premium." }, 403);
+
     // Allowances: the person's daily Local Cuts limit, then the shared one.
     const { data: mine } = await db.rpc("sc_local_ai_take", { p_user: user.id, p_calls: 1 });
     if (mine !== 1) return json({ error: "You've used today's Claude allowance for Local Cuts. It resets tomorrow." }, 429);
