@@ -1980,6 +1980,8 @@ body { overflow-x: clip; }
   .lc-demo-row::before { content: none; }
   .lc-demo-row .lc-from, .lc-demo-row .lc-to { grid-column: 1; grid-row: auto; }
   .lc-feed-row, .lc-list-row { grid-template-columns: 1fr; gap: 2px; }
+  .lc-step { flex-wrap: wrap; }
+  .lc-run, .lc-done { padding: 16px 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lc-feed-row { animation: none; }
