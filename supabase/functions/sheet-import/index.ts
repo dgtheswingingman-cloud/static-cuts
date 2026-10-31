@@ -211,6 +211,19 @@ function suggestMapping(rows: string[][]): Mapping {
 // Reading songs
 // ---------------------------------------------------------------------------
 
+// Rows that aren't songs: the sheet's own notices, credits, links and
+// headings that sit in the song-name column.
+const JUNK_TITLE = /https?:\/\/|www\.|spreadsheet|\btracker\b|right-click|sort sheet|\bjoin\b.*\bhub\b|^snippets?$|^og files?\b|og file: placeholder|\binterview$|^credits?$|notes to editors|editors\/compilers|^\(.{1,3}\):|=\s*these are/i;
+// Era/album cells that aren't album names (counters, placeholders, notices).
+const JUNK_ALBUM = /^(\?+|unknown|other|n\/?a|none|tbd|-+|misc|unreleased|released|credits?|notes to editors|snippets? (&|and) partials)$|total edits|og file\(s\)|og files for|tracker is created|^\d+ (released|unreleased|songs?)$/i;
+// Links in notes: only official listening sites and social posts stay.
+const NOTE_LINK_OK = /(^|\.)(open\.spotify\.com|music\.apple\.com|youtube\.com|youtu\.be|soundcloud\.com|bandcamp\.com|tidal\.com|deezer\.com|audiomack\.com|instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com|genius\.com)$/i;
+function cleanNoteLinks(text: string) {
+  return text.replace(/https?:\/\/[^\s,)]+/g, (u) => {
+    try { return NOTE_LINK_OK.test(new URL(u).hostname) ? u : ""; } catch { return ""; }
+  }).replace(/[ \t]{2,}/g, " ").trim();
+}
+
 const OFFICIAL = /(^|\.)(open\.spotify\.com|music\.apple\.com|youtube\.com|youtu\.be|soundcloud\.com|bandcamp\.com|tidal\.com|deezer\.com|audiomack\.com)$/i;
 
 function cleanTitle(raw: string) {
@@ -285,6 +298,7 @@ function readSongs(rows: string[][], m: Mapping) {
 
     const p = parseName(titleCell);
     if (!p.title) { skipped++; continue; }
+    if (p.title.length > 90 || JUNK_TITLE.test(p.title)) { skipped++; continue; }
     if (col(r, "artist")) p.artists = splitNames(col(r, "artist"));
     if (col(r, "producers")) p.producers.push(...splitNames(col(r, "producers")));
     if (col(r, "features")) p.featuring.push(...splitNames(col(r, "features")));
@@ -295,8 +309,12 @@ function readSongs(rows: string[][], m: Mapping) {
 
     const leak = parseDate(col(r, "leak_date"));
     const released = parseDate(col(r, "release_date"));
+    // A year on its own isn't an album: keep it as a note instead.
+    const yearEra = thisEra && /^(19|20)\d\d$/.test(thisEra) ? thisEra : null;
+    const album = !thisEra || yearEra || JUNK_ALBUM.test(thisEra) || thisEra.length > 60 ? null : thisEra;
     const notes = [
-      col(r, "notes"),
+      cleanNoteLinks(col(r, "notes")),
+      yearEra ? `Era: ${yearEra}.` : "",
       leak ? `Leaked ${col(r, "leak_date")}.` : "",
       col(r, "file_date") && parseDate(col(r, "file_date")) ? `File date ${col(r, "file_date")}.` : "",
       col(r, "type") ? `Type: ${col(r, "type")}.` : "",
@@ -318,7 +336,7 @@ function readSongs(rows: string[][], m: Mapping) {
       title: p.title,
       artists: p.artists,
       status,
-      album: thisEra,
+      album,
       release_date: status === "released" ? released : null,
       featuring: p.featuring.length ? [...new Set(p.featuring)].join(", ") : null,
       producers: p.producers.length ? [...new Set(p.producers)].join(", ") : null,
@@ -464,6 +482,18 @@ Era banners: many trackers put a row before each era (album/period) with the era
   return { mapping, explanation: String(out.explanation ?? "").slice(0, 400) };
 }
 
+// Add up the results of an import done in pieces (numbers are summed, the
+// per-artist breakdown is merged the same way).
+function addResults(a: Record<string, any>, b: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    if (typeof v === "number") out[k] = (typeof out[k] === "number" ? out[k] : 0) + v;
+    else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = addResults(out[k] && typeof out[k] === "object" ? out[k] : {}, v);
+    else out[k] = v;
+  }
+  return out;
+}
+
 // A tracker that needs a look before it's read again.
 class Held extends Error {}
 
@@ -488,11 +518,20 @@ async function importSource(sourceId: string, userId: string, onTimer = false) {
     }
   }
   const { songs } = readSongs(rows, mapping);
-  const { data, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs });
-  if (err) {
-    if (err.message.startsWith("Held for a look")) throw new Held(err.message);
-    throw new Error(err.message);
+  // Big trackers (thousands of rows) go in pieces so no single call runs
+  // into the database's time limit; the pieces' results are added up.
+  const CHUNK = 400;
+  let data: Record<string, any> = {};
+  for (let at = 0; at < songs.length || at === 0; at += CHUNK) {
+    const { data: part, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs.slice(at, at + CHUNK) });
+    if (err) {
+      if (err.message.startsWith("Held for a look")) throw new Held(err.message);
+      throw new Error(err.message);
+    }
+    data = addResults(data, part ?? {});
+    if (songs.length === 0) break;
   }
+  if (songs.length > CHUNK) await db.from("sheet_sources").update({ last_result: { ...data, at: new Date().toISOString() } }).eq("id", sourceId);
   if (!onTimer || !before) await db.from("sheet_sources").update({ header_check: now }).eq("id", sourceId);
   return { read: songs.length, ...data };
 }

@@ -185,8 +185,9 @@ export default function SheetsPage() {
   // same artist and credit. Tabs already imported and info tabs (credits,
   // stats, key...) are left out; a tab with hardly any songs is skipped.
   // Tabs that aren't song lists, are just favourites of songs on other tabs,
-  // or would bring in fake songs (AI tracks, fakes, fan edits).
-  const INFO_TAB = /info|credit|stat|faq|key|legend|about|changelog|guide|read ?me|rules|template|links?$|fake|\bai\b|fan edit|stem|tracklist|best of|worst of|grail|wanted|special|merch|\bart\b|tours?\b|interview|video|social|buys?\b|compilation|album cop|misc|performance|remix/i;
+  // or would bring in fake songs (AI tracks, fakes, fan edits). "Recent" tabs
+  // repeat songs from the main tabs, so they're left out too.
+  const INFO_TAB = /info|credit|stat|faq|key|legend|about|changelog|guide|read ?me|rules|template|links?$|fake|\bai\b|fan edit|stem|tracklist|best of|worst of|grail|wanted|special|merch|\bart\b|tours?\b|interview|video|social|buys?\b|compilation|album cop|misc|performance|remix|\beras?\b|account|production|producer|museum|exhibit|media|radio|front ?page|lives?\b|instagram|skeptical|photo|pics|samples?\b|edits?\b|comps?\b|instrumentals?|drill ?dance|^projects?$|recent/i;
   async function importAllTabs() {
     if (!preview || !artist) return;
     const todo = preview.tabs.filter((t) => !INFO_TAB.test(t.name)
