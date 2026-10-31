@@ -1,503 +1,512 @@
 "use client";
 
-// Local Cuts: tidy your music files with the archive. Pick your download
-// folder; each file's details are read on your computer (nothing uploaded),
-// matched to the exact song and version (best guesses marked), then saved as
-// clean copies: right title, artist, album, year and cover art, consistent
-// names, sorted into folders, ready for Spotify Local Files or any player.
-// Originals are never touched. Extras: play your files here, add them to
-// your collection, "play my file" on song pages.
+// Local Cuts: drop your music folder in, get a tidy zip out, ready for
+// Spotify Local Files. One run, no setup:
+//   1. every file's details are read on your computer (nothing uploaded)
+//   2. each is matched to its song in the archive; Claude looks at the ones
+//      that don't match cleanly (premium)
+//   3. files that are already well formatted (title, artist and cover art)
+//      are kept as they are, and what they know that the archive doesn't is
+//      sent to the archive as suggestions (reviewed before anything changes)
+//   4. the rest get their details rewritten from the archive: title with
+//      features, artist, album (or "Unreleased <year>"), year, track number,
+//      cover art, and a clean name
+//   5. one zip (Artist / Album folders), written straight to disk
+// Originals are never touched. Saving the zip is premium; helping the
+// archive is free.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
-import { readDuration, readTags } from "./tags";
-import { setLocalFile } from "./store";
-import Tidy from "./Tidy";
-import Give from "./Give";
 import { usePremium } from "../usePremium";
+import { readDuration, readTags } from "./tags";
+import { readCover, readDetails, type FileDetails } from "./details";
+import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
+import { pickZipFile, ZipToDisk } from "./zip";
+import { setLocalFile } from "./store";
 
-type Status = "sure" | "check" | "none";
-type Item = {
-  key: string; name: string; size: number;
-  title: string | null; artist: string | null; album: string | null; from: "tags" | "name"; duration: number | null;
-  track_id: string | null; match_title: string | null; match_artist: string | null; artist_id: string | null;
-  parent_id: string | null; status: Status; reason: string; owned: boolean; added_at: number;
-  edit?: { title?: string; artist?: string; album?: string; year?: string };
-  // What Claude made of a file it couldn't match (for suggesting it as new).
-  clean?: Clean | null;
-  ai?: boolean; // Claude has looked at this one
-};
-export type Clean = { title: string | null; artist: string | null; status: string | null; version: string | null; producers: string | null; featuring: string | null; note: string | null };
-type AiResult = { ref: string; track_id: string | null; title: string | null; version_of: string | null; artist_id: string | null; artist_name: string | null; confidence: "high" | "medium" | "low" | null; why: string | null; clean: Clean };
-type Version = { id: string; title: string; status: string | null; is_main: boolean };
-
-const SAVE_KEY = "static_cuts_local_cuts";
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
-function tidy(s: string | null) {
-  return (s ?? "").toLowerCase().replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/g, "").replace(/[^\p{L}\p{N}]+/gu, "");
-}
+type Clean = { title: string | null; artist: string | null; status: string | null; version: string | null; producers: string | null; featuring: string | null; note: string | null };
+type Song = {
+  key: string; file: File;
+  title: string | null; artist: string | null; album: string | null; track: string | null; year: string | null; fromTags: boolean;
+  duration: number | null; details: FileDetails | null;
+  formatted: boolean;           // title, artist and cover in the file already
+  track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
+  clean: Clean | null;          // Claude's tidy version, when it looked
+};
+type Site = {
+  id: string; title: string; artist: string; album: string | null; release_date: string | null; leak_date: string | null;
+  track_number: number | null; featured_artists: string | null; producers: string | null; length_sec: number | null;
+  cover_url: string | null; status: string | null; parent_album: string | null; parent_cover: string | null;
+};
+type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
+type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted" };
+
+const plain = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
+const tidyKey = (s: string | null) => plain((s ?? "").replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/gi, ""));
 function firstArtist(s: string | null) {
   return (s ?? "").split(/\s*(?:,|&|\bx\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|;|\/)\s*/i)[0]?.trim() || null;
 }
-function mmss(sec: number | null) {
-  if (!sec) return "";
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+const ext = (name: string) => (name.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? "").toLowerCase();
+const gb = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+
+// Files from a dropped folder (folders inside it too).
+async function filesFromDrop(items: DataTransferItemList): Promise<File[]> {
+  type Entry = { isFile: boolean; isDirectory: boolean; file?: (ok: (f: File) => void, no: () => void) => void; createReader?: () => { readEntries: (ok: (e: Entry[]) => void, no: () => void) => void } };
+  const out: File[] = [];
+  async function walk(e: Entry): Promise<void> {
+    if (e.isFile && e.file) { const f = await new Promise<File | null>((ok) => e.file!(ok, () => ok(null))); if (f) out.push(f); return; }
+    if (e.isDirectory && e.createReader) {
+      const r = e.createReader();
+      for (;;) {
+        const batch = await new Promise<Entry[]>((ok) => r.readEntries(ok, () => ok([])));
+        if (batch.length === 0) break;
+        for (const c of batch) await walk(c);
+      }
+    }
+  }
+  const roots = Array.from(items).map((i) => (i as unknown as { webkitGetAsEntry?: () => Entry | null }).webkitGetAsEntry?.()).filter(Boolean) as Entry[];
+  for (const r of roots) await walk(r);
+  return out;
 }
-function loadSaved(): Item[] {
-  try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) ?? "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
-}
-function save(items: Item[]) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(items.slice(0, 5000))); } catch { /* full or private */ }
+
+// Run a list of jobs a few at a time.
+async function pool<T>(list: T[], n: number, job: (t: T, i: number) => Promise<void>) {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => {
+    while (next < list.length) { const i = next++; await job(list[i], i); }
+  }));
 }
 
 export default function LocalCutsPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
-  // Premium unlocks saving, the player, collecting and Claude. Everyone can
-  // add files, see the matches and use "help the archive".
-  const { premium } = usePremium();
-  const locked = premium !== true;
   const isAdmin = useIsAdmin();
-  const [items, setItems] = useState<Item[]>([]);
-  const files = useRef(new Map<string, File>()); // item key -> file (this visit only)
-  const [, setTick] = useState(0);
-  const [progress, setProgress] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | Status>("all");
-  const [q, setQ] = useState("");
-  const [sort, setSort] = useState<"artist" | "title" | "added">("artist");
-  const [playing, setPlaying] = useState<string | null>(null);
-  const [fixing, setFixing] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [lastAdded, setLastAdded] = useState<string[]>([]);
-  const [view, setView] = useState<"tidy" | "library" | "give">("tidy");
-  const audio = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
+  const { premium } = usePremium();
+  const [stage, setStage] = useState<Stage>("idle");
+  const [done, setDone] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [plan, setPlan] = useState<Out[]>([]);
+  const [sent, setSent] = useState<{ details: number; songs: number; covers: number; problem: string | null } | null>(null);
+  const [claudeNote, setClaudeNote] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [collected, setCollected] = useState<string | null>(null);
+  const [hover, setHover] = useState(false);
+  const site = useRef(new Map<string, Site>());
 
-  useEffect(() => { setItems(loadSaved()); }, []);
-  useEffect(() => { if (items.length) save(items); }, [items]);
+  const busy = !["idle", "ready", "saved"].includes(stage);
+  const step = (s: Stage, n: number) => { setStage(s); setDone(0); setTotal(n); };
 
-  // ------------------------------------------------------------- adding
+  // ------------------------------------------------------------ the run
 
-  async function addFiles(list: FileList | null) {
-    if (!list || list.length === 0) return;
-    const picked = Array.from(list).filter((f) => AUDIO.test(f.name) || f.type.startsWith("audio/"));
-    if (picked.length === 0) { setMessage("None of those are music files."); return; }
-    setMessage(null);
-    const known = new Map<string, Item>(items.map((i: Item) => [i.key, i] as [string, Item]));
-    const fresh: Item[] = [];
-    for (let i = 0; i < picked.length; i++) {
-      const f = picked[i];
-      const key = `${f.name}|${f.size}`;
-      files.current.set(key, f);
-      if (known.has(key)) { const k = known.get(key)!; if (k.track_id) setLocalFile(k.track_id, f); continue; }
-      setProgress(`Reading ${i + 1} of ${picked.length}…`);
+  async function run(picked: File[]) {
+    if (!user || busy) return;
+    const list = picked.filter((f) => AUDIO.test(f.name) || f.type.startsWith("audio/"));
+    if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return; }
+    setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]);
+    site.current = new Map();
+
+    // 1. Read every file's details.
+    step("reading", list.length);
+    const read: Song[] = new Array(list.length);
+    let n = 0;
+    await pool(list, 6, async (f, i) => {
       const t = await readTags(f);
+      const d = await readDetails(f, firstArtist(t.artist)).catch(() => null);
       const duration = await readDuration(f);
-      fresh.push({
-        key, name: f.name, size: f.size, title: t.title, artist: t.artist, album: t.album, from: t.from, duration,
-        track_id: null, match_title: null, match_artist: null, artist_id: null, parent_id: null,
-        status: "none", reason: "", owned: false, added_at: Date.now(),
-      });
-    }
-    setTick((x) => x + 1);
-    if (fresh.length === 0) { setProgress(null); setMessage(`Reconnected ${picked.length} file${picked.length === 1 ? "" : "s"}.`); return; }
-    if (!user) {
-      setItems((prev) => [...prev, ...fresh.map((f) => ({ ...f, reason: "Log in to match songs to the archive." }))]);
-      setProgress(null);
-      return;
-    }
-    // Match in batches of 200.
-    const matched: Item[] = [];
-    for (let i = 0; i < fresh.length; i += 200) {
-      setProgress(`Matching ${Math.min(i + 200, fresh.length)} of ${fresh.length}…`);
-      const batch = fresh.slice(i, i + 200);
+      read[i] = {
+        key: `${f.webkitRelativePath || f.name}|${f.size}`, file: f,
+        title: t.title, artist: t.artist, album: t.album, track: t.track, year: t.year, fromTags: t.from === "tags",
+        duration, details: d,
+        formatted: t.from === "tags" && !!t.title && !!t.artist && !!d?.hasCover,
+        track_id: null, artist_id: null, sure: false, guess: false, why: null, clean: null,
+      };
+      setDone(++n);
+    });
+
+    // 2. Match to the archive.
+    step("matching", read.length);
+    for (let i = 0; i < read.length; i += 200) {
+      const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((f) => ({ artist: firstArtist(f.artist) ?? "", title: f.title ?? "" })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: s.title ?? "" })), p_artist_id: null,
       });
-      if (error) { setMessage(error.message); matched.push(...batch); continue; }
-      const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null; owned: boolean }[]) ?? [];
-      batch.forEach((f, j) => {
-        const r = rows[j];
-        if (!f.artist) { matched.push({ ...f, reason: "No artist in the file's details or name: fix it by hand." }); return; }
-        if (!r?.artist_id) { matched.push({ ...f, reason: `"${firstArtist(f.artist)}" isn't an artist here yet.` }); return; }
-        if (!r.track_id) { matched.push({ ...f, artist_id: r.artist_id, reason: "Artist found, but no song with this title." }); return; }
-        const same = tidy(r.title) === tidy(f.title);
-        matched.push({
-          ...f, track_id: r.track_id, match_title: r.title, artist_id: r.artist_id, owned: !!r.owned,
-          status: same ? "sure" : "check",
-          reason: same ? `Title and artist match${f.from === "tags" ? " (from the file's details)" : " (from the file name)"}.`
-            : `Closest song is "${r.title}": the version or spelling differs, so check it.`,
+      if (!error) {
+        const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
+        batch.forEach((s, j) => {
+          const r = rows[j];
+          if (!s.artist || !r) return;
+          s.artist_id = r.artist_id;
+          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
-      });
-    }
-    // Which versions are main songs, and artist names, for display.
-    const ids = matched.filter((m) => m.track_id).map((m) => m.track_id!);
-    const meta = new Map<string, { parent: string | null; artist: string | null }>();
-    for (let i = 0; i < ids.length; i += 300) {
-      const { data } = await supabase.from("tracks").select("id, parent_track_id, artists(name)").in("id", ids.slice(i, i + 300));
-      ((data as { id: string; parent_track_id: string | null; artists: { name: string } | null }[] | null) ?? [])
-        .forEach((r) => meta.set(r.id, { parent: r.parent_track_id, artist: r.artists?.name ?? null }));
-    }
-    const done = matched.map((m) => (m.track_id ? { ...m, parent_id: meta.get(m.track_id)?.parent ?? null, match_artist: meta.get(m.track_id)?.artist ?? null } : m));
-    done.forEach((m) => { if (m.track_id) setLocalFile(m.track_id, files.current.get(m.key) ?? null); });
-    setItems((prev) => [...prev, ...done]);
-    setProgress(null);
-    const sure = done.filter((d) => d.status === "sure").length, check = done.filter((d) => d.status === "check").length;
-    setMessage(`${done.length} added: ${sure} matched, ${check} to check, ${done.length - sure - check} not found.`);
-  }
-
-  // ------------------------------------------------------------ playing
-
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const list = items.filter((i) => (filter === "all" || i.status === filter) &&
-      (!needle || [i.title, i.artist, i.match_title, i.name].some((v) => (v ?? "").toLowerCase().includes(needle))));
-    const by = (i: Item) => sort === "title" ? (i.match_title ?? i.title ?? i.name).toLowerCase()
-      : sort === "added" ? String(9e15 - i.added_at) : `${(i.match_artist ?? i.artist ?? "~").toLowerCase()} ${(i.match_title ?? i.title ?? "").toLowerCase()}`;
-    return [...list].sort((a, b) => by(a).localeCompare(by(b)));
-  }, [items, filter, q, sort]);
-  const playable = shown.filter((i) => files.current.has(i.key));
-
-  function play(key: string | null) {
-    const el = audio.current;
-    if (!el || (key && locked)) return;
-    if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
-    setPlaying(key);
-    if (!key) { el.pause(); return; }
-    const f = files.current.get(key);
-    if (!f) return;
-    urlRef.current = URL.createObjectURL(f);
-    el.src = urlRef.current;
-    el.play().catch(() => { /* needs a tap on some phones */ });
-  }
-  function step(dir: 1 | -1) {
-    const i = playable.findIndex((p) => p.key === playing);
-    const next = playable[i + dir];
-    if (next) play(next.key); else play(null);
-  }
-
-  // --------------------------------------------------------- collection
-
-  async function collect(list: Item[]) {
-    if (locked) return;
-    const ids = [...new Set(list.filter((i) => i.track_id && !i.owned).map((i) => i.track_id!))];
-    if (ids.length === 0) return;
-    const { error } = await supabase.rpc("rpc_collect_many", { p_track_ids: ids });
-    if (error) { setMessage(error.message); return; }
-    setItems((prev) => prev.map((i) => (i.track_id && ids.includes(i.track_id) ? { ...i, owned: true } : i)));
-    setLastAdded(ids);
-    setMessage(`Added ${ids.length} song${ids.length === 1 ? "" : "s"} to your collection.`);
-  }
-  async function undoCollect() {
-    if (!user || lastAdded.length === 0) return;
-    const { error } = await supabase.from("track_ownership").delete().eq("user_id", user.id).in("track_id", lastAdded);
-    if (error) { setMessage(error.message); return; }
-    setItems((prev) => prev.map((i) => (i.track_id && lastAdded.includes(i.track_id) ? { ...i, owned: false } : i)));
-    setMessage(`Undone: ${lastAdded.length} taken back out of your collection.`);
-    setLastAdded([]);
-  }
-
-  // ------------------------------------------------------ ask Claude
-
-  // Files that didn't match cleanly, that Claude hasn't looked at yet.
-  const unsure = items.filter((i) => (i.status === "check" || i.status === "none") && !i.ai && (i.title || i.name));
-  async function askClaude() {
-    if (!user || locked || unsure.length === 0) return;
-    setMessage(null);
-    let matched = 0, maybe = 0, notHere = 0, skipped = 0, done = 0;
-    let problem: string | null = null; // stops everything (limits, signed out)
-    const batches: Item[][] = [];
-    for (let i = 0; i < unsure.length; i += 25) batches.push(unsure.slice(i, i + 25));
-    setProgress(`Claude is looking… 0 of ${unsure.length}`);
-
-    async function one(batch: Item[]) {
-      const { data, error } = await supabase.functions.invoke("local-ai", {
-        body: { items: batch.map((b) => ({ ref: b.key, title: b.title ?? "", artist: b.artist ?? "", file_name: b.name, length: b.duration })) },
-      });
-      if (error) {
-        // The function's own message, and whether it's worth carrying on.
-        let msg = error.message, status = 0;
-        try {
-          const ctx = (error as { context?: Response }).context;
-          status = ctx?.status ?? 0;
-          const j = ctx ? await ctx.json() : null;
-          if (j?.error) msg = j.error;
-        } catch { /* keep */ }
-        if ([401, 403, 429].includes(status)) problem = msg; // limits: stop
-        else skipped += batch.length;                        // a bad answer: skip this batch
-        return;
       }
-      const results = ((data as { results?: AiResult[] } | null)?.results ?? []);
-      const byKey = new Map(results.map((r) => [r.ref, r]));
-      setItems((prev) => prev.map((it) => {
-        const r = byKey.get(it.key);
-        if (!r) return it;
-        if (r.track_id) {
-          const sure = r.confidence === "high";
-          return {
-            ...it, ai: true, clean: r.clean, track_id: r.track_id, match_title: r.title, match_artist: r.artist_name,
-            artist_id: r.artist_id, parent_id: r.version_of, status: sure ? "sure" : "check",
-            reason: `Claude${sure ? "" : ` (${r.confidence === "medium" ? "probably" : "a guess"})`}: ${r.why ?? "picked this song"}.`,
-          };
+      setDone(Math.min(i + 200, read.length));
+    }
+
+    // 3. Claude looks at the ones that didn't match cleanly (premium).
+    const unsure = read.filter((s) => !s.sure && (s.title || s.file.name));
+    if (premium && unsure.length) {
+      step("claude", unsure.length);
+      let looked = 0, stopped: string | null = null, skipped = 0, found = 0;
+      const batches: Song[][] = [];
+      for (let i = 0; i < unsure.length; i += 25) batches.push(unsure.slice(i, i + 25));
+      await pool(batches, 3, async (b) => {
+        if (stopped) return;
+        const { data, error } = await supabase.functions.invoke("local-ai", {
+          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: s.file.name, length: s.duration })) },
+        });
+        if (error) {
+          let msg = error.message, status = 0;
+          try { const ctx = (error as { context?: Response }).context; status = ctx?.status ?? 0; const j = ctx ? await ctx.json() : null; if (j?.error) msg = j.error; } catch { /* keep */ }
+          if ([401, 403, 429].includes(status)) stopped = msg; else skipped += b.length;
+        } else {
+          type R = { ref: string; track_id: string | null; artist_id: string | null; confidence: string | null; why: string | null; clean: Clean };
+          const byKey = new Map(((data as { results?: R[] } | null)?.results ?? []).map((r) => [r.ref, r]));
+          for (const s of b) {
+            const r = byKey.get(s.key);
+            if (!r) continue;
+            s.clean = r.clean; s.why = r.why;
+            if (r.artist_id) s.artist_id = r.artist_id;
+            if (r.track_id && (r.confidence === "high" || r.confidence === "medium")) {
+              s.track_id = r.track_id; s.sure = true; s.guess = r.confidence === "medium"; found++;
+            } else {
+              s.track_id = null; s.sure = false;
+            }
+          }
         }
-        const t = r.clean?.title;
-        return {
-          ...it, ai: true, clean: r.clean, track_id: null, match_title: null, parent_id: null, status: "none",
-          artist_id: r.artist_id ?? it.artist_id, match_artist: r.artist_name ?? it.match_artist,
-          reason: `Claude: not on the site${t ? `. Looks like "${t}"${r.clean.version ? ` (${r.clean.version})` : ""}${r.clean.status ? `, ${r.clean.status}` : ""}` : ""}.`
-            + (r.artist_id ? "" : " The artist isn't here either."),
-        };
-      }));
-      results.forEach((r) => {
-        if (r.track_id && r.confidence === "high") matched++; else if (r.track_id) maybe++; else notHere++;
-        if (r.track_id) { const f = files.current.get(r.ref); if (f) setLocalFile(r.track_id, f); }
+        looked += b.length;
+        setDone(looked);
       });
+      setClaudeNote([
+        `Claude identified ${found} more`,
+        skipped ? `${skipped} couldn't be checked this time` : null,
+        stopped ? `stopped early: ${stopped}` : null,
+      ].filter(Boolean).join("; ") + ".");
     }
+    for (const s of read) if (!s.sure) s.track_id = null;
 
-    // Three at a time.
-    let next = 0;
-    async function worker() {
-      while (!problem && next < batches.length) {
-        const b = batches[next++];
-        await one(b);
-        done += b.length;
-        setProgress(`Claude is looking… ${Math.min(done, unsure.length)} of ${unsure.length}`);
+    // The archive's details for every matched song.
+    const ids = [...new Set(read.filter((s) => s.track_id).map((s) => s.track_id!))];
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data } = await supabase.from("tracks")
+        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, artists(name)")
+        .in("id", ids.slice(i, i + 200));
+      type Row = Omit<Site, "artist" | "status" | "parent_album" | "parent_cover"> & { release_status: string | null; parent_track_id: string | null; artists: { name: string } | null };
+      const rows = (data as Row[] | null) ?? [];
+      const parents = [...new Set(rows.map((r) => r.parent_track_id).filter(Boolean))] as string[];
+      const pm = new Map<string, { album: string | null; cover_url: string | null }>();
+      if (parents.length) {
+        const { data: pd } = await supabase.from("tracks").select("id, album, cover_url").in("id", parents);
+        ((pd as { id: string; album: string | null; cover_url: string | null }[] | null) ?? []).forEach((p) => pm.set(p.id, p));
+      }
+      rows.forEach((r) => site.current.set(r.id, {
+        ...r, artist: r.artists?.name ?? "", status: r.release_status,
+        parent_album: r.parent_track_id ? pm.get(r.parent_track_id)?.album ?? null : null,
+        parent_cover: r.parent_track_id ? pm.get(r.parent_track_id)?.cover_url ?? null : null,
+      }));
+    }
+    read.forEach((s) => { if (s.track_id) setLocalFile(s.track_id, s.file); });
+
+    // 4. Well-formatted files help the archive (sent for review).
+    await helpArchive(read);
+
+    // 5. What each file becomes.
+    setSongs(read);
+    setPlan(buildPlan(read));
+    setStage("ready");
+  }
+
+  async function helpArchive(read: Song[]) {
+    const formatted = read.filter((s) => s.formatted);
+    if (formatted.length === 0) { setSent({ details: 0, songs: 0, covers: 0, problem: null }); return; }
+    step("archive", formatted.length);
+    const gaps: Record<string, unknown>[] = [];
+    const coverFor: Song[] = [];
+    const news: Record<string, unknown>[] = [];
+    const seen = new Set<string>();
+    for (const s of formatted) {
+      const d = s.details;
+      if (s.track_id) {
+        const t = site.current.get(s.track_id);
+        if (!t || seen.has(t.id) || !d) continue;
+        seen.add(t.id);
+        const g: Record<string, unknown> = { track_id: t.id };
+        if (!t.album && d.album) g.album = d.album;
+        if (!t.release_date && d.date) g.release_date = d.date;
+        if (t.track_number == null && d.track) g.track_number = d.track;
+        if (!t.featured_artists && d.featuring) g.featured_artists = d.featuring;
+        if (!t.producers && d.producers) g.producers = d.producers;
+        if (!t.length_sec && s.duration) g.length_sec = s.duration;
+        if (!t.cover_url && d.hasCover) coverFor.push(s);
+        if (Object.keys(g).length > 1 || (!t.cover_url && d.hasCover)) gaps.push(g);
+      } else if (s.artist_id && s.title) {
+        news.push({
+          artist_id: s.artist_id, title: s.title, album: d?.album ?? s.album, release_date: d?.date ?? null,
+          featuring: d?.featuring ?? null, producers: d?.producers ?? null, length_sec: s.duration,
+        });
       }
     }
-    await Promise.all([worker(), worker(), worker()]);
-    setProgress(null);
-    setMessage((problem ? `Stopped: ${problem} ` : "") +
-      `Claude matched ${matched}, thinks ${maybe} more are probably right (marked "check"), and says ${notHere} aren't on the site.` +
-      (skipped ? ` ${skipped} couldn't be checked this time: press the button again to try those.` : "") +
-      (notHere ? ` Ones not on the site can be suggested as new songs from "help the archive".` : ""));
+    let covers = 0, details = 0, added = 0, problem: string | null = null, n = 0;
+    // Covers: shrunk here, uploaded, then sent as a link with the rest.
+    await pool(coverFor, 4, async (s) => {
+      const blob = await readCover(s.file);
+      if (blob && user) {
+        const path = `local/${user.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await supabase.storage.from("covers").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+        const g = gaps.find((x) => x.track_id === s.track_id);
+        if (!error && g) { g.cover_url = supabase.storage.from("covers").getPublicUrl(path).data.publicUrl; covers++; }
+      }
+      setDone(++n);
+    });
+    const real = gaps.filter((g) => Object.keys(g).length > 1);
+    for (let i = 0; i < real.length && !problem; i += 100) {
+      const { data, error } = await supabase.rpc("rpc_local_suggest_details", { p_items: real.slice(i, i + 100) });
+      if (error) problem = error.message; else details += (data as { sent: number }).sent;
+    }
+    for (let i = 0; i < news.length && !problem; i += 200) {
+      const { data, error } = await supabase.rpc("rpc_local_suggest_songs", { p_items: news.slice(i, i + 200) });
+      if (error) problem = error.message; else added += (data as { suggested: number }).suggested;
+    }
+    setDone(formatted.length);
+    setSent({ details, songs: added, covers, problem });
   }
 
-  function update(key: string, patch: Partial<Item>) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
-    const f = files.current.get(key);
-    if (patch.track_id && f) setLocalFile(patch.track_id, f);
+  function buildPlan(read: Song[]): Out[] {
+    const used = new Set<string>();
+    const unique = (p: string) => {
+      let q = p;
+      for (let k = 2; used.has(q.toLowerCase()); k++) q = p.replace(/(\.[^./]+)?$/, (e) => ` (${k})${e}`);
+      used.add(q.toLowerCase());
+      return q;
+    };
+    const place = (artist: string, album: string, title: string, file: File) =>
+      unique(`${safeName(artist)}/${safeName(album)}/${safeName(`${artist} - ${title}`)}${ext(file.name)}`);
+    return read.map((s): Out => {
+      const t = s.track_id ? site.current.get(s.track_id) : undefined;
+      if (s.formatted) {
+        // Kept exactly as it is, just filed.
+        const artist = t?.artist || firstArtist(s.artist) || "Unknown Artist";
+        const album = s.album || t?.album || t?.parent_album || "Singles";
+        return { song: s, path: place(artist, album, s.title!, s.file), tags: null, coverUrl: null, kind: "kept" };
+      }
+      if (t) {
+        const feat = t.featured_artists && !/\b(feat|ft)\b/i.test(t.title) ? ` (feat. ${t.featured_artists})` : "";
+        const date = t.release_date ?? t.leak_date;
+        const year = date?.slice(0, 4) ?? null;
+        const unreleased = t.status && t.status !== "released";
+        const album = t.album || t.parent_album || (unreleased ? (year ? `Unreleased ${year}` : "Unreleased") : "Singles");
+        const title = t.title + feat;
+        return {
+          song: s, path: place(t.artist, album, title, s.file), kind: "tidied", coverUrl: t.cover_url ?? t.parent_cover,
+          tags: { title, artist: t.artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year },
+        };
+      }
+      const c = s.clean;
+      if (c?.title && (c.artist || s.artist)) {
+        const artist = c.artist || firstArtist(s.artist)!;
+        const title = c.version && !c.title.toLowerCase().includes(c.version.toLowerCase()) ? `${c.title} [${c.version}]` : c.title;
+        const album = c.status === "released" ? "Singles" : "Unreleased";
+        return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: null,
+          tags: { title: c.featuring ? `${title} (feat. ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
+      }
+      return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
+    });
   }
-  function removeAll() {
-    if (!confirm("Clear Local Cuts on this device? Your files and your collection aren't touched.")) return;
-    play(null);
-    items.forEach((i) => i.track_id && setLocalFile(i.track_id, null));
-    files.current.clear();
-    setItems([]);
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* fine */ }
+
+  // --------------------------------------------------------------- saving
+
+  async function coverBytes(url: string | null, cache: Map<string, NewTags["cover"]>) {
+    if (!url) return null;
+    if (cache.has(url)) return cache.get(url)!;
+    try {
+      const res = await fetch(`/api/img?u=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error();
+      const c = { mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg", data: new Uint8Array(await res.arrayBuffer()) };
+      cache.set(url, c);
+      return c;
+    } catch { cache.set(url, null); return null; }
   }
+  async function blobFor(o: Out, cache: Map<string, NewTags["cover"]>): Promise<Blob> {
+    if (!o.tags || !canTag(o.song.file.name)) return o.song.file;
+    return tidiedCopy(o.song.file, { ...o.tags, cover: await coverBytes(o.coverUrl, cache) });
+  }
+  function changesCsv() {
+    const q = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
+    const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was" };
+    return new Blob([["original file,new file,what happened,title,artist,album",
+      ...plan.map((o) => [o.song.file.webkitRelativePath || o.song.file.name, o.path, what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
+  }
+
+  async function saveZip() {
+    if (!premium || plan.length === 0) return;
+    const date = new Date().toISOString().slice(0, 10);
+    const out = await pickZipFile(`Static Cuts ${date}.zip`);
+    if (out === null) return; // cancelled
+    step("saving", plan.length);
+    const cache = new Map<string, NewTags["cover"]>();
+    let failed = 0;
+    try {
+      if (out === "unsupported") {
+        // Browsers that can't save straight to disk: built in memory.
+        const entries: { path: string; blob: Blob }[] = [];
+        for (let i = 0; i < plan.length; i++) {
+          try { entries.push({ path: `Static Cuts/${plan[i].path}`, blob: await blobFor(plan[i], cache) }); } catch { failed++; }
+          setDone(i + 1);
+        }
+        entries.push({ path: "Static Cuts/Static Cuts changes.csv", blob: changesCsv() });
+        const zip = await makeZip(entries);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(zip); a.download = `Static Cuts ${date}.zip`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      } else {
+        const zip = new ZipToDisk(out);
+        for (let i = 0; i < plan.length; i++) {
+          try { await zip.add(`Static Cuts/${plan[i].path}`, await blobFor(plan[i], cache)); } catch { failed++; }
+          setDone(i + 1);
+        }
+        await zip.add("Static Cuts/Static Cuts changes.csv", changesCsv());
+        await zip.finish();
+      }
+      setSaved(`Saved ${plan.length - failed} songs${failed ? ` (${failed} couldn't be read and were left out)` : ""}. Unzip it, then add the "Static Cuts" folder in Spotify: Settings → Your Library → Show Local Files → Add a source.`);
+    } catch (e) {
+      setSaved(`Saving stopped: ${String((e as Error)?.message ?? e)}. Your original files are fine; try again.`);
+    }
+    setStage("saved");
+  }
+
+  async function collectAll() {
+    const ids = [...new Set(songs.filter((s) => s.track_id).map((s) => s.track_id!))];
+    if (!ids.length) return;
+    const { error } = await supabase.rpc("rpc_collect_many", { p_track_ids: ids });
+    setCollected(error ? error.message : `Added ${ids.length} songs to your collection.`);
+  }
+
+  // ----------------------------------------------------------------- page
 
   if (isAdmin) return <AdminModePage title="Local Cuts" />;
 
-  const counts = { sure: items.filter((i) => i.status === "sure").length, check: items.filter((i) => i.status === "check").length, none: items.filter((i) => i.status === "none").length };
-  const missing = items.filter((i) => !files.current.has(i.key)).length;
-  const sureNotOwned = items.filter((i) => i.status === "sure" && i.track_id && !i.owned);
-  const now = items.find((i) => i.key === playing);
+  const count = (k: Out["kind"]) => plan.filter((o) => o.kind === k).length;
+  const guesses = plan.filter((o) => o.song.guess);
+  const unsorted = plan.filter((o) => o.kind === "unsorted");
+  const untaggable = plan.filter((o) => o.tags && !canTag(o.song.file.name)).length;
+  const size = plan.reduce((t, o) => t + o.song.file.size, 0);
+  const label: Record<Stage, string> = {
+    idle: "", reading: "Reading your files", matching: "Matching them to the archive", claude: "Claude is looking at the unsure ones",
+    archive: "Sharing what your files know with the archive", ready: "", saving: "Writing your zip", saved: "",
+  };
 
   return (
     <div className="wrap local-cuts" style={{ maxWidth: 760 }}>
       <h1 className="detail-name page-title">Local Cuts</h1>
       <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Tidy your music with the archive. Add your download folder and every file gets the right title, artist,
-        album, year and cover art, a clean name and a proper folder, ready to copy to your phone for Spotify Local
-        Files or any music app. Unsure matches get a best guess, marked for you to check. <b>Nothing is uploaded and
-        your originals are never touched</b>: you get tidied copies.
+        Drop in your music folder and get back a tidy zip for Spotify Local Files: every song named properly, with
+        the right artist, album, year and cover art from the archive, sorted into Artist / Album folders. Files
+        that are already well formatted are kept as they are and help fill gaps in the archive.{" "}
+        <b>Your music is never uploaded and your originals are never touched.</b>
       </div>
 
-      <div className="local-pick">
-        <label className="tab active local-pick-btn local-folder-main">
-          + add a folder
-          <input type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-            {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-        </label>
-        <label className="tab local-pick-btn">
-          + add songs
-          <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
-        </label>
-        {items.length > 0 && <button className="tab" onClick={removeAll}>clear</button>}
-      </div>
-      {premium === false && (
-        <div className="comments-panel local-premium" style={{ marginBottom: 12 }}>
-          <b>Local Cuts is a premium feature.</b> You can try it: add your music and see how every file matches the
-          archive and what it would fix. Saving tidied copies for Spotify, the player, collecting from your files and
-          asking Claude come with premium. &ldquo;Help the archive&rdquo; is free for everyone.
-          {user ? " Ask the site owner about premium." : ""}
+      {premium === false && user && (
+        <div className="comments-panel" style={{ marginBottom: 12 }}>
+          <b>Saving the zip is a premium feature.</b> You can still run your folder through: see how it matches, and your
+          well-formatted files will help fill gaps in the archive. Ask the site owner about premium.
         </div>
       )}
       {!loading && !user && (
-        <div className="comment-meta" style={{ marginBottom: 10 }}>
-          <Link href="/login?next=/local" className="text-link">Log in</Link> to match songs to the archive and add them to your collection. You can still play them here.
-        </div>
-      )}
-      {progress && <div className="comments-panel" style={{ marginBottom: 10 }}>{progress}</div>}
-      {message && (
-        <div className="comments-panel" style={{ marginBottom: 10 }}>
-          {message}
-          {lastAdded.length > 0 && <> <button className="text-link inline-btn" onClick={undoCollect}>undo</button></>}
-        </div>
-      )}
-      {missing > 0 && (
-        <div className="comment-meta" style={{ marginBottom: 10 }}>
-          {missing} song{missing === 1 ? "" : "s"} remembered from last time. Phones and browsers forget files when you leave, so
-          pick them again to play them (matches and fixes are kept).
+        <div className="comments-panel" style={{ marginBottom: 12 }}>
+          <Link href="/login?next=/local" className="text-link">Log in</Link> to use Local Cuts.
         </div>
       )}
 
-      {items.length === 0 && !progress && (
-        <div className="empty-state">
-          Add the folder you download music into (or a few songs) to start. MP3 and FLAC get their details rewritten;
-          M4A, WAV and OGG are renamed and sorted. Got them in Spotify instead? See{" "}
-          <Link href="/listen" className="text-link">how to listen</Link>.
+      {(stage === "idle" || stage === "ready" || stage === "saved") && user && (
+        <label
+          className={`local-drop ${hover ? "is-over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setHover(true); }}
+          onDragLeave={() => setHover(false)}
+          onDrop={async (e) => { e.preventDefault(); setHover(false); run(await filesFromDrop(e.dataTransfer.items)); }}
+        >
+          <input type="file" multiple hidden onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; run(f); }}
+            {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+          <div className="local-drop-big">{stage === "idle" ? "Drop your music folder here" : "Drop another folder"}</div>
+          <div className="comment-meta">or click to choose one</div>
+        </label>
+      )}
+      {note && <div className="comments-panel" style={{ marginTop: 10 }}>{note}</div>}
+
+      {busy && (
+        <div className="local-progress">
+          <div className="review-row-title">{label[stage]}…</div>
+          <div className="local-bar"><div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} /></div>
+          <div className="comment-meta">{done.toLocaleString("en-GB")} of {total.toLocaleString("en-GB")}{stage === "saving" ? ` · ${gb(size)} in all` : ""}</div>
         </div>
       )}
 
-      {items.length > 0 && (
-        <div className="tabs" style={{ marginBottom: 12 }}>
-          <button className={`tab ${view === "tidy" ? "active" : ""}`} onClick={() => setView("tidy")}>tidy &amp; save</button>
-          <button className={`tab ${view === "library" ? "active" : ""}`} onClick={() => setView("library")}>matches &amp; player</button>
-          <button className={`tab ${view === "give" ? "active" : ""}`} onClick={() => setView("give")}>help the archive</button>
-        </div>
-      )}
-      {items.length > 0 && view === "tidy" && (
-        <Tidy items={items} files={files.current} locked={locked}
-          onEdit={(key, edit) => setItems((prev) => prev.map((x) => (x.key === key ? { ...x, edit } : x)))} />
-      )}
-
-      {items.length > 0 && view === "give" && (
-        <Give items={items} files={files.current} userId={user?.id ?? null} />
-      )}
-
-      {items.length > 0 && view === "library" && (
-        <>
-          <div className="tabs" style={{ marginBottom: 8 }}>
-            <button className={`tab ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>all ({items.length})</button>
-            <button className={`tab ${filter === "sure" ? "active" : ""}`} onClick={() => setFilter("sure")}>matched ({counts.sure})</button>
-            <button className={`tab ${filter === "check" ? "active" : ""}`} onClick={() => setFilter("check")}>check ({counts.check})</button>
-            <button className={`tab ${filter === "none" ? "active" : ""}`} onClick={() => setFilter("none")}>not found ({counts.none})</button>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-            <input className="search-input" style={{ flex: "1 1 180px" }} placeholder="Search your songs…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <select className="sort-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
-              <option value="artist">by artist</option>
-              <option value="title">by title</option>
-              <option value="added">newest first</option>
-            </select>
-            {user && unsure.length > 0 && (
-              <button className="tab" disabled={!!progress || locked} onClick={askClaude} title="Claude reads the file names and details (never the music) and picks the right song or version">
-                ask Claude about {unsure.length} unsure{locked ? " (premium)" : ""}
-              </button>
-            )}
-            {user && !locked && sureNotOwned.length > 0 && (
-              <button className="tab active" onClick={() => confirm(`Add ${sureNotOwned.length} matched song${sureNotOwned.length === 1 ? "" : "s"} to your collection?`) && collect(sureNotOwned)}>
-                collect {sureNotOwned.length} matched
-              </button>
-            )}
+      {(stage === "ready" || stage === "saved") && plan.length > 0 && (
+        <div className="local-summary">
+          <div className="local-stats">
+            <div><b>{count("tidied").toLocaleString("en-GB")}</b><span>tidied from the archive</span></div>
+            <div><b>{count("kept").toLocaleString("en-GB")}</b><span>already well formatted</span></div>
+            {count("claude") > 0 && <div><b>{count("claude").toLocaleString("en-GB")}</b><span>not on the site, tidied by Claude</span></div>}
+            <div><b>{unsorted.length.toLocaleString("en-GB")}</b><span>couldn&apos;t be identified</span></div>
           </div>
 
-          {shown.map((i) => (
-            <div key={i.key} className={`local-row ${playing === i.key ? "is-playing" : ""}`}>
-              <button className="local-play" disabled={locked || !files.current.has(i.key)} title={locked ? "The player comes with premium" : undefined} aria-label={playing === i.key ? "Pause" : "Play"}
-                onClick={() => (playing === i.key ? play(null) : play(i.key))}>{playing === i.key ? "■" : "▶"}</button>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="review-row-title">
-                  {i.track_id ? <Link href={`/song/${i.track_id}`}>{i.match_title}</Link> : (i.title ?? i.name)}
-                  <span className={`feature-tag local-${i.status}`}>{i.status === "sure" ? "matched" : i.status === "check" ? "check" : "not found"}</span>
-                  {i.parent_id && <span className="feature-tag">version</span>}
-                </div>
-                <div className="review-row-meta">
-                  <span>{i.match_artist ?? i.artist ?? "unknown artist"}</span>
-                  {i.duration && <span>{mmss(i.duration)}</span>}
-                  <span title={i.name} style={{ overflowWrap: "anywhere" }}>file: {i.title ?? "?"}{i.artist ? ` · ${i.artist}` : ""}</span>
-                </div>
-                {i.reason && <div className="comment-meta">{i.reason}</div>}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                  {user && !locked && i.track_id && (i.owned ? <span className="rating-chip">✓ collected</span>
-                    : <button className="rating-chip" onClick={() => collect([i])}>collect</button>)}
-                  {user && <button className="rating-chip" onClick={() => setFixing(fixing === i.key ? null : i.key)}>{fixing === i.key ? "close" : i.status === "sure" ? "change" : "fix match"}</button>}
-                  {i.status === "check" && <button className="rating-chip" onClick={() => update(i.key, { status: "sure", reason: "You confirmed this match." })}>that&apos;s right</button>}
-                </div>
-                {fixing === i.key && (
-                  <FixMatch item={i} onPick={(m) => { update(i.key, m); setFixing(null); }}
-                    onClear={() => { update(i.key, { track_id: null, match_title: null, match_artist: null, parent_id: null, status: "none", reason: "You left this unmatched." }); setFixing(null); }} />
-                )}
-              </div>
+          {sent && (sent.details > 0 || sent.songs > 0 || sent.problem) && (
+            <div className="comment-meta" style={{ marginBottom: 8 }}>
+              Helped the archive: {sent.details > 0 && <>details for {sent.details} song{sent.details === 1 ? "" : "s"}{sent.covers ? ` (${sent.covers} with cover art)` : ""}</>}
+              {sent.details > 0 && sent.songs > 0 && " and "}
+              {sent.songs > 0 && <>{sent.songs} song{sent.songs === 1 ? "" : "s"} the site didn&apos;t have</>}
+              {(sent.details > 0 || sent.songs > 0) && ", sent for review. Thanks!"}
+              {sent.problem && <> (stopped: {sent.problem})</>}
             </div>
-          ))}
-        </>
-      )}
+          )}
+          {claudeNote && <div className="comment-meta" style={{ marginBottom: 8 }}>{claudeNote}</div>}
+          {premium === false && unsorted.length > 0 && (
+            <div className="comment-meta" style={{ marginBottom: 8 }}>With premium, Claude also looks at the files that couldn&apos;t be identified.</div>
+          )}
 
-      <div className={`local-player ${now ? "" : "is-hidden"}`}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="review-row-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{now?.match_title ?? now?.title ?? now?.name}</div>
-          <div className="comment-meta">{now?.match_artist ?? now?.artist}</div>
-        </div>
-        <button className="rating-chip" onClick={() => step(-1)} aria-label="Previous">⏮</button>
-        <button className="rating-chip" onClick={() => step(1)} aria-label="Next">⏭</button>
-        <audio ref={audio} controls onEnded={() => step(1)} style={{ width: "100%", maxWidth: 360 }} />
-      </div>
-    </div>
-  );
-}
-
-// Pick the right song by hand: search the archive, then the exact version.
-function FixMatch({ item, onPick, onClear }: { item: Item; onPick: (patch: Partial<Item>) => void; onClear: () => void }) {
-  const [q, setQ] = useState(`${item.title ?? ""} ${firstArtist(item.artist) ?? ""}`.trim());
-  const [results, setResults] = useState<{ id: string; title: string; artist: string; artist_id: string; parent_track_id: string | null; status: string | null }[]>([]);
-  const [versions, setVersions] = useState<Version[] | null>(null);
-
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 2) { setResults([]); return; }
-    const t = setTimeout(async () => {
-      const { data } = await supabase.rpc("rpc_search_songs", { p_q: term, p_versions: true });
-      setResults(((data as { items?: typeof results } | null)?.items ?? []).slice(0, 12));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q]);
-
-  // The song and all its versions, so the exact one can be chosen.
-  useEffect(() => {
-    const id = item.track_id;
-    if (!id) { setVersions(null); return; }
-    const main = item.parent_id ?? id;
-    supabase.from("tracks").select("id, title, release_status, parent_track_id").or(`id.eq.${main},parent_track_id.eq.${main}`).limit(60)
-      .then(({ data }) => setVersions(((data as { id: string; title: string; release_status: string | null; parent_track_id: string | null }[] | null) ?? [])
-        .map((v) => ({ id: v.id, title: v.title, status: v.release_status, is_main: !v.parent_track_id }))
-        .sort((a, b) => Number(b.is_main) - Number(a.is_main) || a.title.localeCompare(b.title))));
-  }, [item.track_id, item.parent_id]);
-
-  return (
-    <div className="comments-panel" style={{ marginTop: 8 }}>
-      {versions && versions.length > 1 && (
-        <>
-          <div className="comment-meta" style={{ marginBottom: 6 }}>Which version is your file?</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {versions.map((v) => (
-              <button key={v.id} className={`rating-chip ${v.id === item.track_id ? "voted" : ""}`}
-                onClick={() => onPick({ track_id: v.id, match_title: v.title, parent_id: v.is_main ? null : (item.parent_id ?? item.track_id), status: "sure", reason: "You picked this version." })}>
-                {v.title}{v.is_main ? " (main)" : ""}
-              </button>
-            ))}
+          <div className="review-toolbar" style={{ marginTop: 10 }}>
+            <button className="tab active local-save" disabled={!premium || busy} onClick={saveZip}>
+              {premium ? `Download zip (${gb(size)})` : "Download zip (premium)"}
+            </button>
+            {premium && songs.some((s) => s.track_id) && !collected && (
+              <button className="tab" onClick={collectAll}>add matched songs to my collection</button>
+            )}
           </div>
-        </>
+          {saved && <div className="comments-panel" style={{ marginTop: 10 }}>{saved}</div>}
+          {collected && <div className="comment-meta" style={{ marginTop: 6 }}>{collected}</div>}
+          {untaggable > 0 && (
+            <div className="comment-meta" style={{ marginTop: 6 }}>
+              {untaggable} M4A/WAV/OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.
+            </div>
+          )}
+
+          {guesses.length > 0 && (
+            <details style={{ marginTop: 12 }}>
+              <summary className="section-label" style={{ cursor: "pointer" }}>Claude&apos;s best guesses ({guesses.length})</summary>
+              {guesses.map((o) => (
+                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>
+                  {o.song.file.name} → <Link className="text-link" href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link>{o.song.why ? ` (${o.song.why})` : ""}
+                </div>
+              ))}
+            </details>
+          )}
+          {unsorted.length > 0 && (
+            <details style={{ marginTop: 8 }}>
+              <summary className="section-label" style={{ cursor: "pointer" }}>Couldn&apos;t be identified ({unsorted.length}): kept as they were, in &ldquo;Unsorted&rdquo;</summary>
+              {unsorted.slice(0, 500).map((o) => (
+                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>{o.song.file.webkitRelativePath || o.song.file.name}</div>
+              ))}
+              {unsorted.length > 500 && <div className="comment-meta">…and {unsorted.length - 500} more (all listed in the changes file in the zip).</div>}
+            </details>
+          )}
+        </div>
       )}
-      <input className="search-input" style={{ width: "100%" }} placeholder="Search the archive…" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div style={{ marginTop: 6 }}>
-        {results.map((r) => (
-          <button key={r.id} className="local-result" onClick={() => onPick({
-            track_id: r.id, match_title: r.title, match_artist: r.artist, artist_id: r.artist_id, parent_id: r.parent_track_id,
-            status: "sure", reason: "You picked this match.",
-          })}>
-            <span>{r.title}{r.parent_track_id ? " (version)" : ""}</span>
-            <span className="comment-meta">{r.artist}{r.status && r.status !== "unconfirmed" ? ` · ${r.status}` : ""}</span>
-          </button>
-        ))}
-      </div>
-      <button className="text-link inline-btn" style={{ marginTop: 6 }} onClick={onClear}>it&apos;s not in the archive: leave it unmatched</button>
     </div>
   );
 }
