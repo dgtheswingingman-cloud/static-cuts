@@ -99,6 +99,16 @@ export default function LocalCutsPage() {
   const [saved, setSaved] = useState<string | null>(null);
   const [collected, setCollected] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
+  // The live feed while it runs: file names turning into songs.
+  const [feed, setFeed] = useState<{ id: number; from: string; to: string; kind: "match" | "claude" | "keep" | "save" }[]>([]);
+  const feedId = useRef(0);
+  const lastFeed = useRef(0);
+  function show(from: string, to: string, kind: "match" | "claude" | "keep" | "save", force = false) {
+    const now = Date.now();
+    if (!force && now - lastFeed.current < 180) return; // a readable pace, not a blur
+    lastFeed.current = now;
+    setFeed((f) => [{ id: ++feedId.current, from, to, kind }, ...f].slice(0, 6));
+  }
   const site = useRef(new Map<string, Site>());
 
   const busy = !["idle", "ready", "saved"].includes(stage);
@@ -110,7 +120,7 @@ export default function LocalCutsPage() {
     if (!user || busy) return;
     const list = picked.filter((f) => AUDIO.test(f.name) || f.type.startsWith("audio/"));
     if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return; }
-    setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]);
+    setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]); setFeed([]);
     site.current = new Map();
 
     // 1. Read every file's details.
@@ -128,6 +138,7 @@ export default function LocalCutsPage() {
         formatted: t.from === "tags" && !!t.title && !!t.artist && !!d?.hasCover,
         track_id: null, artist_id: null, sure: false, guess: false, why: null, clean: null,
       };
+      if (t.title) show(f.name, [firstArtist(t.artist), t.title].filter(Boolean).join(" — "), "keep");
       setDone(++n);
     });
 
@@ -144,7 +155,10 @@ export default function LocalCutsPage() {
           const r = rows[j];
           if (!s.artist || !r) return;
           s.artist_id = r.artist_id;
-          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
+          if (r.track_id) {
+            s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title);
+            if (s.sure) show(s.file.name, `${firstArtist(s.artist)} — ${r.title}`, "match");
+          }
         });
       }
       setDone(Math.min(i + 200, read.length));
@@ -176,6 +190,7 @@ export default function LocalCutsPage() {
             if (r.artist_id) s.artist_id = r.artist_id;
             if (r.track_id && (r.confidence === "high" || r.confidence === "medium")) {
               s.track_id = r.track_id; s.sure = true; s.guess = r.confidence === "medium"; found++;
+              show(s.file.name, `${r.clean?.artist ?? firstArtist(s.artist) ?? ""} — ${r.clean?.title ?? ""}`, "claude", true);
             } else {
               s.track_id = null; s.sure = false;
             }
@@ -369,6 +384,7 @@ export default function LocalCutsPage() {
         const zip = new ZipToDisk(out);
         for (let i = 0; i < plan.length; i++) {
           try { await zip.add(`Static Cuts/${plan[i].path}`, await blobFor(plan[i], cache)); } catch { failed++; }
+          show(plan[i].song.file.name, plan[i].path, "save");
           setDone(i + 1);
         }
         await zip.add("Static Cuts/Static Cuts changes.csv", changesCsv());
@@ -397,115 +413,164 @@ export default function LocalCutsPage() {
   const unsorted = plan.filter((o) => o.kind === "unsorted");
   const untaggable = plan.filter((o) => o.tags && !canTag(o.song.file.name)).length;
   const size = plan.reduce((t, o) => t + o.song.file.size, 0);
-  const label: Record<Stage, string> = {
-    idle: "", reading: "Reading your files", matching: "Matching them to the archive", claude: "Claude is looking at the unsure ones",
-    archive: "Sharing what your files know with the archive", ready: "", saving: "Writing your zip", saved: "",
-  };
+  const STEPS: [Stage, string][] = [
+    ["reading", "Reading your files"], ["matching", "Matching them to the archive"],
+    ["claude", "Claude checks the unsure ones"], ["archive", "Sharing what your files know"], ["saving", "Writing your zip"],
+  ];
+  const order = STEPS.map(([k]) => k);
+  const at = order.indexOf(stage);
+  const parts: { k: Out["kind"]; n: number; label: string }[] = [
+    { k: "tidied", n: count("tidied"), label: "tidied from the archive" },
+    { k: "kept", n: count("kept"), label: "already well formatted, kept as they were" },
+    { k: "claude", n: count("claude"), label: "not on the site yet, tidied by Claude" },
+    { k: "unsorted", n: unsorted.length, label: "couldn't be identified, left as they were" },
+  ];
+  const ready = (stage === "ready" || stage === "saved") && plan.length > 0;
 
   return (
-    <div className="wrap local-cuts" style={{ maxWidth: 760 }}>
-      <h1 className="detail-name page-title">Local Cuts</h1>
-      <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Drop in your music folder and get back a tidy zip for Spotify Local Files: every song named properly, with
-        the right artist, album, year and cover art from the archive, sorted into Artist / Album folders. Files
-        that are already well formatted are kept as they are and help fill gaps in the archive.{" "}
-        <b>Your music is never uploaded and your originals are never touched.</b>
-      </div>
+    <div className="wrap lc">
+      <header className="lc-head">
+        <h1 className="lc-title">Local Cuts</h1>
+        <p className="lc-lede">
+          Drop in your music folder. Every song comes back named properly, with the right artist, album, year and
+          cover art from the archive, sorted into folders and zipped, ready for Spotify Local Files.
+        </p>
+      </header>
+
+      {stage === "idle" && (
+        <div className="lc-demo" aria-hidden="true">
+          {[
+            ["track_07_final(2).mp3", "Ken Carson", "Freestyle (feat. Destroy Lonely)", "Unreleased 2021"],
+            ["@playboicarti - sky (prod pierre) [CDQ].mp3", "Playboi Carti", "Sky", "Whole Lotta Red"],
+            ["New Recording 14.m4a", "Bladee", "Obedient", "Eversince"],
+          ].map(([from, artist, title, album]) => (
+            <div key={from} className="lc-demo-row">
+              <span className="lc-from">{from}</span>
+              <span className="lc-to"><b>{title}</b><span>{artist} / {album}</span></span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {premium === false && user && (
-        <div className="comments-panel" style={{ marginBottom: 12 }}>
-          <b>Saving the zip is a premium feature.</b> You can still run your folder through: see how it matches, and your
-          well-formatted files will help fill gaps in the archive. Ask the site owner about premium.
+        <div className="lc-note">
+          <b>Downloading the zip comes with premium.</b> You can still run a folder through to see how it matches,
+          and your well-formatted files will help fill gaps in the archive. Ask the site owner about premium.
         </div>
       )}
       {!loading && !user && (
-        <div className="comments-panel" style={{ marginBottom: 12 }}>
-          <Link href="/login?next=/local" className="text-link">Log in</Link> to use Local Cuts.
-        </div>
+        <div className="lc-note"><Link href="/login?next=/local" className="text-link">Log in</Link> to use Local Cuts.</div>
       )}
 
-      {(stage === "idle" || stage === "ready" || stage === "saved") && user && (
+      {!busy && user && (
         <label
-          className={`local-drop ${hover ? "is-over" : ""}`}
+          className={`lc-drop ${hover ? "is-over" : ""} ${ready ? "is-small" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
           onDrop={async (e) => { e.preventDefault(); setHover(false); run(await filesFromDrop(e.dataTransfer.items)); }}
         >
           <input type="file" multiple hidden onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; run(f); }}
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-          <div className="local-drop-big">{stage === "idle" ? "Drop your music folder here" : "Drop another folder"}</div>
-          <div className="comment-meta">or click to choose one</div>
+          <span className="lc-drop-big">{ready ? "Drop another folder" : "Drop your music folder"}</span>
+          <span className="lc-drop-small">or click to choose one · MP3, FLAC, M4A, WAV, OGG</span>
         </label>
       )}
-      {note && <div className="comments-panel" style={{ marginTop: 10 }}>{note}</div>}
+      {!busy && user && !ready && (
+        <p className="lc-promise">Your music never leaves your computer, and your original files are never changed.</p>
+      )}
+      {note && <div className="lc-note">{note}</div>}
 
       {busy && (
-        <div className="local-progress">
-          <div className="review-row-title">{label[stage]}…</div>
-          <div className="local-bar"><div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} /></div>
-          <div className="comment-meta">{done.toLocaleString("en-GB")} of {total.toLocaleString("en-GB")}{stage === "saving" ? ` · ${gb(size)} in all` : ""}</div>
-        </div>
+        <section className="lc-run" aria-live="polite">
+          <ol className="lc-steps">
+            {STEPS.filter(([k]) => (stage === "saving" ? k === "saving" : k !== "saving" && (k !== "claude" || premium))).map(([k, label]) => {
+              const i = order.indexOf(k);
+              const state = i < at ? "done" : i === at ? "now" : "later";
+              return (
+                <li key={k} className={`lc-step is-${state}`}>
+                  <span className="lc-step-label">{label}</span>
+                  {state === "now" && <span className="lc-step-count">{done.toLocaleString("en-GB")} / {total.toLocaleString("en-GB")}</span>}
+                </li>
+              );
+            })}
+          </ol>
+          <div className="lc-bar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+            <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} />
+          </div>
+          <ul className="lc-feed">
+            {feed.map((f) => (
+              <li key={f.id} className={`lc-feed-row is-${f.kind}`}>
+                <span className="lc-from">{f.from}</span>
+                <span className="lc-to"><b>{f.to}</b>{f.kind === "claude" && <span>found by Claude</span>}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {(stage === "ready" || stage === "saved") && plan.length > 0 && (
-        <div className="local-summary">
-          <div className="local-stats">
-            <div><b>{count("tidied").toLocaleString("en-GB")}</b><span>tidied from the archive</span></div>
-            <div><b>{count("kept").toLocaleString("en-GB")}</b><span>already well formatted</span></div>
-            {count("claude") > 0 && <div><b>{count("claude").toLocaleString("en-GB")}</b><span>not on the site, tidied by Claude</span></div>}
-            <div><b>{unsorted.length.toLocaleString("en-GB")}</b><span>couldn&apos;t be identified</span></div>
+      {ready && (
+        <section className="lc-done">
+          <div className="lc-total">
+            <span className="lc-total-n">{plan.length.toLocaleString("en-GB")}</span>
+            <span className="lc-total-label">songs ready · {gb(size)}</span>
           </div>
+          <div className="lc-split" aria-hidden="true">
+            {parts.filter((p) => p.n > 0).map((p) => (
+              <span key={p.k} className={`is-${p.k}`} style={{ flexGrow: p.n }} />
+            ))}
+          </div>
+          <ul className="lc-legend">
+            {parts.filter((p) => p.n > 0).map((p) => (
+              <li key={p.k}><i className={`is-${p.k}`} /><b>{p.n.toLocaleString("en-GB")}</b> {p.label}</li>
+            ))}
+          </ul>
 
-          {sent && (sent.details > 0 || sent.songs > 0 || sent.problem) && (
-            <div className="comment-meta" style={{ marginBottom: 8 }}>
-              Helped the archive: {sent.details > 0 && <>details for {sent.details} song{sent.details === 1 ? "" : "s"}{sent.covers ? ` (${sent.covers} with cover art)` : ""}</>}
-              {sent.details > 0 && sent.songs > 0 && " and "}
-              {sent.songs > 0 && <>{sent.songs} song{sent.songs === 1 ? "" : "s"} the site didn&apos;t have</>}
-              {(sent.details > 0 || sent.songs > 0) && ", sent for review. Thanks!"}
-              {sent.problem && <> (stopped: {sent.problem})</>}
-            </div>
-          )}
-          {claudeNote && <div className="comment-meta" style={{ marginBottom: 8 }}>{claudeNote}</div>}
-          {premium === false && unsorted.length > 0 && (
-            <div className="comment-meta" style={{ marginBottom: 8 }}>With premium, Claude also looks at the files that couldn&apos;t be identified.</div>
-          )}
+          <button className="lc-save" disabled={!premium || busy} onClick={saveZip}>
+            {premium ? "Download zip" : "Download zip · premium"}
+          </button>
+          {saved && <div className="lc-note">{saved}</div>}
 
-          <div className="review-toolbar" style={{ marginTop: 10 }}>
-            <button className="tab active local-save" disabled={!premium || busy} onClick={saveZip}>
-              {premium ? `Download zip (${gb(size)})` : "Download zip (premium)"}
-            </button>
-            {premium && songs.some((s) => s.track_id) && !collected && (
-              <button className="tab" onClick={collectAll}>add matched songs to my collection</button>
+          <div className="lc-extra">
+            {sent && (sent.details > 0 || sent.songs > 0) && (
+              <p>
+                Your files helped the archive:{" "}
+                {[sent.details > 0 && `details for ${sent.details} song${sent.details === 1 ? "" : "s"}${sent.covers ? ` (${sent.covers} with cover art)` : ""}`,
+                  sent.songs > 0 && `${sent.songs} song${sent.songs === 1 ? "" : "s"} it didn't have`].filter(Boolean).join(" and ")}
+                , sent for review.
+              </p>
             )}
+            {sent?.problem && <p>Sharing with the archive stopped: {sent.problem}</p>}
+            {claudeNote && <p>{claudeNote}</p>}
+            {premium === false && unsorted.length > 0 && <p>With premium, Claude also looks at the files that couldn&apos;t be identified.</p>}
+            {untaggable > 0 && <p>{untaggable} M4A, WAV or OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.</p>}
+            {premium && songs.some((s) => s.track_id) && !collected && (
+              <button className="text-link inline-btn" onClick={collectAll}>Add the matched songs to my collection</button>
+            )}
+            {collected && <p>{collected}</p>}
           </div>
-          {saved && <div className="comments-panel" style={{ marginTop: 10 }}>{saved}</div>}
-          {collected && <div className="comment-meta" style={{ marginTop: 6 }}>{collected}</div>}
-          {untaggable > 0 && (
-            <div className="comment-meta" style={{ marginTop: 6 }}>
-              {untaggable} M4A/WAV/OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.
-            </div>
-          )}
 
           {guesses.length > 0 && (
-            <details style={{ marginTop: 12 }}>
-              <summary className="section-label" style={{ cursor: "pointer" }}>Claude&apos;s best guesses ({guesses.length})</summary>
+            <details className="lc-list">
+              <summary>Claude&apos;s best guesses <span>{guesses.length}</span></summary>
               {guesses.map((o) => (
-                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>
-                  {o.song.file.name} → <Link className="text-link" href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link>{o.song.why ? ` (${o.song.why})` : ""}
+                <div key={o.song.key} className="lc-list-row">
+                  <span className="lc-from">{o.song.file.name}</span>
+                  <span className="lc-to"><Link href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link>{o.song.why && <span>{o.song.why}</span>}</span>
                 </div>
               ))}
             </details>
           )}
           {unsorted.length > 0 && (
-            <details style={{ marginTop: 8 }}>
-              <summary className="section-label" style={{ cursor: "pointer" }}>Couldn&apos;t be identified ({unsorted.length}): kept as they were, in &ldquo;Unsorted&rdquo;</summary>
+            <details className="lc-list">
+              <summary>Couldn&apos;t be identified <span>{unsorted.length}</span></summary>
+              <p className="lc-list-note">These go in the zip&apos;s Unsorted folder exactly as they were.</p>
               {unsorted.slice(0, 500).map((o) => (
-                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>{o.song.file.webkitRelativePath || o.song.file.name}</div>
+                <div key={o.song.key} className="lc-list-row"><span className="lc-from">{o.song.file.webkitRelativePath || o.song.file.name}</span></div>
               ))}
-              {unsorted.length > 500 && <div className="comment-meta">…and {unsorted.length - 500} more (all listed in the changes file in the zip).</div>}
+              {unsorted.length > 500 && <p className="lc-list-note">And {unsorted.length - 500} more, all listed in the changes file inside the zip.</p>}
             </details>
           )}
-        </div>
+        </section>
       )}
     </div>
   );
