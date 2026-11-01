@@ -3,7 +3,7 @@
 // Reads artists' releases from Deezer's public catalogue (no sign-in), a
 // little at a time, each call with a 'deezer' ticket. The timer runs every
 // minute. Owner's pace setting (sc_deezer_mode):
-//   normal:   every other minute, up to 60 calls
+//   normal:   every minute, up to 60 calls
 //   extreme:  every minute, five workers at once for up to 50 seconds (the
 //             site is paused for everyone else meanwhile)
 // The database hands out (and claims) what's next (sc_deezer_next):
@@ -70,8 +70,7 @@ Deno.serve(async (req) => {
     const { data: t } = await db.from("sc_private_settings").select("value").eq("key", "deezer_turbo").maybeSingle();
     modeName = t?.value === "extreme" ? "extreme" : "off";
   }
-  // Normal pace: every other minute.
-  if (modeName !== "extreme" && new Date().getUTCMinutes() % 2 === 1) return json({ ok: true, skipped: "normal pace" });
+  // Normal pace: every minute, one worker, up to 60 calls.
   const mode = modeName === "extreme" ? EXTREME : NORMAL;
   gap = mode.gap;
   const started = Date.now();
@@ -120,9 +119,10 @@ Deno.serve(async (req) => {
       } else if (next.kind === "album") {
         const r = await deezer(`/album/${next.album_id}/tracks?limit=300`);
         if (!r.ok) { if (r.stop) stop = true; return; } // try again next run
-        const tracks = ((r.body?.data ?? []) as { title: string; track_position: number; disk_number: number; link: string; artist?: { name: string } }[])
+        const tracks = ((r.body?.data ?? []) as { title: string; track_position: number; disk_number: number; link: string; duration?: number; artist?: { name: string } }[])
           .filter((t) => !CLEAN.test(t.title))
-          .map((t) => ({ title: tidyTitle(t.title), position: t.track_position, disk: t.disk_number, link: t.link, artist: t.artist?.name ?? "" }));
+          .map((t) => ({ title: tidyTitle(t.title), position: t.track_position, disk: t.disk_number, link: t.link, artist: t.artist?.name ?? "",
+            duration: Number.isFinite(t.duration) && (t.duration ?? 0) > 0 ? t.duration : null }));
         const { data: res } = await db.rpc("sc_deezer_album_save", { p_secret: secret, p_artist: next.artist_id, p_album: next.album_id, p_tracks: tracks });
         done.releases++;
         done.matched += (res?.matched as number) ?? 0;
