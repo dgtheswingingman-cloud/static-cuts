@@ -89,7 +89,8 @@ function splitCredits(t: string): { title: string; credits: string[] } {
 // Every call to Spotify, Genius or Last.fm takes a ticket from that
 // service's shared allowance first (sc_api_allow: a set number a minute and
 // a day across all jobs). When this minute's tickets are gone it waits for
-// the next minute, up to 4 times. Each service also has a shared pause that
+// the next minute, once (a run is cut off after 150 s, so waiting longer
+// left it stuck as "running"). Each service also has a shared pause that
 // every job respects after a "slow down" reply.
 const SERVICE_KEY: Record<string, string> = { Spotify: "spotify", Genius: "genius", "Last.fm": "lastfm" };
 
@@ -100,13 +101,14 @@ async function apiTicket(service: string) {
   if (pause?.value && Date.parse(pause.value) > Date.now()) {
     throw new Error(`${service} has asked us to pause for a while. Try this import again later.`);
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 2; i++) {
     const { data, error } = key === "spotify"
       ? await db.rpc("sc_spotify_allow", { p_want: 1 })
       : await db.rpc("sc_api_allow", { p_service: key, p_want: 1 });
     // Genius/Last.fm allowance not set up yet: carry on at the usual gentle pace.
     if (error && key !== "spotify") return;
     if (data === 1) return;
+    if (i === 1) break;
     await sleep(61000 - (Date.now() % 60000));
   }
   throw new Error(`${service} is busy with other jobs right now. Try this import again in a few minutes.`);
