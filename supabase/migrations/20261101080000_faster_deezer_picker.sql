@@ -47,7 +47,10 @@ declare
     for update of d skip locked;
   end if;$n$;
 begin
+  -- Pasted on Windows, the text above can carry \r\n line endings too.
   d := replace(d, E'\r\n', E'\n');
+  old_block := replace(old_block, E'\r\n', E'\n');
+  new_block := replace(new_block, E'\r\n', E'\n');
   if position(old_block in d) = 0 then
     if position('select a.id into v_artist' || E'\n' || '  from artists a left join sc_artist_weights()' in d) > 0 then return; end if;
     raise exception 'could not update sc_deezer_next';
