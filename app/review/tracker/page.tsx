@@ -8,11 +8,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModToolbar, ModRow, ModButton, ModBulkBar, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type Row = {
   id: string; track_id: string; title: string; artist_id: string; artist: string;
@@ -23,13 +23,13 @@ type Row = {
 export default function TrackerDisagreementsPage() {
   const { loading: authLoading } = useAuth();
   const canModerate = useIsModerator();
-  const router = useRouter();
   const [items, setItems] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [artistFilter, setArtistFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [limit, setLimit] = useState(200);
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_tracker_disagreements");
@@ -66,64 +66,61 @@ export default function TrackerDisagreementsPage() {
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   const selectedHere = shown.filter((r) => selected.has(r.id)).map((r) => r.id);
+  const toggle = (id: string, on: boolean) => setSelected((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n; });
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
-      <h1 className="detail-name page-title">Tracker Disagrees</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
+    <ModPage
+      title="Tracker disagrees"
+      intro={<>
         A community tracker gives a different status from ours. Blank statuses are filled from trackers automatically;
         these are the ones where both sides say something different. A song Spotify confirms as released is never
         changed by a tracker. Changes can be reversed from the <UndoHistoryLink />.
-      </div>
-
-      {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
-      {error && <div className="comment-meta" style={{ marginBottom: 12 }}>Couldn&apos;t load: {error}</div>}
-      {items === null && <div className="empty-state">loading…</div>}
-      {items && items.length === 0 && !error && <div className="empty-state">No disagreements. Trackers and the site agree.</div>}
-
+      </>}
+    >
       {items && items.length > 0 && (
-        <div className="review-toolbar">
-          <div className="review-toolbar-row">
-            <select className="sort-select" aria-label="Artist" value={artistFilter}
-              onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); }}>
-              <option value="">all artists ({items.length})</option>
-              {artists.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-            <button className="tab" onClick={() => setSelected(new Set(shown.map((r) => r.id)))}>select all</button>
-            <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
-            <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => decide(true, selectedHere)}>
-              use tracker ({selectedHere.length})
-            </button>
-            <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => decide(false, selectedHere)}>
-              keep ours
-            </button>
-          </div>
+        <ModToolbar
+          sticky
+          right={<select className="sort-select" aria-label="Artist" value={artistFilter}
+            onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); setLimit(200); }}>
+            <option value="">all artists ({items.length.toLocaleString()})</option>
+            {artists.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>}
+        >
+          <ModButton onClick={() => setSelected(new Set(shown.map((r) => r.id)))}>tick all ({shown.length.toLocaleString()})</ModButton>
+        </ModToolbar>
+      )}
+      <ModBulkBar count={selectedHere.length} onClear={() => setSelected(new Set())}>
+        <ModButton kind="approve" busy={busy} onClick={() => decide(true, selectedHere)}>use tracker</ModButton>
+        <ModButton kind="dismiss" busy={busy} onClick={() => decide(false, selectedHere)}>keep ours</ModButton>
+      </ModBulkBar>
+
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
+      {error && <ModNotice kind="error">Couldn&apos;t load: {error}</ModNotice>}
+      {items === null && <ModLoading />}
+      {items && items.length === 0 && !error && <ModEmpty>No disagreements. Trackers and the site agree.</ModEmpty>}
+
+      {shown.slice(0, limit).map((r) => (
+        <ModRow
+          key={r.id}
+          check={{ checked: selected.has(r.id), onChange: (on) => toggle(r.id, on) }}
+          title={<Link href={`/song/${r.track_id}`}>{r.title}</Link>}
+          meta={<>
+            <span>{r.artist}</span>
+            <span>ours: <strong>{r.current_status}</strong></span>
+            <span>tracker: <strong>{r.tracker_status}</strong></span>
+            <a href={r.source_url} target="_blank" rel="noopener noreferrer">{r.source_title}</a>
+          </>}
+          actions={<>
+            <ModButton kind="approve" busy={busy} onClick={() => decide(true, [r.id])}>use tracker</ModButton>
+            <ModButton kind="dismiss" busy={busy} onClick={() => decide(false, [r.id])}>keep ours</ModButton>
+          </>}
+        />
+      ))}
+      {shown.length > limit && (
+        <div style={{ marginTop: 14 }}>
+          <ModButton onClick={() => setLimit(limit + 200)}>show 200 more ({(shown.length - limit).toLocaleString()} left)</ModButton>
         </div>
       )}
-
-      {shown.map((r) => (
-        <div key={r.id} data-row-id={r.id} className="review-row">
-          <input type="checkbox" checked={selected.has(r.id)} aria-label={`select ${r.title}`}
-            onChange={() => setSelected((prev) => { const n = new Set(prev); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} />
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title">
-              <Link href={`/song/${r.track_id}`}>{r.title}</Link>
-            </div>
-            <div className="review-row-meta">
-              <span>{r.artist}</span>
-              <span>ours: <strong>{r.current_status}</strong></span>
-              <span>tracker: <strong>{r.tracker_status}</strong></span>
-              <a href={r.source_url} target="_blank" rel="noopener noreferrer">{r.source_title}</a>
-            </div>
-          </div>
-          <div className="review-row-actions">
-            <button className="rating-chip" disabled={busy} onClick={() => decide(true, [r.id])}>use tracker</button>
-            <button className="rating-chip" disabled={busy} onClick={() => decide(false, [r.id])}>keep ours</button>
-          </div>
-        </div>
-      ))}
-
-    </div>
+    </ModPage>
   );
 }

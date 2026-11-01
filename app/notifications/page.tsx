@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin } from "../useIsAdmin";
+import { ModPage, ModRow, ModButton, ModTag, ModLoading, ModEmpty } from "../components/Mod";
 
 type Note = { id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null };
 
@@ -38,32 +39,31 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">{isAdmin ? "Admin alerts" : "Notifications"}</h1>
-      <div className="detail-meta">
-        {isAdmin ? (
-          <>Things that need the admin: background jobs that failed, takedown requests and the like. These only show in admin mode.</>
-        ) : (
-          <>Songs you asked to be reminded about (on the <Link href="/radar" className="text-link">release radar</Link> or a
-          song page), and songs you&apos;ve collected changing status.</>
-        )}
-      </div>
-      {!items && <div className="empty-state">loading…</div>}
+    <ModPage
+      title={isAdmin ? "Admin alerts" : "Notifications"}
+      back={isAdmin ? "/control" : null}
+      intro={isAdmin ? (
+        <>Things that need the admin: background jobs that failed, takedown requests and the like. These only show in admin mode.</>
+      ) : (
+        <>Songs you asked to be reminded about (on the <Link href="/radar" className="text-link">release radar</Link> or a
+        song page), and songs you&apos;ve collected changing status.</>
+      )}
+    >
+      {!items && <ModLoading />}
       {items && items.length === 0 && (
-        <div className="empty-state">{isAdmin ? "No alerts. All quiet." : <>Nothing yet. Press &ldquo;remind me&rdquo; on anything coming up.</>}</div>
+        <ModEmpty>{isAdmin ? "No alerts. All quiet." : <>Nothing yet. Press &ldquo;remind me&rdquo; on anything coming up.</>}</ModEmpty>
       )}
       {items?.map((n) => (
-        <div key={n.id} className={`review-row ${n.read_at ? "" : "unread-note"}`} style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title">{n.link ? <Link href={n.link}>{n.title}</Link> : n.title}</div>
-            <div className="review-row-meta">
-              {n.body && <span>{n.body}</span>}
-              <span>{new Date(n.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-            </div>
-          </div>
-          <button className="rating-chip" aria-label="Remove" onClick={() => remove(n)}>✕</button>
-        </div>
+        <ModRow
+          key={n.id}
+          title={<>{n.link ? <Link href={n.link}>{n.title}</Link> : n.title}{!n.read_at && <ModTag kind="good">new</ModTag>}</>}
+          meta={<>
+            {n.body && <span>{n.body}</span>}
+            <span>{new Date(n.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+          </>}
+          actions={<ModButton kind="dismiss" onClick={() => remove(n)}>{isAdmin ? "dismiss" : "remove"}</ModButton>}
+        />
       ))}
-    </div>
+    </ModPage>
   );
 }

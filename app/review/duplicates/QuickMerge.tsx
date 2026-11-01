@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { ModButton, ModNotice, ModRow, ModSection } from "../../components/Mod";
 
 type IdenticalGroup = {
   artist_id: string;
@@ -57,7 +58,7 @@ export default function QuickMerge({ onMerged }: { onMerged: () => void }) {
     for (let i = 0; i < chosen.length; i += 50) {
       const batch = chosen.slice(i, i + 50).map((g) => g.track_ids);
       const { error: err } = await supabase.rpc("admin_quick_merge", { p_groups: batch });
-      if (err) { setBusy(false); alert(err.message); load(); onMerged(); return; }
+      if (err) { setBusy(false); setError(err.message); onMerged(); return; }
     }
     setBusy(false);
     load();
@@ -65,7 +66,7 @@ export default function QuickMerge({ onMerged }: { onMerged: () => void }) {
   }
 
   if (groups === null) return null;
-  if (error) return <div className="comment-meta" style={{ marginBottom: 14 }}>Quick merge unavailable: {error}</div>;
+  if (error) return <ModNotice kind="error">Quick merge unavailable: {error}</ModNotice>;
   if (groups.length === 0) return null;
 
   // Group the list by artist for scanning.
@@ -73,12 +74,12 @@ export default function QuickMerge({ onMerged }: { onMerged: () => void }) {
   groups.forEach((g) => { (byArtist[g.artist_name] = byArtist[g.artist_name] || []).push(g); });
 
   return (
-    <div style={{ border: "1px solid var(--hair)", borderRadius: 4, padding: "10px 12px", marginBottom: 18 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="track-title">Quick merge: {groups.length} identical group{groups.length === 1 ? "" : "s"}</span>
-        <button className="tab" onClick={() => setOpen(!open)}>{open ? "hide" : "show"}</button>
+    <div className="mod-group" style={{ marginBottom: 18 }}>
+      <div className="mod-group-head">
+        <span className="mod-row-title">Quick merge: {groups.length} identical group{groups.length === 1 ? "" : "s"}</span>
+        <ModButton onClick={() => setOpen(!open)}>{open ? "hide" : "show"}</ModButton>
       </div>
-      <div className="comment-meta" style={{ marginTop: 4 }}>
+      <div className="comment-meta">
         Exact same title on one artist&apos;s page, same status and details, and nothing collected, rated or
         commented. Some may still be different versions that were never named apart (a song listed 9 times is
         worth a look first), so tick only the ones you&apos;re happy to merge.
@@ -86,24 +87,24 @@ export default function QuickMerge({ onMerged }: { onMerged: () => void }) {
 
       {open && (
         <>
-          <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
-            <button className="tab" onClick={() => setSelected(new Set(groups.map(keyOf)))}>select all</button>
-            <button className="tab" onClick={() => setSelected(new Set())}>select none</button>
-            <button className="tab active" disabled={busy || selected.size === 0} onClick={mergeSelected}>
-              {busy ? "merging…" : `merge selected (${selected.size})`}
-            </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0" }}>
+            <ModButton onClick={() => setSelected(selected.size === groups.length ? new Set() : new Set(groups.map(keyOf)))}>
+              {selected.size === groups.length ? "untick all" : `tick all (${groups.length})`}
+            </ModButton>
+            <ModButton kind="approve" busy={busy} disabled={selected.size === 0} onClick={mergeSelected}>
+              {busy ? "merging…" : `merge ticked (${selected.size})`}
+            </ModButton>
           </div>
           {Object.keys(byArtist).map((artistName) => (
-            <div key={artistName} style={{ marginBottom: 8 }}>
-              <div className="section-label">{artistName}</div>
+            <div key={artistName}>
+              <ModSection>{artistName}</ModSection>
               {byArtist[artistName].map((g) => (
-                <label key={keyOf(g)} className="comment-meta" style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", marginTop: 2 }}>
-                  <input type="checkbox" checked={selected.has(keyOf(g))} onChange={() => toggle(g)} />
-                  <Link href={`/artist/${g.artist_id}?highlight=${g.track_ids[0]}`} style={{ color: "var(--bone)" }} onClick={(e) => e.stopPropagation()}>
-                    {g.title}
-                  </Link>
-                  <span>× {g.copies}</span>
-                </label>
+                <ModRow
+                  key={keyOf(g)}
+                  check={{ checked: selected.has(keyOf(g)), onChange: () => toggle(g) }}
+                  title={<Link href={`/artist/${g.artist_id}?highlight=${g.track_ids[0]}`}>{g.title}</Link>}
+                  meta={<span>{g.copies} copies</span>}
+                />
               ))}
             </div>
           ))}

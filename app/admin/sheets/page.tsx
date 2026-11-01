@@ -6,11 +6,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
+import { ModPage, ModNotice, ModSection } from "../../components/Mod";
 
 const FN_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/sheet-import";
 
@@ -89,7 +89,6 @@ function trackerSummary(r: { statuses?: number; details?: number; disagree?: num
 export default function SheetsPage() {
   const { user, loading: authLoading } = useAuth();
   const canModerate = useIsModerator();
-  const router = useRouter();
 
   const [url, setUrl] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -289,7 +288,7 @@ export default function SheetsPage() {
     <>
       <input className="search-input" placeholder="Search artists…" value={artistQuery} onChange={(e) => setArtistQuery(e.target.value)} />
       {artistResults.map((a) => (
-        <button key={a.id} className="rating-chip" onClick={() => { setArtist(a); setArtistQuery(""); }}>{a.name}</button>
+        <button key={a.id} className="mod-btn plain" onClick={() => { setArtist(a); setArtistQuery(""); }}>{a.name}</button>
       ))}
     </>
   );
@@ -298,21 +297,20 @@ export default function SheetsPage() {
   const statusValues = mapping?.status_column ? preview?.values[mapping.status_column] ?? [] : [];
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
-      <h1 className="detail-name page-title">Import a spreadsheet</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
+    <ModPage
+      title="Import a spreadsheet"
+      intro={<>
         Paste a link to a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).
         Songs go to the <Link href="/review/imports" className="text-link">imported songs</Link> list for review,
         credited to the sheet and its makers. Leak file links are left out; only official listening links are kept.
-      </div>
-
-      {message && <div className="comments-panel" style={{ marginBottom: 14 }}>{message}</div>}
+      </>}
+    >
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <input className="search-input" style={{ flex: 1 }} placeholder="https://docs.google.com/spreadsheets/d/…/edit#gid=…"
           value={url} onChange={(e) => setUrl(e.target.value)} />
-        <button className="tab active" disabled={!url.trim() || busy !== null} onClick={() => loadPreview()}>
+        <button className="mod-btn approve" disabled={!url.trim() || busy !== null} onClick={() => loadPreview()}>
           {busy === "preview" ? "reading…" : "read sheet"}
         </button>
       </div>
@@ -354,7 +352,7 @@ export default function SheetsPage() {
                 I made this sheet, or its makers are happy for it to be imported here
               </label>
               <div>
-                <button className="tab active" disabled={busy !== null || !artist || !permission} onClick={importAllTabs}>
+                <button className="mod-btn approve" disabled={busy !== null || !artist || !permission} onClick={importAllTabs}>
                   {busy === "all" ? "working…" : `work out and import ${tabsLeft.length} tabs`}
                 </button>
               </div>
@@ -367,9 +365,9 @@ export default function SheetsPage() {
               <strong>{tabsLeft.length > 1 ? "Or just this tab" : "Let the AI work it out"}</strong>
               <div className="comment-meta">Reads a sample of this tab and fills in every setting below (columns, statuses, era rows), then shows the songs. About a quarter of a penny. You can still change anything.</div>
             </div>
-            <button className="tab active" disabled={busy !== null} onClick={workItOut}>{busy === "ai" ? "working it out…" : "work it out"}</button>
+            <button className="mod-btn approve" disabled={busy !== null} onClick={workItOut}>{busy === "ai" ? "working it out…" : "work it out"}</button>
           </div>
-          {aiNote && <div className="comments-panel" style={{ marginBottom: 14 }}>{aiNote}</div>}
+          {aiNote && <ModNotice>{aiNote}</ModNotice>}
           {mapping.banner && (
             <div className="comment-meta" style={{ marginBottom: 10 }}>
               Era rows: a row where column {String.fromCharCode(65 + (mapping.banner.column % 26))} contains &ldquo;{mapping.banner.contains}&rdquo; starts a new era (name from column {String.fromCharCode(65 + (mapping.banner.name_column % 26))}).{" "}
@@ -378,7 +376,7 @@ export default function SheetsPage() {
             </div>
           )}
 
-          <div className="section-label" style={{ marginTop: 0 }}>1. Which column is which</div>
+          <ModSection>1. Which column is which</ModSection>
           <div className="comment-meta" style={{ marginBottom: 10 }}>
             Guessed from the headers in row {mapping.header_row + 1}. Change anything that&apos;s wrong.{" "}
             Header row:{" "}
@@ -403,7 +401,7 @@ export default function SheetsPage() {
             ))}
           </div>
 
-          <div className="section-label">2. Status</div>
+          <ModSection>2. Status</ModSection>
           <div className="comment-body" style={{ marginBottom: 10 }}>
             Songs in this tab are{" "}
             <select className="sort-select" value={mapping.default_status}
@@ -448,7 +446,7 @@ export default function SheetsPage() {
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <button className="tab active" disabled={busy !== null || mapping.columns.title === undefined} onClick={runParse}>
+            <button className="mod-btn approve" disabled={busy !== null || mapping.columns.title === undefined} onClick={runParse}>
               {busy === "parse" ? "reading songs…" : "preview songs"}
             </button>
           </div>
@@ -457,7 +455,7 @@ export default function SheetsPage() {
 
       {parsed && mapping && (
         <>
-          <div className="section-label">3. Check the songs</div>
+          <ModSection>3. Check the songs</ModSection>
           <div className="health-tiles">
             <div className="health-tile"><div className="health-tile-value">{parsed.total}</div><div className="health-tile-label">songs read</div></div>
             {Object.entries(parsed.statuses).map(([s, n]) => (
@@ -505,10 +503,10 @@ export default function SheetsPage() {
             {parsed.total > 60 && <div className="comment-meta">…and {parsed.total - 60} more.</div>}
           </div>
           {mapping.skip_eras.length > 0 && (
-            <button className="tab" style={{ marginTop: 10 }} onClick={runParse}>refresh preview</button>
+            <button className="mod-btn plain" style={{ marginTop: 10 }} onClick={runParse}>refresh preview</button>
           )}
 
-          <div className="section-label">4. Credit and import</div>
+          <ModSection>4. Credit and import</ModSection>
           <div className="sheet-map">
             <label className="sheet-map-row">
               <span>Artist this sheet is for</span>
@@ -535,7 +533,7 @@ export default function SheetsPage() {
             I made this sheet, or its makers are happy for it to be imported here
           </label>
           <div style={{ marginTop: 14 }}>
-            <button className="tab active" disabled={busy !== null || !artist || !permission || !title.trim()} onClick={runImport}>
+            <button className="mod-btn approve" disabled={busy !== null || !artist || !permission || !title.trim()} onClick={runImport}>
               {busy === "import" ? "importing…" : `import ${parsed.total} songs for review`}
             </button>
           </div>
@@ -544,7 +542,7 @@ export default function SheetsPage() {
 
       {requests.length > 0 && (
         <>
-          <div className="section-label">Sheets people have sent in</div>
+          <ModSection>Sheets people have sent in</ModSection>
           {requests.map((r) => (
             <div key={r.sheet_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
               <div style={{ minWidth: 0 }}>
@@ -557,15 +555,15 @@ export default function SheetsPage() {
                 </div>
               </div>
               <span style={{ display: "flex", gap: 6 }}>
-                <button className="rating-chip" onClick={() => { setUrl(r.url); loadPreview(r.url); window.scrollTo({ top: 0, behavior: "smooth" }); }}>open</button>
-                <button className="rating-chip danger" onClick={() => decline(r)}>decline</button>
+                <button className="mod-btn plain" onClick={() => { setUrl(r.url); loadPreview(r.url); window.scrollTo({ top: 0, behavior: "smooth" }); }}>open</button>
+                <button className="mod-btn danger" onClick={() => decline(r)}>decline</button>
               </span>
             </div>
           ))}
         </>
       )}
 
-      <div className="section-label">Imported sheets</div>
+      <ModSection>Imported sheets</ModSection>
       {sources.length === 0 && <div className="comment-meta">None yet.</div>}
       {/* One entry per spreadsheet, its tabs underneath. */}
       {Object.values(sources.reduce<Record<string, Source[]>>((acc, x) => {
@@ -590,10 +588,10 @@ export default function SheetsPage() {
                 </div>
               </div>
               <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button className="rating-chip" disabled={busy !== null} onClick={async () => { for (const t of tabs) await syncNow(t); }}>
+                <button className="mod-btn plain" disabled={busy !== null} onClick={async () => { for (const t of tabs) await syncNow(t); }}>
                   {busyHere ? "checking…" : tabs.length > 1 ? "check all tabs" : "check now"}
                 </button>
-                <button className="rating-chip" disabled={busy !== null}
+                <button className="mod-btn plain" disabled={busy !== null}
                   onClick={() => { setUrl(first.url); loadPreview(first.url); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                   add a tab
                 </button>
@@ -616,18 +614,18 @@ export default function SheetsPage() {
                 </div>
                 <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   {tabs.length > 1 && (
-                    <button className="rating-chip" disabled={busy !== null} onClick={() => syncNow(s)}>{busy === s.id ? "checking…" : "check"}</button>
+                    <button className="mod-btn plain" disabled={busy !== null} onClick={() => syncNow(s)}>{busy === s.id ? "checking…" : "check"}</button>
                   )}
-                  <button className={`rating-chip ${s.auto_sync ? "rated" : ""}`} onClick={() => updateSource(s, !s.auto_sync)}>
+                  <button className={`mod-btn ${s.auto_sync ? "dismiss" : "plain"}`} onClick={() => updateSource(s, !s.auto_sync)}>
                     auto-check {s.auto_sync ? "on" : "off"}
                   </button>
-                  <button className="rating-chip danger" onClick={() => updateSource(s, s.auto_sync, true)}>remove</button>
+                  <button className="mod-btn danger" onClick={() => updateSource(s, s.auto_sync, true)}>remove</button>
                 </span>
               </div>
             ))}
           </div>
         );
       })}
-    </div>
+    </ModPage>
   );
 }

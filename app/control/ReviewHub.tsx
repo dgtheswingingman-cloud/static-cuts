@@ -510,25 +510,26 @@ export default function ReviewHub() {
         </div>
         {s.type === "artist_merge" ? (
           <>
-            <Link href={`/artist/${s.artist_id}`} className="listen-link">view {s.payload.from_name}</Link>
-            <Link href={`/artist/${s.payload.into}`} className="listen-link">view {s.payload.into_name}</Link>
-            <button className="listen-link" disabled={busyId === s.id}
+            <Link href={`/artist/${s.artist_id}`} className="mod-btn plain">view {s.payload.from_name}</Link>
+            <Link href={`/artist/${s.payload.into}`} className="mod-btn plain">view {s.payload.into_name}</Link>
+            <button className="mod-btn approve" disabled={busyId === s.id}
               onClick={() => mergeReport(s, s.payload.into, s.payload.into_name, s.payload.from_name)}>
               keep {s.payload.into_name}
             </button>
-            <button className="listen-link" disabled={busyId === s.id}
+            <button className="mod-btn approve" disabled={busyId === s.id}
               onClick={() => mergeReport(s, s.artist_id ?? "", s.payload.from_name, s.payload.into_name)}>
               keep {s.payload.from_name}
             </button>
-            <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>not the same</button>
+            <button className="mod-btn dismiss" disabled={busyId === s.id} onClick={() => reject(s.id)}>not the same</button>
           </>
         ) : (<>
         {link && (
-          <Link href={link} className="listen-link">
+          <Link href={link} className="mod-btn plain">
             view live page
           </Link>
         )}
-        <button className="listen-link" disabled={busyId === s.id} onClick={() => approve(s.id)}>
+        <button className={`mod-btn ${isDeletion ? "danger" : "approve"}`} disabled={busyId === s.id}
+          onClick={() => { if (isDeletion && !window.confirm("Delete this track?")) return; approve(s.id); }}>
           {isDeletion
             ? "delete track"
             : isFlag
@@ -537,7 +538,7 @@ export default function ReviewHub() {
             ? "approve (partial)"
             : "approve"}
         </button>
-        <button className="listen-link" disabled={busyId === s.id} onClick={() => reject(s.id)}>
+        <button className="mod-btn dismiss" disabled={busyId === s.id} onClick={() => reject(s.id)}>
           {isDeletion ? "keep track" : isFlag ? "keep link" : "reject"}
         </button>
         </>)}
@@ -600,7 +601,7 @@ export default function ReviewHub() {
             <div className="section-label" style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <span>{cat.label} ({entries.length})</span>
               {cat.key !== "deletions" && cat.key !== "same_artist" && (
-                <button className="listen-link" disabled={!!bulkProgress} onClick={() => approveAll(cat.label, entries)}>
+                <button className="mod-btn plain" disabled={!!bulkProgress} onClick={() => approveAll(cat.label, entries)}>
                   {bulkProgress?.startsWith(cat.label + ":") ? bulkProgress.slice(cat.label.length + 2) : "approve all"}
                 </button>
               )}

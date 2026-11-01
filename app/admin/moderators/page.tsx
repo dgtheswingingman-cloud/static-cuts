@@ -10,11 +10,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsOwner } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModRow, ModButton, ModTag, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
 
 type Role = "admin" | "moderator";
 type Member = { user_id: string; display_name: string | null; added_at: string; note: string | null; actions: number; role?: Role };
@@ -23,7 +23,6 @@ type Person = { user_id: string; display_name: string | null; is_moderator: bool
 export default function TeamPage() {
   const { user, loading: authLoading } = useAuth();
   const isOwner = useIsOwner();
-  const router = useRouter();
   const [team, setTeam] = useState<Member[] | null>(null);
   const [query, setQuery] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
@@ -67,49 +66,42 @@ export default function TeamPage() {
   if (!isOwner) return <NoAccess loading={authLoading} who="owner" />;
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control?tab=owner")}>← control room</button>
-      <h1 className="detail-name page-title">Team</h1>
-      <div className="detail-meta" style={{ marginBottom: 20 }}>
+    <ModPage
+      title="Team"
+      back="/control?tab=owner"
+      intro={<>
         <b>Moderators</b> work through the lists: suggestions, imports, versions, guests, comments, and they can edit,
         add, merge and delete songs. <b>Admins</b> also see site health, people stats, trackers and the undo history.
         Choosing the team, API keys, auto-approve rules and leak file links stay yours. Everything anyone does shows in
         the <UndoHistoryLink /> with their name.
-      </div>
+      </>}
+    >
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
 
-      {message && <div className="comments-panel" style={{ marginBottom: 14 }}>{message}</div>}
-
-      <div className="section-label" style={{ marginTop: 0 }}>The team</div>
-      {!team && <div className="empty-state">loading…</div>}
-      {team && team.length === 0 && <div className="comment-meta">Just you so far. Find someone below.</div>}
+      <ModSection>The team</ModSection>
+      {!team && <ModLoading />}
+      {team && team.length === 0 && <ModEmpty>Just you so far. Find someone below.</ModEmpty>}
       {team?.map((m) => {
         const role: Role = m.role ?? "moderator";
         return (
-          <div key={m.user_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-            <div style={{ minWidth: 0 }}>
-              <div className="review-row-title">
-                <Link href={`/profile/${m.user_id}`}>{m.display_name ?? "unnamed"}</Link>{" "}
-                <span className="feature-tag">{role}</span>
-              </div>
-              <div className="review-row-meta">
-                <span>since {new Date(m.added_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                <span>{m.actions} change{m.actions === 1 ? "" : "s"} made</span>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button className="rating-chip" disabled={busy === m.user_id}
-                onClick={() => setRole(m.user_id, role === "admin" ? "moderator" : "admin", m.display_name)}>
+          <ModRow
+            key={m.user_id}
+            title={<><Link href={`/profile/${m.user_id}`}>{m.display_name ?? "unnamed"}</Link><ModTag kind="good">{role}</ModTag></>}
+            meta={<>
+              <span>since {new Date(m.added_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+              <span>{m.actions} change{m.actions === 1 ? "" : "s"} made</span>
+            </>}
+            actions={<>
+              <ModButton busy={busy === m.user_id} onClick={() => setRole(m.user_id, role === "admin" ? "moderator" : "admin", m.display_name)}>
                 {role === "admin" ? "make moderator" : "make admin"}
-              </button>
-              <button className="rating-chip danger" disabled={busy === m.user_id} onClick={() => setRole(m.user_id, "none", m.display_name)}>
-                remove
-              </button>
-            </div>
-          </div>
+              </ModButton>
+              <ModButton kind="danger" busy={busy === m.user_id} onClick={() => setRole(m.user_id, "none", m.display_name)}>remove</ModButton>
+            </>}
+          />
         );
       })}
 
-      <div className="section-label">Add someone</div>
+      <ModSection>Add someone</ModSection>
       <input
         className="search-input"
         style={{ width: "100%" }}
@@ -119,25 +111,16 @@ export default function TeamPage() {
       />
       {query.trim().length >= 2 && people.length === 0 && <div className="comment-meta" style={{ marginTop: 8 }}>No one found.</div>}
       {people.filter((p) => p.user_id !== user?.id).map((p) => (
-        <div key={p.user_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title"><Link href={`/profile/${p.user_id}`}>{p.display_name ?? "unnamed"}</Link></div>
-            <div className="review-row-meta"><span>{p.contributions} contribution{p.contributions === 1 ? "" : "s"}</span></div>
-          </div>
-          {p.is_moderator ? (
-            <span className="feature-tag">on the team</span>
-          ) : (
-            <div style={{ display: "flex", gap: 6 }}>
-              <button className="rating-chip" disabled={busy === p.user_id} onClick={() => setRole(p.user_id, "moderator", p.display_name)}>
-                make moderator
-              </button>
-              <button className="rating-chip" disabled={busy === p.user_id} onClick={() => setRole(p.user_id, "admin", p.display_name)}>
-                make admin
-              </button>
-            </div>
-          )}
-        </div>
+        <ModRow
+          key={p.user_id}
+          title={<Link href={`/profile/${p.user_id}`}>{p.display_name ?? "unnamed"}</Link>}
+          meta={<span>{p.contributions} contribution{p.contributions === 1 ? "" : "s"}</span>}
+          actions={p.is_moderator ? <ModTag>on the team</ModTag> : <>
+            <ModButton kind="approve" busy={busy === p.user_id} onClick={() => setRole(p.user_id, "moderator", p.display_name)}>make moderator</ModButton>
+            <ModButton busy={busy === p.user_id} onClick={() => setRole(p.user_id, "admin", p.display_name)}>make admin</ModButton>
+          </>}
+        />
       ))}
-    </div>
+    </ModPage>
   );
 }

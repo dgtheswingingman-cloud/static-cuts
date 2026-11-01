@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModNotice, ModSection } from "../../components/Mod";
 
 const STATUSES = ["released", "leaked", "snippet", "teased", "announced", "rumored", "unconfirmed"];
 
@@ -89,16 +90,15 @@ function TracklistInner() {
   if (!isAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push(artistId ? `/artist/${artistId}` : "/")}>
-        ← {artistName ?? "home"}
-      </button>
-      <h1 className="detail-name page-title">Paste a Tracklist</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
+    <ModPage
+      title="Paste a tracklist"
+      back={artistId ? `/artist/${artistId}` : "/control"}
+      backLabel={artistId ? artistName ?? "artist" : "control room"}
+      intro={<>
         One song per line, copied from anywhere. Numbers, bullets and running times are tidied off, &quot;feat.&quot; names
-        go in the featured field, and songs already on the page are skipped. You can reverse it from the{" "}
-        <UndoHistoryLink />.
-      </div>
+        go in the featured field, and songs already on the page are skipped. You can reverse it from the <UndoHistoryLink />.
+      </>}
+    >
 
       {!artistId || !artistName ? (
         <div style={{ marginBottom: 16 }}>
@@ -116,7 +116,7 @@ function TracklistInner() {
           <div className="review-toolbar-row">
             <span className="review-toolbar-label">artist</span>
             <strong>{artistName}</strong>
-            <button className="rating-chip" onClick={() => { setArtistId(""); setResult(null); }}>change</button>
+            <button className="mod-btn plain" onClick={() => { setArtistId(""); setResult(null); }}>change</button>
           </div>
           <div className="review-toolbar-row">
             <span className="review-toolbar-label">album</span>
@@ -138,7 +138,7 @@ function TracklistInner() {
 
           {lines.length > 0 && (
             <>
-              <div className="section-label" style={{ marginTop: 12 }}>{lines.length} song{lines.length === 1 ? "" : "s"} to add</div>
+              <ModSection>{lines.length} song{lines.length === 1 ? "" : "s"} to add</ModSection>
               {lines.map((l, i) => (
                 <div key={i} className="review-row" style={{ gridTemplateColumns: "2.2em minmax(0, 1fr)" }}>
                   <span className="comment-meta">{album.trim() ? i + 1 : "·"}</span>
@@ -148,7 +148,7 @@ function TracklistInner() {
                   </div>
                 </div>
               ))}
-              <button className="tab active" style={{ marginTop: 12 }} disabled={busy} onClick={add}>
+              <button className="mod-btn approve" style={{ marginTop: 12 }} disabled={busy} onClick={add}>
                 {busy ? "adding…" : `add ${lines.length} song${lines.length === 1 ? "" : "s"} as ${status}`}
               </button>
             </>
@@ -156,15 +156,15 @@ function TracklistInner() {
         </>
       )}
 
-      {error && <div className="comments-panel" style={{ marginTop: 12 }}>Couldn&apos;t add them: {error}</div>}
+      {error && <div style={{ marginTop: 12 }}><ModNotice kind="error">Couldn&apos;t add them: {error}</ModNotice></div>}
       {result && (
-        <div className="comments-panel" style={{ marginTop: 12 }}>
+        <div className="mod-notice done" style={{ marginTop: 12, display: "block" }}>
           {result.added} song{result.added === 1 ? "" : "s"} added.
           {result.skipped.length > 0 && <> Already on the page, so skipped: {result.skipped.join(", ")}.</>}{" "}
           <Link href={`/artist/${artistId}`}>See the page</Link>
         </div>
       )}
-    </div>
+    </ModPage>
   );
 }
 
