@@ -76,7 +76,10 @@ export default function CollectionImportPage() {
 
   async function readFile(f: File | undefined) {
     if (!f) return;
-    setText(await f.text());
+    // Apple Music / iTunes "Export Playlist" saves UTF-16 text: read it as such.
+    const buf = new Uint8Array(await f.arrayBuffer());
+    const utf16 = (buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff);
+    setText(new TextDecoder(utf16 ? (buf[0] === 0xff ? "utf-16le" : "utf-16be") : "utf-8").decode(buf).replace(/^\uFEFF/, ""));
     setMatches(null);
     setTitleCol(-1);
     setArtistCol(-1);
@@ -185,6 +188,10 @@ export default function CollectionImportPage() {
       <div className="section-label">From a spreadsheet</div>
       <div className="detail-meta" style={{ marginBottom: 12 }}>
         Paste a Google Sheets link, pick a CSV file, or paste the rows.
+      </div>
+      <div className="comment-meta" style={{ marginBottom: 12 }}>
+        Apple Music: in the Music app on a Mac or iTunes on Windows, select a playlist (or Songs for your whole library), then
+        File › Library › Export Playlist… and pick the .txt file here. On iPhone only, a free converter such as TuneMyMusic can save a playlist as a CSV.
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
