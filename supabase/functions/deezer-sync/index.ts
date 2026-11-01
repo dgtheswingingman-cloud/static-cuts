@@ -3,7 +3,7 @@
 // Reads artists' releases from Deezer's public catalogue (no sign-in), a
 // little at a time, each call with a 'deezer' ticket. The timer runs every
 // minute. Owner's pace setting (sc_deezer_mode):
-//   normal:   every minute, up to 60 calls
+//   normal:   every minute, two workers, up to 120 calls
 //   extreme:  every minute, five workers at once for up to 50 seconds (the
 //             site is paused for everyone else meanwhile)
 // The database hands out (and claims) what's next (sc_deezer_next):
@@ -18,7 +18,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const NORMAL = { workers: 1, calls: 60, gap: 300, seconds: 50 };
+const NORMAL = { workers: 2, calls: 60, gap: 300, seconds: 50 };
 const EXTREME = { workers: 5, calls: 300, gap: 250, seconds: 50 };
 
 async function paused() {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     const { data: t } = await db.from("sc_private_settings").select("value").eq("key", "deezer_turbo").maybeSingle();
     modeName = t?.value === "extreme" ? "extreme" : "off";
   }
-  // Normal pace: every minute, one worker, up to 60 calls.
+  // Normal pace: every minute, two workers, up to 120 calls.
   const mode = modeName === "extreme" ? EXTREME : NORMAL;
   gap = mode.gap;
   const started = Date.now();
