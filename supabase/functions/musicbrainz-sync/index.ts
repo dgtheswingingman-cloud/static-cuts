@@ -31,13 +31,16 @@ let last = 0;
 async function mb(path: string): Promise<any | null> {
   const { data: ticket } = await db.rpc("sc_api_allow", { p_service: "musicbrainz", p_want: 1 });
   if (ticket !== 1) throw new Stop();
-  const wait = 1100 - (Date.now() - last);
+  // Supabase's servers share addresses with other sites, and MusicBrainz
+  // counts per address, so a little slower than their 1 a second.
+  const wait = 1600 - (Date.now() - last);
   if (wait > 0) await sleep(wait);
   last = Date.now();
   const res = await fetch(`${MB}${path}`, { headers: { "User-Agent": UA, Accept: "application/json" } }).catch(() => null);
   if (!res) throw new Stop();
   if (res.status === 503 || res.status === 429) {
-    await db.from("sc_private_settings").upsert({ key: "musicbrainz_pause_until", value: new Date(Date.now() + 10 * 60_000).toISOString() }, { onConflict: "key" });
+    // "Too busy": usually other sites on the same address. A short break.
+    await db.from("sc_private_settings").upsert({ key: "musicbrainz_pause_until", value: new Date(Date.now() + 2 * 60_000).toISOString() }, { onConflict: "key" });
     throw new Stop();
   }
   if (res.status === 404) return null;
