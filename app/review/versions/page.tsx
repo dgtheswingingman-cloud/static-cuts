@@ -129,23 +129,30 @@ export default function VersionSuggestionsPage() {
     load();
   }
 
+  // The scan runs in the background (the biggest pages take longer than a
+  // request is allowed): ask for it, then check every 10 seconds until done.
   async function rescan() {
     setBusy(true);
     setMessage(null);
-    // Groups of artists per call keeps each one quick.
-    const { data: artists } = await supabase.from("artists").select("id");
-    const ids = (artists ?? []).map((a: { id: string }) => a.id);
-    const size = 50;
-    let added = 0;
-    for (let i = 0; i < ids.length; i += size) {
-      const { data, error: err } = await supabase.rpc("admin_scan_versions", { p_artist_ids: ids.slice(i, i + size) });
-      if (err) { setBusy(false); setMessage(`Rescan stopped: ${err.message}`); load(); return; }
-      added += (data as number) ?? 0;
-      setMessage(`Rescanning… ${Math.min(i + size, ids.length)} of ${ids.length} artists`);
+    const { data: req, error: err } = await supabase.rpc("admin_request_version_scan");
+    if (err) { setBusy(false); setMessage(`Rescan couldn't start: ${err.message}`); return; }
+    const asked = Date.parse((req as { requested_at?: string })?.requested_at ?? "") || Date.now();
+    setMessage("Rescan queued: it runs in the background within 2 minutes and takes about a minute. You can leave this page.");
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 10_000));
+      const { data: st } = await supabase.rpc("admin_version_scan_status");
+      const s = (st ?? {}) as { state?: string; done_at?: string; added?: number; linked?: number };
+      if (s.state === "done" && Date.parse(s.done_at ?? "") >= asked) {
+        setBusy(false);
+        const added = s.added ?? 0, linked = s.linked ?? 0;
+        setMessage(`Rescan done: ${added.toLocaleString()} new suggestion${added === 1 ? "" : "s"}${linked ? `, ${linked.toLocaleString()} clear ones linked` : ""}.`);
+        load();
+        return;
+      }
+      if (s.state === "running") setMessage("Rescanning every artist…");
     }
     setBusy(false);
-    setMessage(`Rescan done: ${added} new suggestion${added === 1 ? "" : "s"}.`);
-    load();
+    setMessage("Rescan is still going. Check back in a few minutes.");
   }
 
   // One at a time (row buttons): no full reload, it just
