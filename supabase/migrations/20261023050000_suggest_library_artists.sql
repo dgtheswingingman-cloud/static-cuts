@@ -4,8 +4,8 @@
 --
 -- After an import, Settings sends how many of the listener's songs are by
 -- each artist (main artist only). An artist is suggested once their songs
--- across everyone's imports reach 3, at most 25 new suggestions per import,
--- and never twice. Approving one makes the page with its Spotify profile
+-- across everyone's imports reach 3 (every such artist in the import), and
+-- never twice. Approving one makes the page with its Spotify profile
 -- already linked, so its songs can be read straight away (unless new
 -- artists' catalogues are held: see the control room switch).
 
@@ -59,7 +59,6 @@ begin
     group by l.spotify_artist_id
     having sum(l.songs) >= 3
     order by sum(l.songs) desc
-    limit 25
   loop
     -- Already here under that name, or already suggested by someone: skip.
     if exists (select 1 from artists a where sc_normalize_title(a.name) = sc_normalize_title(r.name))
