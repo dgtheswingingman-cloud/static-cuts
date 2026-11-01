@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 export const revalidate = 86400;
 
 const SITE = "https://static-cuts.com";
-export const SITEMAP_PARTS = 4; // room for 160,000 songs
+export const SITEMAP_PARTS = 10; // room for 400,000 songs (empty parts are fine)
 const PER_PART = 40000;
 
 export async function generateSitemaps() {
