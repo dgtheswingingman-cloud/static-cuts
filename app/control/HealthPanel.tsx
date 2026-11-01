@@ -52,35 +52,96 @@ function Tile({ label, value, href, alert }: { label: string; value: string; hre
   return href ? <Link href={href} style={{ textDecoration: "none" }}>{body}</Link> : body;
 }
 
-type Timer = { name: string; schedule: string; active: boolean; last_run: string | null; last_status: string | null; failed_24h: number };
-
-// What each timer does, in plain words.
-const TIMER_INFO: Record<string, string> = {
-  "genius-import": "imports an artist's songs from Genius (every 10 min)",
-  "genius-credits": "fills producers, features, dates and artwork from Genius (pace set in Owner: normal every 10 min, fast/max every minute)",
-  "fetch-covers": "fetches Spotify artwork (every 10 min)",
-  "sheet-sync": "re-reads community sheets that are due (hourly)",
-  "radar-daily": "release-day reminders (07:05 UTC)",
-  "follow-digest": "daily summary for followed artists (07:07 UTC)",
-  "background-check": "tells you if any of these failed or stopped running (hourly)",
-  "guest-artists": "gives guest artists pages once Spotify confirms them (4 every 20 min)",
-  "spotify-match": "finds Spotify links by reading artists' releases (followed artists first), then searching song by song for artists with no Spotify profile (a few calls every 5 min)",
-  "api-budget-tidy": "clears old allowance counts, undo history over 6 months and old timer logs (daily)",
-  "link-check": "checks YouTube and SoundCloud links still work, 15 every 30 min (re-checks monthly)",
-  "spotify-verify": "re-checks Spotify links not seen in 90 days and clears removed ones (hourly)",
-  "lastfm-import": "imports an artist's most-played songs from Last.fm for review (hourly, :41)",
-  "youtube-search": "searches YouTube for songs with no link, into possible links (1 every 15 min, needs the YouTube key)",
-  "collab-refresh": "works out the collab map (nightly)",
-  "duplicate-refresh": "works out possible duplicate songs for the duplicates page (hourly, :17)",
-  "leaderboard-refresh": "works out the contributors leaderboard (hourly, :23)",
-  "artist-counts-refresh": "counts each artist's songs for the homepage (every 10 min)",
-  "push-alerts": "sends phone alerts (every 2 min)",
-  "artist-info": "fills in artist photos (Spotify, else Genius), about text and genres (Last.fm), and finds Spotify profiles for artists without one (twice an hour)",
-  "deezer-sync": "reads artists' releases from Deezer: fills in albums, dates and covers, marks songs released and adds missing ones (every 2 min)",
-  "guest-refresh": "tidies the guest artist list and moves songs onto guests' new pages (every 20 min, before guest-artists)",
-  "genre-cache": "works out genre scores for the genre pages and filters (every 10 min)",
-  "genius-auto-add": "adds clear-cut Genius songs without review (hourly, switch in Owner)",
+type Timer = {
+  name: string; schedule: string; active: boolean; last_run: string | null; last_status: string | null;
+  failed_24h: number; runs_24h?: number; failed_1h?: number; last_error?: string | null;
 };
+
+// Every timer, grouped by what it's for, in plain words. A timer missing
+// from here still shows (under "Other") with its name.
+const TIMER_GROUPS: { title: string; timers: Record<string, string> }[] = [
+  {
+    title: "Finding songs",
+    timers: {
+      "deezer-sync": "Reads every artist's releases on Deezer: adds missing released songs and fills in albums, dates, covers and lengths. Every minute.",
+      "genius-import": "Looks up an artist's songs on Genius and puts new ones in the review list. Every 10 min.",
+      "genius-auto-add": "Adds clear-cut Genius songs without review (switch in Owner). Hourly.",
+      "lastfm-import": "Looks up an artist's most-played songs on Last.fm and puts new ones in the review list. Every 2 min.",
+      "sheet-sync": "Re-reads community tracker sheets that are due. Hourly.",
+      "artist-growth": "Adds new artists (up to the daily number) once Deezer has read every artist here. Twice an hour.",
+    },
+  },
+  {
+    title: "Filling in details",
+    timers: {
+      "spotify-match": "Adds Spotify links by reading artists' releases on Spotify. Every 5 min (Spotify only allows a few calls).",
+      "apple-music": "Adds Apple Music links to songs. Every minute.",
+      "musicbrainz-sync": "Fills in band members from MusicBrainz. Every 2 min.",
+      "genius-credits": "Fills in producers, features, dates and artwork from Genius. Every minute.",
+      "fetch-covers": "Fills in missing artwork from Spotify. Every 10 min.",
+      "artist-info": "Fills in artist photos, about text and genres. Twice an hour.",
+      "youtube-search": "Finds YouTube links for songs with no link. Every 15 min.",
+    },
+  },
+  {
+    title: "Guest artists",
+    timers: {
+      "guest-artists": "Checks featured artists on Deezer: links them to their page here, or saves them for a new page. Every 10 min.",
+      "guest-refresh": "Updates the guest list and moves songs onto guests' pages. Every 20 min.",
+    },
+  },
+  {
+    title: "Checking links",
+    timers: {
+      "link-check": "Checks YouTube and SoundCloud links still work. Every 30 min.",
+      "spotify-verify": "Re-checks old Spotify links and clears removed ones. Hourly.",
+    },
+  },
+  {
+    title: "Keeping pages fast",
+    timers: {
+      "home-cache": "Saves a copy of the home page feed. Every 5 min (skips when nothing changed).",
+      "radar-cache": "Saves a copy of the release radar. Every 10 min (skips when nothing changed).",
+      "artist-counts-refresh": "Counts each artist's songs. Every 10 min.",
+      "genre-cache": "Works out genre scores for genre pages. Every 10 min.",
+      "duplicate-refresh": "Finds possible duplicate songs for the duplicates page. Hourly.",
+      "version-rescan": "Runs a sub-versions rescan when you press rescan. Checks every 2 min.",
+      "leaderboard-refresh": "Works out the contributors leaderboard. Hourly.",
+      "collab-refresh": "Works out the collab map. Nightly.",
+      "sitemap-refresh": "Saves the song list search engines read. Nightly.",
+    },
+  },
+  {
+    title: "Alerts",
+    timers: {
+      "push-alerts": "Sends phone alerts. Every 2 min.",
+      "radar-daily": "Release-day reminders. Daily, 07:05.",
+      "follow-digest": "Daily summary of followed artists. Daily, 07:07.",
+      "background-check": "Tells you in Alerts if any of these fail. Hourly.",
+    },
+  },
+  {
+    title: "Housekeeping",
+    timers: {
+      "undo-trim": "Clears old undo history (automatic changes after 14 days, people's after 60). Nightly.",
+      "cron-history-trim": "Clears timer logs older than 3 days. Nightly.",
+      "api-budget-tidy": "Clears old API allowance counts. Nightly.",
+    },
+  },
+];
+const KNOWN_TIMERS = new Set(TIMER_GROUPS.flatMap((g) => Object.keys(g.timers)));
+
+// How a timer is doing, in a few words: problem now, recovered, or fine.
+function timerState(t: Timer): { kind: "bad" | "was" | "ok" | "off"; text: string } {
+  if (!t.active) return { kind: "off", text: "off" };
+  // Failing = its latest run failed. Earlier failures that it has since
+  // recovered from (a restart, a busy hour) only show as a note.
+  if (t.last_status && t.last_status !== "succeeded" && t.last_status !== "running") {
+    return { kind: "bad", text: `failing${t.last_error ? `: ${t.last_error}` : ""}` };
+  }
+  if (t.failed_24h > 0) return { kind: "was", text: `${t.failed_24h} of ${t.runs_24h ?? "?"} runs failed in the last 24h, fine now` };
+  return { kind: "ok", text: "" };
+}
 
 type Budget = { today: number; last_hour: number; per_day: number | null; per_minute: number | null; paused_until: string | null };
 type DeadLinks = { checked: number; dead: number; songs: { track_id: string; title: string; artist_id: string; artist: string; url: string }[] };
@@ -382,21 +443,46 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
               {bg.last_error && <div className="comment-meta" style={{ marginTop: 4, overflowWrap: "anywhere" }}>Latest: {bg.last_error}</div>}
             </div>
           )}
-          {timers.map((t) => (
-            <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
-              <div style={{ minWidth: 0 }}>
-                <div className="review-row-title">
-                  {t.name}{" "}
-                  <span className="comment-meta" style={{ whiteSpace: "nowrap" }}>· {t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
-                </div>
-                <div className="review-row-meta">
-                  <span>{TIMER_INFO[t.name] ?? t.schedule}</span>
-                  {!t.active && <span className="feature-tag">off</span>}
-                  {t.failed_24h > 0 && <span className="feature-tag disputed-tag">{t.failed_24h} failed today</span>}
-                </div>
+          {(() => {
+            const failing = timers.filter((t) => timerState(t).kind === "bad");
+            return (
+              <div className="comment-meta" style={{ marginBottom: 8 }}>
+                {failing.length === 0
+                  ? `All ${timers.filter((t) => t.active).length} timers are running normally.`
+                  : `${failing.length} of ${timers.length} timers are failing right now: ${failing.map((t) => t.name).join(", ")}.`}
               </div>
-            </div>
-          ))}
+            );
+          })()}
+          {[...TIMER_GROUPS, { title: "Other", timers: Object.fromEntries(timers.filter((t) => !KNOWN_TIMERS.has(t.name)).map((t) => [t.name, ""])) }]
+            .map((g) => {
+              const rows = timers.filter((t) => t.name in g.timers);
+              if (!rows.length) return null;
+              return (
+                <div key={g.title} style={{ marginBottom: 12 }}>
+                  <div className="comment-meta" style={{ textTransform: "uppercase", letterSpacing: "0.08em", margin: "10px 0 4px" }}>{g.title}</div>
+                  {rows.map((t) => {
+                    const st = timerState(t);
+                    return (
+                      <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="review-row-title">
+                            {t.name}{" "}
+                            <span className="comment-meta" style={{ whiteSpace: "nowrap" }}>· {t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
+                            {st.kind === "ok" && <span className="comment-meta"> · ok</span>}
+                          </div>
+                          <div className="review-row-meta">
+                            <span>{g.timers[t.name] || "No description yet."}</span>
+                            {st.kind === "off" && <span className="feature-tag">off</span>}
+                            {st.kind === "bad" && <span className="feature-tag disputed-tag" style={{ overflowWrap: "anywhere" }}>{st.text}</span>}
+                            {st.kind === "was" && <span className="feature-tag">{st.text}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
 
           <div className="section-label" style={{ marginTop: 20 }}>Automatic jobs</div>
           <div className="health-tiles">
