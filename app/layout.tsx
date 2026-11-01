@@ -14,6 +14,7 @@ import DesktopNav from "./DesktopNav";
 import MobileTabBar from "./MobileTabBar";
 import SpotifyImportResume from "./SpotifyImportResume";
 import SitePause from "./SitePause";
+import AuthNotice from "./AuthNotice";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ModeBar />
               <DesktopNav />
               <SiteHome />
+              <AuthNotice />
               <SitePause>{children}</SitePause>
               <footer className="site-credit">
                 <nav className="site-credit-links">

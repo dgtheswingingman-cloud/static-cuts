@@ -255,9 +255,8 @@ export default function ExportifyImport() {
   return (
     <div style={{ maxWidth: 520, marginBottom: 16 }}>
       <div className="comment-meta" style={{ marginBottom: 8 }}>
-        Spotify busy, or not on the invite list? Upload files from <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a>:
-        it saves your liked songs and playlists as files, and works for anyone (no invite needed). Export the ones you want,
-        then pick the files (or the whole .zip from &ldquo;Export All&rdquo;) here.
+        Pick the files from <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a>
+        here: one or more playlist files, or the whole .zip from &ldquo;Export All&rdquo;.
       </div>
       <div className="comment-meta" style={{ marginBottom: 8 }}>
         Or use Spotify&apos;s own download: in Spotify go to{" "}
@@ -265,8 +264,8 @@ export default function ExportifyImport() {
         tick <b>Account data</b> and request it. Spotify emails a .zip within a few days. Upload that zip here: it brings in your
         liked songs and playlists, and follows the artists you follow on Spotify.
       </div>
-      <label className="tab" style={{ display: "inline-block", cursor: busy ? "default" : "pointer" }}>
-        {busy ? "importing…" : "upload Exportify or Spotify data files / .zip"}
+      <label className="tab active" style={{ display: "inline-block", cursor: busy ? "default" : "pointer" }}>
+        {busy ? "importing…" : "pick Exportify file(s) / .zip"}
         <input type="file" accept=".csv,text/csv,.json,application/json,.zip,application/zip" multiple disabled={busy} style={{ display: "none" }}
           onChange={(e) => { run(e.target.files); e.target.value = ""; }} />
       </label>
