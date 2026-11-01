@@ -6,18 +6,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModRow, ModButton, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type Person = { user_id: string; name: string; approved: number; rejected: number; pending: number; trusted: boolean; override: string | null };
 
 export default function TrustedPage() {
   const { loading: authLoading } = useAuth();
   const canModerate = useIsModerator();
-  const router = useRouter();
   const [people, setPeople] = useState<Person[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,44 +39,38 @@ export default function TrustedPage() {
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
-      <h1 className="detail-name page-title">Trusted Contributors</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
+    <ModPage
+      title="Trusted contributors"
+      intro={<>
         Trusted contributors&apos; suggestions go live straight away instead of waiting here. It happens by itself
         after 25 approved suggestions, as long as no more than 1 in 5 were turned down. Deleting songs and adding
         artists still always wait for a moderator. Their changes show in the <UndoHistoryLink />.
-      </div>
-      {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
-      {people === null && <div className="empty-state">loading…</div>}
-      {people && people.length === 0 && <div className="empty-state">Nobody has sent a suggestion yet.</div>}
+      </>}
+    >
+      {message && <ModNotice kind="error" onClose={() => setMessage(null)}>{message}</ModNotice>}
+      {people === null && <ModLoading />}
+      {people && people.length === 0 && <ModEmpty>Nobody has sent a suggestion yet.</ModEmpty>}
       {people?.map((p) => (
-        <div key={p.user_id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title">
-              <Link href={`/profile/${p.user_id}`}>{p.name}</Link>{" "}
-              {p.trusted && <span className="feature-tag">trusted</span>}
-            </div>
-            <div className="review-row-meta">
-              <span>{p.approved} approved</span>
-              <span>{p.rejected} turned down</span>
-              {p.pending > 0 && <span>{p.pending} waiting</span>}
-              {p.override === "granted" && <span>given by a moderator</span>}
-              {p.override === "revoked" && <span>taken back by a moderator</span>}
-              {!p.override && !p.trusted && <span>{Math.max(0, 25 - p.approved)} more to go</span>}
-            </div>
-          </div>
-          <div className="review-row-actions">
-            {p.override ? (
-              <button className="rating-chip" disabled={busy === p.user_id} onClick={() => set(p, "auto")}>back to automatic</button>
-            ) : p.trusted ? (
-              <button className="rating-chip danger" disabled={busy === p.user_id} onClick={() => set(p, "revoked")}>take back</button>
-            ) : (
-              <button className="rating-chip" disabled={busy === p.user_id} onClick={() => set(p, "granted")}>trust now</button>
-            )}
-          </div>
-        </div>
+        <ModRow
+          key={p.user_id}
+          title={<><Link href={`/profile/${p.user_id}`}>{p.name}</Link>{p.trusted && <ModTag kind="good">trusted</ModTag>}</>}
+          meta={<>
+            <span>{p.approved} approved</span>
+            <span>{p.rejected} turned down</span>
+            {p.pending > 0 && <span>{p.pending} waiting</span>}
+            {p.override === "granted" && <span>given by a moderator</span>}
+            {p.override === "revoked" && <span>taken back by a moderator</span>}
+            {!p.override && !p.trusted && <span>{Math.max(0, 25 - p.approved)} more to go</span>}
+          </>}
+          actions={p.override ? (
+            <ModButton busy={busy === p.user_id} onClick={() => set(p, "auto")}>back to automatic</ModButton>
+          ) : p.trusted ? (
+            <ModButton kind="danger" busy={busy === p.user_id} confirm={`Stop trusting ${p.name}? Their suggestions will wait for review again.`} onClick={() => set(p, "revoked")}>take back</ModButton>
+          ) : (
+            <ModButton kind="approve" busy={busy === p.user_id} onClick={() => set(p, "granted")}>trust now</ModButton>
+          )}
+        />
       ))}
-    </div>
+    </ModPage>
   );
 }

@@ -205,13 +205,13 @@ export default function OwnerPanel() {
             <div className="review-row-title">{h.host}</div>
             <div className="review-row-meta"><span>{h.links.toLocaleString("en-GB")} private link{h.links === 1 ? "" : "s"}</span></div>
           </div>
-          <button className="rating-chip danger" disabled={busy} onClick={() => set(h.host, false)}>remove</button>
+          <button className="mod-btn danger" disabled={busy} onClick={() => set(h.host, false)}>remove</button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 8, marginTop: 10, maxWidth: 480 }}>
         <input className="search-input" style={{ flex: 1 }} placeholder="Add a site, e.g. example.com" value={draft}
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && draft.trim()) set(draft, true); }} />
-        <button className="tab active" disabled={busy || !draft.trim()} onClick={() => set(draft, true)}>add</button>
+        <button className="mod-btn approve" disabled={busy || !draft.trim()} onClick={() => set(draft, true)}>add</button>
       </div>
     </>
   );

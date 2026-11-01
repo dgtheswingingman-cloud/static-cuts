@@ -51,11 +51,11 @@ export default function PremiumPanel() {
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {p.premium ? (
-              <button className="tab" disabled={busy === p.user_id} onClick={() => confirm(`Take premium away from ${p.name}?`) && set(p, false, null)}>take away</button>
+              <button className="mod-btn danger" disabled={busy === p.user_id} onClick={() => confirm(`Take premium away from ${p.name}?`) && set(p, false, null)}>take away</button>
             ) : (
               <>
-                <button className="tab active" disabled={busy === p.user_id} onClick={() => set(p, true, null)}>give premium</button>
-                <button className="tab" disabled={busy === p.user_id} onClick={() => set(p, true, inDays(30))}>free month</button>
+                <button className="mod-btn approve" disabled={busy === p.user_id} onClick={() => set(p, true, null)}>give premium</button>
+                <button className="mod-btn plain" disabled={busy === p.user_id} onClick={() => set(p, true, inDays(30))}>free month</button>
               </>
             )}
           </div>

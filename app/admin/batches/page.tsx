@@ -6,11 +6,11 @@
 // ran are left alone and counted as "skipped".
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
+import { ModPage, ModRow, ModButton, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type Batch = {
   id: string;
@@ -77,7 +77,6 @@ function changeLine(c: Change) {
 export default function BatchesPage() {
   const { user, loading: authLoading } = useAuth();
   const isRealAdmin = useIsAdmin();
-  const router = useRouter();
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -137,56 +136,55 @@ export default function BatchesPage() {
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
 
   return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">Undo History</h1>
-      <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Every bulk job is recorded here: merges, quick merges, Spotify matching, and later auto sub-versions and
-        imports. Undo reverses the whole job. Anything edited since the job ran is left alone. Undoing is recorded
-        too, so an undo can itself be undone. History is kept for 60 days.
-      </div>
-
-      {message && <div className="comments-panel" style={{ marginBottom: 16 }}>{message}</div>}
-      {error && <div className="comment-meta" style={{ marginBottom: 16 }}>Couldn&apos;t load history: {error}</div>}
-      {batches === null && <div className="empty-state">loading…</div>}
+    <ModPage
+      title="Undo history"
+      intro={<>
+        Every bulk job is recorded here: merges, quick merges, Spotify matching, imports and clean-ups. Undo reverses the
+        whole job. Anything edited since the job ran is left alone. Undoing is recorded too, so an undo can itself be
+        undone. History is kept for 60 days.
+      </>}
+    >
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
+      {error && <ModNotice kind="error">Couldn&apos;t load history: {error}</ModNotice>}
+      {batches === null && <ModLoading />}
       {batches && batches.length === 0 && !error && (
-        <div className="empty-state">No bulk jobs yet. They&apos;ll show up here as soon as one runs.</div>
+        <ModEmpty>No bulk jobs yet. They&apos;ll show up here as soon as one runs.</ModEmpty>
       )}
 
       {batches?.map((b) => (
-        <div key={b.id} style={{ borderTop: "1px solid var(--hair)", padding: "12px 0" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-            <span className="track-title">{b.label || KIND_LABELS[b.kind] || b.kind}</span>
-            <span className="feature-tag">{KIND_LABELS[b.kind] || b.kind}</span>
-            {b.undone_at && <span className="feature-tag">undone</span>}
-          </div>
-          <div className="comment-meta" style={{ marginTop: 4 }}>
-            {new Date(b.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
-            {b.created_by_name ? ` · ${b.created_by_name}` : ""} · {describe(b.tables)}
-            {b.undone_at && ` · undone ${new Date(b.undone_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}`}
-            {b.undone_at && b.undo_skipped > 0 && ` (${b.undo_skipped} left alone)`}
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-            <button className="tab" onClick={() => toggleChanges(b)} disabled={b.changes === 0}>
-              {openId === b.id ? "hide changes" : "show changes"}
-            </button>
+        <ModRow
+          key={b.id}
+          dim={!!b.undone_at}
+          title={<>
+            {b.label || KIND_LABELS[b.kind] || b.kind}
+            <ModTag>{KIND_LABELS[b.kind] || b.kind}</ModTag>
+            {b.undone_at && <ModTag kind="warn">undone</ModTag>}
+          </>}
+          meta={<>
+            <span>{new Date(b.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
+            {b.created_by_name && <span>{b.created_by_name}</span>}
+            <span>{describe(b.tables)}</span>
+            {b.undone_at && <span>undone {new Date(b.undone_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}{b.undo_skipped > 0 ? ` (${b.undo_skipped} left alone)` : ""}</span>}
+          </>}
+          actions={<>
+            <ModButton disabled={b.changes === 0} onClick={() => toggleChanges(b)}>{openId === b.id ? "hide changes" : "show changes"}</ModButton>
             {!b.undone_at && b.changes > 0 && confirmId !== b.id && (
-              <button className="tab" disabled={undoing !== null} onClick={() => setConfirmId(b.id)}>
-                {undoing === b.id ? "undoing…" : b.kind === "undo" ? "redo (undo this undo)" : "undo"}
-              </button>
+              <ModButton kind="danger" busy={undoing === b.id} disabled={undoing !== null} onClick={() => setConfirmId(b.id)}>
+                {undoing === b.id ? "undoing…" : b.kind === "undo" ? "redo" : "undo"}
+              </ModButton>
             )}
             {confirmId === b.id && (
               <>
-                <span className="comment-meta" style={{ alignSelf: "center" }}>
-                  Reverse all {b.changes} changes?
-                </span>
-                <button className="tab active" onClick={() => undo(b)}>yes, undo</button>
-                <button className="tab" onClick={() => setConfirmId(null)}>cancel</button>
+                <span className="comment-meta" style={{ alignSelf: "center" }}>Reverse all {b.changes.toLocaleString()} changes?</span>
+                <ModButton kind="danger" onClick={() => undo(b)}>yes, undo</ModButton>
+                <ModButton kind="dismiss" onClick={() => setConfirmId(null)}>cancel</ModButton>
               </>
             )}
-          </div>
+          </>}
+        >
           {openId === b.id && (
             <div className="comments-panel" style={{ marginTop: 8, maxHeight: 280, overflowY: "auto", fontSize: "0.75rem" }}>
-              {changes.length === 0 && <div className="comments-count">loading…</div>}
+              {changes.length === 0 && <div className="comments-count">Loading…</div>}
               {changes.map((c, i) => (
                 <div key={i} className="comment-meta" style={{ padding: "3px 0", opacity: c.undo_state ? 0.6 : 1 }}>
                   {changeLine(c)}
@@ -194,12 +192,12 @@ export default function BatchesPage() {
                 </div>
               ))}
               {changes.length === 100 && b.changes > 100 && (
-                <div className="comments-count">…showing the first 100 of {b.changes}.</div>
+                <div className="comments-count">…showing the first 100 of {b.changes.toLocaleString()}.</div>
               )}
             </div>
           )}
-        </div>
+        </ModRow>
       ))}
-    </div>
+    </ModPage>
   );
 }

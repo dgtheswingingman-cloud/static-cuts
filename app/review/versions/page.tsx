@@ -9,11 +9,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
 
 type Suggestion = {
   id: string;
@@ -50,7 +50,6 @@ const TABS: { key: Suggestion["cls"]; label: string; help: string }[] = [
 export default function VersionSuggestionsPage() {
   const { user, loading: authLoading } = useAuth();
   const isRealAdmin = useIsModerator();
-  const router = useRouter();
   const [tab, setTab] = useState<Suggestion["cls"]>("check");
   const [items, setItems] = useState<Suggestion[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -60,12 +59,14 @@ export default function VersionSuggestionsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<"artist" | "label">("artist");
+  // How many to fetch: 400 loads quickly; "load more" fetches the rest.
+  const [fetchN, setFetchN] = useState(400);
 
   // One list at a time (a list can run to a couple of thousand), with the
   // counts for every list fetched separately so the tabs are always right.
-  async function load(which: Suggestion["cls"] = tab) {
+  async function load(which: Suggestion["cls"] = tab, n = fetchN) {
     const [{ data, error: err }, { data: c }] = await Promise.all([
-      supabase.rpc("admin_version_suggestions", { p_cls: which, p_limit: 2000 }),
+      supabase.rpc("admin_version_suggestions", { p_cls: which, p_limit: n }),
       supabase.rpc("admin_version_counts"),
     ]);
     if (err) { setError(err.message); setItems([]); return; }
@@ -76,7 +77,7 @@ export default function VersionSuggestionsPage() {
   }
 
   useEffect(() => {
-    if (isRealAdmin) { setItems(null); load(tab); }
+    if (isRealAdmin) { setItems(null); setFetchN(400); load(tab, 400); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealAdmin, tab]);
 
@@ -170,110 +171,103 @@ export default function VersionSuggestionsPage() {
   const allShownTicked = listed.length > 0 && listed.every((s) => selected.has(s.id));
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
-      <h1 className="detail-name page-title">Sub-versions</h1>
-      <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Clear versions are linked automatically. These need a look. Approvals can be reversed from the <UndoHistoryLink />.
-      </div>
-
-      <div className="tabs" style={{ marginBottom: 8 }}>
-        {TABS.map((t) => (
-          <button key={t.key} className={`tab ${tab === t.key ? "active" : ""}`} onClick={() => { if (t.key !== tab) { setTab(t.key); setView("all"); } }}>
-            {t.label} <span className="tab-count">{(counts[t.key] ?? 0).toLocaleString("en-GB")}</span>
-          </button>
-        ))}
-      </div>
-      <div className="vs-help">
-        <span>{help}</span>
-        <button className="text-link vs-plain" disabled={busy} onClick={rescan} title="Look for new suggestions across every artist">rescan</button>
-      </div>
-
-      {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
-      {error && <div className="comment-meta" style={{ marginBottom: 12 }}>Couldn&apos;t load suggestions: {error}</div>}
-      {items === null && <div className="empty-state">loading…</div>}
-      {items && shown.length === 0 && !error && <div className="empty-state">Nothing to check here.</div>}
-
-      {shown.length > 0 && (
-        <div className="review-toolbar vs-toolbar">
-          <label className="vs-check-all">
-            <input type="checkbox" checked={allShownTicked}
-              onChange={() => setSelected(allShownTicked ? new Set() : new Set(listed.map((s) => s.id)))} />
-            {selectedHere.length > 0 ? `${selectedHere.length} ticked` : "tick all"}
-          </label>
-          {selectedHere.length > 0 ? (
-            <>
-              <button className="tab active" disabled={busy} onClick={() => run("approve", selectedHere)}>{busy ? "working…" : "approve"}</button>
-              <button className="tab" disabled={busy} onClick={() => run("dismiss", selectedHere)}>dismiss</button>
-              <button className="text-link vs-plain" onClick={() => setSelected(new Set())}>clear</button>
-            </>
-          ) : (
-            <button className="text-link vs-plain" disabled={likely.length === 0}
-              onClick={() => { setSelected(new Set(likely.map((s) => s.id))); setView("likely"); }}
-              title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix">
-              tick likely ones ({likely.length})
-            </button>
-          )}
-          <span className="vs-spacer" />
-          <select className="vs-select" value={view} onChange={(e) => setView(e.target.value as typeof view)} aria-label="Show">
-            <option value="all">show all ({shown.length})</option>
-            <option value="likely" disabled={likely.length === 0}>likely ones ({likely.length})</option>
-            <option value="selected" disabled={selectedHere.length === 0}>ticked ({selectedHere.length})</option>
+    <ModPage
+      title="Sub-versions"
+      intro={<>Clear versions are linked automatically. These need a look. Approvals can be reversed from the <UndoHistoryLink />.</>}
+      actions={<ModButton busy={busy} onClick={rescan} title="Look for new suggestions across every artist">rescan</ModButton>}
+    >
+      <ModToolbar
+        sticky
+        right={shown.length > 0 ? <>
+          <select className="sort-select" value={view} onChange={(e) => setView(e.target.value as typeof view)} aria-label="Show">
+            <option value="all">show all ({shown.length.toLocaleString()})</option>
+            <option value="likely" disabled={likely.length === 0}>likely ones ({likely.length.toLocaleString()})</option>
+            <option value="selected" disabled={selectedHere.length === 0}>ticked ({selectedHere.length.toLocaleString()})</option>
           </select>
-          <select className="vs-select" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} aria-label="Group by">
+          <select className="sort-select" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} aria-label="Group by">
             <option value="artist">by artist</option>
             <option value="label">by label</option>
           </select>
+        </> : undefined}
+      >
+        <ModTabs value={tab} onChange={(k) => { if (k !== tab) { setTab(k); setView("all"); } }}
+          tabs={TABS.map((t) => ({ key: t.key, label: t.label, count: counts[t.key] ?? 0 }))} />
+      </ModToolbar>
+      {help && <div className="comment-meta" style={{ marginBottom: 12 }}>{help}</div>}
+
+      {shown.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <ModButton onClick={() => setSelected(allShownTicked ? new Set() : new Set(listed.map((s) => s.id)))}>
+            {allShownTicked ? "untick all" : `tick all (${listed.length.toLocaleString()})`}
+          </ModButton>
+          <ModButton disabled={likely.length === 0} title="Years, and labels like Drums, Orchestral, Piano, Live, Demo, Edition, Remix"
+            onClick={() => { setSelected(new Set(likely.map((s) => s.id))); setView("likely"); }}>
+            tick likely ones ({likely.length.toLocaleString()})
+          </ModButton>
         </div>
       )}
+      <ModBulkBar count={selectedHere.length} onClear={() => setSelected(new Set())}>
+        <ModButton kind="approve" busy={busy} onClick={() => run("approve", selectedHere)}>approve</ModButton>
+        <ModButton kind="dismiss" busy={busy} onClick={() => run("dismiss", selectedHere)}>dismiss</ModButton>
+      </ModBulkBar>
+
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
+      {error && <ModNotice kind="error">Couldn&apos;t load suggestions: {error}</ModNotice>}
+      {items === null && <ModLoading />}
+      {items && shown.length === 0 && !error && <ModEmpty>Nothing to check here.</ModEmpty>}
 
       {Object.keys(byArtist).map((artist) => {
         const ids = byArtist[artist].map((s) => s.id);
         const all = ids.every((id) => selected.has(id));
         return (
           <div key={artist}>
-            <label className="review-group-head vs-group">
-              <input type="checkbox" checked={all} onChange={() => setSelected((prev) => {
+            <ModSection right={
+              <button className="mod-link" onClick={() => setSelected((prev) => {
                 const next = new Set(prev);
                 ids.forEach((id) => (all ? next.delete(id) : next.add(id)));
                 return next;
-              })} aria-label={`tick all for ${artist}`} />
-              <span className="section-label" style={{ margin: 0 }}>{artist} <span className="vs-dim">{ids.length}</span></span>
-            </label>
+              })}>{all ? "untick these" : "tick these"}</button>
+            }>{artist} ({ids.length})</ModSection>
             {byArtist[artist].map((s) => (
-              <div key={s.id} data-row-id={s.id} className={`review-row ${selected.has(s.id) ? "is-ticked" : ""}`}>
-                <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.track_title}`} />
-                <div style={{ minWidth: 0 }}>
-                  <div className="review-row-title">
-                    <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`}>{s.track_title}</Link>
-                    {likelyIds.has(s.id) && s.cls === "check" && <span className="feature-tag likely-tag" title="Picked by &quot;tick likely ones&quot;">likely</span>}
-                  </div>
-                  <div className="review-row-meta">
-                    <span>
-                      {s.action === "merge" ? "merge into" : "under"}{" "}
-                      {s.parent_track_id ? (
-                        <>
-                          <strong>{s.parent_title}</strong>
-                          {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
-                        </>
-                      ) : (
-                        <><strong>{s.create_parent_title}</strong> (new main song)</>
-                      )}
-                    </span>
-                    {showTag(s) && <span className="feature-tag">{s.version}</span>}
-                    {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
-                  </div>
-                </div>
-                <div className="review-row-actions vs-actions">
-                  <button disabled={busy} onClick={() => quick("approve", s)} title="Approve" aria-label={`approve ${s.track_title}`}>✓</button>
-                  <button disabled={busy} onClick={() => quick("dismiss", s)} title="Dismiss" aria-label={`dismiss ${s.track_title}`}>✕</button>
-                </div>
-              </div>
+              <ModRow
+                key={s.id}
+                check={{ checked: selected.has(s.id), onChange: () => toggle(s.id) }}
+                title={<>
+                  <Link href={`/artist/${s.track_artist_id}?highlight=${s.track_id}`}>{s.track_title}</Link>
+                  {likelyIds.has(s.id) && s.cls === "check" && <ModTag kind="good">likely</ModTag>}
+                </>}
+                meta={<>
+                  <span>
+                    {s.action === "merge" ? "merge into" : "under"}{" "}
+                    {s.parent_track_id ? (
+                      <>
+                        <strong>{s.parent_title}</strong>
+                        {s.parent_artist && s.parent_artist !== s.track_artist ? ` (${s.parent_artist})` : ""}
+                      </>
+                    ) : (
+                      <><strong>{s.create_parent_title}</strong> (new main song)</>
+                    )}
+                  </span>
+                  {showTag(s) && <ModTag>{s.version}</ModTag>}
+                  {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
+                </>}
+                actions={<>
+                  <ModButton kind="approve" busy={busy} onClick={() => quick("approve", s)}>approve</ModButton>
+                  <ModButton kind="dismiss" busy={busy} onClick={() => quick("dismiss", s)}>dismiss</ModButton>
+                </>}
+              />
             ))}
           </div>
         );
       })}
 
-    </div>
+      {items && items.length >= fetchN && (counts[tab] ?? 0) > items.length && (
+        <div style={{ marginTop: 14 }}>
+          <ModButton busy={busy} onClick={() => { const n = Math.min(2000, fetchN + 800); setFetchN(n); load(tab, n); }}>
+            load more ({((counts[tab] ?? 0) - items.length).toLocaleString()} not shown)
+          </ModButton>
+        </div>
+      )}
+    </ModPage>
   );
 }

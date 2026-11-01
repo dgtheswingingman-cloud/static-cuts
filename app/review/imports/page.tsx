@@ -5,12 +5,11 @@
 // straight away. Approved songs go into the undo history as one batch.
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
 
 type Suggestion = {
   id: string;
@@ -34,7 +33,6 @@ const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.f
 export default function ImportReviewPage() {
   const { user, loading: authLoading } = useAuth();
   const isRealAdmin = useIsModerator();
-  const router = useRouter();
   const [items, setItems] = useState<Suggestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -42,6 +40,8 @@ export default function ImportReviewPage() {
   const [message, setMessage] = useState<string | null>(null);
   // Waiting songs, or ones dismissed before (kept so mistakes can be undone).
   const [view, setView] = useState<"waiting" | "dismissed">("waiting");
+  const [artistFilter, setArtistFilter] = useState("");
+  const [limit, setLimit] = useState(300);
 
   async function load(which = view) {
     const { data, error: err } = await supabase.rpc(
@@ -58,16 +58,24 @@ export default function ImportReviewPage() {
 
   const popularity = (s: Suggestion) => s.extra?.listeners ?? s.extra?.pageviews ?? -1;
   // Waiting: most popular first. Dismissed: most recently dismissed first.
-  const shown = useMemo(() => view === "dismissed" ? (items ?? [])
-    : [...(items ?? [])].sort((a, b) => popularity(b) - popularity(a) || a.title.localeCompare(b.title)), [items, view]);
+  const artists = useMemo(() => {
+    const n: Record<string, number> = {};
+    (items ?? []).forEach((s) => { n[s.artist_name] = (n[s.artist_name] ?? 0) + 1; });
+    return Object.entries(n).sort((a, b) => b[1] - a[1]);
+  }, [items]);
+  const shown = useMemo(() => {
+    const list = (items ?? []).filter((s) => !artistFilter || s.artist_name === artistFilter);
+    return view === "dismissed" ? list
+      : [...list].sort((a, b) => popularity(b) - popularity(a) || a.title.localeCompare(b.title));
+  }, [items, view, artistFilter]);
   const groups = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
-    shown.forEach((s) => {
+    shown.slice(0, limit).forEach((s) => {
       const k = `${s.artist_name} · ${SOURCE_NAMES[s.source] ?? s.source}`;
       (out[k] = out[k] || []).push(s);
     });
     return out;
-  }, [shown]);
+  }, [shown, limit]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -79,7 +87,7 @@ export default function ImportReviewPage() {
 
   function switchView(v: "waiting" | "dismissed") {
     if (v === view) return;
-    setView(v); setItems(null); setMessage(null); setSelected(new Set());
+    setView(v); setItems(null); setMessage(null); setSelected(new Set()); setArtistFilter(""); setLimit(300);
     load(v);
   }
 
@@ -125,96 +133,108 @@ export default function ImportReviewPage() {
   const restorable = shown.filter((s) => !s.extra?.already_on_page);
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control")}>← control room</button>
-      <h1 className="detail-name page-title">Imported Songs</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
+    <ModPage
+      title="Imported songs"
+      intro={<>
         Songs the Genius, Last.fm and spreadsheet imports, and people&apos;s own music files (Local Cuts), found that aren&apos;t on the page yet. Genius often lists unreleased songs;
         Last.fm titles come from what people play, so leaks show up. Added songs are filed under their main song
-        automatically when they&apos;re a version, and can be reversed from the{" "}
-        <UndoHistoryLink />.
-      </div>
+        automatically when they&apos;re a version, and can be reversed from the <UndoHistoryLink />.
+      </>}
+    >
+      <ModToolbar
+        sticky
+        right={items && items.length > 0 ? (
+          <select className="sort-select" aria-label="Artist" value={artistFilter}
+            onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); setLimit(300); }}>
+            <option value="">all artists ({items.length.toLocaleString()})</option>
+            {artists.map(([a, n]) => <option key={a} value={a}>{a} ({n.toLocaleString()})</option>)}
+          </select>
+        ) : undefined}
+      >
+        <ModTabs value={view} onChange={switchView} tabs={[
+          { key: "waiting", label: "waiting", count: view === "waiting" ? items?.length ?? null : null },
+          { key: "dismissed", label: "dismissed", count: view === "dismissed" ? items?.length ?? null : null },
+        ]} />
+        {items && items.length > 0 && (
+          <>
+            <ModButton onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>tick all ({shown.length.toLocaleString()})</ModButton>
+            {view === "waiting" ? (
+              <>
+                <ModButton kind="approve" busy={busy} disabled={shown.length === 0}
+                  confirm={`Approve all ${shown.length.toLocaleString()} songs${artistFilter ? ` by ${artistFilter}` : ""}?`}
+                  onClick={() => run("approve", shown.map((s) => s.id))}>approve all</ModButton>
+                <ModButton kind="danger" busy={busy} disabled={shown.length === 0}
+                  confirm={`Dismiss all ${shown.length.toLocaleString()} songs${artistFilter ? ` by ${artistFilter}` : ""}? They won't be suggested again (you can bring them back from "dismissed").`}
+                  onClick={() => run("dismiss", shown.map((s) => s.id))}>dismiss all</ModButton>
+              </>
+            ) : (
+              <ModButton busy={busy} disabled={restorable.length === 0}
+                confirm={`Put all ${restorable.length} dismissed songs back on the waiting list?${restorable.length < shown.length ? ` (${shown.length - restorable.length} already on the site are left out.)` : ""}`}
+                onClick={() => run("restore", restorable.map((s) => s.id))}>restore all ({restorable.length.toLocaleString()})</ModButton>
+            )}
+          </>
+        )}
+      </ModToolbar>
 
-      <div className="tabs" style={{ marginBottom: 12 }}>
-        <button className={`tab ${view === "waiting" ? "active" : ""}`} onClick={() => switchView("waiting")}>waiting</button>
-        <button className={`tab ${view === "dismissed" ? "active" : ""}`} onClick={() => switchView("dismissed")}>dismissed</button>
-      </div>
+      <ModBulkBar count={selectedHere.length} onClear={() => setSelected(new Set())}>
+        {view === "waiting" ? (
+          <>
+            <ModButton kind="approve" busy={busy} onClick={() => run("approve", selectedHere)}>approve</ModButton>
+            <ModButton kind="dismiss" busy={busy} onClick={() => run("dismiss", selectedHere)}>dismiss</ModButton>
+          </>
+        ) : (
+          <ModButton kind="approve" busy={busy} onClick={() => run("restore", selectedHere)}>restore</ModButton>
+        )}
+      </ModBulkBar>
 
-      {message && <div className="comments-panel" style={{ marginBottom: 12 }}>{message}</div>}
-      {error && <div className="comment-meta" style={{ marginBottom: 12 }}>Couldn&apos;t load imports: {error}</div>}
-      {items === null && <div className="empty-state">loading…</div>}
+      {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
+      {error && <ModNotice kind="error">Couldn&apos;t load imports: {error}</ModNotice>}
+      {items === null && <ModLoading />}
       {items && items.length === 0 && !error && (
-        <div className="empty-state">{view === "waiting" ? "Nothing waiting. Imports from Genius and Last.fm will show up here." : "Nothing dismissed."}</div>
-      )}
-
-      {items && items.length > 0 && view === "dismissed" && (
-        <div className="review-toolbar import-actions">
-          <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("restore", selectedHere)}>
-            {busy ? "working…" : `restore selected (${selectedHere.length})`}
-          </button>
-          <button className="tab" disabled={busy || restorable.length === 0}
-            onClick={() => { if (confirm(`Put all ${restorable.length} dismissed songs back on the waiting list?${restorable.length < shown.length ? ` (${shown.length - restorable.length} already on the site are left out.)` : ""}`)) run("restore", restorable.map((s) => s.id)); }}>
-            restore all ({restorable.length})
-          </button>
-        </div>
-      )}
-
-      {items && items.length > 0 && view === "waiting" && (
-        <div className="review-toolbar import-actions">
-          <button className="tab active" disabled={busy || selectedHere.length === 0} onClick={() => run("approve", selectedHere)}>
-            {busy ? "working…" : `approve selected (${selectedHere.length})`}
-          </button>
-          <button className="tab" disabled={busy || selectedHere.length === 0} onClick={() => run("dismiss", selectedHere)}>
-            dismiss selected
-          </button>
-          <button className="tab" disabled={busy || shown.length === 0}
-            onClick={() => { if (confirm(`Approve all ${shown.length} songs?`)) run("approve", shown.map((s) => s.id)); }}>
-            approve all ({shown.length})
-          </button>
-          <button className="tab danger-tab" disabled={busy || shown.length === 0}
-            onClick={() => {
-              if (confirm(`Dismiss all ${shown.length} songs? They won't be suggested again (you can bring them back from "dismissed").`)) run("dismiss", shown.map((s) => s.id));
-            }}>
-            dismiss all
-          </button>
-        </div>
+        <ModEmpty>{view === "waiting" ? "Nothing waiting. New imports will show up here." : "Nothing dismissed."}</ModEmpty>
       )}
 
       {Object.keys(groups).map((g) => (
         <div key={g}>
-          <div className="review-group-head">
-            <span className="section-label" style={{ margin: 0 }}>{g} ({groups[g].length})</span>
-          </div>
+          <ModSection right={
+            <button className="mod-link" onClick={() => setSelected((prev) => { const n = new Set(prev); groups[g].forEach((s) => n.add(s.id)); return n; })}>tick these</button>
+          }>{g} ({groups[g].length})</ModSection>
           {groups[g].map((s) => (
-            <label key={s.id} data-row-id={s.id} className="review-row" style={{ cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`select ${s.title}`} />
-              <div style={{ minWidth: 0 }}>
-                <div className="review-row-title">
-                  {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{s.title}</a> : s.title}
-                </div>
-                <div className="review-row-meta">
-                  {s.status_guess !== "unconfirmed" && <span className="feature-tag">{s.status_guess}</span>}
-                  {s.version_of && <span className="feature-tag">version of {s.version_of}</span>}
-                  {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
-                  {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
-                  {s.extra?.producers && <span>prod. {s.extra.producers}</span>}
-                  {s.extra?.length_sec != null && <span>{Math.floor(s.extra.length_sec / 60)}:{String(s.extra.length_sec % 60).padStart(2, "0")}</span>}
-                  {s.release_date && <span>{s.release_date}</span>}
-                  {view === "dismissed" && s.extra?.already_on_page && (
-                    <span className="feature-tag">
-                      {s.extra.already_on_page === "yes" ? "already on the site" : `already on the site as “${s.extra.already_on_page}”`}
-                    </span>
-                  )}
-                  {view === "dismissed" && s.decided_at && <span>dismissed {new Date(s.decided_at).toLocaleDateString("en-GB")}</span>}
-                  {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
-                  {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
-                </div>
-              </div>
-            </label>
+            <ModRow
+              key={s.id}
+              check={{ checked: selected.has(s.id), onChange: () => toggle(s.id) }}
+              title={s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}
+              meta={<>
+                {s.status_guess !== "unconfirmed" && <ModTag>{s.status_guess}</ModTag>}
+                {s.version_of && <ModTag>version of {s.version_of}</ModTag>}
+                {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
+                {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
+                {s.extra?.producers && <span>prod. {s.extra.producers}</span>}
+                {s.extra?.length_sec != null && <span>{Math.floor(s.extra.length_sec / 60)}:{String(s.extra.length_sec % 60).padStart(2, "0")}</span>}
+                {s.album && <span>{s.album}</span>}
+                {s.release_date && <span>{s.release_date}</span>}
+                {view === "dismissed" && s.extra?.already_on_page && (
+                  <ModTag>{s.extra.already_on_page === "yes" ? "already on the site" : `already on the site as “${s.extra.already_on_page}”`}</ModTag>
+                )}
+                {view === "dismissed" && s.decided_at && <span>dismissed {new Date(s.decided_at).toLocaleDateString("en-GB")}</span>}
+                {s.extra?.listeners != null && <span>{s.extra.listeners.toLocaleString("en-GB")} listeners</span>}
+                {s.extra?.pageviews != null && <span>{s.extra.pageviews.toLocaleString("en-GB")} views</span>}
+              </>}
+              actions={view === "waiting" ? <>
+                <ModButton kind="approve" busy={busy} onClick={() => run("approve", [s.id])}>approve</ModButton>
+                <ModButton kind="dismiss" busy={busy} onClick={() => run("dismiss", [s.id])}>dismiss</ModButton>
+              </> : !s.extra?.already_on_page ? (
+                <ModButton busy={busy} onClick={() => run("restore", [s.id])}>restore</ModButton>
+              ) : undefined}
+            />
           ))}
         </div>
       ))}
-
-    </div>
+      {shown.length > limit && (
+        <div style={{ marginTop: 14 }}>
+          <ModButton onClick={() => setLimit(limit + 300)}>show 300 more ({(shown.length - limit).toLocaleString()} left)</ModButton>
+        </div>
+      )}
+    </ModPage>
   );
 }

@@ -5,11 +5,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
+import { ModPage, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
 
 type Row = {
   artist_id: string;
@@ -33,7 +33,6 @@ function when(iso: string | null) {
 export default function QueuePage() {
   const { user, loading: authLoading } = useAuth();
   const isRealAdmin = useIsAdmin();
-  const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,24 +78,21 @@ export default function QueuePage() {
   );
 
   return (
-    <div className="wrap">
-      <button className="back-btn" onClick={() => router.push("/control?tab=health")}>← control room</button>
-      <h1 className="detail-name page-title">Artist Queue</h1>
-      <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Which artists get checked next. Empty pages, requests and recent finds push an artist up. Each check that
-        finds nothing makes the next one wait longer (1 day, 3 days, a week, 2 weeks, then monthly), and a new find
-        resets it. ChatGPT routines and the imports both follow this order.
-      </div>
-      {error && <div className="comment-meta">Couldn&apos;t load the queue: {error}</div>}
-      {rows === null && <div className="empty-state">loading…</div>}
+    <ModPage
+      title="Artist queue"
+      back="/control?tab=health"
+      intro="Which artists get checked next. Empty pages, requests and recent finds push an artist up. Each check that finds nothing makes the next one wait longer (1 day, 3 days, a week, 2 weeks, then monthly), and a new find resets it. ChatGPT routines and the imports both follow this order."
+    >
+      {error && <ModNotice kind="error">Couldn&apos;t load the queue: {error}</ModNotice>}
+      {rows === null && <ModLoading />}
       {rows && (
         <>
-          <div className="section-label" style={{ marginBottom: 6 }}>Due now ({due.length})</div>
-          {due.length ? table(due) : <div className="comment-meta" style={{ marginBottom: 16 }}>Nothing due right now.</div>}
-          <div className="section-label" style={{ margin: "20px 0 6px" }}>Waiting ({waiting.length})</div>
-          {waiting.length ? table(waiting) : <div className="comment-meta">None.</div>}
+          <ModSection>Due now ({due.length})</ModSection>
+          {due.length ? table(due) : <ModEmpty>Nothing due right now.</ModEmpty>}
+          <ModSection>Waiting ({waiting.length})</ModSection>
+          {waiting.length ? table(waiting) : <ModEmpty>None.</ModEmpty>}
         </>
       )}
-    </div>
+    </ModPage>
   );
 }
