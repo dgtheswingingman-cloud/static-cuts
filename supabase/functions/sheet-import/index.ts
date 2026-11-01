@@ -520,7 +520,13 @@ async function importSource(sourceId: string, userId: string, onTimer = false) {
   const { songs } = readSongs(rows, mapping);
   // Big trackers (thousands of rows) go in pieces so no single call runs
   // into the database's time limit; the pieces' results are added up.
+  // The database lets a tab's first import (and one pressed by hand after a
+  // hold) change any number of statuses, and holds a re-check that changes
+  // hundreds. It tells them apart by last_result, which each piece rewrites,
+  // so put it back between pieces: every piece then counts as what the whole
+  // run is.
   const CHUNK = 400;
+  const firstRun = !(src.last_result && typeof src.last_result === "object" && "statuses" in src.last_result);
   let data: Record<string, any> = {};
   for (let at = 0; at < songs.length || at === 0; at += CHUNK) {
     const { data: part, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs.slice(at, at + CHUNK) });
@@ -530,6 +536,7 @@ async function importSource(sourceId: string, userId: string, onTimer = false) {
     }
     data = addResults(data, part ?? {});
     if (songs.length === 0) break;
+    if (firstRun && at + CHUNK < songs.length) await db.from("sheet_sources").update({ last_result: src.last_result ?? null }).eq("id", sourceId);
   }
   if (songs.length > CHUNK) await db.from("sheet_sources").update({ last_result: { ...data, at: new Date().toISOString() } }).eq("id", sourceId);
   if (!onTimer || !before) await db.from("sheet_sources").update({ header_check: now }).eq("id", sourceId);
