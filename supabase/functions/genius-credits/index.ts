@@ -121,7 +121,9 @@ Deno.serve(async (req) => {
       const q = `${t.title.replace(/[([].*?[)\]]/g, " ")} ${t.artist}`.replace(/\s+/g, " ").trim();
       const s = await genius(`/search?per_page=10&q=${encodeURIComponent(q)}`, token);
       await pause();
-      const want = key(t.title);
+      // Tracker tags in square brackets ([V1], [Mixtape], [CD Version]) aren't
+      // part of the title on Genius.
+      const want = key(t.title.replace(/\s*\[[^\]]*\]/g, ""));
       const artistId = t.genius_artist_id && /^\d+$/.test(t.genius_artist_id) ? Number(t.genius_artist_id) : null;
       const hit = (s?.hits ?? []).map((h: any) => h.result).find((r: any) =>
         r && key(r.title) === want &&
