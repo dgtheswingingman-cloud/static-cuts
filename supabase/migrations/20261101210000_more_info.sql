@@ -117,8 +117,8 @@ begin
   get diagnostics n = row_count;
   v_left := v_limit - n;
 
-  -- Then by artist (most followed first): pass 1 only released (and
-  -- unconfirmed) main songs, the ones Genius has; pass 2 the rest.
+  -- Then by artist (most followed first): pass 1 only released main songs
+  -- (Genius nearly always has them); pass 2 the rest.
   for pass in 1..2 loop
     exit when v_left <= 0;
     for a in
@@ -131,7 +131,7 @@ begin
       from tracks t
       where t.artist_id = a.id and t.genius_checked_at is null and t.genius_song_id is null
         and (t.producers is null or t.featured_artists is null or t.cover_url is null)
-        and (pass = 2 or (t.parent_track_id is null and coalesce(t.release_status, 'unconfirmed') in ('released', 'unconfirmed')))
+        and (pass = 2 or (t.parent_track_id is null and t.release_status = 'released'))
       order by (t.parent_track_id is not null), (t.release_status in ('released', 'leaked')) desc, t.id
       limit v_left;
       get diagnostics n = row_count;
