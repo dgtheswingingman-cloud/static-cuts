@@ -9,7 +9,13 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
-import { ModPage, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
+import { ModPage, ModNotice, ModLoading, ModEmpty, ModSection, ModRow, ModTag } from "../../components/Mod";
+
+type Growth = {
+  artists: number; genius_checked: number; lastfm_checked: number; sweep_done: boolean; held: boolean;
+  per_day: number; left_today: number; waiting_guests: number; related: number;
+  recent: { artist_id: string | null; name: string; source: "guest" | "related"; note: string | null; at: string }[];
+};
 
 type Row = {
   artist_id: string;
@@ -35,6 +41,7 @@ export default function QueuePage() {
   const isRealAdmin = useIsAdmin();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [growth, setGrowth] = useState<Growth | null>(null);
 
   useEffect(() => {
     if (!isRealAdmin) return;
@@ -42,6 +49,7 @@ export default function QueuePage() {
       if (err) { setError(err.message); setRows([]); return; }
       setRows((data as Row[]) ?? []);
     });
+    supabase.rpc("rpc_growth_status").then(({ data }) => setGrowth((data as Growth) ?? null));
   }, [isRealAdmin]);
 
   if (!isRealAdmin) return <NoAccess loading={authLoading} who="admin" />;
@@ -83,6 +91,34 @@ export default function QueuePage() {
       back="/control?tab=health"
       intro="Which artists get checked next. Empty pages, requests and recent finds push an artist up. Each check that finds nothing makes the next one wait longer (1 day, 3 days, a week, 2 weeks, then monthly), and a new find resets it. ChatGPT routines and the imports both follow this order."
     >
+      {growth && (
+        <>
+          <ModSection>How the archive grows</ModSection>
+          <div className="comment-meta" style={{ lineHeight: 1.7, marginBottom: 8 }}>
+            <div>1. <b>Existing songs</b>: Spotify, Genius credits and Deezer fill in what each artist&apos;s songs are missing (always running).</div>
+            <div>
+              2. <b>New songs</b>: every artist checked on Genius ({growth.genius_checked.toLocaleString()} of {growth.artists.toLocaleString()})
+              and Last.fm ({growth.lastfm_checked.toLocaleString()} of {growth.artists.toLocaleString()}) in the last 14 days. Artists whose
+              existing songs are filled in go first; when nobody&apos;s due, whoever was checked longest ago.
+            </div>
+            <div>
+              3. <b>New artists</b>:{" "}
+              {growth.held ? "paused (new catalogues are on hold)."
+                : !growth.sweep_done ? `starts once step 2 has been through every artist. Up to ${growth.per_day} a day after that.`
+                : `${growth.left_today} of ${growth.per_day} left today.`}{" "}
+              Next up: {growth.waiting_guests.toLocaleString()} guest{growth.waiting_guests === 1 ? "" : "s"} confirmed on Spotify, then{" "}
+              {growth.related.toLocaleString()} similar artist{growth.related === 1 ? "" : "s"} (named by 3+ artists here on Last.fm).
+            </div>
+          </div>
+          {growth.recent.length > 0 && growth.recent.map((a, i) => (
+            <ModRow
+              key={i}
+              title={<>{a.artist_id ? <Link href={`/artist/${a.artist_id}`}>{a.name}</Link> : a.name}<ModTag>{a.source === "guest" ? "guest" : "similar artist"}</ModTag></>}
+              meta={<><span>added {when(a.at)}</span>{a.note && <span>{a.note}</span>}</>}
+            />
+          ))}
+        </>
+      )}
       {error && <ModNotice kind="error">Couldn&apos;t load the queue: {error}</ModNotice>}
       {rows === null && <ModLoading />}
       {rows && (
