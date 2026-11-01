@@ -6,7 +6,8 @@
 //      else their name (only when exactly one MusicBrainz artist has it)
 //   2. read their band links ("member of band", "collaboration"): who's in
 //      the band, or which bands they're in, with instrument and years
-//   3. save (sc_mb_save)
+//   3. save (sc_mb_save), plus from the same reply official links, country,
+//      real name and active years (sc_mb_info)
 // MusicBrainz allows one request a second and asks for a named client.
 // Every request takes a 'musicbrainz' ticket (sc_api_allow).
 
@@ -53,6 +54,47 @@ const plain = (x: string) => {
 const NOT_ROLE = new Set(["original", "additional", "minor", "guest", "founder", "support", "principal", "task", "eponymous"]);
 const year = (d?: string | null) => (d && /^\d{4}/.test(d) ? d.slice(0, 4) : "");
 
+// Official links worth showing, by MusicBrainz link type (or the site for
+// "social network" links). Ended links are left out.
+function linkLabel(type: string, url: string): string | null {
+  const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+  if (type === "official homepage") return "Website";
+  if (type === "youtube") return "YouTube";
+  if (type === "soundcloud") return "SoundCloud";
+  if (type === "bandcamp") return "Bandcamp";
+  if (type === "wikipedia") return "Wikipedia";
+  if (type === "social network" || type === "video channel") {
+    if (/instagram\.com$/.test(host)) return "Instagram";
+    if (/(twitter|x)\.com$/.test(host)) return "X";
+    if (/tiktok\.com$/.test(host)) return "TikTok";
+    if (/facebook\.com$/.test(host)) return "Facebook";
+    if (/youtube\.com$/.test(host)) return "YouTube";
+  }
+  return null;
+}
+
+function artistInfo(d: any) {
+  const seen = new Set<string>();
+  const links = ((d.relations ?? []) as any[])
+    .filter((r) => r["target-type"] === "url" && !r.ended && r.url?.resource)
+    .map((r) => ({ type: linkLabel(r.type, r.url.resource), url: r.url.resource as string }))
+    .filter((l) => l.type && !seen.has(l.type) && seen.add(l.type)) as { type: string; url: string }[];
+  const legal = ((d.aliases ?? []) as any[]).find((x) => x.type === "Legal name" && !x.ended)?.name ?? null;
+  const info: Record<string, unknown> = {
+    links: links.slice(0, 8),
+    country: typeof d.country === "string" ? d.country : null,
+    real_name: legal && legal !== d.name ? legal : null,
+  };
+  // Active years for bands only (for a person MusicBrainz's dates are birth
+  // and death). Only say it ended when MusicBrainz says so.
+  if (d.type && d.type !== "Person" && d.type !== "Character") {
+    const life = d["life-span"] ?? {};
+    info.from = year(life.begin) || null;
+    if (life.ended) info.to = year(life.end) || null;
+  }
+  return info;
+}
+
 type Next = { artist_id: string; name: string; spotify_id: string | null; mbid: string | null };
 
 async function findId(a: Next): Promise<{ mbid: string | null; by: string }> {
@@ -74,7 +116,7 @@ async function one(a: Next) {
     await db.rpc("sc_mb_save", { p_secret: secret, p_artist: a.artist_id, p_mbid: null, p_type: null, p_matched_by: by, p_links: [] });
     return { found: false, links: 0 };
   }
-  const d = await mb(`/artist/${mbid}?inc=artist-rels&fmt=json`);
+  const d = await mb(`/artist/${mbid}?inc=artist-rels+url-rels+aliases&fmt=json`);
   if (!d) {
     await db.rpc("sc_mb_save", { p_secret: secret, p_artist: a.artist_id, p_mbid: null, p_type: null, p_matched_by: by, p_links: [] });
     return { found: false, links: 0 };
@@ -94,6 +136,9 @@ async function one(a: Next) {
   const { data: n } = await db.rpc("sc_mb_save", {
     p_secret: secret, p_artist: a.artist_id, p_mbid: mbid, p_type: d.type ?? null, p_matched_by: by, p_links: links,
   });
+  // From the same reply: official links, country, real name, active years.
+  // (Saved only if the match above was kept.)
+  await db.rpc("sc_mb_info", { p_secret: secret, p_artist: a.artist_id, p_info: { ...artistInfo(d), mbid } });
   return { found: true, links: (n as number) ?? 0 };
 }
 

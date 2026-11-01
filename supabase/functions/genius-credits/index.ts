@@ -1,7 +1,8 @@
 // Supabase Edge Function: genius-credits
 //
-// Fills empty producer, featured-artist, release-date and artwork fields from
-// Genius, a few songs at a time (see 20261019190000_genius_credits.sql).
+// Fills empty producer, featured-artist, songwriter, release-date, album and
+// artwork fields from Genius, and saves samples / interpolations / remixes /
+// covers between songs, a few songs at a time (see 20261019190000_genius_credits.sql).
 // The timer runs every minute. Owner's pace setting (sc_genius_pace):
 //   normal: every 10 minutes, up to 15 songs, 1.5 seconds between requests
 //   max ("extreme"): every minute, three workers for up to 50 seconds, with
@@ -35,6 +36,9 @@ const PACES: Record<string, { workers: number; songs: number; gap: number; secon
   normal: { workers: 1, songs: 15, gap: 1500, seconds: 50 },
   max: { workers: 3, songs: 300, gap: 300, seconds: 50 },
 };
+
+// Genius song relations kept (the rest, like translations, aren't useful here).
+const RELATIONS = new Set(["samples", "sampled_in", "interpolates", "interpolated_by", "remix_of", "remixed_by", "cover_of", "covered_by"]);
 
 class SlowDown extends Error {}
 
@@ -129,7 +133,8 @@ Deno.serve(async (req) => {
     }
     const song = (await genius(`/songs/${id}?text_format=plain`, token))?.song;
     await pause();
-    if (!song) { results.push({ track_id: t.track_id }); return; }
+    // Gone from Genius: noted (writers: "") so it isn't asked for again.
+    if (!song) { results.push({ track_id: t.track_id, writers: "" }); return; }
     const c = song.release_date_components;
     results.push({
       track_id: t.track_id,
@@ -138,8 +143,17 @@ Deno.serve(async (req) => {
       featuring: (song.featured_artists ?? []).map((a: any) => a.name).join(", ") || null,
       release_date: c?.year && c?.month && c?.day
         ? `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}` : null,
-      cover_url: song.song_art_image_thumbnail_url && !/default_cover/.test(song.song_art_image_thumbnail_url)
-        ? song.song_art_image_thumbnail_url : null,
+      // Full-size art (was the 300px thumbnail).
+      cover_url: [song.song_art_image_url, song.song_art_image_thumbnail_url]
+        .find((u: string | null | undefined) => u && !/default_cover/.test(u)) ?? null,
+      writers: (song.writer_artists ?? []).map((a: any) => a.name).join(", ") || "",
+      album: song.album?.name ?? null,
+      // Samples, interpolations, remixes and covers, both ways.
+      relations: ((song.song_relationships ?? []) as any[])
+        .filter((r) => RELATIONS.has(r.relationship_type ?? r.type))
+        .flatMap((r) => ((r.songs ?? []) as any[]).slice(0, 25).map((x) => ({
+          kind: r.relationship_type ?? r.type, id: x.id, title: x.title, artist: x.primary_artist?.name ?? x.artist_names ?? null, url: x.url ?? null,
+        }))),
     });
   }
 
