@@ -10,7 +10,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type Info = { image_url: string | null; bio: string | null; bio_source: string | null; bio_source_url: string | null };
+type Info = {
+  image_url: string | null; bio: string | null; bio_source: string | null; bio_source_url: string | null;
+  // From MusicBrainz.
+  links: { type: string; url: string }[] | null; country: string | null; real_name: string | null;
+  active_from: number | null; active_to: number | null;
+};
+
+function countryName(code: string) {
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code; } catch { return code; }
+}
 type Person = { id: string | null; name: string; mbid: string | null; roles: string[]; from: number | null; to: number | null; former: boolean };
 type Group = Person & { songs: number; recent: { id: string; title: string; status: string | null }[] };
 type Groups = { mbid: string | null; members: Person[]; groups: Group[] };
@@ -57,7 +66,7 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
   const [message, setMessage] = useState<string | null>(null);
 
   function load() {
-    supabase.from("artists").select("image_url, bio, bio_source, bio_source_url").eq("id", artistId).maybeSingle()
+    supabase.from("artists").select("image_url, bio, bio_source, bio_source_url, links, country, real_name, active_from, active_to").eq("id", artistId).maybeSingle()
       .then(({ data }) => setInfo((data as Info) ?? null));
     supabase.rpc("rpc_artist_groups", { p_artist_id: artistId }).then(({ data }) => setGroups((data as Groups) ?? null));
   }
@@ -102,7 +111,7 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
 
   const bio = info?.bio ?? "";
   const short = bio.length > 280 && !more ? bio.slice(0, 280).replace(/\s+\S*$/, "") + "…" : bio;
-  const hasAnything = !!(info?.image_url || bio || groups?.members?.length || groups?.groups?.length);
+  const hasAnything = !!(info?.image_url || bio || info?.links?.length || info?.country || groups?.members?.length || groups?.groups?.length);
   if (!hasAnything && !isAdmin && !canModerate) return null;
 
   return (
@@ -112,6 +121,23 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
         <img src={info.image_url} alt={artistName} className="artist-photo" width={120} height={120} />
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
+        {info && (info.real_name || info.country || info.active_from || (info.links?.length ?? 0) > 0) && (
+          <div className="detail-meta" style={{ marginBottom: 6 }}>
+            {[
+              info.real_name ? `Real name ${info.real_name}` : null,
+              info.country && /^[A-Z]{2}$/.test(info.country) ? `From ${countryName(info.country)}` : null,
+              info.active_from ? `Active ${info.active_from}–${info.active_to ?? "now"}` : null,
+            ].filter(Boolean).join(" · ")}
+            {(info.links?.length ?? 0) > 0 && (
+              <span>
+                {(info.real_name || info.country || info.active_from) ? " · " : ""}
+                {info.links!.map((l, i) => (
+                  <span key={l.type}>{i > 0 && ", "}<a href={l.url} target="_blank" rel="noopener noreferrer" className="text-link">{l.type}</a></span>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
         {groups && (
           <>
             <PeopleList label="Members" people={groups.members.filter((m) => !m.former)} canModerate={canModerate} onRemove={remove} />

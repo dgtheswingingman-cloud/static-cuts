@@ -9,7 +9,8 @@
 // The database hands out (and claims) what's next (sc_deezer_next):
 //   search: find the artist on Deezer by name
 //   list:   a page of their albums, EPs and singles
-//   album:  one release's songs, matched to the page and added if missing
+//   album:  one release's songs (and its label), matched to the page and
+//           added if missing; ISRC, explicit flag and label saved too
 //   photo:  the artist's Deezer picture, for artists with no photo
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -120,10 +121,15 @@ Deno.serve(async (req) => {
       } else if (next.kind === "album") {
         const r = await deezer(`/album/${next.album_id}/tracks?limit=300`);
         if (!r.ok) { if (r.stop) stop = true; return; } // try again next run
-        const tracks = ((r.body?.data ?? []) as { title: string; track_position: number; disk_number: number; link: string; duration?: number; artist?: { name: string } }[])
+        // The release itself, for its label (one more call, same ticket pool).
+        const { data: t2 } = await db.rpc("sc_api_allow", { p_service: "deezer", p_want: 1 });
+        const info = t2 === 1 ? await deezer(`/album/${next.album_id}`) : null;
+        const label = info && info.ok && typeof info.body?.label === "string" ? info.body.label : null;
+        const tracks = ((r.body?.data ?? []) as { title: string; track_position: number; disk_number: number; link: string; duration?: number; isrc?: string; explicit_lyrics?: boolean; artist?: { name: string } }[])
           .filter((t) => !CLEAN.test(t.title))
           .map((t) => ({ title: tidyTitle(t.title), position: t.track_position, disk: t.disk_number, link: t.link, artist: t.artist?.name ?? "",
-            duration: Number.isFinite(t.duration) && (t.duration ?? 0) > 0 ? t.duration : null }));
+            duration: Number.isFinite(t.duration) && (t.duration ?? 0) > 0 ? t.duration : null,
+            isrc: t.isrc || null, explicit: typeof t.explicit_lyrics === "boolean" ? t.explicit_lyrics : null, label }));
         const { data: res } = await db.rpc("sc_deezer_album_save", { p_secret: secret, p_artist: next.artist_id, p_album: next.album_id, p_tracks: tracks });
         done.releases++;
         done.matched += (res?.matched as number) ?? 0;

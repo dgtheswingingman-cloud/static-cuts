@@ -39,6 +39,10 @@ type Track = {
   leak_date?: string | null;
   cover_url?: string | null;
   producers: string | null;
+  writers?: string | null;
+  label?: string | null;
+  isrc?: string | null;
+  explicit?: boolean | null;
   genre: string | null;
   notes: string | null;
   album: string | null;
@@ -50,6 +54,12 @@ type Track = {
   status_source_url?: string | null;
   spotify_verified_at?: string | null;
 };
+type Relation = { kind: string; title: string; artist: string | null; url: string | null; track_id: string | null };
+const RELATION_LABELS: Record<string, string> = {
+  samples: "Samples", sampled_in: "Sampled in", interpolates: "Interpolates", interpolated_by: "Interpolated in",
+  remix_of: "Remix of", remixed_by: "Remixed in", cover_of: "Cover of", covered_by: "Covered by",
+};
+
 type Version = { id: string; title: string; release_status: string | null; is_official: boolean; spotify_url: string | null; is_main: boolean };
 type Song = {
   redirect?: string;
@@ -115,6 +125,12 @@ export default function SongView({ id }: { id: string }) {
       supabase.rpc("rpc_sheet_credit", { p_url: s.track.source_url }).then(({ data: c }) => setSheet(c ?? null));
     }
   }
+
+  // Samples, interpolations, remixes and covers (from Genius).
+  const [relations, setRelations] = useState<Relation[]>([]);
+  useEffect(() => {
+    supabase.rpc("rpc_track_relations", { p_track: id }).then(({ data }) => setRelations((data as Relation[]) ?? []));
+  }, [id]);
 
   useEffect(() => {
     if (!authLoading) load();
@@ -186,6 +202,9 @@ export default function SongView({ id }: { id: string }) {
       </span>
     )]);
   }
+  if (t.writers) info.push(["Written by", t.writers]);
+  if (t.label) info.push(["Label", t.label]);
+  if (t.isrc) info.push(["ISRC", <span title="The recording's official code" style={{ fontFamily: "var(--font-mono, monospace)" }}>{t.isrc}</span>]);
   if (song.appears_on.length > 0) {
     info.push(["Featuring", (
       <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -248,6 +267,7 @@ export default function SongView({ id }: { id: string }) {
             ? <a href={t.status_source_url} target="_blank" rel="noopener noreferrer" className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label} ↗</a>
             : <span className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</span>;
         })()}
+        {t.explicit && <span className="feature-tag" title="Explicit">E</span>}
         {t.is_featured && <span className="feature-tag">featured</span>}
         {main && main.id !== t.id && (
           <span>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></span>
@@ -348,6 +368,31 @@ export default function SongView({ id }: { id: string }) {
               <div className="comment-body">{value}</div>
             </div>
           ))}
+        </>
+      )}
+
+      {relations.length > 0 && (
+        <>
+          <div className="section-label">Samples &amp; connections</div>
+          {Object.entries(relations.reduce<Record<string, Relation[]>>((acc, r) => { (acc[r.kind] ??= []).push(r); return acc; }, {}))
+            .map(([kind, rows]) => (
+              <div key={kind} className="song-info-row">
+                <div className="comment-meta">{RELATION_LABELS[kind] ?? kind}</div>
+                <div className="comment-body">
+                  {rows.slice(0, 12).map((r, i) => (
+                    <span key={`${r.title}-${i}`}>
+                      {i > 0 && " · "}
+                      {r.track_id
+                        ? <Link href={`/song/${r.track_id}`} className="text-link">{r.title}</Link>
+                        : r.url ? <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-link">{r.title} ↗</a> : r.title}
+                      {r.artist && <span className="comment-meta"> by {r.artist}</span>}
+                    </span>
+                  ))}
+                  {rows.length > 12 && <span className="comment-meta"> and {rows.length - 12} more</span>}
+                </div>
+              </div>
+            ))}
+          <div className="comment-meta" style={{ marginTop: 4 }}>From Genius.</div>
         </>
       )}
 

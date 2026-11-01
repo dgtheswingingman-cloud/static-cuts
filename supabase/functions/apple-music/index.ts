@@ -6,7 +6,8 @@
 // (sc_apple_next):
 //   artist: find them on Apple (saved id, else exact-name artists, kept only
 //           when a release matches a song or album here) and list releases
-//   album:  one release's songs; matching songs here get the Apple link
+//   album:  one release's songs; matching songs here get the Apple link (and
+//           release date, genre and explicit flag where we have none)
 // Every call takes an 'itunes' ticket (sc_api_allow).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -50,8 +51,11 @@ const releaseTitle = (t: string) => (t || "").replace(/\s+-\s+(Single|EP)$/i, ""
 
 async function albumsOf(appleId: string) {
   const rows = await itunes(`/lookup?id=${encodeURIComponent(appleId)}&entity=album&limit=200&country=US`);
-  return rows
-    .filter((r) => r.wrapperType === "collection" && String(r.artistId) === String(appleId))
+  const mine = rows.filter((r) => r.wrapperType === "collection" && String(r.artistId) === String(appleId));
+  // Clean (edited) copies are skipped when the explicit one is there too.
+  const explicitTitles = new Set(mine.filter((r) => r.collectionExplicitness !== "cleaned").map((r) => releaseTitle(r.collectionName).toLowerCase()));
+  return mine
+    .filter((r) => r.collectionExplicitness !== "cleaned" || !explicitTitles.has(releaseTitle(r.collectionName).toLowerCase()))
     .map((r) => ({ id: String(r.collectionId), title: releaseTitle(r.collectionName) }));
 }
 
@@ -77,7 +81,14 @@ async function doAlbum(n: { artist_id: string; album_id: string }) {
   const rows = await itunes(`/lookup?id=${encodeURIComponent(n.album_id)}&entity=song&limit=200&country=US`);
   const tracks = rows
     .filter((r) => r.wrapperType === "track" && r.kind === "song" && r.trackViewUrl)
-    .map((r) => ({ title: r.trackName as string, url: String(r.trackViewUrl).replace(/[?&]uo=\d+/, "").replace(/\?$/, "") }));
+    .map((r) => ({
+      title: r.trackName as string,
+      url: String(r.trackViewUrl).replace(/[?&]uo=\d+/, "").replace(/\?$/, ""),
+      // Filled in only where we have nothing.
+      released: typeof r.releaseDate === "string" ? r.releaseDate.slice(0, 10) : null,
+      explicit: r.trackExplicitness === "explicit" ? true : r.trackExplicitness === "notExplicit" ? false : null,
+      genre: typeof r.primaryGenreName === "string" ? r.primaryGenreName : null,
+    }));
   const { data } = await db.rpc("sc_apple_album_save", { p_secret: secret, p_artist: n.artist_id, p_album: n.album_id, p_tracks: tracks });
   return (data as number) ?? 0;
 }
