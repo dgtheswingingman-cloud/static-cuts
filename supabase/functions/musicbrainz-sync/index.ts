@@ -50,7 +50,7 @@ const plain = (x: string) => {
 };
 
 // Attributes that aren't a role.
-const NOT_ROLE = new Set(["original", "additional", "minor", "guest", "founder", "support"]);
+const NOT_ROLE = new Set(["original", "additional", "minor", "guest", "founder", "support", "principal", "task", "eponymous"]);
 const year = (d?: string | null) => (d && /^\d{4}/.test(d) ? d.slice(0, 4) : "");
 
 type Next = { artist_id: string; name: string; spotify_id: string | null; mbid: string | null };
