@@ -12,6 +12,7 @@ function nextPath(): string {
 import { useRouter } from "next/navigation";
 import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { OAUTH_FLAG } from "../AuthNotice";
 
 export default function LoginPage() {
   const { signUp, signIn } = useAuth();
@@ -53,6 +54,8 @@ export default function LoginPage() {
 
   async function handleOAuth() {
     setError(null);
+    // So the site can explain if they come back not signed in (AuthNotice).
+    try { sessionStorage.setItem(OAUTH_FLAG, String(Date.now())); } catch { /* storage blocked */ }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "spotify",
       // user-follow-read: so the first-visit page can tick the artists you
@@ -112,6 +115,10 @@ export default function LoginPage() {
             <button className="inline-link-btn comment-meta" onClick={() => handleOAuth()}>
               Invited Spotify tester? Log in with Spotify
             </button>
+            <div className="comment-meta" style={{ marginTop: 6 }}>
+              Only for accounts we&apos;ve invited (Spotify limits new sites). Everyone else: sign up with email. You can still
+              bring in your Spotify music afterwards from Collection › Import, using Exportify.
+            </div>
           </div>
         )}
       </div>

@@ -174,13 +174,27 @@ export default function CollectionImportPage() {
 
       <div className="section-label">From Spotify</div>
       <div className="detail-meta" style={{ marginBottom: 10 }}>
-        Your Liked Songs and playlists on Spotify: songs already here are collected, and official songs by artists in the archive
-        that are missing get added too. Invited testers only for now (Spotify limits new sites to a few accounts).
+        Your Liked Songs and playlists: songs already here are collected, and official songs by artists in the archive that
+        are missing get added too.
       </div>
-      <Link href="/settings#spotify-import" className="tab active" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
-        import from Spotify
-      </Link>
+      <div className="mod-notice info" style={{ marginBottom: 12 }}>
+        <div>
+          <b>Most people: use Exportify (works for everyone, about a minute).</b>
+          <ol style={{ margin: "6px 0 0 18px", padding: 0 }}>
+            <li>Open <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a> and log in with Spotify there.</li>
+            <li>Press <b>Export All</b> (or export just the playlists you want). It downloads a file.</li>
+            <li>Come back here and pick that file with the button below.</li>
+          </ol>
+          <div style={{ marginTop: 6 }}>
+            The direct &ldquo;import from Spotify&rdquo; button only works for invited testers: Spotify only lets new sites connect a
+            handful of accounts. If it says you&apos;re not allowed, that&apos;s why. Use Exportify instead.
+          </div>
+        </div>
+      </div>
       <ExportifyImport />
+      <Link href="/settings#spotify-import" className="tab" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
+        import from Spotify (invited testers)
+      </Link>
 
       <div className="section-label">From a spreadsheet</div>
       <div className="detail-meta" style={{ marginBottom: 12 }}>
