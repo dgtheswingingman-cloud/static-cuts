@@ -311,7 +311,12 @@ export default function HomePage() {
             type="text"
             placeholder="Search any artist or track — Playboi Carti, Location, anyone…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            // One search for the whole site: typing here carries on on the search page.
+            onChange={(e) => {
+              const v = e.target.value;
+              setQuery(v);
+              if (v.trim()) router.push(`/search?q=${encodeURIComponent(v)}`);
+            }}
           />
         </div>
         <nav className="home-nav" aria-label="Explore">

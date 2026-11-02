@@ -1,7 +1,9 @@
 "use client";
 
-// Site-wide song search with filters. The filters live in the address, so a
-// search can be shared ("every Carti leak from 2019 without a link").
+// The one search: artists (names and nicknames), people and songs, with song
+// filters. Typing in the home page box or the header lands here. The
+// filters live in the address, so a search can be shared ("every Carti leak
+// from 2019 without a link").
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
@@ -34,6 +36,8 @@ function SearchInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   // People whose name matches, so you can find friends.
   const [people, setPeople] = useState<{ id: string; display_name: string | null; avatar_url: string | null }[]>([]);
+  // Artists whose name or nickname matches.
+  const [artists, setArtists] = useState<{ id: string; name: string; image_url: string | null }[] | null>(null);
 
   function update(changes: Record<string, string | null>) {
     const next = new URLSearchParams(params.toString());
@@ -68,9 +72,29 @@ function SearchInner() {
   const key = params.toString();
   useEffect(() => {
     const words = (params.get("q") ?? "").trim().replace(/[%_,()\\]/g, " ").trim();
-    if (words.length < 2) { setPeople([]); return; }
+    if (words.length < 2) { setPeople([]); setArtists(null); return; }
     supabase.from("profiles").select("id, display_name, avatar_url").ilike("display_name", `%${words}%`).limit(6)
       .then(({ data }) => setPeople((data as typeof people) ?? []));
+    setArtists(null);
+    Promise.all([
+      supabase.from("artists").select("id, name, image_url").ilike("name", `%${words}%`).limit(12),
+      supabase.from("artist_aliases").select("artist_id, artists!artist_id(id, name, image_url)").ilike("alias", `%${words}%`).limit(12),
+    ]).then(([byName, byAlias]) => {
+      const seen = new Map<string, { id: string; name: string; image_url: string | null }>();
+      for (const a of (byName.data ?? []) as { id: string; name: string; image_url: string | null }[]) seen.set(a.id, a);
+      for (const r of (byAlias.data ?? []) as unknown as { artists: { id: string; name: string; image_url: string | null } | null }[]) {
+        if (r.artists && !seen.has(r.artists.id)) seen.set(r.artists.id, r.artists);
+      }
+      // Exact names first, then names that start with the words.
+      const w = words.toLowerCase();
+      const list = [...seen.values()].sort((a, b) => {
+        const rank = (n: string) => (n.toLowerCase() === w ? 0 : n.toLowerCase().startsWith(w) ? 1 : 2);
+        return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+      }).slice(0, 12);
+      setArtists(list);
+      // An artist people look for that isn't here: counted, so they get added sooner.
+      if (list.length === 0 && words.length >= 3) supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "artists" });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.get("q")]);
   const hasAnything = !!(params.get("q") || statuses.length || from || to || link);
@@ -110,12 +134,12 @@ function SearchInner() {
 
   return (
     <div className="wrap">
-      <h1 className="detail-name page-title">Search songs</h1>
+      <h1 className="detail-name page-title">Search</h1>
 
       <input
         className="search-input"
         style={{ width: "100%", marginBottom: 14 }}
-        placeholder="Song, artist, album or producer…"
+        placeholder="Artist, song, album, producer or person…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         autoFocus
@@ -157,8 +181,24 @@ function SearchInner() {
       </div>
 
       {error && <div className="empty-state">Search failed: {error}</div>}
-      {!hasAnything && <div className="empty-state">Type a song name or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>}
+      {!hasAnything && <div className="empty-state">Type an artist, a song or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>}
       {hasAnything && !error && !results && <div className="empty-state">searching…</div>}
+      {artists && artists.length > 0 && (
+        <>
+          <div className="section-label">Artists</div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
+            {artists.map((a) => (
+              <Link key={a.id} href={`/artist/${a.id}`} style={{ display: "flex", gap: 8, alignItems: "center", textDecoration: "none", color: "var(--bone)" }}>
+                {a.image_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={a.image_url} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+                  : <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--surface)", display: "inline-block" }} />}
+                <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.95rem" }}>{a.name}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
       {people.length > 0 && (
         <>
           <div className="section-label">People</div>

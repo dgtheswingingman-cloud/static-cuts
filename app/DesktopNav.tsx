@@ -34,7 +34,7 @@ export default function DesktopNav() {
           ))}
         </nav>
         <form className="dnav-search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`); }}>
-          <input type="search" placeholder="Search songs…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search songs" />
+          <input type="search" placeholder="Search artists, songs…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
         </form>
         {user && (
           <Link href="/messages" className="dnav-msg" aria-label={`Messages${unread ? `, ${unread} unread` : ""}`} title="Messages">
