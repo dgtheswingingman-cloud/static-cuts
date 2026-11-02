@@ -8,6 +8,7 @@ import { AdminViewProvider } from "./AdminViewContext";
 import { ThemeProvider } from "./ThemeProvider";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import ModeBar from "./ModeBar";
+import SignupNudge from "./components/SignupNudge";
 import { VisitorPreviewBar } from "./components/visitorPreview";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SiteHome />
               <AuthNotice />
               <SitePause>{children}</SitePause>
+              <SignupNudge />
               <footer className="site-credit">
                 <nav className="site-credit-links">
                   <Link href="/faq">FAQ</Link>
