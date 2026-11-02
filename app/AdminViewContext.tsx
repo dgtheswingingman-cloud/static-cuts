@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { local } from "@/lib/safeStorage";
 
 type AdminViewContextType = {
@@ -13,16 +13,17 @@ const AdminViewContext = createContext<AdminViewContextType | undefined>(undefin
 const STORAGE_KEY = "admin_view_as_non_admin";
 
 export function AdminViewProvider({ children }: { children: React.ReactNode }) {
-  const [viewAsNonAdmin, setViewAsNonAdminState] = useState(false);
-
-  useEffect(() => {
-    const stored = local.get(STORAGE_KEY);
-    if (stored === "true") setViewAsNonAdminState(true);
-  }, []);
+  // Read straight away (not after the first render), so pages don't start
+  // in admin mode and then flip to "your account". Safe on the server: no one
+  // is signed in until the browser has loaded the session.
+  const [viewAsNonAdmin, setViewAsNonAdminState] = useState(() => typeof window !== "undefined" && local.get(STORAGE_KEY) === "true");
 
   function setViewAsNonAdmin(v: boolean) {
     setViewAsNonAdminState(v);
     local.set(STORAGE_KEY, String(v));
+    // Reload so every part of the page starts again in the new mode, rather
+    // than some parts showing the old one.
+    window.location.reload();
   }
 
   return (
