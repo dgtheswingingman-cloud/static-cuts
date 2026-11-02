@@ -186,6 +186,8 @@ export default function ArtistPage() {
   // Less-used page actions (request check, import songs, find links).
   const [headerMore, setHeaderMore] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  // Alerts for this artist: instant, a daily round-up, or off.
+  const [followAlert, setFollowAlert] = useState<"instant" | "daily" | "off">("daily");
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -388,11 +390,12 @@ export default function ArtistPage() {
       if (!user) { setIsFollowing(false); return; }
       const { data } = await supabase
         .from("follows")
-        .select("artist_id")
+        .select("artist_id, alert")
         .eq("user_id", user.id)
         .eq("artist_id", id)
         .maybeSingle();
       setIsFollowing(!!data);
+      if (data?.alert) setFollowAlert(data.alert as "instant" | "daily" | "off");
     }
     loadFollow();
   }, [user, id]);
@@ -1642,6 +1645,19 @@ export default function ArtistPage() {
               <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
                 {isFollowing ? "✓ following" : "+ follow"}
               </button>
+            )}
+            {!isAdmin && isFollowing && (
+              <select className="sort-select" value={followAlert} aria-label="Alerts for this artist"
+                title="When to tell you about new songs, leaks and releases"
+                onChange={async (e) => {
+                  const v = e.target.value as "instant" | "daily" | "off";
+                  setFollowAlert(v);
+                  await supabase.rpc("rpc_set_follow_alert", { p_artist: id, p_alert: v });
+                }}>
+                <option value="instant">🔔 alerts: instant</option>
+                <option value="daily">alerts: daily round-up</option>
+                <option value="off">alerts: off</option>
+              </select>
             )}
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
