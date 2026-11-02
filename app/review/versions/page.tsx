@@ -44,7 +44,7 @@ const TABS: { key: Suggestion["cls"]; label: string; help: string }[] = [
   { key: "check", label: "check these", help: "The label isn't a clear version tag (a year, Freestyle, a name, Part 2…). Approve the ones that really are versions of the song shown." },
   { key: "cross", label: "other artist's song", help: "Remixes whose original is on another artist's page. Approving puts the remix under the original and keeps it listed on the remixer's page." },
   { key: "sure", label: "needs a main song", help: "Clear versions (Live, Remix, Mixed…) whose main song isn't on the page yet. Approving makes the main song and puts this under it." },
-  { key: "dupe", label: "marked dupe", help: "Songs labelled \"Dupe\". Approving merges them into the song shown (ratings, collections and comments move across)." },
+  { key: "dupe", label: "same song", help: "The same song entered twice: labelled \"Dupe\", or Claude thinks it's the same recording under a longer title (a subtitle, \"Bonus Track\", an edition). Approving merges them into the song shown (ratings, collections and comments move across; the other title is kept as a nickname). Untick any that are really different songs." },
 ];
 
 export default function VersionSuggestionsPage() {
@@ -61,6 +61,8 @@ export default function VersionSuggestionsPage() {
   const [groupBy, setGroupBy] = useState<"artist" | "label">("artist");
   // How many to fetch: 400 loads quickly; "load more" fetches the rest.
   const [fetchN, setFetchN] = useState(400);
+  // Claude's note on the ones it looked at ("alternate subtitle, same recording").
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   // One list at a time (a list can run to a couple of thousand), with the
   // counts for every list fetched separately so the tabs are always right.
@@ -72,8 +74,15 @@ export default function VersionSuggestionsPage() {
     if (err) { setError(err.message); setItems([]); return; }
     setError(null);
     setCounts((c as Record<string, number>) ?? {});
-    setItems((data as Suggestion[]) ?? []);
+    const list = (data as Suggestion[]) ?? [];
+    setItems(list);
     setSelected(new Set());
+    const got: Record<string, string> = {};
+    for (let i = 0; i < list.length; i += 300) {
+      const { data: n } = await supabase.rpc("admin_version_ai_notes", { p_ids: list.slice(i, i + 300).map((x) => x.id) });
+      for (const r of (n as { id: string; note: string | null }[] | null) ?? []) if (r.note) got[r.id] = r.note;
+    }
+    setNotes(got);
   }
 
   useEffect(() => {
@@ -257,6 +266,7 @@ export default function VersionSuggestionsPage() {
                   </span>
                   {showTag(s) && <ModTag>{s.version}</ModTag>}
                   {groupBy === "label" && s.track_artist && <span>{s.track_artist}</span>}
+                  {notes[s.id] && <span title="Claude's note">Claude: {notes[s.id]}</span>}
                 </>}
                 actions={<>
                   <ModButton kind="approve" busy={busy} onClick={() => quick("approve", s)}>approve</ModButton>
