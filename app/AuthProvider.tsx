@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, cameForPasswordReset } from "@/lib/supabase";
+import { isVisitorPreview } from "./components/visitorPreview";
 
 type AuthContextType = {
   session: Session | null;
@@ -68,9 +69,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  // "View as new visitor": the site behaves as if nobody's signed in.
+  const [preview, setPreview] = useState(false);
+  useEffect(() => setPreview(isVisitorPreview()), []);
+  const shown = preview ? null : session;
+
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading: loading || !roleReady, role: roleReady ? role : null, signUp, signIn, signOut }}
+      value={{ session: shown, user: shown?.user ?? null, loading: loading || !roleReady, role: roleReady && !preview ? role : null, signUp, signIn, signOut }}
     >
       {children}
     </AuthContext.Provider>

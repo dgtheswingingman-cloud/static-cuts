@@ -7,13 +7,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { isVisitorPreview } from "./visitorPreview";
 
 const HIDE_KEY = "static_cuts_landing_hidden";
 
 export default function Landing({ artists, songs }: { artists: number; songs: number | null }) {
   const [hidden, setHidden] = useState(true);
   useEffect(() => {
-    try { setHidden(localStorage.getItem(HIDE_KEY) === "1"); } catch { setHidden(false); }
+    try { setHidden(!isVisitorPreview() && localStorage.getItem(HIDE_KEY) === "1"); } catch { setHidden(false); }
   }, []);
   if (hidden) return null;
 

@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
 import { useAdminView } from "./AdminViewContext";
 import { useIsRealAdmin } from "./useIsAdmin";
+import { startVisitorPreview } from "./components/visitorPreview";
 
 const SHORTCUTS: [string, string][] = [
   ["/control", "control room"],
@@ -52,6 +53,9 @@ export default function ModeBar() {
       )}
       <button className="mode-bar-switch" onClick={() => setViewAsNonAdmin(adminMode)}>
         {adminMode ? "switch to my account" : "switch to admin mode"}
+      </button>
+      <button className="mode-bar-switch" onClick={startVisitorPreview} title="See the site as someone who's never been here">
+        view as new visitor
       </button>
     </div>
   );
