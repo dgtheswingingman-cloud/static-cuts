@@ -1,0 +1,11 @@
+-- One-off clean-up (2 Nov): rows the tracker sheets imported as "songs"
+-- that are really headings, notes or album names ("Contact Info:",
+-- "Singles", "Icedancer (2018)", "CITY MORGUE VOL 1: HELL OR HIGH WATER"...).
+-- 63 rows, none with a listening link or versions. Undoable from the undo
+-- history; deleted titles are remembered so imports don't suggest them again.
+select set_config('static_cuts.batch_id', '', false);
+select sc_begin_batch('cleanup', 'Removed tracker headings and album names that were imported as songs');
+delete from tracks where id in ('bladee-035ba4df71','bladee-084d494f87','bladee-08f275777d','bladee-0ba8a5d562','bladee-117b5540e1','bladee-29d3c1bdb6','bladee-33719969f3','bladee-4ed3380320','bladee-7a739485a1','bladee-7badf81b9e','bladee-7cbb50a36b','bladee-88c0474d86','bladee-91c252165d','bladee-a0d323b9f5','bladee-a3aafad0a5','bladee-ac66f5792e','bladee-bbe50b164d','bladee-bf9f11b6ce','bladee-c1376dc2d7','bladee-cf32963aa9','bladee-d9646da803','bladee-e86cd6f3f2','bladee-e9b57e2bfd','che-2a42bb12-45e3538a69','destroy-lonely-071ca6e702','destroy-lonely-1f1982e617','destroy-lonely-21220b90e6','destroy-lonely-7e7a7dce7f','destroy-lonely-84726a2d63','destroy-lonely-90a50edac8','destroy-lonely-ae0dc4da74','destroy-lonely-b2e486f3f8','destroy-lonely-bcc0d417b7','destroy-lonely-c07c132d1d','destroy-lonely-d0a539e120','hxg-00f15b050d','hxg-2e6e3ec6a4','hxg-31ea384959','hxg-5443bd0e02','hxg-7acfa63ca2','hxg-8c54ecdde0','hxg-c306db63c6','hxg-cee9546349','lil-peep-e93a376174','lil-uzi-vert-2c4f2f7f4b','nettspend-a81f02de-a7389fed59','nettspend-a81f02de-c2a6ed5c5e','osamason-f2124743-5411127f88','osamason-f2124743-d80360411e','playboi-carti-2ff233ec52','playboi-carti-3b27bdba43','playboi-carti-aa5ff18379','zillakami-1ab3753f8c','zillakami-41384e6af6','zillakami-58466f64f9','zillakami-60984e3287','zillakami-82e3721a25','zillakami-85a993cc5d','zillakami-9b27443096','zillakami-9f40d46599','zillakami-a5ed0ed746','zillakami-b6af230994','zillakami-e6d60b9b08')
+  and source = 'sheet' and spotify_url is null and deezer_url is null and apple_url is null
+  and not exists (select 1 from tracks c where c.parent_track_id = tracks.id);
+select set_config('static_cuts.batch_id', '', false);
