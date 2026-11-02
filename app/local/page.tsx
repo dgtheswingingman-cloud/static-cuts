@@ -15,7 +15,7 @@
 // Originals are never touched. Saving the zip is premium; helping the
 // archive is free.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
@@ -43,6 +43,8 @@ type Site = {
   id: string; title: string; artist: string; album: string | null; release_date: string | null; leak_date: string | null;
   track_number: number | null; featured_artists: string | null; producers: string | null; length_sec: number | null;
   cover_url: string | null; status: string | null; parent_album: string | null; parent_cover: string | null;
+  credited_as?: string | null;  // released under another name of theirs
+  display_cover?: string | null; // own art, else fans' pick, else a photo of the artist
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
 type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted" };
@@ -100,6 +102,10 @@ export default function LocalCutsPage() {
   const [collected, setCollected] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
   const site = useRef(new Map<string, Site>());
+  // How titles are written: "Title [Version] (Feat. X)" by default.
+  const [featStyle, setFeatStyleState] = useState<"Feat." | "feat." | "none">(() => {
+    try { const v = typeof window !== "undefined" ? localStorage.getItem("local_feat_style") : null; return v === "feat." || v === "none" ? v : "Feat."; } catch { return "Feat."; }
+  });
 
   const busy = !["idle", "ready", "saved"].includes(stage);
   const step = (s: Stage, n: number) => { setStage(s); setDone(0); setTotal(n); };
@@ -196,7 +202,7 @@ export default function LocalCutsPage() {
     const ids = [...new Set(read.filter((s) => s.track_id).map((s) => s.track_id!))];
     for (let i = 0; i < ids.length; i += 200) {
       const { data } = await supabase.from("tracks")
-        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, artists(name)")
+        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, credited_as, artists(name)")
         .in("id", ids.slice(i, i + 200));
       type Row = Omit<Site, "artist" | "status" | "parent_album" | "parent_cover"> & { release_status: string | null; parent_track_id: string | null; artists: { name: string } | null };
       const rows = (data as Row[] | null) ?? [];
@@ -206,10 +212,15 @@ export default function LocalCutsPage() {
         const { data: pd } = await supabase.from("tracks").select("id, album, cover_url").in("id", parents);
         ((pd as { id: string; album: string | null; cover_url: string | null }[] | null) ?? []).forEach((p) => pm.set(p.id, p));
       }
+      // The picture each song shows on the site: its own art, else the fans'
+      // pick, else a photo of the artist (so every file gets a cover).
+      const { data: cv } = await supabase.rpc("rpc_track_covers", { p_ids: rows.map((r) => r.id) });
+      const covers = new Map(((cv as { id: string; url: string | null }[] | null) ?? []).map((c) => [c.id, c.url]));
       rows.forEach((r) => site.current.set(r.id, {
         ...r, artist: r.artists?.name ?? "", status: r.release_status,
         parent_album: r.parent_track_id ? pm.get(r.parent_track_id)?.album ?? null : null,
         parent_cover: r.parent_track_id ? pm.get(r.parent_track_id)?.cover_url ?? null : null,
+        display_cover: covers.get(r.id) ?? null,
       }));
     }
     read.forEach((s) => { if (s.track_id) setLocalFile(s.track_id, s.file); });
@@ -278,6 +289,16 @@ export default function LocalCutsPage() {
     setSent({ details, songs: added, covers, problem });
   }
 
+  function setFeatStyle(v: "Feat." | "feat." | "none") {
+    setFeatStyleState(v);
+    try { localStorage.setItem("local_feat_style", v); } catch { /* fine */ }
+  }
+  // Re-name everything when the style changes.
+  useEffect(() => {
+    if (songs.length) setPlan(buildPlan(songs));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featStyle]);
+
   function buildPlan(read: Song[]): Out[] {
     const used = new Set<string>();
     const unique = (p: string) => {
@@ -297,15 +318,20 @@ export default function LocalCutsPage() {
         return { song: s, path: place(artist, album, s.title!, s.file), tags: null, coverUrl: null, kind: "kept" };
       }
       if (t) {
-        const feat = t.featured_artists && !/\b(feat|ft)\b/i.test(t.title) ? ` (feat. ${t.featured_artists})` : "";
+        // "Title [Version] (Feat. X)": the version tag is already part of the
+        // title here; features added in the chosen style.
+        const feat = t.featured_artists && featStyle !== "none" && !/\b(feat|ft)\b/i.test(t.title) ? ` (${featStyle} ${t.featured_artists})` : "";
         const date = t.release_date ?? t.leak_date;
         const year = date?.slice(0, 4) ?? null;
         const unreleased = t.status && t.status !== "released";
-        const album = t.album || t.parent_album || (unreleased ? (year ? `Unreleased ${year}` : "Unreleased") : "Singles");
+        // The era is the album; unreleased songs with no era: "Unreleased".
+        const album = t.album || t.parent_album || (unreleased ? "Unreleased" : "Singles");
         const title = t.title + feat;
+        // Songs released under another of their names keep that name.
+        const artist = t.credited_as || t.artist;
         return {
-          song: s, path: place(t.artist, album, title, s.file), kind: "tidied", coverUrl: t.cover_url ?? t.parent_cover,
-          tags: { title, artist: t.artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year },
+          song: s, path: place(t.artist, album, title, s.file), kind: "tidied", coverUrl: t.display_cover ?? t.cover_url ?? t.parent_cover,
+          tags: { title, artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year },
         };
       }
       const c = s.clean;
@@ -314,7 +340,7 @@ export default function LocalCutsPage() {
         const title = c.version && !c.title.toLowerCase().includes(c.version.toLowerCase()) ? `${c.title} [${c.version}]` : c.title;
         const album = c.status === "released" ? "Singles" : "Unreleased";
         return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: null,
-          tags: { title: c.featuring ? `${title} (feat. ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
+          tags: { title: c.featuring && featStyle !== "none" ? `${title} (${featStyle} ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
       }
       return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
     });
@@ -465,6 +491,14 @@ export default function LocalCutsPage() {
               {sent.problem && <> (stopped: {sent.problem})</>}
             </div>
           )}
+          <div className="comment-meta" style={{ marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            Song names:
+            <select className="sort-select" value={featStyle} onChange={(e) => setFeatStyle(e.target.value as "Feat." | "feat." | "none")} aria-label="How song names are written">
+              <option value="Feat.">Shoota [Extended] (Feat. Lil Uzi Vert)</option>
+              <option value="feat.">Shoota [Extended] (feat. Lil Uzi Vert)</option>
+              <option value="none">Shoota [Extended]</option>
+            </select>
+          </div>
           {claudeNote && <div className="comment-meta" style={{ marginBottom: 8 }}>{claudeNote}</div>}
           {premium === false && unsorted.length > 0 && (
             <div className="comment-meta" style={{ marginBottom: 8 }}>With premium, Claude also looks at the files that couldn&apos;t be identified.</div>
