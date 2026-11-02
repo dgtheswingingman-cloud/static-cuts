@@ -37,7 +37,7 @@ export default function DeezerCheckPage() {
   }, [isAdmin]);
 
   async function decide(r: Row, verdict: "ok" | "wrong") {
-    if (verdict === "wrong" && !confirm(`Remove the ${r.deezer_songs} songs Deezer added to ${r.name} (keeping ones on their known albums)?`)) return;
+    if (verdict === "wrong" && !confirm(`Remove the ${r.deezer_songs} songs Deezer added to ${r.name} (keeping ones on their known albums or their own Spotify)?`)) return;
     setBusy(r.artist_id);
     setMessage(null);
     const { data, error } = await supabase.rpc("admin_deezer_check_set", { p_artist: r.artist_id, p_verdict: verdict });
@@ -56,7 +56,8 @@ export default function DeezerCheckPage() {
         Artists whose Deezer profile matches almost none of the songs we know for them from elsewhere. Sometimes that&apos;s
         Deezer mixing up different artists with the same name; sometimes it&apos;s just lots of compilations. Deezer
         won&apos;t add new songs to these until you decide. <b>Looks right</b> lets it carry on; <b>wrong artist</b> removes
-        the songs Deezer added and stops it adding more. Everything is in the <UndoHistoryLink />.
+        the songs Deezer added (except ones on their known albums or on their own Spotify, singles included) and
+        stops it adding more. Everything is in the <UndoHistoryLink />.
       </>}
     >
       {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}

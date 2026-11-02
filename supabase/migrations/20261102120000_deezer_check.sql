@@ -7,7 +7,8 @@
 -- match. Profiles that match almost nothing go on a review list
 -- (/review/deezer) and Deezer stops adding new songs to them until the
 -- owner says "looks right". "Wrong artist" removes the songs Deezer added
--- (keeping ones on albums we know are theirs) and stops Deezer adding more.
+-- (keeping ones on albums we know are theirs and ones on their own Spotify)
+-- and stops Deezer adding more.
 -- Both can be undone from the undo history.
 
 alter table artists
@@ -92,8 +93,9 @@ $$;
 revoke execute on function admin_deezer_check_list() from public, anon;
 grant execute on function admin_deezer_check_list() to authenticated;
 
--- "ok": Deezer carries on as normal. "wrong": the songs Deezer added go
--- (except ones on albums known from elsewhere) and Deezer adds no more.
+-- "ok": Deezer carries on as normal. "wrong": the songs Deezer added go,
+-- except ones on albums known from elsewhere and ones found on the
+-- artist's own Spotify (singles included), and Deezer adds no more.
 create or replace function admin_deezer_check_set(p_artist text, p_verdict text)
 returns jsonb
 language plpgsql
@@ -114,6 +116,7 @@ begin
   perform sc_begin_batch('cleanup', v_name || ': removed songs Deezer added from another artist with the same name');
   delete from tracks t
   where t.artist_id = p_artist and t.source = 'deezer'
+    and t.spotify_url is null
     and coalesce(t.album, '') not in (
       select coalesce(o.album, '') from tracks o
       where o.artist_id = p_artist and coalesce(o.source, '') <> 'deezer' and o.album is not null);
