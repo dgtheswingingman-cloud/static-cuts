@@ -2,8 +2,8 @@
 
 // Deezer check: artists whose Deezer profile barely matches the songs we
 // know for them from elsewhere. Deezer sometimes lumps several artists with
-// the same name into one profile (Hi-C was several different people), so
-// Deezer doesn't add their new songs until you've looked.
+// the same name into one profile (Hi-C was several different people). Just
+// a tool: nothing is held back.
 //   looks right:      Deezer carries on as normal
 //   pick releases:    tick which Deezer releases are theirs; unticked ones'
 //                     songs go and are never added again, ticked ones are
@@ -120,11 +120,11 @@ export default function DeezerCheckPage() {
     <ModPage
       title="Deezer check"
       intro={<>
-        Artists whose Deezer profile matches few of the songs we know for them from elsewhere. Sometimes that&apos;s Deezer
-        mixing up different artists with the same name; sometimes it&apos;s just lots of compilations. Deezer won&apos;t
-        add their new songs until you&apos;ve looked. <b>Looks right</b> lets it carry on; <b>pick releases</b> lets you
-        untick the ones that are someone else&apos;s (their songs go and never come back). Everything is in the{" "}
-        <UndoHistoryLink />.
+        Artists whose Deezer profile matches few of the songs we know for them from elsewhere. Usually that&apos;s just
+        lots of compilations; occasionally it&apos;s Deezer mixing up different artists with the same name (like Hi-C).
+        Nothing is held back: use this when a page looks wrong. <b>Looks right</b> takes them off the list;{" "}
+        <b>pick releases</b> lets you untick the ones that are someone else&apos;s (their songs go and never come
+        back). Everything is in the <UndoHistoryLink />.
       </>}
     >
       {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
