@@ -9,22 +9,22 @@ type Props = { params: Promise<{ id: string }>; children: React.ReactNode };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const [{ data: artist }, { count }, { data: cover }] = await Promise.all([
+  const [{ data: artist }, { count }, { count: unreleased }] = await Promise.all([
     supabase.from("artists").select("name").eq("id", id).maybeSingle(),
     supabase.from("tracks").select("id", { count: "exact", head: true }).eq("artist_id", id),
-    supabase.from("tracks").select("cover_url").eq("artist_id", id).not("cover_url", "is", null)
-      .order("release_date", { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
+    supabase.from("tracks").select("id", { count: "exact", head: true }).eq("artist_id", id).neq("release_status", "released"),
   ]);
   if (!artist) return { title: "Artist not found · Static Cuts//" };
-  const title = `${artist.name} · every song, leak and release · Static Cuts//`;
-  const description = `${(count ?? 0).toLocaleString("en-GB")} ${artist.name} songs logged: releases, features, leaks, snippets and unreleased tracks, kept up to date by fans.`;
-  const images = cover?.cover_url ? [{ url: cover.cover_url as string }] : undefined;
+  const title = `${artist.name} — every song, leak and unreleased track · Static Cuts//`;
+  const n = (x: number | null) => (x ?? 0).toLocaleString("en-GB");
+  const description = `${n(count)} ${artist.name} songs logged${unreleased ? `, ${n(unreleased)} of them unreleased, leaked or snippets` : ""}: releases, features and every version, kept up to date by fans.`;
+  // The link picture comes from opengraph-image.tsx next to this file.
   return {
     title,
     description,
     alternates: { canonical: `/artist/${id}` },
-    openGraph: { title, description, type: "profile", images },
-    twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((i) => i.url) },
+    openGraph: { title, description, type: "profile" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

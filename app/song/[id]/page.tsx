@@ -12,13 +12,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { data } = await supabase.rpc("rpc_song_page", { p_id: id });
   const song = data as {
-    track?: { title: string; release_status: string | null; album: string | null; cover_url?: string | null };
+    track?: { title: string; release_status: string | null; album: string | null; cover_url?: string | null; credited_as?: string | null };
     artist?: { name: string };
+    family?: { id: string }[];
   } | null;
   if (!song?.track) return { title: "Song not found · Static Cuts//" };
-  const title = `${song.track.title} — ${song.artist?.name ?? "Unknown"} · Static Cuts//`;
-  const bits = [song.track.release_status, song.track.album].filter(Boolean).join(" · ");
-  const description = `${song.track.title} by ${song.artist?.name ?? "unknown"}${bits ? ` (${bits})` : ""}. Versions, status history and comments on Static Cuts//.`;
+  // Worded like people search: "Shoota [V2] — Playboi Carti (unreleased)".
+  const status = song.track.release_status && song.track.release_status !== "released" ? song.track.release_status : null;
+  const title = `${song.track.title} — ${song.artist?.name ?? "Unknown"}${status ? ` (${status})` : ""} · Static Cuts//`;
+  const versions = Math.max(0, (song.family?.length ?? 0) - 1);
+  const bits = [song.track.release_status, song.track.album, versions ? `${versions} other version${versions === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
+  const description = `${song.track.title} by ${song.artist?.name ?? "unknown"}${song.track.credited_as ? ` (as ${song.track.credited_as})` : ""}${bits ? ` — ${bits}` : ""}. Every version, its history, credits and where to listen, on Static Cuts//.`;
   // The picture itself comes from opengraph-image.tsx next to this file.
   return {
     title,
