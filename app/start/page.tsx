@@ -24,6 +24,11 @@ export default function StartPage() {
   const [busy, setBusy] = useState(false);
   const { session } = useAuth();
   const [fromSpotify, setFromSpotify] = useState<number | null>(null);
+  // Part of the welcome for new accounts: pick at least 5, then on to step 2.
+  const [welcome, setWelcome] = useState(false);
+  useEffect(() => { setWelcome(new URLSearchParams(window.location.search).get("welcome") === "1"); }, []);
+  const MIN = welcome ? 5 : 1;
+  const nextUrl = welcome ? "/welcome?step=2" : "/";
 
   useEffect(() => {
     setPicked(new Set(readPicks()));
@@ -85,7 +90,7 @@ export default function StartPage() {
       savePicks(ids);
     }
     setBusy(false);
-    router.push("/");
+    router.push(nextUrl);
   }
 
   if (isAdmin) {
@@ -94,9 +99,16 @@ export default function StartPage() {
 
   return (
     <div className="wrap">
-      <h1 className="detail-name page-title">Who are you into?</h1>
+      <h1 className="detail-name page-title">{welcome ? "Pick 5 artists you're into" : "Who are you into?"}</h1>
+      {welcome && (
+        <div style={{ display: "flex", gap: 8, margin: "6px 0 14px", flexWrap: "wrap" }}>
+          <span className="feature-tag" style={{ borderColor: "var(--bone)" }}>1. Your artists</span>
+          <span className="feature-tag" style={{ opacity: 0.45 }}>2. Your profile</span>
+          <span className="feature-tag" style={{ opacity: 0.45 }}>3. Your music</span>
+        </div>
+      )}
       <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Pick a few artists and your home page will be about them: their songs, leaks, releases and what changed.
+        {welcome ? "You'll follow them: their new songs, leaks and releases show up on your home page and you get told when something lands." : "Pick a few artists and your home page will be about them: their songs, leaks, releases and what changed."}
         {!user && " No account needed to look around."}
       </div>
       {fromSpotify !== null && fromSpotify > 0 && (
@@ -115,11 +127,11 @@ export default function StartPage() {
         ))}
       </div>
       <div className="start-bar">
-        <span className="comment-meta">{picked.size} picked</span>
-        <button className="tab active" disabled={busy || picked.size === 0} onClick={done}>
-          {busy ? "…" : user ? "follow them" : "show me their songs"}
+        <span className="comment-meta">{picked.size} picked{welcome && picked.size < MIN ? ` · ${MIN - picked.size} more` : ""}</span>
+        <button className="tab active" disabled={busy || picked.size < MIN} onClick={done}>
+          {busy ? "…" : welcome ? "follow them, next" : user ? "follow them" : "show me their songs"}
         </button>
-        <Link href="/" className="text-link comment-meta">skip</Link>
+        <Link href={nextUrl} className="text-link comment-meta">skip</Link>
       </div>
     </div>
   );
