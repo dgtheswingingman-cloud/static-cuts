@@ -8,6 +8,7 @@ import { AdminViewProvider } from "./AdminViewContext";
 import { ThemeProvider } from "./ThemeProvider";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import ModeBar from "./ModeBar";
+import { VisitorPreviewBar } from "./components/visitorPreview";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
 import DesktopNav from "./DesktopNav";
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SpotifyImportResume />
               <div className="scanlines" />
               <ModeBar />
+              <VisitorPreviewBar />
               <DesktopNav />
               <SiteHome />
               <AuthNotice />
