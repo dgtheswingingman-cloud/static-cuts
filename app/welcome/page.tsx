@@ -35,6 +35,9 @@ function Welcome() {
   const router = useRouter();
   const params = useSearchParams();
   const step = Math.min(3, Math.max(1, Number(params.get("step")) || 1));
+  // Admin preview ("preview welcome" in the admin bar): the same steps, nothing saved.
+  const preview = params.get("preview") === "1";
+  const pq = preview ? "&preview=1" : "";
   const [name, setName] = useState("");
   const [about, setAbout] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -42,7 +45,7 @@ function Welcome() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || preview) return;
     supabase.from("profiles").select("display_name, about, avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
       setName((data?.display_name as string) ?? "");
       setAbout((data?.about as string) ?? "");
@@ -52,13 +55,14 @@ function Welcome() {
 
   // Step 1 lives on the artist picker; send them there.
   useEffect(() => {
-    if (user && step === 1) router.replace("/start?welcome=1");
-  }, [user, step, router]);
+    if ((user || preview) && step === 1) router.replace(`/start?welcome=1${pq}`);
+  }, [user, preview, pq, step, router]);
 
   if (loading) return <div className="wrap"><div className="empty-state">loading…</div></div>;
-  if (!user) return <div className="wrap"><div className="empty-state">Log in to set up your account. <Link href="/login" className="text-link">Log in</Link></div></div>;
+  if (!user && !preview) return <div className="wrap"><div className="empty-state">Log in to set up your account. <Link href="/login" className="text-link">Log in</Link></div></div>;
 
   async function uploadAvatar(file: File) {
+    if (preview) { setAvatar(URL.createObjectURL(file)); return; }
     if (!user) return;
     if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) { setError("Please use a PNG, JPEG, WEBP or GIF image."); return; }
     if (file.size > 5 * 1024 * 1024) { setError("That image is too big (5 MB max)."); return; }
@@ -74,6 +78,7 @@ function Welcome() {
   }
 
   async function saveProfile() {
+    if (preview) { router.push(`/welcome?step=3${pq}`); return; }
     if (!user) return;
     setBusy(true);
     setError(null);
@@ -85,6 +90,7 @@ function Welcome() {
   }
 
   async function finish(to: string) {
+    if (preview) { router.push(to === "/" ? "/control" : to); return; }
     if (!user) return;
     setBusy(true);
     await finishWelcome(user.id);
@@ -95,6 +101,7 @@ function Welcome() {
     return (
       <div className="wrap" style={{ maxWidth: 560 }}>
         <h1 className="detail-name page-title">Make it yours</h1>
+        {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
         <Steps step={2} />
         <div className="detail-meta" style={{ marginBottom: 16 }}>How you show up next to your comments, ratings and finds.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
@@ -114,7 +121,7 @@ function Welcome() {
         {error && <div className="comment-meta error-text" style={{ marginBottom: 8 }}>{error}</div>}
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button className="tab active" disabled={busy} onClick={saveProfile}>next</button>
-          <Link href="/welcome?step=3" className="text-link comment-meta">skip</Link>
+          <Link href={`/welcome?step=3${pq}`} className="text-link comment-meta">skip</Link>
         </div>
       </div>
     );
@@ -123,6 +130,7 @@ function Welcome() {
   return (
     <div className="wrap" style={{ maxWidth: 560 }}>
       <h1 className="detail-name page-title">Bring your music in</h1>
+      {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
       <Steps step={3} />
       <div className="detail-meta" style={{ marginBottom: 16 }}>
         Already have playlists? Bring them in and every song we have gets ticked in your collection, so you can see
@@ -145,7 +153,7 @@ function Welcome() {
       </div>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <button className="tab" disabled={busy} onClick={() => finish("/")}>I&apos;m done, take me in</button>
-        <Link href="/welcome?step=2" className="text-link comment-meta">back</Link>
+        <Link href={`/welcome?step=2${pq}`} className="text-link comment-meta">back</Link>
       </div>
     </div>
   );
