@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // "View as new visitor": the site behaves as if nobody's signed in.
-  const [preview, setPreview] = useState(false);
-  useEffect(() => setPreview(isVisitorPreview()), []);
+  // Read straight away so nothing personal flashes up first.
+  const [preview] = useState(() => isVisitorPreview());
   const shown = preview ? null : session;
 
   return (
