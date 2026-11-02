@@ -23,7 +23,7 @@ const JOBS: Record<string, number> = {
   "apple-music": 90_000, "artist-info": 150_000, "deezer-sync": 90_000, "fetch-covers": 150_000,
   "genius-credits": 90_000, "import-artist": 150_000, "guest-artists": 170_000, "check-links": 170_000,
   "musicbrainz-sync": 90_000, "send-push": 60_000, "sheet-import": 320_000, "match-spotify": 90_000,
-  "verify-spotify-links": 90_000, "youtube-search": 90_000,
+  "verify-spotify-links": 90_000, "youtube-search": 90_000, "version-ai": 90_000,
 };
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };

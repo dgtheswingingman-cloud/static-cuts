@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
   const { data: keys } = await db.from("sc_private_settings").select("key, value").in("key", ["vapid_public", "vapid_private"]);
   const pub = keys?.find((k) => k.key === "vapid_public")?.value;
   const priv = keys?.find((k) => k.key === "vapid_private")?.value;
-  if (!pub || !priv) return json({ error: "push keys aren't set up" }, 500);
+  // Phone alerts not switched on yet: nothing to do (not a failure).
+  if (!pub || !priv) return json({ ok: true, skipped: "push keys aren't set up" });
   webpush.setVapidDetails("mailto:dg.theswingingman@gmail.com", pub, priv);
 
   const { data: items, error } = await db.rpc("sc_push_next", { p_secret: secret, p_limit: 50 });

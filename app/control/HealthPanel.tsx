@@ -77,6 +77,7 @@ const TIMER_GROUPS: { title: string; timers: Record<string, string> }[] = [
       "spotify-match": "Adds Spotify links by reading artists' releases on Spotify. Every 5 min (Spotify only allows a few calls).",
       "apple-music": "Adds Apple Music links to songs. Every minute.",
       "musicbrainz-sync": "Fills in band members from MusicBrainz. Every 2 min.",
+      "version-ai": "Claude checks the sub-version suggestions: clear ones applied (undoable), unsure ones left for you. Every 2 min.",
       "genius-credits": "Fills in producers, features, dates and artwork from Genius. Every minute.",
       "fetch-covers": "Fills in missing artwork from Spotify. Every 10 min.",
       "artist-info": "Fills in artist photos, about text and genres. Twice an hour.",
