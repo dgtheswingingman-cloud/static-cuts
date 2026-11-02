@@ -33,6 +33,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary" },
   appleWebApp: { capable: true, title: "Static Cuts", statusBarStyle: "black-translucent" },
   icons: { apple: "/apple-touch-icon.png" },
+  // Google Search Console ownership check.
+  verification: { google: "1Kz4VbcAwwVd-DOxHnCA9NzYJyc8KfoTAe8iREFblGg" },
 };
 
 export const viewport: Viewport = {
