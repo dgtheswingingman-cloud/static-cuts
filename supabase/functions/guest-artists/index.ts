@@ -38,6 +38,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const pause = () => sleep(1500);
 class Stop extends Error {}
 const MIN_FANS = 300;
+// Big names aren't banned, just last: over this many Deezer fans they wait
+// (re-checked weekly) unless someone searched for them. The archive leans
+// underground, where fans hunt every version.
+const BIG_FANS = 1_000_000;
 
 // Deezer: a ticket from its shared allowance before every call, the shared
 // pause, and a short gap between calls. Errors come back as 200 + {error}.
@@ -140,7 +144,7 @@ Deno.serve(async (req) => {
 
   const { data: next, error } = await db.rpc("sc_guest_next", { p_secret: secret, p_limit: 20 });
   if (error) return json({ error: error.message }, 403);
-  const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null }[];
+  const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null; searched?: boolean }[];
   if (guests.length === 0) return json({ ok: true, idle: true });
   const { data: pauseRow } = await db.from("sc_private_settings").select("value").eq("key", DEEZER_PAUSE).maybeSingle();
   if (pauseRow?.value && Date.parse(pauseRow.value) > Date.now()) return json({ ok: true, paused_until: pauseRow.value });
@@ -188,7 +192,10 @@ Deno.serve(async (req) => {
           : " Their Genius songs aren't on Deezer under this name either.";
       }
       const fans = confirmed?.nb_fan ?? 0;
-      if (confirmed && fans >= MIN_FANS && next?.new_pages === false) {
+      if (confirmed && fans > BIG_FANS && !g.searched) {
+        await db.rpc("sc_guest_found", { p_secret: secret, p_key: g.key, p_action: "wait", p_deezer_id: String(confirmed.id) });
+        done.push({ name: g.name, result: "waiting (big name)" });
+      } else if (confirmed && fans >= MIN_FANS && next?.new_pages === false) {
         // Would be a new page, but existing artists come first: noted for later.
         await db.rpc("sc_guest_found", { p_secret: secret, p_key: g.key, p_action: "wait", p_deezer_id: String(confirmed.id) });
         done.push({ name: g.name, result: "waiting" });
