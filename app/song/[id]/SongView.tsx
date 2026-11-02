@@ -29,6 +29,8 @@ type Track = {
   spotify_url: string | null;
   deezer_url?: string | null;
   apple_url?: string | null;
+  // Released under another name of the artist's (e.g. "Archy Marshall").
+  credited_as?: string | null;
   length_sec?: number | null;
   parent_track_id: string | null;
   is_featured: boolean;
@@ -260,6 +262,7 @@ export default function SongView({ id }: { id: string }) {
       <h1 className="detail-name song-title">{t.title}</h1>
       <div className="detail-meta song-tags">
         <Link href={`/artist/${artistId}`} className="text-link">{song.artist?.name ?? "Unknown artist"}</Link>
+        {t.credited_as && <span className="comment-meta">as {t.credited_as}</span>}
         <span className="feature-tag">{statusOf(t)}</span>
         {(() => {
           const tr = trustOf(t);
