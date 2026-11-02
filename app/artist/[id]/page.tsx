@@ -26,6 +26,7 @@ import ShareButton from "../../components/ShareButton";
 import StoryButton from "../../components/StoryButton";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
+import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
 const genreSlug = (t: string) => t.toLowerCase().replace(/&/g, "n").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -1631,6 +1632,7 @@ export default function ArtistPage() {
             <>
               <ArtistHero artistId={id} name={artist.name} aliases={aliases} onColour={setArtistColour} />
               <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
+              <ArtistPhotos artistId={id} artistName={artist.name} />
               <ArtistIntro artistId={id} />
               <EraStrip artistId={id} />
             </>

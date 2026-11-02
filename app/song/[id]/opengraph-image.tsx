@@ -11,7 +11,7 @@ export const contentType = "image/png";
 export const revalidate = 3600;
 
 type Song = {
-  track?: { title: string; release_status: string | null; album: string | null; cover_url?: string | null;
+  track?: { title: string; release_status: string | null; album: string | null; cover_url?: string | null; display_cover?: { url: string } | null;
             release_date?: string | null; leak_date?: string | null; spotify_url?: string | null; status_source?: string | null };
   artist?: { name: string };
   family?: { id: string }[];
@@ -33,9 +33,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#0A0A0A", color: "#EDEDED", padding: 60, fontFamily: "sans-serif" }}>
-        {t?.cover_url ? (
+        {(t?.display_cover?.url ?? t?.cover_url) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={t.cover_url} width={360} height={360} style={{ borderRadius: 18, marginRight: 56, objectFit: "cover" }} alt="" />
+          <img src={t?.display_cover?.url ?? t?.cover_url ?? ""} width={360} height={360} style={{ borderRadius: 18, marginRight: 56, objectFit: "cover" }} alt="" />
         ) : (
           <div style={{ width: 360, height: 360, borderRadius: 18, marginRight: 56, background: "#1D1D1D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, color: "#565656" }}>SC//</div>
         )}
