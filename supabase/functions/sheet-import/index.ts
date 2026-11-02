@@ -293,6 +293,14 @@ function readSongs(rows: string[][], m: Mapping) {
       continue;
     }
     if (!titleCell) { skipped++; continue; }
+    // Era headings written in the song-name column with their years, e.g.
+    // "Icedancer (2018)" or "Gluee (2013-2014)", on a row with no links or
+    // dates: the songs below belong to that era (Bladee's tracker).
+    const heading = cleanTitle(titleCell).match(/^(.{2,60}?)\s*\((?:19|20)\d\d(?:\s*[-–]\s*(?:(?:19|20)\d\d|present|now))?\)$/i);
+    if (heading && !/https?:/.test(r.join(" ")) && !col(r, "leak_date") && !col(r, "release_date") && !col(r, "era")) {
+      era = heading[1].trim();
+      continue;
+    }
     const thisEra = col(r, "era") ? col(r, "era").split("\n")[0].replace(/\s+era\b.*$/i, "").trim() : era;
     if (thisEra && m.skip_eras.includes(thisEra)) { skipped++; continue; }
 
