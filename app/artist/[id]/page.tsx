@@ -1722,7 +1722,7 @@ export default function ArtistPage() {
                 nicknames{aliases.length ? ` (${aliases.length})` : ""}
               </button>
               <button className={`tab ${profilesOpen ? "active" : ""}`} onClick={() => setProfilesOpen(!profilesOpen)}>
-                profiles{profileCount ? ` (${profileCount}/3)` : ""}
+                profiles{profileCount ? ` (${profileCount}/5)` : ""}
               </button>
               <span className="artist-actions-spacer" />
               <button className={`tab ${mergeOpen ? "active" : ""}`} onClick={() => setMergeOpen(!mergeOpen)}>merge into…</button>

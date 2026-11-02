@@ -24,6 +24,8 @@ export default function MergeArtist({ artistId, artistName, onClose, mode = "mer
   const [target, setTarget] = useState<Option | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "It's another name for them": songs show "as <this name>".
+  const [alias, setAlias] = useState(false);
 
   useEffect(() => {
     const words = q.trim().replace(/[%_,()\\]/g, " ").trim();
@@ -45,7 +47,7 @@ export default function MergeArtist({ artistId, artistName, onClose, mode = "mer
       setSent(true);
       return;
     }
-    const { error: err } = await supabase.rpc("admin_merge_artists", { p_from: artistId, p_into: target.id });
+    const { error: err } = await supabase.rpc("admin_merge_artists", { p_from: artistId, p_into: target.id, p_alias: alias });
     setBusy(false);
     if (err) { setError(err.message); return; }
     router.push(`/artist/${target.id}`);
@@ -61,7 +63,7 @@ export default function MergeArtist({ artistId, artistName, onClose, mode = "mer
       ) : (
       <div className="comment-meta" style={{ marginBottom: 8 }}>
         Merge <strong>{artistName}</strong> into another artist: all its songs, features, followers and links move there,
-        &ldquo;{artistName}&rdquo; becomes one of their nicknames, and this page is removed. If both pages have the same
+        &ldquo;{artistName}&rdquo; becomes one of their nicknames, its profiles are kept (as their profiles under that name), and this page is removed. If both pages have the same
         song, the duplicates page will offer to merge them.
       </div>
       )}
@@ -87,6 +89,10 @@ export default function MergeArtist({ artistId, artistName, onClose, mode = "mer
           ) : (
             <>
               <span className="comment-body">Merge <strong>{artistName}</strong> into <strong>{target.name}</strong>?</span>
+              <label className="comment-meta" style={{ display: "flex", gap: 6, alignItems: "center", width: "100%" }}>
+                <input type="checkbox" checked={alias} onChange={(e) => setAlias(e.target.checked)} />
+                &ldquo;{artistName}&rdquo; is another name {target.name} releases under (their songs will say &ldquo;as {artistName}&rdquo;)
+              </label>
               <button className="tab danger-tab" disabled={busy} onClick={merge}>{busy ? "merging…" : "yes, merge"}</button>
             </>
           )}

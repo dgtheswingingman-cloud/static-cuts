@@ -8,7 +8,8 @@
 //             site is paused for everyone else meanwhile)
 // The database hands out (and claims) what's next (sc_deezer_next):
 //   search: find the artist on Deezer by name
-//   list:   a page of their albums, EPs and singles
+//   list:   a page of their albums, EPs and singles (also for their other
+//           profiles, e.g. releases under another name)
 //   album:  one release's songs (and its label), matched to the page and
 //           added if missing; ISRC, explicit flag and label saved too
 //   photo:  the artist's Deezer picture, for artists with no photo
@@ -115,8 +116,13 @@ Deno.serve(async (req) => {
           .map((a) => ({ id: String(a.id), title: a.title, kind: a.record_type, release_date: a.release_date, cover: a.cover_xl || a.cover_big || null, link: a.link }));
         const total = Number(r.body?.total ?? 0);
         const nextIndex = r.body?.next && (next.index ?? 0) + 100 < Math.max(total, 1) ? (next.index ?? 0) + 100 : null;
-        await db.rpc("sc_deezer_listed", { p_secret: secret, p_artist: next.artist_id, p_albums: albums, p_next: nextIndex });
-        await db.rpc("sc_deezer_unclaim", { p_secret: secret, p_artist: next.artist_id });
+        if (next.profile) {
+          // One of the artist's other profiles (another name they release under).
+          await db.rpc("sc_deezer_profile_listed", { p_secret: secret, p_deezer_id: String(next.deezer_id), p_albums: albums, p_next: nextIndex });
+        } else {
+          await db.rpc("sc_deezer_listed", { p_secret: secret, p_artist: next.artist_id, p_albums: albums, p_next: nextIndex });
+          await db.rpc("sc_deezer_unclaim", { p_secret: secret, p_artist: next.artist_id });
+        }
         done.listed++;
       } else if (next.kind === "album") {
         const r = await deezer(`/album/${next.album_id}/tracks?limit=300`);
