@@ -57,6 +57,9 @@ export default function ModeBar() {
       <button className="mode-bar-switch" onClick={startVisitorPreview} title="See the site as someone who's never been here">
         view as new visitor
       </button>
+      <Link href="/welcome?preview=1" className="mode-bar-switch" title="See the welcome steps new accounts go through (nothing is saved)">
+        preview welcome
+      </Link>
     </div>
   );
 }

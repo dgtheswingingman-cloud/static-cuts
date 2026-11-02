@@ -26,9 +26,15 @@ export default function StartPage() {
   const [fromSpotify, setFromSpotify] = useState<number | null>(null);
   // Part of the welcome for new accounts: pick at least 5, then on to step 2.
   const [welcome, setWelcome] = useState(false);
-  useEffect(() => { setWelcome(new URLSearchParams(window.location.search).get("welcome") === "1"); }, []);
+  // Admin preview of the welcome: same page, nothing saved.
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setWelcome(q.get("welcome") === "1");
+    setPreview(q.get("preview") === "1");
+  }, []);
   const MIN = welcome ? 5 : 1;
-  const nextUrl = welcome ? "/welcome?step=2" : "/";
+  const nextUrl = welcome ? `/welcome?step=2${preview ? "&preview=1" : ""}` : "/";
 
   useEffect(() => {
     setPicked(new Set(readPicks()));
@@ -83,7 +89,9 @@ export default function StartPage() {
   async function done() {
     const ids = [...picked];
     setBusy(true);
-    if (user) {
+    if (preview) {
+      // nothing saved
+    } else if (user) {
       await supabase.rpc("rpc_follow_many", { p_artist_ids: ids });
       savePicks([]);
     } else {
@@ -93,13 +101,14 @@ export default function StartPage() {
     router.push(nextUrl);
   }
 
-  if (isAdmin) {
+  if (isAdmin && !preview) {
     return <div className="wrap"><div className="empty-state">This is the first-visit page for new fans. Switch to your account to try it.</div></div>;
   }
 
   return (
     <div className="wrap">
       <h1 className="detail-name page-title">{welcome ? "Pick 5 artists you're into" : "Who are you into?"}</h1>
+      {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
       {welcome && (
         <div style={{ display: "flex", gap: 8, margin: "6px 0 14px", flexWrap: "wrap" }}>
           <span className="feature-tag" style={{ borderColor: "var(--bone)" }}>1. Your artists</span>
