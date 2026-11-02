@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import TrackComments from "../../artist/[id]/TrackComments";
+import FanCovers from "./FanCovers";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
@@ -40,6 +41,8 @@ type Track = {
   release_date: string | null;
   leak_date?: string | null;
   cover_url?: string | null;
+  // What to show: the song's own art, a fan cover or a photo of the artist.
+  display_cover?: { url: string; kind: "own" | "fan" | "artist" } | null;
   producers: string | null;
   writers?: string | null;
   label?: string | null;
@@ -255,9 +258,10 @@ export default function SongView({ id }: { id: string }) {
     <div className="wrap song-page">
       <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
 
-      {t.cover_url && (
+      {(t.display_cover?.url ?? t.cover_url) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={t.cover_url} alt="" className="song-cover" width={140} height={140} />
+        <img src={t.display_cover?.url ?? t.cover_url ?? ""} alt="" className="song-cover" width={140} height={140}
+          title={t.display_cover?.kind === "fan" ? "Cover picked by fans" : t.display_cover?.kind === "artist" ? "No cover yet: a photo of the artist" : undefined} />
       )}
       <h1 className="detail-name song-title">{t.title}</h1>
       <div className="detail-meta song-tags">
@@ -309,7 +313,7 @@ export default function SongView({ id }: { id: string }) {
           kicker: `${statusOf(t)} · ${song.artist?.name ?? ""}`,
           title: t.title,
           subtitle: [t.album, t.release_date ? new Date(t.release_date).getFullYear() : null].filter(Boolean).join(" · ") || undefined,
-          imageUrl: t.cover_url,
+          imageUrl: t.display_cover?.url ?? t.cover_url,
           footer: `static-cuts.com/song/${t.id}`,
         })} />
         {!isAdmin && (["announced", "teased", "snippet", "rumored"].includes(statusOf(t)) ||
@@ -430,6 +434,8 @@ export default function SongView({ id }: { id: string }) {
           </ol>
         </>
       )}
+
+      {!t.cover_url && <FanCovers trackId={t.id} onChange={load} />}
 
       <div className="section-label">Comments{song.comments > 0 ? ` (${song.comments})` : ""}</div>
       <TrackComments trackId={t.id} />

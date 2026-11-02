@@ -2098,3 +2098,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
   /* Clear of the phone tab bar and the dice button. */
   .signup-nudge { bottom: calc(150px + env(safe-area-inset-bottom)); }
 }
+
+/* Fan covers on song pages with no official art. */
+.fan-covers { margin: 22px 0 18px; }
+.rating-clear.on { color: var(--bone); font-weight: 700; }
