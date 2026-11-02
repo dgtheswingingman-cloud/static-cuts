@@ -558,6 +558,7 @@ export default function ReviewHub() {
           { href: "/review/versions", title: "Sub-versions", n: counts?.sub_versions, blurb: "Songs that look like a version of another song." },
           { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
           { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
+          ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: undefined, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
           { href: "/review/duplicates", title: "Duplicates", n: undefined, blurb: "The same song entered twice: pick one to keep and merge." },
         ]
