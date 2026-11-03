@@ -88,7 +88,7 @@ export function staticOverlay(): string {
     for (let x = 0; x < w; x++) {
       const v = rand();
       raw[row + 1 + x * 2] = v > 0.5 ? 255 : 0;                                  // grey: white or black speck
-      raw[row + 2 + x * 2] = scan ? 70 : Math.floor(v * 34);                     // alpha
+      raw[row + 2 + x * 2] = scan ? 38 : Math.floor(v * 16);                     // alpha
     }
   }
   const ihdr = Buffer.alloc(13);
@@ -106,17 +106,22 @@ export function staticOverlay(): string {
 // link, WebP). Fetch each one first; keep JPEG/PNG, drop the rest.
 export async function safeImage(url: string | null | undefined): Promise<string | null> {
   if (!url || !/^https:\/\//.test(url)) return null;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) return null;
-    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim();
-    if (type !== "image/jpeg" && type !== "image/png") return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 3_000_000) return null;
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+  // Genius serves some art as WebP; the same picture is usually there as JPEG/PNG too.
+  const tries = /\.webp(\?|$)/i.test(url) ? [url.replace(/\.webp/i, ".jpg"), url.replace(/\.webp/i, ".png")] : [url];
+  for (const u of tries) {
+    try {
+      const res = await fetch(u, { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) continue;
+      const type = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+      if (type !== "image/jpeg" && type !== "image/png") continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 3_000_000) continue;
+      return `data:${type};base64,${buf.toString("base64")}`;
+    } catch {
+      /* next */
+    }
   }
+  return null;
 }
 
 // A status chip like the trackers use.

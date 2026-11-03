@@ -67,8 +67,8 @@ export async function GET(req: Request) {
       <Frame file="WEEKLY_ROUNDUP" page={page} backdrop={covers.length ? backdrop : undefined} bgHeight={W}>
         <Spacer />
         <div style={{ display: "flex", marginBottom: 14 }}><Tag color={ACCENT}>{range}</Tag></div>
-        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 196, lineHeight: 0.86, ...glitch(6) }}>THIS WEEK</div>
-        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 196, lineHeight: 0.86, color: ACCENT, ...glitch(6) }}>IN UNRELEASED</div>
+        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 196, lineHeight: 0.86, ...glitch(6) }}>THIS WEEK IN</div>
+        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 196, lineHeight: 0.86, color: ACCENT, ...glitch(6) }}>UNRELEASED</div>
         <div style={{ display: "flex", marginTop: 34, marginBottom: 34 }}>
           {[
             { n: w.leaked_n, label: "LEAKED", c: RED },
