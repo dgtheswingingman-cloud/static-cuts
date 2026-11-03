@@ -10,6 +10,7 @@ import Landing from "./components/Landing";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
+import AlbumOfWeek from "./components/AlbumOfWeek";
 import OnThisDay from "./OnThisDay";
 import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
@@ -404,6 +405,7 @@ export default function HomePage() {
         </>
       )}
 
+      {!showTrackSection && <AlbumOfWeek />}
       {!showTrackSection && <OnThisDay />}
 
       <div className="section-head">

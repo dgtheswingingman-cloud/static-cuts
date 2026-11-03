@@ -8,6 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import AlbumOfWeek from "../components/AlbumOfWeek";
 
 type Song = { id: string; title: string; artist_id: string; artist: string; day?: string; kind?: string; spotify_url: string | null };
 type Week = {
@@ -84,6 +85,7 @@ function WeeklyInner() {
         <button className="tab" onClick={share}>{copied ? "link copied" : "share this week"}</button>
       </div>
 
+      <AlbumOfWeek week={week} />
       {!data && <div className="empty-state">loading…</div>}
       {empty && <div className="empty-state">A quiet week. Nothing leaked, came out or changed.</div>}
 
