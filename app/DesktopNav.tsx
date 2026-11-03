@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { usePersonalUser } from "./useIsAdmin";
 
 const LINKS: [string, string][] = [
-  ["/new", "What's new"], ["/radar", "Radar"], ["/wanted", "Most wanted"], ["/lists", "Lists"],
+  ["/weekly", "This week"], ["/new", "What's new"], ["/radar", "Radar"], ["/wanted", "Most wanted"], ["/lists", "Lists"],
   ["/collabs", "Collabs"], ["/genres", "Genres"], ["/local", "Local Cuts"], ["/help", "Help wanted"],
 ];
 
