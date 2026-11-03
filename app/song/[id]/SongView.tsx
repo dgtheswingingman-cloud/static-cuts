@@ -22,6 +22,7 @@ import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 import FriendsWhoHaveIt from "./FriendsWhoHaveIt";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
+import Supporter from "../../components/Supporter";
 
 type Track = {
   id: string;
@@ -222,7 +223,7 @@ export default function SongView({ id }: { id: string }) {
   if (song.added_by) {
     info.push(["Added by", (
       <span>
-        <Link href={`/profile/${song.added_by.id}`} className="text-link">{song.added_by.name}</Link>
+        <Link href={`/profile/${song.added_by.id}`} className="text-link">{song.added_by.name}</Link><Supporter id={song.added_by.id} />
         {t.created_at && <span className="comment-meta"> · {formatDate(t.created_at)}</span>}
       </span>
     )]);

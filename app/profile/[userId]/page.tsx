@@ -9,6 +9,9 @@ import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
 import ShareButton from "../../components/ShareButton";
+import Supporter from "../../components/Supporter";
+import { useProfileStyle, Showcase, CustomiseProfile, PremiumTeaser } from "./PremiumProfile";
+import { usePremium } from "../../usePremium";
 
 type Profile = {
   id: string;
@@ -79,6 +82,10 @@ export default function ProfilePage() {
   type Social = { followers: number; following: number; i_follow: boolean; follows_me: boolean; friends: { id: string; name: string | null; avatar_url: string | null }[] };
   const [social, setSocial] = useState<Social | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
+  // Premium look (banner, colour, showcase), shown only while they have premium.
+  const { style: pstyle, reload: reloadStyle } = useProfileStyle(userId);
+  const accent = pstyle?.premium ? pstyle.accent ?? null : null;
+  const { premium: iAmPremium } = usePremium();
 
   useEffect(() => {
     async function load() {
@@ -173,6 +180,7 @@ export default function ProfilePage() {
     const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
     if (!ALLOWED_TYPES.includes(file.type)) { alert("Please upload a PNG, JPEG, WEBP, or GIF image."); return; }
     if (file.size > MAX_SIZE) { alert("Image is too large — 5MB max."); return; }
+    if (file.type === "image/gif" && !iAmPremium) { alert("GIF avatars are a premium perk."); return; }
 
     setUploading(true);
     const ext = file.name.split(".").pop();
@@ -181,7 +189,8 @@ export default function ProfilePage() {
     if (uploadErr) { alert(uploadErr.message); setUploading(false); return; }
     const { data } = supabase.storage.from("avatars").getPublicUrl(path);
     const freshUrl = `${data.publicUrl}?t=${Date.now()}`;
-    await supabase.from("profiles").update({ avatar_url: freshUrl }).eq("id", viewer.id);
+    const { error: saveErr } = await supabase.from("profiles").update({ avatar_url: freshUrl }).eq("id", viewer.id);
+    if (saveErr) { alert(saveErr.message); setUploading(false); return; }
     setProfile((prev) => (prev ? { ...prev, avatar_url: freshUrl } : prev));
     setUploading(false);
   }
@@ -215,6 +224,10 @@ export default function ProfilePage() {
 
       {profile && (
         <>
+          {pstyle?.premium && pstyle.banner_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pstyle.banner_url} alt="" className="pf-banner" style={{ borderColor: accent ?? undefined }} />
+          )}
           {editingName ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
               <input
@@ -238,7 +251,7 @@ export default function ProfilePage() {
                   <img
                     src={profile.avatar_url}
                     alt=""
-                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--hair)" }}
+                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: accent ? `2px solid ${accent}` : "1.5px solid var(--hair)" }}
                   />
                 ) : isOwnProfile ? (
                   <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--surface)", border: "1.5px solid var(--hair)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -264,7 +277,8 @@ export default function ProfilePage() {
                   </>
                 )}
               </div>
-              <h1 className="detail-name" style={{ margin: 0 }}>{profile.display_name ?? "anonymous"}</h1>
+              <h1 className="detail-name" style={{ margin: 0, color: accent ?? undefined }}>{profile.display_name ?? "anonymous"}</h1>
+              <Supporter id={profile.id} full />
               <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} label="share profile" />
             </div>
           )}
@@ -325,6 +339,12 @@ export default function ProfilePage() {
                 )}
               </div>
             )
+          )}
+
+          {pstyle?.premium && <Showcase songs={pstyle.showcase ?? []} accent={accent} />}
+          {isOwnProfile && pstyle && !pstyle.premium && <PremiumTeaser />}
+          {isOwnProfile && pstyle?.premium && (
+            <div style={{ marginBottom: 12 }}><CustomiseProfile userId={userId} style={pstyle} onSaved={reloadStyle} /></div>
           )}
 
           {isOwnProfile && !editingName && (

@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import Supporter from "./Supporter";
 
 type Row = { rank: number; user_id: string; display_name: string | null; avatar_url: string | null; points: number };
 
@@ -43,7 +44,7 @@ export default function Leaderboard() {
               ? <img src={r.avatar_url} alt="" loading="lazy" />
               : (r.display_name ?? "?").slice(0, 1)}
           </span>
-          <span className="lb-name">{r.display_name ?? "anonymous"}</span>
+          <span className="lb-name">{r.display_name ?? "anonymous"}<Supporter id={r.user_id} /></span>
           <span className="lb-points">{r.points.toLocaleString("en-GB")}</span>
         </Link>
       ))}
