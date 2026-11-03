@@ -21,11 +21,11 @@ export function useProfileStyle(userId: string) {
 
 export const SWATCHES = ["#8B7CF6", "#FF3355", "#2BD67B", "#22D3EE", "#FFB020", "#FF6AD5", "#EDEDED", "#9AA4B2"];
 
-export function Showcase({ songs, accent }: { songs: ShowSong[]; accent?: string | null }) {
+export function Showcase({ songs, accent, bare = false }: { songs: ShowSong[]; accent?: string | null; bare?: boolean }) {
   if (!songs.length) return null;
   return (
-    <div style={{ marginBottom: 18 }}>
-      <div className="section-label" style={{ color: accent ?? undefined }}>Showcase</div>
+    <div style={{ marginBottom: bare ? 0 : 18 }}>
+      {!bare && <div className="section-label" style={{ color: accent ?? undefined }}>Showcase</div>}
       <div className="pf-showcase">
         {songs.map((s) => (
           <Link key={s.id} href={`/song/${s.id}`} className="pf-show-card" style={{ borderColor: accent ?? undefined }}>
