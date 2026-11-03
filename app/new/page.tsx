@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import RadarTabs from "../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
@@ -81,6 +82,7 @@ export default function WhatsNewPage() {
 
   return (
     <div className="wrap">
+      <RadarTabs />
       <h1 className="detail-name page-title">What&apos;s new</h1>
       <div className="detail-meta">Songs added to the archive and status changes, newest first.</div>
 

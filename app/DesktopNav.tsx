@@ -8,9 +8,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { usePersonalUser } from "./useIsAdmin";
+import { RADAR_PATHS } from "./components/RadarTabs";
 
 const LINKS: [string, string][] = [
-  ["/new", "What's new"], ["/radar", "Radar"], ["/wanted", "Most wanted"], ["/lists", "Lists"],
+  ["/radar", "Radar"], ["/wanted", "Most wanted"], ["/lists", "Lists"],
   ["/collabs", "Collabs"], ["/genres", "Genres"], ["/local", "Local Cuts"], ["/help", "Help wanted"],
 ];
 
@@ -30,7 +31,7 @@ export default function DesktopNav() {
         <Link href="/" className="dnav-logo">STATIC CUTS<span className="slash">//</span></Link>
         <nav className="dnav-links" aria-label="Main">
           {LINKS.map(([href, label]) => (
-            <Link key={href} href={href} className={path === href ? "on" : undefined}>{label}</Link>
+            <Link key={href} href={href} className={path === href || (href === "/radar" && RADAR_PATHS.includes(path)) ? "on" : undefined}>{label}</Link>
           ))}
         </nav>
         <form className="dnav-search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`); }}>
