@@ -2192,3 +2192,11 @@ a.mod-btn { display: inline-block; text-decoration: none; }
   .pf-bio { margin: 12px 8px 16px; }
   .pf-covers { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 }
+.pf-edit { border: 1px solid color-mix(in srgb, var(--pf, #8B7CF6) 60%, var(--hair)); background: var(--surface); margin: 6px 0 18px; }
+.pf-edit-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--hair); font-family: var(--font-mono), monospace; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pf, #8B7CF6); }
+.pf-edit-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
+.pf-edit-row.locked .pf-edit-body { opacity: 0.45; }
+.pf-edit-label { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--bone); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding-top: 4px; }
+.pf-prem-tag { display: inline-block; font-family: var(--font-mono), monospace; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; color: #0A0A0A; background: var(--pf, #8B7CF6); padding: 2px 6px; }
+.pf-edit-foot { padding: 12px 16px; font-size: 0.8rem; color: var(--smoke); }
+@media (max-width: 560px) { .pf-edit-row { grid-template-columns: minmax(0, 1fr); gap: 8px; } }

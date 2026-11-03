@@ -4,7 +4,7 @@
 // and a showcase of up to 6 pinned songs. The database refuses these without
 // premium; if premium ends they're kept but hidden until it's back.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -55,24 +55,43 @@ export function PremiumTeaser() {
 }
 
 type Found = { id: string; title: string; artist: string; status: string };
+export type EditableProfile = { display_name: string | null; about: string | null; avatar_url: string | null };
 
-// Owner of the profile, with premium: change the look.
-export function CustomiseProfile({ userId, style, onSaved }: { userId: string; style: ProfileStyle; onSaved: () => void }) {
-  const [open, setOpen] = useState(false);
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+
+function Row({ label, premium, locked, children }: { label: string; premium?: boolean; locked?: boolean; children: ReactNode }) {
+  return (
+    <div className={`pf-edit-row${locked ? " locked" : ""}`}>
+      <div className="pf-edit-label">
+        {label}
+        {premium && <span className="pf-prem-tag">◆ premium</span>}
+      </div>
+      <div className="pf-edit-body">{children}</div>
+    </div>
+  );
+}
+
+// Everything about your profile in one place. Premium parts are labelled;
+// without premium they show but can't be changed.
+export function EditProfile({ userId, profile, style, premium, onClose, onProfile, onStyle }: {
+  userId: string; profile: EditableProfile; style: ProfileStyle; premium: boolean;
+  onClose: () => void; onProfile: (p: Partial<EditableProfile>) => void; onStyle: () => void;
+}) {
+  const [name, setName] = useState(profile.display_name ?? "");
+  const [about, setAbout] = useState(profile.about ?? "");
   const [accent, setAccent] = useState(style.accent ?? "");
   const [show, setShow] = useState<Found[]>((style.showcase ?? []).map((s) => ({ id: s.id, title: s.title, artist: s.artist, status: s.status })));
   const [q, setQ] = useState("");
   const [found, setFound] = useState<Found[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const locked = !premium;
 
   useEffect(() => {
     const words = q.trim();
     if (words.length < 2) { setFound([]); return; }
     const t = setTimeout(async () => {
-      const { data } = await supabase.rpc("rpc_search_songs", {
-        p_q: words, p_versions: true, p_sort: "best", p_offset: 0,
-      });
+      const { data } = await supabase.rpc("rpc_search_songs", { p_q: words, p_versions: true, p_sort: "best", p_offset: 0 });
       setFound((((data as { items?: Found[] } | null)?.items) ?? []).slice(0, 8));
     }, 300);
     return () => clearTimeout(t);
@@ -85,70 +104,106 @@ export function CustomiseProfile({ userId, style, onSaved }: { userId: string; s
     setBusy(false);
     if (error) { setMsg(error.message); return false; }
     setMsg(done);
-    onSaved();
     return true;
   }
 
-  async function uploadBanner(file: File) {
-    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) { setMsg("PNG, JPEG, WEBP or GIF."); return; }
-    if (file.size > 8 * 1024 * 1024) { setMsg("8MB max."); return; }
+  async function upload(file: File, kind: "avatar" | "banner") {
+    if (!IMAGE_TYPES.includes(file.type)) { setMsg("PNG, JPEG, WEBP or GIF."); return null; }
+    if (file.size > (kind === "avatar" ? 5 : 8) * 1024 * 1024) { setMsg(kind === "avatar" ? "5MB max." : "8MB max."); return null; }
+    if (kind === "avatar" && file.type === "image/gif" && !premium) { setMsg("GIF avatars are a premium perk."); return null; }
     setBusy(true);
-    const path = `${userId}/banner.${file.name.split(".").pop()}`;
+    const path = `${userId}/${kind}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     setBusy(false);
-    if (error) { setMsg(error.message); return; }
-    const url = `${supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl}?t=${Date.now()}`;
-    await save({ banner_url: url }, "Banner saved.");
+    if (error) { setMsg(error.message); return null; }
+    return `${supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl}?t=${Date.now()}`;
   }
 
-  if (!open) return <button className="tab" onClick={() => setOpen(true)}>◆ customise profile</button>;
-
   return (
-    <div className="pf-teaser" style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div className="section-label" style={{ marginTop: 0 }}>◆ Customise profile</div>
-        <button className="tab" onClick={() => setOpen(false)}>close</button>
+    <div className="pf-edit">
+      <div className="pf-edit-head">
+        <span>Edit profile</span>
+        <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {msg && <span className="comment-meta" style={{ textTransform: "none", letterSpacing: 0 }}>{msg}</span>}
+          <button className="tab" onClick={onClose}>done</button>
+        </span>
       </div>
 
-      <div className="comment-meta" style={{ marginBottom: 6 }}>Colour</div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-        {SWATCHES.map((c) => (
-          <button key={c} aria-label={c} onClick={() => { setAccent(c); save({ accent: c }); }}
-            style={{ width: 28, height: 28, background: c, border: accent === c ? "2px solid var(--bone)" : "1px solid var(--hair)", cursor: "pointer" }} />
-        ))}
-        <input className="search-input" style={{ width: 110 }} placeholder="#8B7CF6" value={accent} onChange={(e) => setAccent(e.target.value)} />
-        <button className="tab" disabled={busy || !/^#[0-9a-f]{6}$/i.test(accent)} onClick={() => save({ accent })}>set</button>
-        {style.accent && <button className="tab" disabled={busy} onClick={() => { setAccent(""); save({ accent: null }); }}>default</button>}
-      </div>
+      <Row label="Name">
+        <input className="search-input" style={{ width: "100%", maxWidth: 320 }} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
+      </Row>
+      <Row label="Bio">
+        <textarea className="comment-textarea" style={{ marginBottom: 8 }} value={about} maxLength={500} placeholder="A short bio, what you're into, whatever you want…" onChange={(e) => setAbout(e.target.value)} />
+        <button className="tab active" disabled={busy || !name.trim()} onClick={async () => {
+          if (await save({ display_name: name.trim(), about: about.trim() }, "Name and bio saved.")) onProfile({ display_name: name.trim(), about: about.trim() });
+        }}>save name &amp; bio</button>
+      </Row>
 
-      <div className="comment-meta" style={{ marginBottom: 6 }}>Banner (wide picture, GIFs work)</div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
-        <input type="file" accept="image/*" id="bannerInput" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) uploadBanner(e.target.files[0]); }} />
-        <label htmlFor="bannerInput" className="tab" style={{ cursor: "pointer" }}>{style.banner_url ? "change banner" : "add banner"}</label>
-        {style.banner_url && <button className="tab" disabled={busy} onClick={() => save({ banner_url: null })}>remove</button>}
-      </div>
-
-      <div className="comment-meta" style={{ marginBottom: 6 }}>Showcase: up to 6 songs pinned to the top of your profile</div>
-      {show.map((s, i) => (
-        <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-          <span className="comment-body">{i + 1}. {s.title} <span className="comment-meta">· {s.artist}</span></span>
-          <button className="rating-clear" onClick={() => setShow(show.filter((x) => x.id !== s.id))}>remove</button>
+      <Row label="Picture">
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <input type="file" accept="image/*" id="pfAvatarInput" style={{ display: "none" }} onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            const url = await upload(f, "avatar");
+            if (url && await save({ avatar_url: url }, "Picture saved.")) onProfile({ avatar_url: url });
+          }} />
+          <label htmlFor="pfAvatarInput" className="tab" style={{ cursor: "pointer" }}>{profile.avatar_url ? "change picture" : "add picture"}</label>
+          <span className="comment-meta">PNG or JPEG. Animated GIFs <span className="pf-prem-tag">◆ premium</span></span>
         </div>
-      ))}
-      {show.length < 6 && (
-        <>
-          <input className="search-input" style={{ width: "100%", marginTop: 4 }} placeholder="Find a song to pin…" value={q} onChange={(e) => setQ(e.target.value)} />
-          {found.filter((f) => !show.some((s) => s.id === f.id)).map((f) => (
-            <button key={f.id} className="pf-pick" onClick={() => { setShow([...show, f]); setQ(""); }}>
-              {f.title} <span className="comment-meta">· {f.artist} · {f.status}</span>
-            </button>
+      </Row>
+
+      <Row label="Colour" premium locked={locked}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {SWATCHES.map((c) => (
+            <button key={c} aria-label={c} disabled={locked} onClick={async () => { setAccent(c); if (await save({ accent: c }, "Colour saved.")) onStyle(); }}
+              style={{ width: 28, height: 28, background: c, border: accent === c ? "2px solid var(--bone)" : "1px solid var(--hair)", cursor: locked ? "not-allowed" : "pointer" }} />
           ))}
-        </>
+          <input className="search-input" style={{ width: 110 }} placeholder="#8B7CF6" value={accent} disabled={locked} onChange={(e) => setAccent(e.target.value)} />
+          <button className="tab" disabled={locked || busy || !/^#[0-9a-f]{6}$/i.test(accent)} onClick={async () => { if (await save({ accent }, "Colour saved.")) onStyle(); }}>set</button>
+          {style.accent && !locked && <button className="tab" disabled={busy} onClick={async () => { setAccent(""); if (await save({ accent: null }, "Colour reset.")) onStyle(); }}>default</button>}
+        </div>
+      </Row>
+
+      <Row label="Banner" premium locked={locked}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input type="file" accept="image/*" id="pfBannerInput" style={{ display: "none" }} disabled={locked} onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            const url = await upload(f, "banner");
+            if (url && await save({ banner_url: url }, "Banner saved.")) onStyle();
+          }} />
+          <label htmlFor={locked ? undefined : "pfBannerInput"} className="tab" style={{ cursor: locked ? "not-allowed" : "pointer" }}>{style.banner_url ? "change banner" : "add banner"}</label>
+          {style.banner_url && !locked && <button className="tab" disabled={busy} onClick={async () => { if (await save({ banner_url: null }, "Banner removed.")) onStyle(); }}>remove</button>}
+          <span className="comment-meta">A wide picture across the top. GIFs work.</span>
+        </div>
+      </Row>
+
+      <Row label="Showcase" premium locked={locked}>
+        <div className="comment-meta" style={{ marginBottom: 6 }}>Up to 6 songs pinned to the top of your profile.</div>
+        {show.map((s, i) => (
+          <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+            <span className="comment-body">{i + 1}. {s.title} <span className="comment-meta">· {s.artist}</span></span>
+            {!locked && <button className="rating-clear" onClick={() => setShow(show.filter((x) => x.id !== s.id))}>remove</button>}
+          </div>
+        ))}
+        {show.length < 6 && (
+          <>
+            <input className="search-input" style={{ width: "100%" }} placeholder="Find a song to pin…" value={q} disabled={locked} onChange={(e) => setQ(e.target.value)} />
+            {found.filter((f) => !show.some((s) => s.id === f.id)).map((f) => (
+              <button key={f.id} className="pf-pick" onClick={() => { setShow([...show, f]); setQ(""); }}>
+                {f.title} <span className="comment-meta">· {f.artist} · {f.status}</span>
+              </button>
+            ))}
+          </>
+        )}
+        <button className="tab active" style={{ marginTop: 8 }} disabled={locked || busy} onClick={async () => { if (await save({ showcase: show.map((s) => s.id) }, "Showcase saved.")) onStyle(); }}>save showcase</button>
+      </Row>
+
+      {locked && (
+        <div className="pf-edit-foot">
+          <span className="pf-prem-tag">◆ premium</span> also gets you the supporter badge and Local Cuts. £3 a month or £30 a year, coming soon.
+        </div>
       )}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
-        <button className="tab active" disabled={busy} onClick={() => save({ showcase: show.map((s) => s.id) }, "Showcase saved.")}>save showcase</button>
-        {msg && <span className="comment-meta">{msg}</span>}
-      </div>
     </div>
   );
 }
