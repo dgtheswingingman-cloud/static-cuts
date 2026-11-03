@@ -1,6 +1,6 @@
 "use client";
 
-// Premium profiles: a banner (GIF allowed), a profile colour, a GIF avatar
+// Premium profiles: a profile colour, a GIF avatar, up to 3 fan badges
 // and a showcase of up to 6 pinned songs. The database refuses these without
 // premium; if premium ends they're kept but hidden until it's back.
 
@@ -48,7 +48,7 @@ export function PremiumTeaser() {
     <div className="pf-teaser">
       <div className="section-label" style={{ marginTop: 0 }}>Premium profile</div>
       <div className="comment-meta" style={{ lineHeight: 1.6 }}>
-        ◆ supporter badge next to your name · your own profile colour · a banner (GIFs too) · a GIF avatar · a showcase of
+        ◆ supporter badge next to your name · your own profile colour · a GIF avatar · up to 3 fan badges · a showcase of
         6 pinned songs. Plus Local Cuts. £3 a month or £30 a year, coming soon.
       </div>
     </div>
@@ -196,20 +196,6 @@ export function EditProfile({ userId, profile, style, premium, followed, onClose
           <input className="search-input" style={{ width: 110 }} placeholder="#8B7CF6" value={accent} disabled={locked} onChange={(e) => setAccent(e.target.value)} />
           <button className="tab" disabled={locked || busy || !/^#[0-9a-f]{6}$/i.test(accent)} onClick={async () => { if (await save({ accent }, "Colour saved.")) onStyle(); }}>set</button>
           {style.accent && !locked && <button className="tab" disabled={busy} onClick={async () => { setAccent(""); if (await save({ accent: null }, "Colour reset.")) onStyle(); }}>default</button>}
-        </div>
-      </Row>
-
-      <Row label="Banner" premium locked={locked}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <input type="file" accept="image/*" id="pfBannerInput" style={{ display: "none" }} disabled={locked} onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            const url = await upload(f, "banner");
-            if (url && await save({ banner_url: url }, "Banner saved.")) onStyle();
-          }} />
-          <label htmlFor={locked ? undefined : "pfBannerInput"} className="tab" style={{ cursor: locked ? "not-allowed" : "pointer" }}>{style.banner_url ? "change banner" : "add banner"}</label>
-          {style.banner_url && !locked && <button className="tab" disabled={busy} onClick={async () => { if (await save({ banner_url: null }, "Banner removed.")) onStyle(); }}>remove</button>}
-          <span className="comment-meta">A wide picture across the top. GIFs work.</span>
         </div>
       </Row>
 

@@ -1,9 +1,9 @@
 "use client";
 
-// Computers only: faded artist photos sliding slowly behind the homepage
-// wordmark. Your
-// followed artists when you follow enough with photos, otherwise a random
-// mix from the archive.
+// Faded artist photos sliding slowly in two rows. Homepage (computers
+// only): behind the wordmark, your followed artists when you follow enough
+// with photos, otherwise a random mix. Profiles: the top of the page, from
+// the photos passed in (their artists), on every screen size.
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -13,10 +13,18 @@ function shuffle<T>(list: T[]) {
   return list;
 }
 
-export default function HeroCollage({ artistIds }: { artistIds?: string[] }) {
+export default function HeroCollage({ artistIds, images, className = "hero-collage" }: { artistIds?: string[]; images?: string[]; className?: string }) {
   const [imgs, setImgs] = useState<string[]>([]);
-  const key = (artistIds ?? []).slice().sort().join(",");
+  const key = images ? `img:${images.join(",")}` : (artistIds ?? []).slice().sort().join(",");
   useEffect(() => {
+    if (images) {
+      // Given photos: fill the rows, repeating if there are few.
+      const list = images.filter(Boolean);
+      const out: string[] = [];
+      for (let i = 0; list.length && i < 24; i++) out.push(list[i % list.length]);
+      setImgs(out);
+      return;
+    }
     if (!window.matchMedia("(min-width: 1024px)").matches) return;
     (async () => {
       let mine: string[] = [];
@@ -37,13 +45,13 @@ export default function HeroCollage({ artistIds }: { artistIds?: string[] }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  if (imgs.length < 6) return null;
+  if (imgs.length < (images ? 1 : 6)) return null;
   // Two rows sliding in opposite directions; each row is drawn twice so the
   // loop has no seam.
   const half = Math.ceil(imgs.length / 2);
   const rows = [imgs.slice(0, half), imgs.slice(half)];
   return (
-    <div className="hero-collage" aria-hidden="true">
+    <div className={className} aria-hidden="true">
       {rows.map((row, r) => (
         <div key={r} className={`hc-row ${r === 1 ? "hc-reverse" : ""}`}>
           <div className="hc-track">
