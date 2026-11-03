@@ -9,7 +9,7 @@ import { ImageResponse } from "next/og";
 import { supabase } from "@/lib/supabase";
 import { Frame, Tag, Spacer, ACCENT, RED, GREEN, MONO, POSTER, W, glitch, niceDate, tidy, clip, safeImage, slideOptions } from "@/lib/slides";
 
-type Song = { id: string; title: string; artist: string; day: string; cover: string | null };
+type Song = { id: string; title: string; artist: string; day: string; cover: string | null; photo: string | null };
 type Week = { week_start: string; leaked_n: number; released_n: number; added_total: number; leaked: Song[]; released: Song[] };
 
 const monday = (d: Date) => {
@@ -90,7 +90,8 @@ export async function GET(req: Request) {
   const leaks = n === 2;
   const songs = (leaks ? w.leaked : w.released).slice(0, 5);
   const total = leaks ? w.leaked_n : w.released_n;
-  const covers = await Promise.all(songs.map((s) => safeImage(s.cover)));
+  // A cover the image maker can't read falls back to the artist's photo.
+  const covers = await Promise.all(songs.map(async (s) => (await safeImage(s.cover)) ?? (await safeImage(s.photo))));
   const color = leaks ? RED : GREEN;
 
   return new ImageResponse(

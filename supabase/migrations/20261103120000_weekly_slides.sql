@@ -1,7 +1,7 @@
 -- Weekly round-up slides: the week's leaks and releases (from rpc_weekly),
 -- best first: artists people here follow and have in their Spotify
 -- libraries, then bigger archives. At most 2 songs per artist, 6 per list,
--- each with its picture (sc_track_cover).
+-- each with its picture (sc_track_cover) and the artist's photo as a fallback.
 
 create or replace function sc_weekly_slide_list(p_songs jsonb)
 returns jsonb
@@ -22,7 +22,7 @@ as $$
   per as (select *, row_number() over (partition by artist_id order by day desc, title) as k from ranked),
   top as (select * from per where k <= 2 order by score desc, day desc, title limit 6)
   select coalesce(jsonb_agg(jsonb_build_object('id', id, 'title', title, 'artist', artist, 'day', day,
-           'cover', sc_track_cover(id) ->> 'url') order by score desc, day desc, title), '[]')
+           'cover', sc_track_cover(id) ->> 'url', 'photo', (select a.image_url from artists a where a.id = top.artist_id)) order by score desc, day desc, title), '[]')
   from top;
 $$;
 create or replace function rpc_weekly_slides(p_week date)
