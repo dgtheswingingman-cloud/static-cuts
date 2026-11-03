@@ -70,8 +70,18 @@ export default function HomePage() {
   // Artist photos for the cards and the Live rows.
   const [photos, setPhotos] = useState<Record<string, string>>({});
   useEffect(() => {
-    supabase.from("artists").select("id, image_url").not("image_url", "is", null).limit(1000)
-      .then(({ data }) => setPhotos(Object.fromEntries(((data ?? []) as { id: string; image_url: string }[]).map((r) => [r.id, r.image_url]))));
+    // In pages of 1000 (the most one request returns): with over 1000
+    // artists, the ones past the first page had no photo on their card.
+    (async () => {
+      const all: Record<string, string> = {};
+      for (let from = 0; from < 20000; from += 1000) {
+        const { data } = await supabase.from("artists").select("id, image_url").not("image_url", "is", null).order("id").range(from, from + 999);
+        const rows = (data ?? []) as { id: string; image_url: string }[];
+        for (const r of rows) all[r.id] = r.image_url;
+        if (rows.length < 1000) break;
+      }
+      setPhotos(all);
+    })();
   }, []);
 
   useEffect(() => {
