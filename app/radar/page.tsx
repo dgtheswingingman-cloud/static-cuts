@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import RadarTabs from "../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
@@ -80,6 +81,7 @@ export default function RadarPage() {
 
   return (
     <div className="wrap">
+      <RadarTabs />
       <h1 className="detail-name page-title">Release radar</h1>
       <div className="detail-meta">
         What&apos;s coming and what just dropped. Press &ldquo;remind me&rdquo; and you&apos;ll get a notification when it&apos;s

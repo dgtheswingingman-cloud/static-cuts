@@ -7,6 +7,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import RadarTabs from "../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "../components/AlbumOfWeek";
 import { useIsAdmin } from "../useIsAdmin";
@@ -77,6 +78,7 @@ function WeeklyInner() {
 
   return (
     <div className="wrap">
+      <RadarTabs />
       <h1 className="detail-name page-title">{week === thisWeek ? "This Week" : `Week of ${nice(week)}`}</h1>
       <div className="detail-meta" style={{ marginBottom: 12 }}>
         {nice(week)} to {nice(shift(week, 6))}: what leaked, what came out, and what changed in the archive.
