@@ -2209,3 +2209,13 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .fan-tag.big { font-size: 0.68rem; padding: 4px 8px; }
 .pf-badges { display: flex; margin-top: 8px; min-height: 0; }
 .pf-badges:empty { display: none; }
+/* Profile header: their artists sliding across (all screen sizes) */
+.pf-banner .pf-collage { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3px; opacity: 0.6; filter: saturate(0.85);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent); mask-image: linear-gradient(to bottom, #000 40%, transparent); }
+.pf-collage .hc-row { flex: 1; min-height: 0; overflow: hidden; }
+.pf-collage .hc-track { display: flex; gap: 3px; height: 100%; width: max-content; animation: pf-move 90s linear infinite; }
+.pf-collage .hc-reverse .hc-track { animation-direction: reverse; }
+.pf-collage .hc-track img { height: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.pf-banner { background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--pf) 30%, transparent), transparent 60%), var(--void); }
+@media (prefers-reduced-motion: reduce) { .pf-collage .hc-track { animation: none; } }
+@keyframes pf-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }

@@ -1,6 +1,6 @@
 "use client";
 
-// Someone's profile: a hero (banner, big avatar, name, badge, counts, bio),
+// Someone's profile: a hero (their artists sliding across the top, big avatar, name, badges, counts, bio),
 // then two columns: their music (showcase, collection progress, recently
 // collected, ratings, lists) and the side (contributions, artists they
 // follow, friends). Premium people's colour runs through it (--pf).
@@ -14,6 +14,7 @@ import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
 import ShareButton from "../../components/ShareButton";
 import Supporter from "../../components/Supporter";
+import HeroCollage from "../../components/HeroCollage";
 import { useProfileStyle, Showcase, EditProfile } from "./PremiumProfile";
 import { usePremium } from "../../usePremium";
 
@@ -75,7 +76,7 @@ export default function ProfilePage() {
   const [allCollected, setAllCollected] = useState(false);
   const [allRated, setAllRated] = useState(false);
   const [allArtists, setAllArtists] = useState(false);
-  // Premium look (banner, colour, showcase), shown only while they have premium.
+  // Premium look (colour, showcase), shown only while they have premium.
   const { style: pstyle, reload: reloadStyle } = useProfileStyle(userId);
   const accent = pstyle?.premium ? pstyle.accent ?? null : null;
   const { premium: iAmPremium } = usePremium();
@@ -139,16 +140,16 @@ export default function ProfilePage() {
   const showArtists = (profile.show_followed_artists || seesAll) && followedArtists.length > 0;
   const nothingPublic = !profile.show_completion_pct && !profile.show_collected_tracks && !profile.show_ratings && !profile.show_followed_artists && !profile.show_contributions;
   const name = profile.display_name ?? "anonymous";
-  const banner = pstyle?.premium ? pstyle.banner_url : null;
+  const fanIds = profile.fan_artists ?? [];
+  const headerPhotos = (showArtists ? [...followedArtists].sort((x, y) => Number(fanIds.includes(y.artist_id)) - Number(fanIds.includes(x.artist_id))) : [])
+    .map((f) => f.artists?.image_url).filter((u): u is string => !!u).slice(0, 24);
 
   return (
     <div className="wrap pf" style={{ "--pf": accent ?? "#8B7CF6" } as CSSProperties}>
       {/* ---- hero ---- */}
-      <div className={`pf-banner${banner ? "" : " pf-banner-plain"}`}>
-        {banner && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={banner} alt="" />
-        )}
+      {/* Their artists' photos sliding across the top (fan badge artists first). */}
+      <div className={`pf-banner${headerPhotos.length ? "" : " pf-banner-plain"}`}>
+        {headerPhotos.length > 0 && <HeroCollage images={headerPhotos} className="pf-collage" />}
       </div>
 
       <div className="pf-hero">
