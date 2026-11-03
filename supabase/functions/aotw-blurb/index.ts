@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, max_tokens: 2000, messages: [{ role: "user", content: prompt(items) }] }),
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt(items) }] }),
   }).catch(() => null);
   if (!res) return json({ ok: true, waiting: "Claude didn't answer" });
   if (res.status === 429 || res.status === 529) {
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       const it = items[Number(m[1]) - 1];
       return { week_start: it.week_start, artist_id: it.artist_id, album_key: it.album_key, blurb: m[2].replace(/^["“]|["”]$/g, "") };
     });
-  if (save.length === 0) return json({ ok: true, written: 0, note: "couldn't read Claude's answer", got: text.slice(0, 300) });
+  if (save.length === 0) return json({ ok: true, written: 0, note: "couldn't read Claude's answer", got: text.slice(0, 300), stop: out?.stop_reason ?? null, blocks: (out?.content ?? []).map((c: any) => c.type) });
   const { data: n, error: saveErr } = await db.rpc("sc_aotw_blurb_save", { p_secret: secret, p_items: save });
   if (saveErr) return json({ error: saveErr.message }, 500);
   return json({ ok: true, written: n });
