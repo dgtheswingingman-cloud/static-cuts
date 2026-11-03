@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { artistTag } from "../../components/Supporter";
 
 type Service = "spotify" | "deezer" | "apple" | "genius" | "lastfm";
 type Main = Record<Service, string | null>;
@@ -64,6 +65,9 @@ export default function ArtistProfiles({
   const [addName, setAddName] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Fan badge tag (CRT, LNLY…): automatic from the name unless set here.
+  const [tag, setTag] = useState("");
+  const [tagSaved, setTagSaved] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.rpc("rpc_artist_profiles", { p_artist: artistId });
@@ -80,6 +84,7 @@ export default function ArtistProfiles({
   }
 
   useEffect(() => {
+    supabase.from("artists").select("tag").eq("id", artistId).maybeSingle().then(({ data }) => setTag((data?.tag as string | null) ?? ""));
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistId]);
@@ -162,6 +167,19 @@ export default function ArtistProfiles({
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18 }}>
         <button className="tab active" disabled={busy} onClick={save}>{busy ? "saving…" : "save"}</button>
         {message && <span className="comment-meta">{message}</span>}
+      </div>
+
+      <div className="section-label">Fan badge tag</div>
+      <div className="comment-meta" style={{ marginBottom: 8 }}>
+        The short tag fans can wear next to their name. Automatic: <b>{artistTag(artistName)}</b>. Set your own (2–5 letters) or leave empty.
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18 }}>
+        <input className="search-input" style={{ width: 120, textTransform: "uppercase" }} maxLength={5} placeholder={artistTag(artistName)} value={tag} onChange={(e) => setTag(e.target.value)} />
+        <button className="tab" disabled={busy} onClick={async () => {
+          const { data, error } = await supabase.rpc("admin_set_artist_tag", { p_artist: artistId, p_tag: tag });
+          setTagSaved(error ? error.message : `Saved: ${data}`);
+        }}>save tag</button>
+        {tagSaved && <span className="comment-meta">{tagSaved}</span>}
       </div>
 
       <div className="section-label">Other names</div>

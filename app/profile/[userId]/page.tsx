@@ -27,11 +27,12 @@ type Profile = {
   show_ratings: boolean;
   show_followed_artists: boolean;
   show_contributions: boolean;
+  fan_artists: string[];
 };
 type TrackRef = { title: string; artist_id: string; cover_url: string | null; artists: { name: string } | null } | null;
 type CollectedTrack = { track_id: string; tracks: TrackRef };
 type RatedTrack = { track_id: string; value: number; tracks: TrackRef };
-type FollowedArtist = { artist_id: string; artists: { name: string; image_url: string | null } | null };
+type FollowedArtist = { artist_id: string; artists: { name: string; image_url: string | null; tag: string | null } | null };
 type Social = { followers: number; following: number; i_follow: boolean; follows_me: boolean; friends: { id: string; name: string | null; avatar_url: string | null }[] };
 
 const n = (x: number) => x.toLocaleString("en-GB");
@@ -83,7 +84,7 @@ export default function ProfilePage() {
     async function load() {
       const { data: profileRow, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, about, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions")
+        .select("id, display_name, avatar_url, about, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions, fan_artists")
         .eq("id", userId)
         .single();
       if (error || !profileRow) {
@@ -101,7 +102,7 @@ export default function ProfilePage() {
           .eq("user_id", userId).order("collected_at", { ascending: false }).limit(1000),
         supabase.from("ratings").select("track_id, value, tracks(title, artist_id, cover_url, artists!artist_id(name))")
           .eq("user_id", userId).order("updated_at", { ascending: false }).limit(100),
-        supabase.from("follows").select("artist_id, artists!artist_id(name, image_url)").eq("user_id", userId).order("followed_at", { ascending: false }),
+        supabase.from("follows").select("artist_id, artists!artist_id(name, image_url, tag)").eq("user_id", userId).order("followed_at", { ascending: false }),
       ]);
       if (statRes.data) setStats(statRes.data as { total_tracks: number; collected_tracks: number; followed_artists?: number });
       setCollected((colRes.data as unknown as CollectedTrack[]) ?? []);
@@ -158,9 +159,9 @@ export default function ProfilePage() {
         <div className="pf-id">
           <div className="pf-name-row">
             <h1 className="pf-name">{name}</h1>
-            <Supporter id={profile.id} full />
             {!isOwnProfile && social?.follows_me && !social.i_follow && <span className="feature-tag">follows you</span>}
           </div>
+          <div className="pf-badges"><Supporter id={profile.id} full /></div>
           {social && (
             <div className="pf-counts">
               <span><b>{n(social.followers)}</b> follower{social.followers === 1 ? "" : "s"}</span>
@@ -190,6 +191,7 @@ export default function ProfilePage() {
 
       {isOwnProfile && editing && pstyle && (
         <EditProfile userId={userId} profile={profile} style={pstyle} premium={!!pstyle.premium || !!iAmPremium}
+          followed={followedArtists.map((f) => ({ artist_id: f.artist_id, name: f.artists?.name ?? "unknown", tag: f.artists?.tag ?? null }))}
           onClose={() => setEditing(false)} onStyle={reloadStyle}
           onProfile={(p) => setProfile((prev) => (prev ? { ...prev, ...p } : prev))} />
       )}

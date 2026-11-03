@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { artistTag, forgetBadges } from "../../components/Supporter";
 
 export type ShowSong = { id: string; title: string; artist_id: string; artist: string; status: string; cover: string | null };
 export type ProfileStyle = { premium: boolean; accent?: string | null; banner_url?: string | null; showcase?: ShowSong[] };
@@ -55,7 +56,8 @@ export function PremiumTeaser() {
 }
 
 type Found = { id: string; title: string; artist: string; status: string };
-export type EditableProfile = { display_name: string | null; about: string | null; avatar_url: string | null };
+export type EditableProfile = { display_name: string | null; about: string | null; avatar_url: string | null; fan_artists?: string[] };
+type Followed = { artist_id: string; name: string; tag: string | null };
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
@@ -73,8 +75,8 @@ function Row({ label, premium, locked, children }: { label: string; premium?: bo
 
 // Everything about your profile in one place. Premium parts are labelled;
 // without premium they show but can't be changed.
-export function EditProfile({ userId, profile, style, premium, onClose, onProfile, onStyle }: {
-  userId: string; profile: EditableProfile; style: ProfileStyle; premium: boolean;
+export function EditProfile({ userId, profile, style, premium, followed, onClose, onProfile, onStyle }: {
+  userId: string; profile: EditableProfile; style: ProfileStyle; premium: boolean; followed: Followed[];
   onClose: () => void; onProfile: (p: Partial<EditableProfile>) => void; onStyle: () => void;
 }) {
   const [name, setName] = useState(profile.display_name ?? "");
@@ -86,6 +88,14 @@ export function EditProfile({ userId, profile, style, premium, onClose, onProfil
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const locked = !premium;
+  const [fans, setFans] = useState<string[]>(profile.fan_artists ?? []);
+  const maxFans = premium ? 3 : 1;
+  const tagOf = (id: string) => { const f = followed.find((x) => x.artist_id === id); return f ? (f.tag || artistTag(f.name)) : "?"; };
+  const nameOf = (id: string) => followed.find((x) => x.artist_id === id)?.name ?? id;
+  async function saveFans(next: string[]) {
+    setFans(next);
+    if (await save({ fan_artists: next }, "Fan badges saved.")) { onProfile({ fan_artists: next }); forgetBadges(userId); }
+  }
 
   useEffect(() => {
     const words = q.trim();
@@ -150,6 +160,31 @@ export function EditProfile({ userId, profile, style, premium, onClose, onProfil
           <label htmlFor="pfAvatarInput" className="tab" style={{ cursor: "pointer" }}>{profile.avatar_url ? "change picture" : "add picture"}</label>
           <span className="comment-meta">PNG or JPEG. Animated GIFs <span className="pf-prem-tag">◆ premium</span></span>
         </div>
+      </Row>
+
+      <Row label="Fan badges">
+        <div className="comment-meta" style={{ marginBottom: 8 }}>
+          Show which artists you ride for: their tag sits next to your name everywhere and links to them. 1 badge, or up to 3 with <span className="pf-prem-tag">◆ premium</span>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {fans.map((id) => (
+            <button key={id} className="fan-tag big" title={`Remove ${nameOf(id)}`} onClick={() => saveFans(fans.filter((x) => x !== id))}>
+              {tagOf(id)} <span style={{ opacity: 0.6 }}>×</span>
+            </button>
+          ))}
+          {!fans.length && <span className="comment-meta">None yet.</span>}
+        </div>
+        {followed.length === 0
+          ? <div className="comment-meta">Follow some artists first.</div>
+          : (
+            <select className="search-input" style={{ maxWidth: 320 }} value="" disabled={busy || fans.length >= maxFans}
+              onChange={(e) => { const id = e.target.value; if (id && !fans.includes(id)) saveFans([...fans, id]); }}>
+              <option value="">{fans.length >= maxFans ? (premium ? "3 badges max" : "Premium for more badges") : "Add an artist you follow…"}</option>
+              {followed.filter((f) => !fans.includes(f.artist_id)).sort((a, b) => a.name.localeCompare(b.name)).map((f) => (
+                <option key={f.artist_id} value={f.artist_id}>{f.name} ({f.tag || artistTag(f.name)})</option>
+              ))}
+            </select>
+          )}
       </Row>
 
       <Row label="Colour" premium locked={locked}>
