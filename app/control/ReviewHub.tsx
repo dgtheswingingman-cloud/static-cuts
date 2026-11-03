@@ -573,6 +573,7 @@ export default function ReviewHub() {
           blurb="Import a community tracker, re-check one, or handle ones people have sent in." />
         {isAdmin && <JobCard href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />}
         {isAdmin && <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />}
+        {isAdmin && <JobCard href="/review/album-of-the-week" title="Album of the week" blurb="Pick this week's album from the shortlist, and get the slides." />}
         <JobCard href="/review/trusted" title="Trusted contributors"
           blurb="People whose suggestions go live straight away." />
         {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
