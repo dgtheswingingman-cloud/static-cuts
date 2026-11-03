@@ -81,7 +81,7 @@ export async function GET(req: Request) {
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginBottom: 26 }}>SWIPE >></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginBottom: 26 }}>SWIPE &gt;&gt;</div>
       </Frame>,
       options,
     );
@@ -128,7 +128,7 @@ export async function GET(req: Request) {
       {total > songs.length && (
         <div style={{ display: "flex", marginBottom: 26 }}>
           <div style={{ display: "flex", fontFamily: MONO, fontWeight: 700, background: color, color: "#070707", fontSize: 26, padding: "12px 22px", letterSpacing: 2 }}>
-            + {n0(total - songs.length)} MORE > STATIC-CUTS.COM/WEEKLY
+            + {n0(total - songs.length)} MORE &gt; STATIC-CUTS.COM/WEEKLY
           </div>
         </div>
       )}
