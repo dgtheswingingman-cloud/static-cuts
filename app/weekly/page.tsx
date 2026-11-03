@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "../components/AlbumOfWeek";
+import { useIsAdmin } from "../useIsAdmin";
 
 type Song = { id: string; title: string; artist_id: string; artist: string; day?: string; kind?: string; spotify_url: string | null };
 type Week = {
@@ -58,6 +59,7 @@ function WeeklyInner() {
   const week = params.get("week") ?? thisWeek;
   const [data, setData] = useState<Week | null>(null);
   const [copied, setCopied] = useState(false);
+  const isAdmin = useIsAdmin();
 
   useEffect(() => {
     setData(null);
@@ -83,6 +85,14 @@ function WeeklyInner() {
         <button className="tab" onClick={() => go(shift(week, -7))}>← earlier week</button>
         {week < thisWeek && <button className="tab" onClick={() => go(shift(week, 7))}>later week →</button>}
         <button className="tab" onClick={share}>{copied ? "link copied" : "share this week"}</button>
+        {isAdmin && (
+          <span className="comment-meta" style={{ alignSelf: "center" }}>
+            slides:{" "}
+            {[1, 2, 3].map((n) => (
+              <a key={n} className="text-link" style={{ marginRight: 6 }} href={`/weekly/slide?n=${n}&week=${week}`} target="_blank" rel="noopener noreferrer">{n}</a>
+            ))}
+          </span>
+        )}
       </div>
 
       <AlbumOfWeek week={week} />

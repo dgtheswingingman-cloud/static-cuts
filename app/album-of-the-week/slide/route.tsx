@@ -6,6 +6,7 @@
 import type { ReactNode } from "react";
 import { ImageResponse } from "next/og";
 import { supabase } from "@/lib/supabase";
+import { safeImage } from "@/lib/slides";
 
 const W = 1080, H = 1350;
 const ACCENT = "#8B7CF6";
@@ -46,7 +47,9 @@ export async function GET(req: Request) {
   const n = url.searchParams.get("n") === "2" ? 2 : 1;
   const week = url.searchParams.get("week");
   const { data } = await supabase.rpc("rpc_album_of_week", week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? { p_week: week } : {});
-  const a = data as Aotw | null;
+  const found = data as Aotw | null;
+  // Pictures checked first (a dead link or WebP would break the slide).
+  const a = found ? { ...found, cover: await safeImage(found.cover) } : null;
   const size = { width: W, height: H, headers: { "Cache-Control": "public, max-age=600" } };
 
   if (!a) {
