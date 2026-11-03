@@ -2200,3 +2200,12 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .pf-prem-tag { display: inline-block; font-family: var(--font-mono), monospace; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; color: #0A0A0A; background: var(--pf, #8B7CF6); padding: 2px 6px; }
 .pf-edit-foot { padding: 12px 16px; font-size: 0.8rem; color: var(--smoke); }
 @media (max-width: 560px) { .pf-edit-row { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+/* Fan badges */
+.user-badges { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.user-badges.full { margin-left: 0; gap: 6px; flex-wrap: wrap; }
+.user-badges .supporter-badge { margin-left: 0; }
+.fan-tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.56rem; letter-spacing: 0.08em; line-height: 1; padding: 2px 4px; border: 1px solid var(--hair-strong); color: var(--bone); background: var(--surface2); cursor: pointer; white-space: nowrap; }
+.fan-tag:hover { border-color: var(--pf, #8B7CF6); color: var(--pf, #8B7CF6); }
+.fan-tag.big { font-size: 0.68rem; padding: 4px 8px; }
+.pf-badges { display: flex; margin-top: 8px; min-height: 0; }
+.pf-badges:empty { display: none; }
