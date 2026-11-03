@@ -9,6 +9,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Supporter from "../components/Supporter";
 
 type Song = {
   id: string; title: string; artist_id: string; artist: string; spotify_url: string | null;
@@ -209,7 +210,7 @@ function SearchInner() {
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={p.avatar_url} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
                   : <span style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface)", display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{p.display_name ?? "anonymous"}</span>
+                <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{p.display_name ?? "anonymous"}<Supporter id={p.id} /></span>
               </Link>
             ))}
           </div>

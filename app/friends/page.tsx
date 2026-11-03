@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
+import Supporter from "../components/Supporter";
 
 type Activity = {
   at: string; kind: "collected" | "rated" | "added"; user_id: string; name: string | null; avatar_url: string | null;
@@ -88,7 +89,7 @@ export default function FriendsPage() {
             <div key={p.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center" }}>
               <Link href={`/profile/${p.id}`} style={{ display: "flex", gap: 10, alignItems: "center", textDecoration: "none", color: "var(--bone)", minWidth: 0 }}>
                 <Avatar url={p.avatar_url} />
-                <span className="review-row-title">{p.display_name ?? "anonymous"}</span>
+                <span className="review-row-title">{p.display_name ?? "anonymous"}<Supporter id={p.id} /></span>
               </Link>
               <button className="tab active" onClick={() => follow(p.id)}>follow back</button>
             </div>
@@ -103,7 +104,7 @@ export default function FriendsPage() {
           {friends.map((p) => (
             <Link key={p.id} href={`/profile/${p.id}`} style={{ display: "flex", gap: 8, alignItems: "center", textDecoration: "none", color: "var(--bone)" }}>
               <Avatar url={p.avatar_url} size={32} />
-              <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{p.display_name ?? "anonymous"}</span>
+              <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>{p.display_name ?? "anonymous"}<Supporter id={p.id} /></span>
             </Link>
           ))}
         </div>

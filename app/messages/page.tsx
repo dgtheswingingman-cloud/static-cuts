@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
 import { Avatar, when, type Chat } from "./shared";
+import Supporter from "../components/Supporter";
 
 export default function MessagesPage() {
   const { loading } = useAuth();
@@ -42,7 +43,7 @@ export default function MessagesPage() {
           style={{ display: "flex", gap: 12, alignItems: "center", textDecoration: "none", padding: "10px 4px", borderBottom: "1px solid var(--hair)" }}>
           <Avatar url={c.avatar_url} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="track-title" style={{ fontWeight: c.unread > 0 ? 700 : undefined }}>{c.name ?? "anonymous"}</div>
+            <div className="track-title" style={{ fontWeight: c.unread > 0 ? 700 : undefined }}>{c.name ?? "anonymous"}<Supporter id={c.id} /></div>
             <div className="comment-meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.last ? `${c.last_mine ? "You: " : ""}${c.last}` : "Say hi"}
             </div>
