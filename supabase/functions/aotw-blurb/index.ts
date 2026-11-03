@@ -29,7 +29,9 @@ Never say where to download or find leaks.
 Albums:
 ${lines.join("\n")}
 
-Reply with JSON only: {"r":[{"n":1,"blurb":"..."}, ...]} covering every number.`;
+Reply with one line per album and nothing else, in this form:
+1: the blurb
+2: the blurb`;
 }
 
 Deno.serve(async (req) => {
@@ -61,14 +63,16 @@ Deno.serve(async (req) => {
   }
   const out: any = await res.json().catch(() => null);
   if (!res.ok) return json({ error: `Claude: ${out?.error?.message ?? res.status}` }, 502);
-  const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join("")).replace(/```(?:json)?/g, "");
-  let answer: any = null;
-  try { answer = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { /* tried again next run */ }
-  if (!answer?.r) return json({ ok: true, written: 0, note: "couldn't read Claude's answer" });
-
-  const save = (answer.r as { n: number; blurb: string }[])
-    .filter((r) => items[r.n - 1] && typeof r.blurb === "string" && r.blurb.trim())
-    .map((r) => ({ week_start: items[r.n - 1].week_start, artist_id: items[r.n - 1].artist_id, album_key: items[r.n - 1].album_key, blurb: r.blurb.trim() }));
+  const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""));
+  // "1: blurb" per line.
+  const save = text.split("\n")
+    .map((line) => line.match(/^\s*(\d+)[:.)]\s*(.+?)\s*$/))
+    .filter((m): m is RegExpMatchArray => !!m && !!items[Number(m[1]) - 1] && m[2].length > 20)
+    .map((m) => {
+      const it = items[Number(m[1]) - 1];
+      return { week_start: it.week_start, artist_id: it.artist_id, album_key: it.album_key, blurb: m[2].replace(/^["“]|["”]$/g, "") };
+    });
+  if (save.length === 0) return json({ ok: true, written: 0, note: "couldn't read Claude's answer", got: text.slice(0, 300) });
   const { data: n, error: saveErr } = await db.rpc("sc_aotw_blurb_save", { p_secret: secret, p_items: save });
   if (saveErr) return json({ error: saveErr.message }, 500);
   return json({ ok: true, written: n });
