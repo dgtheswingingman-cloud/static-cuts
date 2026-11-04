@@ -206,6 +206,9 @@ export default function ProfilePage() {
               : <span className="ah2-pfp pf-pfp-blank">{name.slice(0, 1).toUpperCase()}</span>}
             <h1 className="detail-name artist-hero-name">{name}</h1>
           </div>
+          {profile.about && (
+            <div className="pf-tagline">&ldquo;{(() => { const t = profile.about.replace(/\s*\n\s*/g, " ").trim(); return t.length > 80 ? `${t.slice(0, 79).trimEnd()}…` : t; })()}&rdquo;</div>
+          )}
           {!isOwnProfile && social?.follows_me && !social.i_follow && <span className="feature-tag" style={{ marginTop: 8 }}>follows you</span>}
           <div className="pf-badges" style={{ marginTop: 10 }}><Supporter id={profile.id} full /></div>
           <div className="ah2-stats">
@@ -217,7 +220,6 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      {profile.about && <div className="pf-bio pf-bio2">{profile.about}</div>}
 
       <div className="artist-actions ah2-actions">
         {followBtn}

@@ -80,7 +80,7 @@ export function EditProfile({ userId, profile, style, premium, followed, onClose
   onClose: () => void; onProfile: (p: Partial<EditableProfile>) => void; onStyle: () => void;
 }) {
   const [name, setName] = useState(profile.display_name ?? "");
-  const [about, setAbout] = useState(profile.about ?? "");
+  const [about, setAbout] = useState((profile.about ?? "").replace(/\s*\n\s*/g, " ").slice(0, 80));
   const [accent, setAccent] = useState(style.accent ?? "");
   const [show, setShow] = useState<Found[]>((style.showcase ?? []).map((s) => ({ id: s.id, title: s.title, artist: s.artist, status: s.status })));
   const [q, setQ] = useState("");
@@ -142,11 +142,13 @@ export function EditProfile({ userId, profile, style, premium, followed, onClose
       <Row label="Name">
         <input className="search-input" style={{ width: "100%", maxWidth: 320 }} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
       </Row>
-      <Row label="Bio">
-        <textarea className="comment-textarea" style={{ marginBottom: 8 }} value={about} maxLength={500} placeholder="A short bio, what you're into, whatever you want…" onChange={(e) => setAbout(e.target.value)} />
+      <Row label="Tagline">
+        <input className="search-input" style={{ width: "100%", marginBottom: 8 }} value={about} maxLength={80} placeholder="One line under your name, e.g. “living in the vault”"
+          onChange={(e) => setAbout(e.target.value.replace(/\s*\n\s*/g, " "))} />
+        <div className="comment-meta" style={{ marginBottom: 8 }}>{about.length}/80</div>
         <button className="tab active" disabled={busy || !name.trim()} onClick={async () => {
-          if (await save({ display_name: name.trim(), about: about.trim() }, "Name and bio saved.")) onProfile({ display_name: name.trim(), about: about.trim() });
-        }}>save name &amp; bio</button>
+          if (await save({ display_name: name.trim(), about: about.trim() }, "Name and tagline saved.")) onProfile({ display_name: name.trim(), about: about.trim() });
+        }}>save name &amp; tagline</button>
       </Row>
 
       <Row label="Picture">
