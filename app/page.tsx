@@ -332,7 +332,7 @@ export default function HomePage() {
           <Link href="/new">what&apos;s new</Link>
           <Link href="/wanted">most wanted</Link>
           <Link href="/search">search songs</Link>
-          <Link href="/radar">release radar</Link>
+          <Link href="/radar/releases">release radar</Link>
           <Link href="/lists">lists</Link>
           <Link href="/collabs">collab map</Link>
           <Link href="/local">local cuts</Link>

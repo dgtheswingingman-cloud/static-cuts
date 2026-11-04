@@ -132,7 +132,7 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
 
       {soon.length > 0 && (
         <>
-          <Head title="Coming up" href="/radar" label="Radar" />
+          <Head title="Coming up" href="/radar/releases" label="Radar" />
           <div className="hf-strip hf-covers">
             {soon.map((r) => (
               <Link key={r.track_id} href={`/song/${r.track_id}`} className="hf-cover">

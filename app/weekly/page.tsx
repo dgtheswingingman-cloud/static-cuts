@@ -78,7 +78,7 @@ function WeeklyInner() {
 
   return (
     <div className="wrap">
-      <RadarTabs />
+      <RadarTabs active="week" />
       <h1 className="detail-name page-title">{week === thisWeek ? "This Week" : `Week of ${nice(week)}`}</h1>
       <div className="detail-meta" style={{ marginBottom: 12 }}>
         {nice(week)} to {nice(shift(week, 6))}: what leaked, what came out, and what changed in the archive.
