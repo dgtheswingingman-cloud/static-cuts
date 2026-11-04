@@ -260,7 +260,7 @@ export default function SongView({ id }: { id: string }) {
       <div className="detail-meta song-tags">
         <Link href={`/artist/${artistId}`} className="text-link">{song.artist?.name ?? "Unknown artist"}</Link>
         {t.credited_as && <span className="comment-meta">as {t.credited_as}</span>}
-        <span className="feature-tag">{statusOf(t)}</span>
+        <span className={`feature-tag st st-${statusOf(t)}`}>{statusOf(t)}</span>
         {(() => {
           const tr = trustOf(t);
           return tr.level === "sourced" && t.status_source_url

@@ -1255,11 +1255,11 @@ export default function ArtistPage() {
           position: "relative",
         }}
       >
-        <div className="track-row" onClick={() => toggleOwned(t.id)} style={{ opacity: isToggling ? 0.5 : 1 }}>
+        <div className="track-row" data-st={releaseLabel(t)} onClick={() => toggleOwned(t.id)} style={{ opacity: isToggling ? 0.5 : 1 }}>
           <div className={`sigil ${isOwned ? "owned" : ""}`}>{isOwned ? "✓" : ""}</div>
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
           {t.is_featured && <span className="feature-tag">featured</span>}
-          <span className="feature-tag">{releaseLabel(t)}</span>
+          <span className={`feature-tag st st-${releaseLabel(t)}`}>{releaseLabel(t)}</span>
           {authenticity[t.id] && ["rumored", "teased", "snippet", "leaked"].includes(releaseLabel(t)) && (() => {
             const v = authenticity[t.id];
             const total = v.real + v.fake;

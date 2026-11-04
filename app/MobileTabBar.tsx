@@ -1,7 +1,7 @@
 "use client";
 
 // Phones (and narrow windows): the app-style tab bar along the bottom of
-// every page. Home · New · Search · Local Cuts · You (your profile, the
+// every page. Home · Radar · Search · Library · You (your profile, the
 // control room in admin mode, or log in).
 
 import type { ReactNode } from "react";
@@ -14,7 +14,7 @@ const ICONS: Record<string, ReactNode> = {
   home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   new: <><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
-  local: <><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></>,
+  local: <><path d="M5 4v16M10 4v16" /><path d="m14.5 4.5 5 15" /></>,
   you: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>,
 };
 
@@ -30,7 +30,7 @@ export default function MobileTabBar() {
     ["home", "/", "Home", (p) => p === "/"],
     ["new", "/radar", "Radar", (p) => p === "/new" || p === "/radar" || p === "/weekly"],
     ["search", "/search", "Search", (p) => p.startsWith("/search")],
-    ["local", "/local", "Local Cuts", (p) => p.startsWith("/local")],
+    ["local", "/local", "Library", (p) => p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/lists") || p.startsWith("/list/")],
     ["you", youHref, youLabel, (p) => p.startsWith("/profile") || p.startsWith("/friends") || p.startsWith("/messages") || p.startsWith("/settings") || p === "/login" || p.startsWith("/control")],
   ];
   return (

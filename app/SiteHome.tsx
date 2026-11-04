@@ -21,7 +21,7 @@ export default function SiteHome() {
   return (
     <div className="site-top">
       <Link href="/" className="site-home" aria-label="Static Cuts// home">
-        STATIC CUTS<span className="slash">//</span>
+        STATIC-CUTS<span className="slash">//</span>
       </Link>
       <span className="site-top-icons">
         <Link href="/search" aria-label="Search" className="site-icon">
