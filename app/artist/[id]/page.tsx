@@ -26,6 +26,7 @@ import ShareButton from "../../components/ShareButton";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import ArtistCollabs from "./ArtistCollabs";
+import ArtistEras from "./ArtistEras";
 import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
@@ -159,7 +160,8 @@ export default function ArtistPage() {
   const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
   // Overview / songs / projects. Songs when a link jumps to one track.
-  const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects" | "collabs">("overview");
+  const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects" | "eras" | "collabs">("overview");
+  const [eraFocus, setEraFocus] = useState<string | null>(null);
   const [eraSongs, setEraSongs] = useState<EraSong[] | null>(null);
   useEffect(() => {
     setEraSongs(null);
@@ -1628,14 +1630,14 @@ export default function ArtistPage() {
   const IconDots = <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
   const IconShare = <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>;
   const projectTile = (e: (typeof projects)[number]) => (
-    <Link key={e.key} href={`/artist/${id}/eras#${encodeURIComponent(e.key)}`} className="ap-project">
+    <button key={e.key} className="ap-project" onClick={() => { setEraFocus(e.key); setArtistTab("eras"); }}>
       {e.cover
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={e.cover} alt="" loading="lazy" />
         : <span className="ap-project-blank">SC//</span>}
       <span className="ap-project-name">{e.name}</span>
       <span className="ap-project-meta">{[span(e), `${e.songs.length} songs`].filter(Boolean).join(" · ")}</span>
-    </Link>
+    </button>
   );
 
   return (
@@ -1915,7 +1917,7 @@ export default function ArtistPage() {
             {([["overview", "Overview"], ["songs", "Songs"], ["projects", "Projects"]] as const).map(([k, label]) => (
               <button key={k} className={artistTab === k ? "on" : undefined} aria-pressed={artistTab === k} onClick={() => setArtistTab(k)}>{label}</button>
             ))}
-            <Link href={`/artist/${id}/eras`}>Eras</Link>
+            <button className={artistTab === "eras" ? "on" : undefined} aria-pressed={artistTab === "eras"} onClick={() => { setEraFocus(null); setArtistTab("eras"); }}>Eras</button>
             <button className={artistTab === "collabs" ? "on" : undefined} aria-pressed={artistTab === "collabs"} onClick={() => setArtistTab("collabs")}>Collabs</button>
           </nav>
 
@@ -1962,13 +1964,15 @@ export default function ArtistPage() {
 
           {artistTab === "collabs" && <ArtistCollabs artistId={id} />}
 
+          {artistTab === "eras" && <div style={{ marginTop: 14 }}><ArtistEras songs={eraSongs} focus={eraFocus} /></div>}
+
           {artistTab === "projects" && (
             <>
               {!eraSongs && <div className="empty-state">loading…</div>}
               {eraSongs && projects.length === 0 && <div className="empty-state">No official albums yet.</div>}
               <div className="ap-projects">{projects.map(projectTile)}</div>
               <div className="comment-meta" style={{ marginTop: 12 }}>
-                Unreleased tapes and song eras are on <Link href={`/artist/${id}/eras`} className="text-link">Eras →</Link>
+                Unreleased tapes and song eras are on <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }} onClick={() => { setEraFocus(null); setArtistTab("eras"); }}>Eras →</button>
               </div>
             </>
           )}

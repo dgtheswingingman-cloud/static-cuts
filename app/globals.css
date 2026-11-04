@@ -2593,3 +2593,22 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .ap-collab-count { font-family: var(--font-anton), sans-serif; font-size: 1.5rem; color: var(--accent); min-width: 32px; text-align: right; }
 .ap-collab-songs { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 14px 14px 48px; font-size: 0.86rem; }
 .ap-collab-go { width: 100%; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); text-decoration: none; margin-top: 4px; }
+button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+
+/* Artist banner as sliding rows of their photos. */
+.ah2-collage {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3px;
+  opacity: 0.75; filter: grayscale(0.3) contrast(1.05);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+}
+.artist-hero.ah2.ah2-has-collage::after {
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--void) 65%, transparent) 0%, transparent 55%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--void) 45%, transparent) 0%, transparent 20%, color-mix(in srgb, var(--void) 30%, transparent) 50%, var(--void) 100%);
+}
+
+/* A line in the artist's colour between the banner and the page. */
+.artist-hero.ah2 { border-bottom: 2px solid var(--accent); }
+.ah2-collage { opacity: 0.6; }
+.ah2-inner { z-index: 2; }
