@@ -1,34 +1,43 @@
-// Shared look for the Instagram/TikTok slides (1080×1350): poster type
-// (Anton) with an RGB-split glitch, tracker-style labels (Space Mono), TV
-// static and scanlines over everything, and pictures made safe for the image
-// maker.
+// The STATIC-CUTS// look for every image the site makes (slides, link
+// previews): black and off-white only, a heavy condensed italic sliced
+// horizontally (the "cut"), mono labels with catalogue numbers
+// (ARCHIVE / 014, SC-032), thin rules, photocopy grain and TV static.
 
 import type { CSSProperties, ReactNode } from "react";
 import { deflateSync } from "node:zlib";
 
 export const W = 1080, H = 1350;
-export const ACCENT = "#8B7CF6";
-export const RED = "#FF3355";
-export const GREEN = "#2BD67B";
-export const CYAN = "#22D3EE";
-export const MONO = "Space Mono";
-export const POSTER = "Anton";
+export const INK = "#0A0A0A";
+export const CREAM = "#EDE6D8";
+export const DIM = "#9C968B";
+export const LINE = "#3A3733";
+export const DISPLAY = "SC Display";
+export const MONO = "SC Mono";
+// Kept for older callers.
+export const ACCENT = CREAM, RED = CREAM, GREEN = CREAM, CYAN = CREAM, POSTER = DISPLAY;
 
 export const niceDate = (iso: string, year = true) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", year ? { day: "numeric", month: "long", year: "numeric" } : { day: "numeric", month: "short" });
 
-// Song titles as trackers write them, tidied for a slide: no "*" (tracker
-// marks) or {notes}.
+// ISO week number, for catalogue codes (WEEK / 45).
+export function weekNo(iso: string) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  const first = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((d.getTime() - first.getTime()) / 86400000 - 3 + ((first.getUTCDay() + 6) % 7)) / 7);
+}
+export const pad = (n: number, w = 3) => String(n).padStart(w, "0");
+
+// Song titles as trackers write them, tidied: no "*" marks or {notes}.
 export const tidy = (t: string) => t.replace(/\s*\{[^}]*\}/g, "").replace(/\s*\*+\s*$/, "").trim();
 export const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
-
-// The RGB-split "glitch" on big type.
-export const glitch = (px = 5): CSSProperties => ({ textShadow: `-${px}px 0 ${RED}, ${px}px 0 ${CYAN}` });
+export const glitch = (_px = 0): CSSProperties => ({});
 
 // ---- fonts (from Google Fonts, kept for the life of the server) ----------
-async function googleFont(family: string, weight: number): Promise<ArrayBuffer | null> {
+async function googleFont(spec: string): Promise<ArrayBuffer | null> {
   try {
-    const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}`, { signal: AbortSignal.timeout(5000) })).text();
+    const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${spec}`, { signal: AbortSignal.timeout(5000) })).text();
     const src = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
     if (!src) return null;
     const res = await fetch(src, { signal: AbortSignal.timeout(5000) });
@@ -37,14 +46,14 @@ async function googleFont(family: string, weight: number): Promise<ArrayBuffer |
     return null;
   }
 }
-type Font = { name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" };
+type Font = { name: string; data: ArrayBuffer; weight: 400 | 700 | 900; style: "normal" | "italic" };
 let fontsPromise: Promise<Font[]> | null = null;
 export function slideFonts(): Promise<Font[]> {
   if (!fontsPromise) {
     fontsPromise = Promise.all([
-      googleFont(POSTER, 400).then((d) => d && ({ name: POSTER, data: d, weight: 400 as const, style: "normal" as const })),
-      googleFont(MONO, 400).then((d) => d && ({ name: MONO, data: d, weight: 400 as const, style: "normal" as const })),
-      googleFont(MONO, 700).then((d) => d && ({ name: MONO, data: d, weight: 700 as const, style: "normal" as const })),
+      googleFont("Archivo:ital,wdth,wght@1,62,900").then((d) => d && ({ name: DISPLAY, data: d, weight: 900 as const, style: "italic" as const })),
+      googleFont("IBM+Plex+Mono:wght@400").then((d) => d && ({ name: MONO, data: d, weight: 400 as const, style: "normal" as const })),
+      googleFont("IBM+Plex+Mono:wght@700").then((d) => d && ({ name: MONO, data: d, weight: 700 as const, style: "normal" as const })),
     ]).then((list) => {
       const ok = list.filter(Boolean) as Font[];
       if (ok.length < 3) fontsPromise = null; // try again next time
@@ -53,8 +62,8 @@ export function slideFonts(): Promise<Font[]> {
   }
   return fontsPromise;
 }
-export async function slideOptions() {
-  return { width: W, height: H, fonts: await slideFonts(), headers: { "Cache-Control": "public, max-age=600" } };
+export async function slideOptions(w = W, h = H) {
+  return { width: w, height: h, fonts: await slideFonts(), headers: { "Cache-Control": "public, max-age=600" } };
 }
 
 // ---- TV static + scanlines (made once, as a see-through PNG) --------------
@@ -84,16 +93,16 @@ export function staticOverlay(): string {
   for (let y = 0; y < h; y++) {
     const row = y * (w * 2 + 1);
     raw[row] = 0;
-    const scan = y % 2 === 0; // every other line darker = scanlines
+    const scan = y % 2 === 0;
     for (let x = 0; x < w; x++) {
       const v = rand();
-      raw[row + 1 + x * 2] = v > 0.5 ? 255 : 0;                                  // grey: white or black speck
-      raw[row + 2 + x * 2] = scan ? 38 : Math.floor(v * 16);                     // alpha
+      raw[row + 1 + x * 2] = v > 0.5 ? 255 : 0;
+      raw[row + 2 + x * 2] = scan ? 30 : Math.floor(v * 20);
     }
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8; ihdr[9] = 4; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0; // 8-bit grey + alpha
+  ihdr[8] = 8; ihdr[9] = 4; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   const png = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw, { level: 6 })), chunk("IEND", Buffer.alloc(0)),
@@ -102,11 +111,10 @@ export function staticOverlay(): string {
   return staticPng;
 }
 
-// The image maker fails the whole slide on a picture it can't read (dead
-// link, WebP). Fetch each one first; keep JPEG/PNG, drop the rest.
+// The image maker fails the whole picture on one it can't read (dead link,
+// WebP). Fetch each first; keep JPEG/PNG (WebP: try the JPEG/PNG twin).
 export async function safeImage(url: string | null | undefined): Promise<string | null> {
   if (!url || !/^https:\/\//.test(url)) return null;
-  // Genius serves some art as WebP; the same picture is usually there as JPEG/PNG too.
   const tries = /\.webp(\?|$)/i.test(url) ? [url.replace(/\.webp/i, ".jpg"), url.replace(/\.webp/i, ".png")] : [url];
   for (const u of tries) {
     try {
@@ -117,61 +125,111 @@ export async function safeImage(url: string | null | undefined): Promise<string 
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length > 3_000_000) continue;
       return `data:${type};base64,${buf.toString("base64")}`;
-    } catch {
-      /* next */
-    }
+    } catch { /* next */ }
   }
   return null;
 }
 
-// A status chip like the trackers use.
-export function Tag({ children, color, solid = true, size = 22 }: { children: ReactNode; color: string; solid?: boolean; size?: number }) {
+// ---- pieces ----------------------------------------------------------------
+
+// Big type, cut through horizontally: the lower half slides left a little,
+// with a hairline sticking out of the cut. `at` = where the cut is (0–1).
+export function Sliced({ children, size, color = CREAM, at = 0.54, shift, lines = true }: {
+  children: string; size: number; color?: string; at?: number; shift?: number; lines?: boolean;
+}) {
+  const h = Math.round(size * 0.92);
+  const cut = Math.round(h * at);
+  const dx = shift ?? Math.max(4, Math.round(size * 0.07));
+  const text: CSSProperties = { display: "flex", fontFamily: DISPLAY, fontStyle: "italic", fontWeight: 900, fontSize: size, lineHeight: `${h}px`, color, whiteSpace: "nowrap", letterSpacing: -size * 0.01 };
   return (
-    <div style={{
-      display: "flex", fontFamily: MONO, fontWeight: 700, fontSize: size, letterSpacing: 2, padding: "4px 12px",
-      background: solid ? color : "transparent", color: solid ? "#0A0A0A" : color, border: `2px solid ${color}`,
-    }}>{children}</div>
+    <div style={{ display: "flex", position: "relative", height: h }}>
+      <div style={{ ...text, opacity: 0 }}>{children}</div>
+      <div style={{ position: "absolute", top: 0, left: 0, right: -dx, height: cut, overflow: "hidden", display: "flex" }}>
+        <div style={text}>{children}</div>
+      </div>
+      <div style={{ position: "absolute", top: cut, left: -dx, right: 0, height: h - cut, overflow: "hidden", display: "flex" }}>
+        <div style={{ ...text, marginTop: -cut }}>{children}</div>
+      </div>
+      {lines && <div style={{ position: "absolute", top: cut - 1, left: -size * 0.25, width: size * 1.1, height: Math.max(2, size * 0.02), background: color, display: "flex" }} />}
+      {lines && <div style={{ position: "absolute", top: cut, right: -size * 0.4, width: size * 1.3, height: Math.max(1, size * 0.012), background: color, display: "flex" }} />}
+    </div>
   );
 }
 
-// Every slide: optional picture behind (full-bleed or faded), static on top,
-// tracker-style top bar and footer with the slide number.
-export function Frame({ children, file, page, bg, backdrop, bgHeight = H, fade = 1 }: {
-  children: ReactNode; file: string; page: string; bg?: string | null; backdrop?: ReactNode; bgHeight?: number; fade?: number;
-}) {
-  const behind = !!(bg || backdrop);
+export const Wordmark = ({ size = 34, color = CREAM }: { size?: number; color?: string }) => (
+  <Sliced size={size} color={color} lines={size > 60}>STATIC-CUTS//</Sliced>
+);
+
+// A photo cut the same way: the lower part slides sideways.
+export function SlicedImage({ src, w, h, at = 0.62, shift = 18 }: { src: string; w: number; h: number; at?: number; shift?: number }) {
+  const cut = Math.round(h * at);
   return (
-    <div style={{ width: W, height: H, display: "flex", position: "relative", background: "#070707", color: "#EDEDED", fontFamily: MONO }}>
+    <div style={{ display: "flex", position: "relative", width: w, height: h, overflow: "hidden", background: "#151515" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} width={w} height={h} alt="" style={{ position: "absolute", top: 0, left: 0, width: w, height: h, objectFit: "cover" }} />
+      <div style={{ position: "absolute", top: cut, left: 0, width: w, height: h - cut, overflow: "hidden", display: "flex", background: INK }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} width={w} height={h} alt="" style={{ position: "absolute", top: -cut, left: -shift, width: w, height: h, objectFit: "cover" }} />
+      </div>
+      <div style={{ position: "absolute", top: cut - 1, left: 0, width: w, height: 3, background: INK, display: "flex" }} />
+      <div style={{ position: "absolute", top: cut + 3, left: w * 0.08, width: w * 0.5, height: 1, background: CREAM, opacity: 0.7, display: "flex" }} />
+    </div>
+  );
+}
+
+export const Mono = ({ children, size = 22, color = CREAM, bold = false, style }: { children: ReactNode; size?: number; color?: string; bold?: boolean; style?: CSSProperties }) => (
+  <div style={{ display: "flex", fontFamily: MONO, fontWeight: bold ? 700 : 400, fontSize: size, letterSpacing: size * 0.12, color, textTransform: "uppercase", ...style }}>{children}</div>
+);
+
+// A small square + label, like the identity sheet's section heads.
+export const Label = ({ children, size = 22 }: { children: ReactNode; size?: number }) => (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    <div style={{ display: "flex", width: size * 0.6, height: size * 0.6, background: CREAM, marginRight: size * 0.7 }} />
+    <Mono size={size}>{children}</Mono>
+  </div>
+);
+
+export const Rule = ({ style }: { style?: CSSProperties }) => <div style={{ display: "flex", height: 1, background: LINE, ...style }} />;
+
+// An outlined status box (no colours: the identity is black and cream).
+export function Tag({ children, color = CREAM, solid = false, size = 18 }: { children: ReactNode; color?: string; solid?: boolean; size?: number }) {
+  return (
+    <div style={{ display: "flex", fontFamily: MONO, fontWeight: 700, fontSize: size, letterSpacing: size * 0.14, padding: "4px 10px", textTransform: "uppercase",
+      background: solid ? color : "transparent", color: solid ? INK : color, border: `1.5px solid ${color}` }}>{children}</div>
+  );
+}
+
+export const Spacer = () => <div style={{ display: "flex", flex: 1 }} />;
+
+// Every slide: optional faded picture behind, static over it, the small
+// wordmark + catalogue code on top, a label + rule at the bottom.
+export function Frame({ children, code, footer, bg, fade = 0.35, w = W, h = H }: {
+  children: ReactNode; code: string; footer?: string; bg?: string | null; fade?: number; w?: number; h?: number;
+  // older callers
+  file?: string; page?: string; backdrop?: ReactNode; bgHeight?: number;
+}) {
+  return (
+    <div style={{ width: w, height: h, display: "flex", position: "relative", background: INK, color: CREAM, fontFamily: MONO }}>
       {bg && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={bg} width={W} height={bgHeight} alt="" style={{ position: "absolute", top: 0, left: 0, width: W, height: bgHeight, objectFit: "cover", opacity: fade }} />
+        <img src={bg} width={w} height={h} alt="" style={{ position: "absolute", top: 0, left: 0, width: w, height: h, objectFit: "cover", opacity: fade }} />
       )}
-      {backdrop && <div style={{ position: "absolute", top: 0, left: 0, width: W, height: bgHeight, display: "flex", opacity: fade }}>{backdrop}</div>}
-      {behind && (
-        <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex",
-          backgroundImage: bgHeight < H
-            ? `linear-gradient(to bottom, rgba(7,7,7,0.55) 0%, rgba(7,7,7,0) 14%, rgba(7,7,7,0) ${Math.round(bgHeight / H * 55)}%, #070707 ${Math.round(bgHeight / H * 100)}%)`
-            : "linear-gradient(to bottom, rgba(7,7,7,0.6) 0%, rgba(7,7,7,0.82) 40%, #070707 80%)" }} />
-      )}
+      {bg && <div style={{ position: "absolute", top: 0, left: 0, width: w, height: h, display: "flex", backgroundImage: `linear-gradient(to bottom, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.85) 45%, ${INK} 85%)` }} />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={staticOverlay()} width={W} height={H} alt="" style={{ position: "absolute", top: 0, left: 0, width: W, height: H }} />
-      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", flexDirection: "column", padding: "56px 64px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A" }}>
-            <div style={{ display: "flex", width: 14, height: 14, borderRadius: 7, background: RED, marginRight: 12 }} />
-            <span style={{ fontWeight: 700 }}>STATIC CUTS//</span>
-            <span style={{ color: "#8A8A8A", marginLeft: 12 }}>{file}</span>
-          </div>
-          <div style={{ display: "flex", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A", color: "#BDBDBD" }}>{page}</div>
+      <img src={staticOverlay()} width={w} height={h} alt="" style={{ position: "absolute", top: 0, left: 0, width: w, height: h }} />
+      <div style={{ position: "absolute", top: 0, left: 0, width: w, height: h, display: "flex", flexDirection: "column", padding: "52px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Wordmark size={40} />
+          <Mono size={20} color={DIM}>{code}</Mono>
         </div>
+        <Rule style={{ marginTop: 22 }} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>{children}</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, color: "#8A8A8A", letterSpacing: 2 }}>
-          <span>EVERY SONG · LEAK · VERSION</span>
-          <span style={{ color: "#EDEDED", fontWeight: 700 }}>STATIC-CUTS.COM</span>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Mono size={18} color={DIM}>{footer ?? "Every song · leak · version"}</Mono>
+          <div style={{ display: "flex", flex: 1, height: 1, background: LINE, margin: "0 20px" }} />
+          <Mono size={18}>static-cuts.com</Mono>
         </div>
       </div>
     </div>
   );
 }
-
-export const Spacer = () => <div style={{ display: "flex", flex: 1 }} />;
