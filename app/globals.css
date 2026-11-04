@@ -3065,3 +3065,52 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .lc-when { font-family: var(--font-mono), monospace; font-size: 0.64rem; color: var(--smoke); }
 .lc-remove { margin-left: auto; background: none; border: 0; color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.64rem; cursor: pointer; text-decoration: underline; }
 .lc-body { font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
+
+/* ===================== Genres ===================== */
+.gn-head { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin: 6px 0 18px; }
+.gn-title { margin: 0; font-size: clamp(3rem, 12vw, 5rem); }
+.gn-title span { color: var(--red) !important; }
+.gn-lead { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--hair-strong); padding-left: 20px; max-width: 640px; font-family: var(--font-mono), monospace; }
+.gn-lead strong { font-size: 0.9rem; letter-spacing: 0.18em; text-transform: uppercase; }
+.gn-lead span { font-size: 0.76rem; color: var(--smoke); line-height: 1.5; }
+.gn-search { border-radius: 8px; }
+.gn-modes { margin: 14px 0; }
+.gn-modes button { flex: none; min-height: 44px; padding: 0 22px; border: 1.5px solid var(--bone); border-radius: 6px; background: none; color: var(--bone); cursor: pointer; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.gn-modes button.on { background: var(--bone); color: #070707; }
+.gn-az { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+.gn-az-label { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.gn-az-label em, .gn-sec h2 em { font-style: normal; color: var(--red); }
+.gn-letters { display: flex; gap: 6px; flex-wrap: wrap; }
+.gn-letters button { width: 34px; height: 34px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: none; color: var(--bone); cursor: pointer; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.8rem; }
+.gn-letters button:hover { border-color: var(--bone); }
+.gn-letters button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
+.gn-sec { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 22px 0 12px; }
+.gn-sec h2 { margin: 0; font-family: var(--font-anton), sans-serif; font-weight: 400; font-style: italic; font-size: 1.9rem; text-transform: uppercase; }
+.gn-sec > span { font-family: var(--font-mono), monospace; font-size: 0.76rem; color: var(--smoke); }
+.gn-views { margin-left: auto; display: flex; gap: 6px; }
+.gn-views button { width: 38px; height: 34px; border: 1.5px solid var(--hair-strong); background: none; color: var(--bone); cursor: pointer; }
+.gn-views button.on { background: var(--bone); color: #070707; border-color: var(--bone); }
+.gn-top { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.gn-card { position: relative; min-height: 104px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--hair-strong); border-radius: 6px; overflow: hidden; text-decoration: none; color: var(--bone);
+  background: linear-gradient(to right, var(--void) 30%, color-mix(in srgb, var(--void) 40%, transparent)), var(--gn-img, none) right 30% / 65% auto no-repeat, var(--surface); }
+.gn-card:hover, .gn-card.first { border-color: var(--red); }
+.gn-rank { position: absolute; top: 10px; left: 14px; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.7rem; color: var(--red); border: 1.5px solid var(--red); padding: 0 5px; }
+.gn-card-name { font-family: var(--font-anton), sans-serif; font-style: italic; font-size: 1.7rem; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; margin-top: 22px; }
+.gn-card-n { font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.gn-pills { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.gn-pill { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; border: 1.5px solid var(--hair-strong); border-radius: 8px; text-decoration: none; color: var(--bone); font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.02em; min-width: 0; }
+.gn-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gn-pill em { font-style: normal; font-family: var(--font-mono), monospace; font-size: 0.7rem; background: var(--surface2); padding: 2px 7px; border-radius: 4px; flex: none; }
+.gn-pill:hover { border-color: var(--bone); }
+.gn-pill.first { background: var(--bone); color: #070707; border-color: var(--bone); }
+.gn-pill.first em { background: #070707; color: var(--bone); }
+.gn-rows { display: flex; flex-direction: column; }
+.gn-rows .gn-pill { border-radius: 0; border-width: 0 0 1px; padding: 10px 4px; }
+@media (max-width: 1023px) {
+  .gn-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gn-card-name { font-size: 1.3rem; }
+  .gn-lead { border-left: 0; padding-left: 0; }
+  .gn-modes { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
+  .gn-pills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gn-letters button { width: 30px; height: 30px; }
+}
