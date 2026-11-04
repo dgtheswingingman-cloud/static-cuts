@@ -307,13 +307,6 @@ export default function SongView({ id }: { id: string }) {
           </button>
         )}
         {!isAdmin && status !== "released" && <WantButton trackId={t.id} icon />}
-        {!isAdmin && status === "released" && (
-          <button className={`tab sp-icon-btn ${song.my_rating ? "active" : ""}`} aria-label={song.my_rating ? `Your rating ${song.my_rating}/10` : "Rate"}
-            onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
-            {song.my_rating ? <span className="sp-icon-num">{song.my_rating}</span>
-              : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>}
-          </button>
-        )}
         <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
           label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>}
           fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
@@ -329,30 +322,9 @@ export default function SongView({ id }: { id: string }) {
       </div>
       {more && !isAdmin && (
         <div className="sp-more">
-          {status !== "released" && (
-            <button className={`tab ${song.my_rating ? "active" : ""}`} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
-              {song.my_rating ? `★ rated ${song.my_rating}/10` : "rate it"}
-            </button>
-          )}
           <AddToList trackId={t.id} />
           {(["announced", "teased", "snippet", "rumored"].includes(status) ||
             (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
-        </div>
-      )}
-
-      {rateOpen && !isAdmin && (
-        <div className="comments-panel" style={{ marginTop: 10 }}>
-          <div className="comment-meta" style={{ marginBottom: 8 }}>
-            {song.my_rating
-              ? (song.rating?.avg ? `Community average ${song.rating.avg}/10 from ${song.rating.count} rating${song.rating.count === 1 ? "" : "s"}` : "No other ratings yet")
-              : "Rate it to see the community average."}
-          </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button key={n} className={`rating-num ${song.my_rating === n ? "selected" : ""}`} onClick={() => rate(n)}>{n}</button>
-            ))}
-            {song.my_rating && <button className="rating-clear" onClick={() => rate(null)}>clear</button>}
-          </div>
         </div>
       )}
 
@@ -372,10 +344,38 @@ export default function SongView({ id }: { id: string }) {
             ? <a href={t.status_source_url} target="_blank" rel="noopener noreferrer" className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label} ↗</a>
             : <span className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</span>;
         })()}
-        {song.rating && song.rating.count > 0 && (
-          <span className="sp-sub">{song.my_rating && song.rating.avg ? `rated ${song.rating.avg}/10 avg` : `${song.rating.count} rating${song.rating.count === 1 ? "" : "s"}`}</span>
-        )}
       </div>
+
+      {!isAdmin && (
+        <button className={`sp-rate ${song.my_rating ? "rated" : ""}`} aria-expanded={rateOpen} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill={song.my_rating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>
+          <span className="sp-rate-text">
+            <strong>{song.my_rating ? `You: ${song.my_rating}/10` : "Rate it"}</strong>
+            <span>
+              {song.my_rating
+                ? (song.rating?.avg ? `Average ${song.rating.avg}/10 · ${song.rating.count} rating${song.rating.count === 1 ? "" : "s"}` : "No other ratings yet")
+                : `${(song.rating?.count ?? 0).toLocaleString("en-GB")} rating${song.rating?.count === 1 ? "" : "s"} · rate to see the average`}
+            </span>
+          </span>
+          <span className="sp-rate-cta">{song.my_rating ? "Change" : "1–10"}</span>
+        </button>
+      )}
+      {rateOpen && !isAdmin && (
+        <div className="comments-panel" style={{ marginTop: 10 }}>
+          <div className="comment-meta" style={{ marginBottom: 8 }}>
+            {song.my_rating
+              ? (song.rating?.avg ? `Community average ${song.rating.avg}/10 from ${song.rating.count} rating${song.rating.count === 1 ? "" : "s"}` : "No other ratings yet")
+              : "Rate it to see the community average."}
+          </div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} className={`rating-num ${song.my_rating === n ? "selected" : ""}`} onClick={() => rate(n)}>{n}</button>
+            ))}
+            {song.my_rating && <button className="rating-clear" onClick={() => rate(null)}>clear</button>}
+          </div>
+        </div>
+      )}
+
 
       {listen.length > 0 ? (
         <>

@@ -2494,3 +2494,10 @@ a.mod-btn { display: inline-block; text-decoration: none; }
   .sp-hero-inner { max-width: 1080px; }
   .sp-main-btn { flex: 0 1 380px; }
 }
+.sp-rate { width: 100%; display: flex; align-items: center; gap: 14px; margin-top: 10px; padding: 12px 16px; background: transparent; color: var(--bone); border: 1px solid var(--hair-strong); border-radius: 6px; cursor: pointer; text-align: left; font: inherit; }
+.sp-rate:hover { border-color: var(--bone); }
+.sp-rate > svg { color: var(--accent); flex: none; }
+.sp-rate-text { flex: 1; display: flex; flex-direction: column; gap: 2px; font-family: var(--font-mono), monospace; text-transform: uppercase; min-width: 0; }
+.sp-rate-text strong { font-size: 0.9rem; letter-spacing: 0.14em; }
+.sp-rate-text span { font-size: 0.64rem; letter-spacing: 0.08em; color: var(--smoke); }
+.sp-rate-cta { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
