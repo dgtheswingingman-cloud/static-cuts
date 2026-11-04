@@ -2733,3 +2733,53 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .rd-new-artist { font-family: var(--font-anton), sans-serif; font-size: 1.05rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
 .rd-new-what { flex: 1; min-width: 0; font-family: var(--font-mono), monospace; font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1023px) { .rd-chips { margin: 0 -16px; padding: 0 16px; } .rd-chips a { padding: 0 14px; font-size: 0.9rem; } }
+
+/* ===================== Search ===================== */
+.sr-top { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.sr-title { font-family: var(--font-anton), sans-serif; font-style: italic; font-size: clamp(3.4rem, 17vw, 6rem); line-height: 0.85; color: var(--bone); }
+:root:not([data-theme="light"]) .sr-title { text-shadow: -3px 0 rgba(255, 51, 85, 0.75), 3px 0 rgba(34, 211, 238, 0.75); }
+.sr-title span { color: var(--smoke); }
+.sr-top .rd-sub { margin: 0 0 8px; }
+.sr-h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sr-box { display: flex; align-items: center; gap: 12px; padding: 0 14px; border: 2px solid var(--bone); border-radius: 8px; background: var(--void); }
+.sr-box:focus-within { border-color: var(--accent); }
+.sr-box input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--bone); font-family: var(--font-mono), monospace; font-size: 1.05rem; padding: 14px 0; }
+.sr-box button { background: none; border: 0; color: var(--bone); font-size: 1.2rem; cursor: pointer; padding: 8px; }
+.sr-types { margin-top: 14px; }
+.sr-types button { flex: none; min-height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border: 1.5px solid var(--bone); border-radius: 8px; color: var(--bone); background: none; cursor: pointer; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.sr-types button.on { background: var(--accent); border-color: var(--accent); color: #070707; }
+.sr-count { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0; }
+.sr-filterbar { display: flex; gap: 8px; align-items: center; margin: 12px 0 4px; overflow-x: auto; scrollbar-width: none; }
+.sr-filters-btn { flex: none; display: flex; align-items: center; gap: 8px; background: none; border: 0; border-right: 1px solid var(--hair-strong); color: var(--bone); padding: 8px 14px 8px 4px; font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.sr-filters-btn.on { color: var(--accent); }
+.sr-select { flex: none; min-height: 40px; background: var(--void); color: var(--bone); border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 0 10px; font-family: var(--font-mono), monospace; font-size: 0.74rem; }
+.sr-results-head { font-family: var(--font-anton), sans-serif; font-size: 1.5rem; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--hair-strong); overflow-wrap: anywhere; }
+.sr-head { margin-top: 18px; }
+.sr-head h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sr-icon { font-family: var(--font-mono), monospace; font-size: 1.2rem; }
+.sr-related { font-family: var(--font-mono), monospace; font-size: 0.7rem; letter-spacing: 0.16em; color: var(--smoke); }
+.sr-song { gap: 12px; }
+.sr-thumb { width: 52px; height: 52px; border-radius: 4px; }
+.sr-listen { min-height: 36px !important; padding: 0 10px !important; border-radius: 6px; text-decoration: none; display: flex; align-items: center; }
+.sr-top-artist { display: flex; align-items: center; gap: 16px; padding: 10px 14px; border: 1px solid var(--hair-strong); border-radius: 8px; text-decoration: none; color: var(--bone); }
+.sr-top-artist:hover { border-color: var(--bone); }
+.sr-top-artist > img, .sr-top-artist > .sp-thumb-empty { width: 96px; height: 70px; object-fit: cover; border-radius: 4px; flex: none; filter: grayscale(0.3); display: flex; align-items: center; justify-content: center; }
+.sr-top-name { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sr-top-name strong { font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.6rem; text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; }
+.sr-top-name span { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); margin-top: 4px; }
+.sr-top-stats { display: flex; }
+.sr-top-stats > span { display: flex; flex-direction: column; align-items: center; padding: 0 12px; border-left: 1px solid var(--hair-strong); font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); }
+.sr-top-stats b { font-size: 1.05rem; color: var(--bone); letter-spacing: 0; }
+.sr-go { font-size: 1.2rem; border: 1.5px solid var(--bone); border-radius: 6px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex: none; }
+.sr-artists { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+.sr-artist { display: flex; gap: 8px; align-items: center; text-decoration: none; color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+.sr-artist img, .sr-artist-blank { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex: none; }
+.sr-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.sr-album-grid .hf-cover { flex: none; }
+@media (max-width: 700px) {
+  .sr-top-artist { flex-wrap: wrap; }
+  .sr-top-stats { width: 100%; justify-content: space-around; }
+  .sr-top-stats > span:first-child { border-left: 0; }
+  .sr-go { display: none; }
+  .sr-types, .sr-filterbar { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
+}
