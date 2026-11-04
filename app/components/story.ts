@@ -84,7 +84,7 @@ export async function drawStory(s: Story): Promise<Blob | null> {
   ctx.fillStyle = bone;
   ctx.font = `600 44px ${mono}`;
   ctx.textAlign = "left";
-  ctx.fillText("STATIC-CUTS//", 80, 150);
+  ctx.fillText("STATIC CUTS//", 80, 150);
   ctx.fillStyle = smoke;
   ctx.font = `32px ${mono}`;
   ctx.fillText(s.kicker.toUpperCase().slice(0, 48), 80, 205);
@@ -147,22 +147,9 @@ export async function drawStory(s: Story): Promise<Blob | null> {
   return new Promise((resolve) => c.toBlob((b) => resolve(b), "image/png"));
 }
 
-// The picture comes from the server in the STATIC-CUTS// look (/story,
-// same fonts and cut type as the slides); drawn here only if that fails.
-async function serverStory(s: Story): Promise<Blob | null> {
-  try {
-    const res = await fetch("/story", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s) });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return blob.type.startsWith("image/") ? blob : null;
-  } catch {
-    return null;
-  }
-}
-
 // Share the picture (phones) or download it (computers).
 export async function shareStory(s: Story, fileName: string) {
-  const blob = (await serverStory(s)) ?? (await drawStory(s));
+  const blob = await drawStory(s);
   if (!blob) return false;
   const file = new File([blob], `${fileName}.png`, { type: "image/png" });
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
