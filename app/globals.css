@@ -2501,3 +2501,64 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .sp-rate-text strong { font-size: 0.9rem; letter-spacing: 0.14em; }
 .sp-rate-text span { font-size: 0.64rem; letter-spacing: 0.08em; color: var(--smoke); }
 .sp-rate-cta { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+
+/* ===================== Artist page =====================
+   Photo on the right fading into black, ARTIST tag, glitch name, genres and
+   the numbers; a wide follow button with share / more; tabs; the page's
+   accent is the artist's colour (set on .artist-page). */
+.artist-hero.ah2 { margin-bottom: 0; min-height: 300px; background: radial-gradient(90% 80% at 85% 20%, var(--hero-deep, transparent), transparent 70%); }
+.artist-hero.ah2.has-img { min-height: min(108vw, 500px); }
+.artist-hero.ah2::before { display: none; }
+.ah2-img { position: absolute; top: 0; right: 0; height: 100%; width: 80%; object-fit: cover; object-position: center 20%; filter: grayscale(0.4) contrast(1.1); }
+.artist-hero.ah2::after {
+  background:
+    linear-gradient(to right, var(--void) 6%, color-mix(in srgb, var(--void) 50%, transparent) 38%, transparent 72%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--void) 60%, transparent) 0%, transparent 22%, transparent 50%, var(--void) 97%);
+}
+.ah2-inner { flex-direction: column; align-items: flex-start; gap: 0; padding-bottom: 14px; }
+.ah2-tag { background: var(--accent); color: #070707; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; margin-bottom: 8px; }
+.ah2 .artist-hero-name { font-size: clamp(3rem, 15vw, 6rem) !important; line-height: 0.86; margin: 0 !important; max-width: 92%; }
+.ah2-genres { margin-top: 12px; font-family: var(--font-mono), monospace; font-size: 0.9rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone); }
+.ah2 .artist-hero-aka { margin-top: 4px; }
+.ah2-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; margin-top: 16px; }
+.ah2-stats > div { display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--hair-strong); padding: 0 4px; min-width: 0; }
+.ah2-stats > div:last-child { border-right: 0; }
+.ah2-stats strong { font-family: var(--font-mono), monospace; font-size: 1.15rem; }
+.ah2-stats span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); }
+
+.ah2-actions { display: flex !important; flex-wrap: nowrap !important; gap: 8px; margin: 14px 0 6px; overflow: visible !important; }
+.ah2-actions .tab { min-height: 54px; border-radius: 6px; }
+.ah2-follow { flex: 1 1 auto; background: var(--accent) !important; border-color: var(--accent) !important; color: #070707 !important; font-size: 0.86rem !important; letter-spacing: 0.12em !important; }
+.ah2-follow:not(.on) { background: transparent !important; color: var(--accent) !important; }
+.ah2-follow.on { background: var(--accent) !important; }
+
+.ap-tabs { display: flex; gap: 0; margin: 18px 0 4px; border-bottom: 1px solid var(--hair-strong); overflow-x: auto; scrollbar-width: none; }
+.ap-tabs button, .ap-tabs a { flex: none; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 12px 14px 10px; min-height: 46px; cursor: pointer; text-decoration: none; display: flex; align-items: center; }
+.ap-tabs button:hover, .ap-tabs a:hover { color: var(--bone); }
+.ap-tabs button.on { color: var(--bone); border-bottom-color: var(--accent); }
+
+.ap-latest .sp-version-title { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.15rem; letter-spacing: 0.03em; }
+.ap-date { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--bone); white-space: nowrap; min-width: 52px; text-align: right; }
+
+.ap-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.ap-projects-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ap-project { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; text-decoration: none; color: var(--bone); min-width: 0; }
+.ap-project img, .ap-project-blank { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--hair-strong); border-radius: 4px; display: block; filter: grayscale(0.2); }
+.ap-project:hover img { filter: none; border-color: var(--accent); }
+.ap-project-blank { background: var(--surface2); color: var(--smoke); font-family: var(--font-anton), sans-serif; display: flex; align-items: center; justify-content: center; }
+.ap-project-name { font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.05; margin-top: 4px; overflow-wrap: anywhere; }
+.ap-project-meta { font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
+
+@media (max-width: 1023px) {
+  .ah2-inner { padding: 70px 16px 12px !important; }
+  .ah2-actions .sp-icon-btn { width: 56px; }
+  .ah2-follow { font-size: 0.76rem !important; }
+  .ap-tabs { margin-left: -16px; margin-right: -16px; padding: 0 6px; }
+  .ap-tabs button, .ap-tabs a { font-size: 0.72rem; padding: 12px 10px 10px; }
+  .ap-projects-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ah2-stats strong { font-size: 1rem; }
+}
+@media (min-width: 1024px) {
+  .ah2-img { width: 58%; }
+  .ah2-follow { flex: 0 1 380px; }
+}

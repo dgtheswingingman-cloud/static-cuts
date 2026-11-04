@@ -15,7 +15,7 @@ import ArtistProfiles from "./ArtistProfiles";
 import MergeArtist from "./MergeArtist";
 import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
-import EraStrip from "./EraStrip";
+import { buildEras, dateOf, span, UNRELEASED, type Song as EraSong } from "@/lib/eras";
 import { accentCss, type Rgb } from "@/lib/swatch";
 import SimilarArtists from "./SimilarArtists";
 
@@ -157,6 +157,14 @@ export default function ArtistPage() {
   const [genreTagsExpanded, setGenreTagsExpanded] = useState(false);
   const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
+  // Overview / songs / projects. Songs when a link jumps to one track.
+  const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects">("overview");
+  const [eraSongs, setEraSongs] = useState<EraSong[] | null>(null);
+  useEffect(() => {
+    setEraSongs(null);
+    if (new URLSearchParams(window.location.search).get("highlight")) setArtistTab("songs");
+    supabase.rpc("rpc_artist_eras", { p_artist: id }).then(({ data }) => setEraSongs((data as { songs: EraSong[] } | null)?.songs ?? []));
+  }, [id]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
@@ -1131,6 +1139,7 @@ export default function ArtistPage() {
         : target.title;
       const letter = letterOf(anchorTitle);
 
+      setArtistTab("songs");
       setOpenLetters((prev) => new Set(prev).add(letter));
       ensureLetterLoaded(letter);
       if (target.parent_track_id) {
@@ -1603,6 +1612,25 @@ export default function ArtistPage() {
     ? ({ "--accent": accentCss(artistColour, typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light") } as CSSProperties)
     : undefined;
 
+  const mainSongs = (tracks ?? []).filter((t) => !t.parent_track_id && !t.isCrossAppearance);
+  const unreleasedCount = mainSongs.filter((t) => UNRELEASED.includes(t.release_status ?? (t.is_official ? "released" : "unconfirmed"))).length;
+  const projects = buildEras(eraSongs ?? []).filter((e) => e.kind === "album" && e.songs.length >= 2).reverse();
+  const activeSince = (eraSongs ?? []).reduce<string | null>((min, x) => { const d = dateOf(x); return d && (!min || d < min) ? d : min; }, null);
+  const latest = [...(eraSongs ?? [])].filter((x) => dateOf(x)).sort((a, b) => (dateOf(b) ?? "").localeCompare(dateOf(a) ?? "")).slice(0, 5);
+  const shortDate = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.slice(0, 4) !== String(new Date().getFullYear()) ? { year: "numeric" } : {}) });
+  const IconDots = <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
+  const IconShare = <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>;
+  const projectTile = (e: (typeof projects)[number]) => (
+    <Link key={e.key} href={`/artist/${id}/eras#${encodeURIComponent(e.key)}`} className="ap-project">
+      {e.cover
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={e.cover} alt="" loading="lazy" />
+        : <span className="ap-project-blank">SC//</span>}
+      <span className="ap-project-name">{e.name}</span>
+      <span className="ap-project-meta">{[span(e), `${e.songs.length} songs`].filter(Boolean).join(" · ")}</span>
+    </Link>
+  );
+
   return (
     <div className="wrap artist-page" style={accentStyle}>
 
@@ -1629,23 +1657,23 @@ export default function ArtistPage() {
             </div>
           ) : (
             <>
-              <ArtistHero artistId={id} name={artist.name} aliases={aliases} onColour={setArtistColour} />
-              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
-              <ArtistPhotos artistId={id} artistName={artist.name} />
-              <ArtistIntro artistId={id} />
-              <EraStrip artistId={id} />
+              <ArtistHero artistId={id} name={artist.name} aliases={aliases} genres={genreTags.slice(0, 3).map((g) => g.tag)} onColour={setArtistColour}>
+                <div className="ah2-stats">
+                  <div><strong>{tracks ? mainSongs.length.toLocaleString("en-GB") : "…"}</strong><span>songs</span></div>
+                  <div><strong>{tracks ? unreleasedCount.toLocaleString("en-GB") : "…"}</strong><span>unreleased</span></div>
+                  <div><strong>{eraSongs ? projects.length : "…"}</strong><span>projects</span></div>
+                  {activeSince && <div><strong>{activeSince.slice(0, 4)}</strong><span>active</span></div>}
+                </div>
+              </ArtistHero>
             </>
           )}
-          <div className="artist-actions">
+          <div className="artist-actions ah2-actions">
             {!isAdmin && (
-              <button className={`tab ${isFollowing ? "active" : ""}`} disabled={followBusy} onClick={toggleFollow}>
-                {isFollowing ? "✓ following" : "+ follow"}
+              <button className={`tab ah2-follow ${isFollowing ? "on" : ""}`} disabled={followBusy} onClick={toggleFollow} aria-pressed={isFollowing}>
+                {isFollowing ? "✓ Following" : "+ Follow"}
               </button>
             )}
-            <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
-            <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
-            <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
-            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`}
+            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
               fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {
               const { data: a } = await supabase.from("artists").select("image_url").eq("id", id).maybeSingle();
               const main = (tracks ?? []).filter((x) => !x.parent_track_id);
@@ -1660,19 +1688,18 @@ export default function ArtistPage() {
                 footer: `static-cuts.com/artist/${id}`,
               };
             }} />
-            {user && !canModerate && (
-              <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
-                + suggest track
-              </a>
-            )}
-            {(user || isAdmin) && (
-              <button className={`tab ${headerMore ? "active" : ""}`} aria-expanded={headerMore} onClick={() => setHeaderMore(!headerMore)}>
-                {headerMore ? "less" : "more"}
-              </button>
-            )}
+            <button className={`tab sp-icon-btn ${headerMore ? "active" : ""}`} aria-label="More" aria-expanded={headerMore} onClick={() => setHeaderMore(!headerMore)}>
+              {IconDots}
+            </button>
           </div>
           {headerMore && (
             <div className="artist-actions artist-more">
+              <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
+              {user && !canModerate && (
+                <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
+                  + suggest track
+                </a>
+              )}
               {user && !isAdmin && (
                 <button
                   className={`tab ${checkRequested ? "active" : ""}`}
@@ -1874,6 +1901,70 @@ export default function ArtistPage() {
               </button>
             </div>
           )}
+          <nav className="ap-tabs" aria-label="Artist sections">
+            {([["overview", "Overview"], ["songs", "Songs"], ["projects", "Projects"]] as const).map(([k, label]) => (
+              <button key={k} className={artistTab === k ? "on" : undefined} aria-pressed={artistTab === k} onClick={() => setArtistTab(k)}>{label}</button>
+            ))}
+            <Link href={`/artist/${id}/eras`}>Eras</Link>
+            <Link href={`/collabs?artist=${id}`}>Collabs</Link>
+          </nav>
+
+          {artistTab === "overview" && (
+            <>
+              <div className="sp-head">
+                <h2>Latest activity</h2>
+                <button onClick={() => setArtistTab("songs")}>View all →</button>
+              </div>
+              {!eraSongs && <div className="empty-state">loading…</div>}
+              {eraSongs && latest.length === 0 && <div className="comment-meta">No dated songs yet.</div>}
+              {latest.length > 0 && (
+                <div className="sp-versions">
+                  {latest.map((x) => (
+                    <Link key={x.id} href={`/song/${x.id}`} className="sp-version ap-latest" data-st={x.status}>
+                      {x.cover_url
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={x.cover_url} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
+                        : <span className="sp-thumb sp-thumb-empty">SC//</span>}
+                      <span className="sp-version-text">
+                        <span className="sp-version-title">{x.title}</span>
+                        <span className="sp-sub">{x.album ?? "Single"}</span>
+                      </span>
+                      <span className={`feature-tag st st-${x.status}`}>{x.status}</span>
+                      <span className="ap-date">{shortDate(dateOf(x)!)}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {projects.length > 0 && (
+                <>
+                  <div className="sp-head">
+                    <h2>Discography</h2>
+                    <button onClick={() => setArtistTab("projects")}>View all →</button>
+                  </div>
+                  <div className="ap-projects ap-projects-row">{projects.slice(0, 4).map(projectTile)}</div>
+                </>
+              )}
+
+              <div className="sp-head"><h2>About</h2></div>
+              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
+              <ArtistIntro artistId={id} />
+            </>
+          )}
+
+          {artistTab === "projects" && (
+            <>
+              {!eraSongs && <div className="empty-state">loading…</div>}
+              {eraSongs && projects.length === 0 && <div className="empty-state">No albums or projects yet.</div>}
+              <div className="ap-projects">{projects.map(projectTile)}</div>
+              <div className="comment-meta" style={{ marginTop: 12 }}>
+                <Link href={`/artist/${id}/eras`} className="text-link">Every era on a timeline →</Link>
+              </div>
+            </>
+          )}
+
+          {artistTab === "songs" && (
+          <>
           <div className="detail-meta">
             {tracks?.length ?? 0} tracks logged · {confirmedCount} confirmed on Spotify
             {user && ` · ${collectedCount} collected (${collectedPct}%)`}
@@ -1883,8 +1974,12 @@ export default function ArtistPage() {
               <div className="bar-fill" style={{ width: `${collectedPct}%` }} />
             </div>
           )}
-          <Completeness artistId={id} artistName={artist?.name} refreshKey={tracks?.length} />
+          </>
+          )}
 
+          {artistTab === "overview" && (
+          <>
+          <div className="sp-head"><h2>Genres</h2></div>
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {(genreTagsExpanded ? genreTags : genreTags.slice(0, 3)).map((t) => (
@@ -1936,7 +2031,13 @@ export default function ArtistPage() {
           </div>
 
           <SimilarArtists artistId={id} />
+          <ArtistPhotos artistId={id} artistName={artist.name} />
+          <Completeness artistId={id} artistName={artist?.name} refreshKey={tracks?.length} />
+          </>
+          )}
 
+          {artistTab === "songs" && (
+          <>
           {!authLoading && !user && !isAdmin && (
             <div className="empty-state" style={{ marginBottom: 20 }}>
               <a href="/login" style={{ color: "var(--bone)" }}>Log in</a> to start tracking which of these you&apos;ve found.
@@ -2048,6 +2149,17 @@ export default function ArtistPage() {
             </div>
           )}
 
+          <div className="note">
+            <b>Your collection now syncs</b> — click any track to mark it collected; it saves
+            straight to your account and follows you across devices. Tracks are grouped
+            alphabetically — click a letter to expand it. Alternate versions (demos, live takes,
+            alt mixes) nest under their original track instead of appearing as separate entries.
+          </div>
+          </>
+          )}
+
+          {artistTab === "overview" && (
+          <>
           <div className="section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>Changelog</span>
             <Link href={`/artist/${id}/changelog`} className="tab" style={{ padding: "3px 10px", fontSize: "0.62rem", textDecoration: "none" }}>
@@ -2055,13 +2167,8 @@ export default function ArtistPage() {
             </Link>
           </div>
           <ArtistChangelog artistId={id} limit={10} />
-
-          <div className="note">
-            <b>Your collection now syncs</b> — click any track to mark it collected; it saves
-            straight to your account and follows you across devices. Tracks are grouped
-            alphabetically — click a letter to expand it. Alternate versions (demos, live takes,
-            alt mixes) nest under their original track instead of appearing as separate entries.
-          </div>
+          </>
+          )}
 
           <button
             onClick={pickRandomDeepCut}

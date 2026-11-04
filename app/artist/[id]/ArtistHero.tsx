@@ -1,15 +1,15 @@
 "use client";
 
-// The top of an artist page: their photo blown up behind their name, in
-// the page's own colour (taken from the photo). Pages without a photo get a
-// plain dark header.
+// The top of an artist page: their photo on the right fading into black and
+// static, an ARTIST tag, the name in big glitch type, their genres, and the
+// numbers (passed in as children). The page's colour comes from the photo.
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { deepCss, swatch, type Rgb } from "@/lib/swatch";
 
-export default function ArtistHero({ artistId, name, aliases, onColour }: {
-  artistId: string; name: string; aliases: string[]; onColour?: (rgb: Rgb | null) => void;
+export default function ArtistHero({ artistId, name, aliases, genres = [], onColour, children }: {
+  artistId: string; name: string; aliases: string[]; genres?: string[]; onColour?: (rgb: Rgb | null) => void; children?: ReactNode;
 }) {
   const [img, setImg] = useState<string | null>(null);
   const [rgb, setRgb] = useState<Rgb | null>(null);
@@ -27,22 +27,20 @@ export default function ArtistHero({ artistId, name, aliases, onColour }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistId]);
 
-  const style = {
-    ...(img ? { "--hero-img": `url("${img}")` } : {}),
-    ...(rgb ? { "--hero-deep": deepCss(rgb), "--hero-glow": deepCss(rgb, 0.6) } : {}),
-  } as CSSProperties;
+  const style = (rgb ? { "--hero-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
 
   return (
-    <header className={`artist-hero ${img ? "has-img" : ""}`} style={style}>
-      <div className="artist-hero-inner">
-        {img && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={name} className="artist-hero-photo" width={150} height={150} />
-        )}
-        <div style={{ minWidth: 0 }}>
-          <h1 className="detail-name artist-hero-name">{name}</h1>
-          {aliases.length > 0 && <div className="artist-hero-aka">also known as {aliases.join(", ")}</div>}
-        </div>
+    <header className={`artist-hero ah2 ${img ? "has-img" : ""}`} style={style}>
+      {img && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={img} alt={name} className="ah2-img" />
+      )}
+      <div className="artist-hero-inner ah2-inner">
+        <span className="ah2-tag">Artist</span>
+        <h1 className="detail-name artist-hero-name">{name}</h1>
+        {genres.length > 0 && <div className="ah2-genres">{genres.join(" / ")}</div>}
+        {aliases.length > 0 && <div className="artist-hero-aka">also known as {aliases.join(", ")}</div>}
+        {children}
       </div>
     </header>
   );
