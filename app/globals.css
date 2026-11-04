@@ -3049,3 +3049,19 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 :root:not([data-theme="light"]) { color-scheme: dark; }
 [data-theme="light"] { color-scheme: light; }
 :root { --on-accent: #070707; }
+
+/* List rating + comments */
+.lv-rate { margin-top: 14px; }
+.lv-rate:disabled { cursor: default; }
+.lc-new { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.lc-new textarea { width: 100%; }
+.lc-list { margin-top: 14px; display: flex; flex-direction: column; }
+.lc-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+.lc-av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex: none; background: var(--surface2); display: flex; align-items: center; justify-content: center; text-decoration: none; color: var(--smoke); font-family: var(--font-anton), sans-serif; }
+.lc-av img { width: 100%; height: 100%; object-fit: cover; }
+.lc-main { flex: 1; min-width: 0; }
+.lc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lc-name { font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.03em; color: var(--bone); text-decoration: none; }
+.lc-when { font-family: var(--font-mono), monospace; font-size: 0.64rem; color: var(--smoke); }
+.lc-remove { margin-left: auto; background: none; border: 0; color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.64rem; cursor: pointer; text-decoration: underline; }
+.lc-body { font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }

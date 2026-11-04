@@ -12,6 +12,7 @@ import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import ExportToSpotify from "../../ExportToSpotify";
 import { shrinkImage } from "@/lib/shrinkImage";
+import ListComments from "./ListComments";
 
 type Item = {
   track_id: string; title: string; artist_id: string; artist: string; note: string | null;
@@ -39,7 +40,10 @@ export default function ListView({ id }: { id: string }) {
   const [noteDraft, setNoteDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [tab, setTab] = useState<"tracks" | "details">("tracks");
+  const [tab, setTab] = useState<"tracks" | "details" | "comments">("tracks");
+  const [commentCount, setCommentCount] = useState<number | null>(null);
+  const [rating, setRating] = useState<{ avg: number | null; count: number; mine: number | null } | null>(null);
+  const [rateOpen, setRateOpen] = useState(false);
   const [tq, setTq] = useState("");
   const [order, setOrder] = useState<"list" | "title" | "artist">("list");
   const [shown, setShown] = useState(50);
@@ -54,6 +58,23 @@ export default function ListView({ id }: { id: string }) {
     supabase.from("song_lists").select("cover_url").eq("id", id).maybeSingle()
       .then(({ data }) => setListCover((data as { cover_url: string | null } | null)?.cover_url ?? null));
   }, [id]);
+
+  useEffect(() => {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+    supabase.rpc("rpc_list_rating", { p_list: id }).then(({ data }) => setRating((data as typeof rating) ?? null));
+    supabase.from("song_list_comments").select("id", { count: "exact", head: true }).eq("list_id", id).then(({ count }) => setCommentCount(count ?? 0));
+  }, [id, user?.id]);
+
+  async function rate(value: number | null) {
+    if (!user) { router.push("/login"); return; }
+    const { error } = value === null
+      ? await supabase.from("song_list_ratings").delete().eq("list_id", id).eq("user_id", user.id)
+      : await supabase.from("song_list_ratings").upsert({ list_id: id, user_id: user.id, value, updated_at: new Date().toISOString() });
+    if (error) { setMessage(error.message); return; }
+    setRateOpen(false);
+    const { data } = await supabase.rpc("rpc_list_rating", { p_list: id });
+    setRating((data as typeof rating) ?? null);
+  }
 
   async function uploadCover(file: File) {
     if (!user || !d) return;
@@ -248,10 +269,35 @@ export default function ListView({ id }: { id: string }) {
       {message && <div className="comment-meta" style={{ marginTop: 8 }}>{message}</div>}
       {rest && !editing && <p className="lv-desc">{rest}</p>}
 
+      {!isAdmin && (
+        <button className={`sp-rate lv-rate ${rating?.mine ? "rated" : ""}`} aria-expanded={rateOpen}
+          onClick={() => (d.is_owner ? undefined : user ? setRateOpen(!rateOpen) : router.push("/login"))} disabled={d.is_owner}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill={rating?.mine ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>
+          <span className="sp-rate-text">
+            <strong>{rating?.avg ? `${rating.avg}/10` : "Not rated yet"}{rating?.mine ? `  ·  you: ${rating.mine}` : ""}</strong>
+            <span>{rating ? `${rating.count} rating${rating.count === 1 ? "" : "s"}` : "…"}{d.is_owner ? " · you can't rate your own list" : ""}</span>
+          </span>
+          {!d.is_owner && <span className="sp-rate-cta">{rating?.mine ? "Change" : "Rate 1–10"}</span>}
+        </button>
+      )}
+      {rateOpen && (
+        <div className="comments-panel" style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} className={`rating-num ${rating?.mine === n ? "selected" : ""}`} onClick={() => rate(n)}>{n}</button>
+            ))}
+            {rating?.mine && <button className="rating-clear" onClick={() => rate(null)}>clear</button>}
+          </div>
+        </div>
+      )}
+
       <nav className="lv-tabs" aria-label="List sections">
         <button className={tab === "tracks" ? "on" : undefined} aria-pressed={tab === "tracks"} onClick={() => setTab("tracks")}>Tracks//</button>
         <button className={tab === "details" ? "on" : undefined} aria-pressed={tab === "details"} onClick={() => setTab("details")}>Details//</button>
+        <button className={tab === "comments" ? "on" : undefined} aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>Comments//{commentCount ? ` (${commentCount})` : ""}</button>
       </nav>
+
+      {tab === "comments" && <ListComments listId={d.list.id} userId={user?.id ?? null} isOwner={d.is_owner} onCount={setCommentCount} />}
 
       {tab === "details" && (
         <div className="lv-details">
