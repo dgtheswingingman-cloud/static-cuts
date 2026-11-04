@@ -239,7 +239,6 @@ export default function HomePage() {
       const needle = q.toLowerCase();
       return artists.filter((a) => a.name.toLowerCase().includes(needle) || a.aliases.some((n) => n.toLowerCase().includes(needle)));
     }
-    if (user) return artists.filter((a) => followedIds.has(a.id));
     if (picks.length > 0 && !showAll) return artists.filter((a) => picks.includes(a.id));
     return artists;
   })();
@@ -290,7 +289,7 @@ export default function HomePage() {
     return sorted;
   })();
 
-  const sectionLabel = q ? "Search results" : user ? "Artists you follow" : "In the archive";
+  const sectionLabel = q ? "Search results" : "The archive";
 
   async function createArtist() {
     const name = window.prompt("Artist name:");
@@ -330,7 +329,6 @@ export default function HomePage() {
         <nav className="home-nav" aria-label="Explore">
           <Link href="/weekly">this week</Link>
           <Link href="/new">what&apos;s new</Link>
-          <Link href="/wanted">most wanted</Link>
           <Link href="/search">search songs</Link>
           <Link href="/radar/releases">release radar</Link>
           <Link href="/lists">lists</Link>
@@ -543,7 +541,7 @@ export default function HomePage() {
         )}
         {isAdmin
           ? "Admin mode shows everyone in the archive."
-          : user ? "Your home feed only shows artists you follow. Search finds anyone in the archive." : "Log in to build a personal feed of artists you follow."}{" "}
+          : user ? <>The artists you follow are in <Link href="/library" className="text-link">My Library</Link>.</> : "Log in to follow artists and keep track of your collection."}{" "}
         New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
       </div>
       </div>

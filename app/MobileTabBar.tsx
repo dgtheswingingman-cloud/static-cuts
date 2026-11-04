@@ -30,7 +30,7 @@ export default function MobileTabBar() {
     ["home", "/", "Home", (p) => p === "/"],
     ["new", "/radar", "Radar", (p) => p.startsWith("/new") || p.startsWith("/radar") || p === "/weekly"],
     ["search", "/search", "Search", (p) => p.startsWith("/search")],
-    ["local", "/library", "Library", (p) => p.startsWith("/library") || p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/lists") || p.startsWith("/list/") || p.startsWith("/collection")],
+    ["local", "/library", "My Library", (p) => p.startsWith("/library") || p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/lists") || p.startsWith("/list/") || p.startsWith("/collection")],
     ["you", youHref, youLabel, (p) => p.startsWith("/profile") || p.startsWith("/friends") || p.startsWith("/messages") || p.startsWith("/settings") || p === "/login" || p.startsWith("/control")],
   ];
   return (

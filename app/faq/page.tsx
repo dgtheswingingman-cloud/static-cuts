@@ -178,15 +178,6 @@ const SECTIONS: Section[] = [
         ),
       },
       {
-        q: "What does “want it” do?",
-        a: (
-          <p>
-            It&apos;s a vote for an unreleased song you want to hear. The votes make the{" "}
-            <Link href="/wanted">most wanted</Link> lists, for every artist and overall.
-          </p>
-        ),
-      },
-      {
         q: "Can I get alerts on my phone?",
         a: (
           <p>

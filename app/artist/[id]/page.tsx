@@ -1735,7 +1735,6 @@ export default function ArtistPage() {
           </div>
           {headerMore && (
             <div className="artist-actions artist-more">
-              <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
               {user && !canModerate && (
                 <a href={`/submit?artist_id=${id}&artist_name=${encodeURIComponent(artist.name)}`} className="tab">
                   + suggest track

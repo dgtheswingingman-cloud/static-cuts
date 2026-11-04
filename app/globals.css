@@ -2854,3 +2854,19 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
   .pf2 .pf-bio, .pf-card-stats, .pf-badges, .pf-card-body > .feature-tag { grid-column: 1 / -1; }
   .pf-tabs { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
 }
+
+/* My Library: followed artists as photo cards with a collected bar */
+.lb-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; }
+.lb-artist-tools { display: flex; gap: 8px; margin-bottom: 10px; }
+.lb-filter { flex: 1; min-width: 0; }
+.lb-artists { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.lb-artist { position: relative; min-height: 130px; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 10px 12px; border: 1px solid var(--hair-strong); border-radius: 8px; overflow: hidden; text-decoration: none; color: var(--bone);
+  background: linear-gradient(to top, var(--void) 18%, color-mix(in srgb, var(--void) 45%, transparent) 70%, color-mix(in srgb, var(--void) 20%, transparent)), var(--img, none) center 25% / cover no-repeat, var(--surface); }
+.lb-artist:hover { border-color: var(--accent); }
+.lb-artist-name { font-family: var(--font-anton), sans-serif; font-size: 1.15rem; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.05; overflow-wrap: anywhere; }
+.lb-pin { color: var(--accent); font-size: 0.6rem; margin-left: 6px; vertical-align: middle; }
+.lb-artist-meta { font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
+.lb-bar { height: 3px; background: var(--hair-strong); display: block; }
+.lb-bar span { display: block; height: 100%; background: var(--accent); }
+@media (max-width: 700px) { .lb-artists { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }

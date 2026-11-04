@@ -15,7 +15,6 @@ import SongTimeline, { type AutoEvent } from "./SongTimeline";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
-import WantButton from "./WantButton";
 import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
 import MyFile from "./MyFile";
@@ -306,7 +305,6 @@ export default function SongView({ id }: { id: string }) {
             {song.owned ? "✓ In your library" : "+ Add to library"}
           </button>
         )}
-        {!isAdmin && status !== "released" && <WantButton trackId={t.id} icon />}
         <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
           label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>}
           fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
