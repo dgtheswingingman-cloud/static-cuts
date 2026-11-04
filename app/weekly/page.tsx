@@ -1,7 +1,7 @@
 "use client";
 
 // This week on Static Cuts: what leaked and what came out (by date), what
-// the archive newly marked, how much was added, and the most wanted songs.
+// the archive newly marked, how much was added.
 // Each week has its own link (?week=2026-10-19), made for sharing.
 
 import { Suspense, useEffect, useState } from "react";
@@ -115,17 +115,6 @@ function WeeklyInner() {
               </Link>
             ))}
           </div>
-        </>
-      )}
-      {data && data.wanted_top.length > 0 && (
-        <>
-          <div className="section-label">Most wanted right now</div>
-          {data.wanted_top.map((w, i) => (
-            <div key={w.track_id} className="comment-meta" style={{ padding: "4px 0" }}>
-              {i + 1}. <Link href={`/song/${w.track_id}`} className="text-link">{w.title}</Link> · {w.artist} · {w.votes} vote{w.votes === 1 ? "" : "s"}
-            </div>
-          ))}
-          <Link href="/wanted" className="text-link comment-meta">full list →</Link>
         </>
       )}
     </div>
