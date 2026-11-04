@@ -28,8 +28,9 @@ const json = (body: unknown, status = 200) =>
 const reply = (data: Record<string, unknown>) => json({ type: 4, data: { allowed_mentions: { parse: [] }, ...data } });
 const oops = (content: string) => reply({ content, flags: 64 });
 
-const COLOUR: Record<string, number> = { leaked: 0xff3355, snippet: 0xffb020, released: 0x2bd67b, teased: 0xffb020 };
-const colourOf = (s: string) => COLOUR[s] ?? 0x8b7cf6;
+// The STATIC-CUTS// look: off-white on black, no colours.
+const CREAM = 0xede6d8;
+const colourOf = (_s: string) => CREAM;
 const NICE: Record<string, string> = { leaked: "LEAKED", snippet: "SNIPPET", released: "RELEASED", unconfirmed: "UNRELEASED", rumored: "RUMOURED", teased: "TEASED", announced: "ANNOUNCED" };
 const n0 = (x: number) => Number(x ?? 0).toLocaleString("en-GB");
 const day = (d: string | null | undefined) => d ? new Date(`${String(d).slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "";
@@ -82,7 +83,7 @@ async function songCmd(q: string) {
       description: [`**${NICE[top.status] ?? top.status}**`, top.album ? `Era: ${top.album}` : null, top.release_date ? `Out ${day(top.release_date)}` : null]
         .filter(Boolean).join(" · ") + (others ? `\n\n**Also matches**\n${others}` : ""),
       ...(cover ? { thumbnail: { url: cover } } : {}),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "STATIC-CUTS// · every song, leak and version" },
     }],
   });
 }
@@ -97,7 +98,7 @@ async function artistCmd(q: string) {
     embeds: [{
       title: a.name,
       url: `${SITE}/artist/${a.id}`,
-      color: 0x8b7cf6,
+      color: CREAM,
       fields: [
         { name: "Songs", value: n0(a.songs), inline: true },
         { name: "Unreleased", value: n0(a.unreleased), inline: true },
@@ -105,7 +106,7 @@ async function artistCmd(q: string) {
         ...(latest ? [{ name: "Latest leaks & snippets", value: latest.slice(0, 1000) }] : []),
       ],
       ...(a.photo ? { thumbnail: { url: a.photo } } : {}),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "STATIC-CUTS// · every song, leak and version" },
     }],
   });
 }
@@ -119,9 +120,9 @@ async function leaksCmd(q: string) {
     embeds: [{
       title: r.artist ? `Latest ${r.artist} leaks` : "Latest leaks",
       url: `${SITE}/weekly`,
-      color: 0xff3355,
+      color: CREAM,
       description: r.items.map((s) => `• [${s.title}](${SITE}/song/${s.id})${r.artist ? "" : ` · ${s.artist}`} · ${day(s.on)}`).join("\n").slice(0, 4000),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "STATIC-CUTS// · every song, leak and version" },
     }],
   });
 }
@@ -170,7 +171,7 @@ async function register() {
   return json({ ok: res.ok, status: res.status, registered: res.ok ? commands.map((c) => c.name) : await res.text() }, res.ok ? 200 : 502);
 }
 
-const LABEL: Record<string, string> = { leaked: "🔴 New leak", snippet: "🟡 New snippet", released: "🟢 Out now" };
+const LABEL: Record<string, string> = { leaked: "NEW LEAK //", snippet: "NEW SNIPPET //", released: "OUT NOW //" };
 async function post() {
   const { data, error } = await db.rpc("sc_discord_take", { p_secret: await secret(), p_limit: 60 });
   if (error) return json({ error: error.message }, 500);
