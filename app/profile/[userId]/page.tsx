@@ -17,7 +17,6 @@ import Supporter from "../../components/Supporter";
 import HeroCollage from "../../components/HeroCollage";
 import { useProfileStyle, Showcase, EditProfile } from "./PremiumProfile";
 import { usePremium } from "../../usePremium";
-import Leaderboard from "../../components/Leaderboard";
 
 type Profile = {
   id: string;
@@ -77,7 +76,7 @@ export default function ProfilePage() {
   const [allCollected, setAllCollected] = useState(false);
   const [allRated, setAllRated] = useState(false);
   const [allArtists, setAllArtists] = useState(false);
-  const [tab, setTab] = useState<"activity" | "collection" | "lists" | "contributions" | "network">("activity");
+  const [tab, setTab] = useState<"overview" | "collection" | "contributions" | "network">("overview");
   const [more, setMore] = useState(false);
   const [contribTotal, setContribTotal] = useState<number | null>(null);
   // Premium look (colour, showcase), shown only while they have premium.
@@ -153,31 +152,26 @@ export default function ProfilePage() {
     .map((f) => f.artists?.image_url).filter((u): u is string => !!u).slice(0, 24);
 
   const followBtn = viewer && !isOwnProfile && social && (
-    <button className={`tab pf-main-btn ${social.i_follow ? "on" : ""}`} disabled={followBusy} onClick={toggleFollow}
+    <button className={`tab ah2-follow ${social.i_follow ? "on" : ""}`} disabled={followBusy} onClick={toggleFollow}
       title={social.i_follow ? "Unfollow" : social.follows_me ? "They follow you: follow back to be friends" : undefined}>
-      {isFriend ? "Friends ✓" : social.i_follow ? "Following" : social.follows_me ? "Follow back" : "Follow"}
+      {isFriend ? "✓ Friends" : social.i_follow ? "✓ Following" : social.follows_me ? "+ Follow back" : "+ Follow"}
     </button>
   );
-  const tabs: [typeof tab, string, string][] = [
-    ["activity", "Activity", "⌁"],
-    ["collection", "Collection", "◎"],
-    ["lists", "Lists", "≡"],
-    ["contributions", "Contributions", "✎"],
-    ["network", "Network", "☺"],
+  const tabs: [typeof tab, string][] = [
+    ["overview", "Overview"],
+    ["collection", "Collection"],
+    ["contributions", "Contributions"],
+    ["network", "Network"],
   ];
-  const collectedCovers = (count: number) => (
-    <div className="pf-covers">
-      {collected.slice(0, count).map((c) => (
-        <Link key={c.track_id} href={`/song/${c.track_id}`} className="pf-cover">
-          {c.tracks?.cover_url
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={c.tracks.cover_url} alt="" loading="lazy" />
-            : <span className="pf-cover-blank">SC//</span>}
-          <span className="pf-cover-title">{c.tracks?.title ?? "unknown"}</span>
-          <span className="pf-cover-meta">{c.tracks?.artists?.name ?? ""}</span>
-        </Link>
-      ))}
-    </div>
+  const coverTile = (id: string, t: TrackRef, sub?: string) => (
+    <Link key={id} href={`/song/${id}`} className="pf-cover">
+      {t?.cover_url
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={t.cover_url} alt="" loading="lazy" />
+        : <span className="pf-cover-blank">SC//</span>}
+      <span className="pf-cover-title">{t?.title ?? "unknown"}</span>
+      <span className="pf-cover-meta">{sub ?? t?.artists?.name ?? ""}</span>
+    </Link>
   );
   const ratingRows = (count: number) => (
     <div className="pf-list">
@@ -190,69 +184,57 @@ export default function ProfilePage() {
       ))}
     </div>
   );
-  const network = social && (
-    <div className="sp-versions">
-      <button className="hf-trend pf-net" onClick={() => setTab("network")}>
-        <span className="pf-act-icon" aria-hidden="true">☺</span><span className="hf-trend-name">Following <em>({n(social.following)})</em></span><span aria-hidden="true" className="hf-chev">›</span>
-      </button>
-      <button className="hf-trend pf-net" onClick={() => setTab("network")}>
-        <span className="pf-act-icon" aria-hidden="true">☺</span><span className="hf-trend-name">Followers <em>({n(social.followers)})</em></span><span aria-hidden="true" className="hf-chev">›</span>
-      </button>
-      <Link href="/friends" className="hf-trend pf-net">
-        <span className="pf-act-icon" aria-hidden="true">⌕</span>
-        <span className="sp-version-text"><span className="hf-trend-name">Find people</span><span className="sp-sub">friends and people with similar taste</span></span>
-        <span aria-hidden="true" className="hf-chev">›</span>
-      </Link>
-    </div>
+  // Favourite artists: the ones they wear as fan badges.
+  const favourites = fanIds.map((id) => followedArtists.find((f) => f.artist_id === id)).filter(Boolean) as FollowedArtist[];
+  const showcase = pstyle?.premium ? pstyle.showcase ?? [] : [];
+  const topRated = [...rated].sort((x, y) => y.value - x.value).slice(0, 6);
+  const H = ({ title, onAll, label = "View all" }: { title: string; onAll?: () => void; label?: string }) => (
+    <div className="sp-head hf-head"><h2>{title}</h2>{onAll && <button onClick={onAll}>{label} →</button>}</div>
   );
 
   return (
     <div className="wrap pf pf2" style={{ "--pf": accent ?? "#8B7CF6" } as CSSProperties}>
-      <div className="sr-top">
-        <div className="sr-title" aria-hidden="true">PROFILE<span>//</span></div>
-        <div className="rd-sub">Profile / activity / network / contributions</div>
-      </div>
-
-      {/* ---- the card: their artists sliding behind, photo, name, numbers, badges ---- */}
-      <section className="pf-card">
-        {headerPhotos.length > 0 && <HeroCollage images={headerPhotos} className="pf-collage pf-card-collage" />}
-        <div className="pf-card-inner">
-          <div className="pf-card-photo">
+      {/* ---- banner: their artists sliding behind, like an artist page ---- */}
+      <header className={`artist-hero ah2 has-img ${headerPhotos.length ? "ah2-has-collage" : ""}`} style={accent ? ({ "--accent": accent } as CSSProperties) : undefined}>
+        {headerPhotos.length > 0 && <HeroCollage images={headerPhotos} className="pf-collage ah2-collage" />}
+        <div className="artist-hero-inner ah2-inner">
+          <span className="ah2-tag">Profile</span>
+          <div className="ah2-id">
             {profile.avatar_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={profile.avatar_url} alt="" />
-              : <span className="pf-av-blank">{name.slice(0, 1).toUpperCase()}</span>}
+              ? <img src={profile.avatar_url} alt="" className="ah2-pfp" width={96} height={96} />
+              : <span className="ah2-pfp pf-pfp-blank">{name.slice(0, 1).toUpperCase()}</span>}
+            <h1 className="detail-name artist-hero-name">{name}</h1>
           </div>
-          <div className="pf-card-body">
-            <div className="pf-card-top">
-              <h1 className="pf-name">{name}</h1>
-              <div className="pf-card-actions">
-                {followBtn}
-                {viewer && !isOwnProfile && isFriend && <Link href={`/messages/${userId}`} className="tab pf-icon-btn" aria-label="Message">✉</Link>}
-                {isOwnProfile && (
-                  <button className={`tab pf-main-btn ${editing ? "on" : ""}`} onClick={() => setEditing(!editing)}>✎ {editing ? "Close editor" : "Edit profile"}</button>
-                )}
-                <button className={`tab pf-icon-btn ${more ? "active" : ""}`} aria-label="More" aria-expanded={more} onClick={() => setMore(!more)}>•••</button>
-              </div>
-            </div>
-            {!isOwnProfile && social?.follows_me && !social.i_follow && <span className="feature-tag">follows you</span>}
-            {profile.about && <div className="pf-bio">{profile.about}</div>}
-            <div className="pf-card-stats">
-              {contribTotal !== null && <button onClick={() => setTab("contributions")}><strong>{n(contribTotal)}</strong><span>contributions</span></button>}
-              {social && <button onClick={() => setTab("network")}><strong>{n(social.followers)}</strong><span>followers</span></button>}
-              {social && <button onClick={() => setTab("network")}><strong>{n(social.following)}</strong><span>following</span></button>}
-              {showCollection && <button onClick={() => setTab("collection")}><strong>{pct}%</strong><span>collected</span></button>}
-            </div>
-            <div className="pf-badges"><Supporter id={profile.id} full /></div>
+          {!isOwnProfile && social?.follows_me && !social.i_follow && <span className="feature-tag" style={{ marginTop: 8 }}>follows you</span>}
+          <div className="pf-badges" style={{ marginTop: 10 }}><Supporter id={profile.id} full /></div>
+          <div className="ah2-stats">
+            {contribTotal !== null && <button onClick={() => setTab("contributions")}><strong>{n(contribTotal)}</strong><span>contributions</span></button>}
+            {social && <button onClick={() => setTab("network")}><strong>{n(social.followers)}</strong><span>followers</span></button>}
+            {social && <button onClick={() => setTab("network")}><strong>{n(social.following)}</strong><span>following</span></button>}
+            {showCollection && <button onClick={() => setTab("collection")}><strong>{pct}%</strong><span>collected</span></button>}
           </div>
         </div>
-      </section>
+      </header>
 
-      {more && (
-        <div className="artist-actions artist-more" style={{ marginTop: 10 }}>
-          {isOwnProfile && <Link href="/settings" className="tab">settings</Link>}
-          {isOwnProfile && <Link href="/year" className="tab">your year</Link>}
-          <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} label="share profile" />
+      {profile.about && <div className="pf-bio pf-bio2">{profile.about}</div>}
+
+      <div className="artist-actions ah2-actions">
+        {followBtn}
+        {isOwnProfile && (
+          <button className={`tab ah2-follow ${editing ? "" : "on"}`} onClick={() => setEditing(!editing)}>✎ {editing ? "Close editor" : "Edit profile"}</button>
+        )}
+        {viewer && !isOwnProfile && isFriend && <Link href={`/messages/${userId}`} className="tab sp-icon-btn" aria-label="Message">✉</Link>}
+        <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} path={`/profile/${userId}`} className="tab sp-icon-btn" ariaLabel="Share"
+          label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>} />
+        {isOwnProfile && (
+          <button className={`tab sp-icon-btn ${more ? "active" : ""}`} aria-label="More" aria-expanded={more} onClick={() => setMore(!more)}>•••</button>
+        )}
+      </div>
+      {more && isOwnProfile && (
+        <div className="artist-actions artist-more">
+          <Link href="/settings" className="tab">settings</Link>
+          <Link href="/year" className="tab">your year</Link>
         </div>
       )}
 
@@ -267,145 +249,142 @@ export default function ProfilePage() {
         <div className="empty-state" style={{ marginTop: 16 }}>This user hasn&apos;t made anything public on their profile yet.</div>
       )}
 
-      <nav className="rd-chips pf-tabs" aria-label="Profile sections">
-        {tabs.map(([k, label, icon]) => (
-          <button key={k} className={tab === k ? "on" : undefined} aria-pressed={tab === k} onClick={() => setTab(k)}>
-            <span aria-hidden="true">{icon}</span> {label}
-          </button>
+      <nav className="ap-tabs" aria-label="Profile sections">
+        {tabs.map(([k, label]) => (
+          <button key={k} className={tab === k ? "on" : undefined} aria-pressed={tab === k} onClick={() => setTab(k)}>{label}</button>
         ))}
       </nav>
 
-      <div className="pf-grid">
-        <div className="pf-main">
-          {tab === "activity" && (
+      {tab === "overview" && (
+        <>
+          {favourites.length > 0 && (
             <>
-              {pstyle?.premium && (pstyle.showcase ?? []).length > 0 && (
-                <>
-                  <div className="sp-head hf-head"><h2>Showcase</h2></div>
-                  <Showcase songs={pstyle.showcase ?? []} accent={accent} bare />
-                </>
-              )}
-              {contribTotal !== null && (
-                <>
-                  <div className="sp-head hf-head"><h2>Recent activity</h2><button onClick={() => setTab("contributions")}>View all →</button></div>
-                  <Contributions userId={userId} mode="activity" />
-                </>
-              )}
-              {showCollected && (
-                <>
-                  <div className="sp-head hf-head"><h2>Recently collected</h2><button onClick={() => setTab("collection")}>View all →</button></div>
-                  {collectedCovers(6)}
-                </>
-              )}
-              {showRated && (
-                <>
-                  <div className="sp-head hf-head"><h2>Latest ratings</h2><button onClick={() => setTab("collection")}>View all →</button></div>
-                  {ratingRows(5)}
-                </>
-              )}
+              <H title="Favourite artists" />
+              <div className="pf-favs">
+                {favourites.map((f) => (
+                  <Link key={f.artist_id} href={`/artist/${f.artist_id}`} className="pf-fav">
+                    <Avatar url={f.artists?.image_url ?? null} size={84} name={f.artists?.name} />
+                    <span>{f.artists?.name ?? "unknown"}</span>
+                    {f.artists?.tag && <span className="pf-fav-tag">{f.artists.tag}</span>}
+                  </Link>
+                ))}
+              </div>
             </>
           )}
 
-          {tab === "collection" && (
+          {showcase.length > 0 ? (
             <>
-              {showCollection && stats && (
-                <Panel title="Collection">
-                  <div className="pf-progress">
-                    <div className="pf-progress-pct">{pct}%</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="comment-meta" style={{ marginBottom: 8 }}>
-                        {n(Number(stats.collected_tracks))} of {n(Number(stats.total_tracks))} songs from the {n(Number(stats.followed_artists ?? 0))} artist
-                        {Number(stats.followed_artists) === 1 ? "" : "s"} {isOwnProfile ? "you follow" : "they follow"}
-                      </div>
-                      <div className="pf-bar"><div style={{ width: `${pct}%` }} /></div>
-                    </div>
+              <H title="Songs" />
+              <Showcase songs={showcase} accent={accent} bare />
+            </>
+          ) : showRated && topRated.length > 0 && (
+            <>
+              <H title="Top songs" onAll={() => setTab("collection")} />
+              <div className="pf-covers">{topRated.map((r) => coverTile(r.track_id, r.tracks, `${r.tracks?.artists?.name ?? ""} · ★ ${r.value}`))}</div>
+            </>
+          )}
+
+          <div className="pf-panel pf-panel-loose pf-lists2"><ProfileLists userId={userId} /></div>
+
+          {showArtists && (
+            <>
+              <H title={`Artists followed (${n(followedArtists.length)})`} onAll={followedArtists.length > 18 ? () => setAllArtists(!allArtists) : undefined} label={allArtists ? "Less" : "All"} />
+              <div className="pf-artists">
+                {followedArtists.slice(0, allArtists ? 500 : 18).map((f) => (
+                  <Link key={f.artist_id} href={`/artist/${f.artist_id}`} className="pf-artist" title={f.artists?.name ?? ""}>
+                    <Avatar url={f.artists?.image_url ?? null} size={56} name={f.artists?.name} />
+                    <span>{f.artists?.name ?? "unknown"}</span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === "collection" && (
+        <>
+          {showCollection && stats && (
+            <Panel title="Collection">
+              <div className="pf-progress">
+                <div className="pf-progress-pct">{pct}%</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="comment-meta" style={{ marginBottom: 8 }}>
+                    {n(Number(stats.collected_tracks))} of {n(Number(stats.total_tracks))} songs from the {n(Number(stats.followed_artists ?? 0))} artist
+                    {Number(stats.followed_artists) === 1 ? "" : "s"} {isOwnProfile ? "you follow" : "they follow"}
                   </div>
-                </Panel>
-              )}
-              {showCollected && (
-                <Panel title={`Recently collected · ${n(collected.length)}${collected.length >= 1000 ? "+" : ""}`}
-                  right={collected.length > 12 && <button className="tab" onClick={() => setAllCollected(!allCollected)}>{allCollected ? "less" : "see more"}</button>}>
-                  {collectedCovers(allCollected ? 60 : 12)}
-                  {allCollected && collected.length > 60 && (
-                    <div className="pf-list">
-                      {collected.slice(60).map((c) => (
-                        <Link key={c.track_id} href={`/song/${c.track_id}`} className="pf-list-row">
-                          <span style={{ flex: 1, minWidth: 0 }}>{c.tracks?.title ?? "unknown"}</span>
-                          <span className="comment-meta">{c.tracks?.artists?.name ?? ""}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </Panel>
-              )}
-              {showRated && (
-                <Panel title={`Ratings · ${n(rated.length)}`}
-                  right={rated.length > 8 && <button className="tab" onClick={() => setAllRated(!allRated)}>{allRated ? "less" : "see all"}</button>}>
-                  {ratingRows(allRated ? 100 : 8)}
-                </Panel>
-              )}
-              {!showCollection && !showCollected && !showRated && <div className="empty-state">Nothing to show here.</div>}
-            </>
+                  <div className="pf-bar"><div style={{ width: `${pct}%` }} /></div>
+                </div>
+              </div>
+            </Panel>
           )}
-
-          {tab === "lists" && <div className="pf-panel pf-panel-loose"><ProfileLists userId={userId} /></div>}
-
-          {tab === "contributions" && (
+          {showCollected && (
             <>
-              <div className="pf-panel pf-panel-loose pf-contrib"><Contributions userId={userId} /></div>
-              {contribTotal === null && <div className="empty-state">Contributions are private.</div>}
+              <H title={`Recently collected · ${n(collected.length)}${collected.length >= 1000 ? "+" : ""}`}
+                onAll={collected.length > 12 ? () => setAllCollected(!allCollected) : undefined} label={allCollected ? "Less" : "More"} />
+              <div className="pf-covers">{collected.slice(0, allCollected ? 60 : 12).map((c) => coverTile(c.track_id, c.tracks))}</div>
+              {allCollected && collected.length > 60 && (
+                <div className="pf-list">
+                  {collected.slice(60).map((c) => (
+                    <Link key={c.track_id} href={`/song/${c.track_id}`} className="pf-list-row">
+                      <span style={{ flex: 1, minWidth: 0 }}>{c.tracks?.title ?? "unknown"}</span>
+                      <span className="comment-meta">{c.tracks?.artists?.name ?? ""}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </>
           )}
-
-          {tab === "network" && (
+          {showRated && (
             <>
-              {showArtists && (
-                <Panel title={`Artists followed · ${n(followedArtists.length)}`}
-                  right={followedArtists.length > 12 && <button className="tab" onClick={() => setAllArtists(!allArtists)}>{allArtists ? "less" : "all"}</button>}>
-                  <div className="pf-artists">
-                    {followedArtists.slice(0, allArtists ? 500 : 12).map((f) => (
-                      <Link key={f.artist_id} href={`/artist/${f.artist_id}`} className="pf-artist" title={f.artists?.name ?? ""}>
-                        <Avatar url={f.artists?.image_url ?? null} size={56} name={f.artists?.name} />
-                        <span>{f.artists?.name ?? "unknown"}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </Panel>
-              )}
-              {social && social.friends.length > 0 && (
-                <Panel title={`Friends · ${n(social.friends.length)}`}>
-                  <div className="pf-list">
-                    {social.friends.map((f) => (
-                      <Link key={f.id} href={`/profile/${f.id}`} className="pf-list-row" style={{ alignItems: "center" }}>
-                        <Avatar url={f.avatar_url} size={32} name={f.name} />
-                        <span style={{ flex: 1 }}>{f.name ?? "anonymous"}<Supporter id={f.id} /></span>
-                      </Link>
-                    ))}
-                  </div>
-                </Panel>
-              )}
-              {social && <div className="comment-meta">{n(social.followers)} follower{social.followers === 1 ? "" : "s"} · following {n(social.following)} {social.following === 1 ? "person" : "people"}. <Link href="/friends" className="text-link">Find people →</Link></div>}
+              <H title={`Ratings · ${n(rated.length)}`} onAll={rated.length > 8 ? () => setAllRated(!allRated) : undefined} label={allRated ? "Less" : "All"} />
+              {ratingRows(allRated ? 100 : 8)}
             </>
           )}
+          {!showCollection && !showCollected && !showRated && <div className="empty-state">Nothing to show here.</div>}
+        </>
+      )}
+
+      {tab === "contributions" && (
+        <>
+          {contribTotal === null && <div className="empty-state">Contributions are private.</div>}
+          {contribTotal !== null && (
+            <>
+              <div className="pf-contrib"><Contributions userId={userId} /></div>
+              <H title="Recent contributions" />
+              <Contributions userId={userId} mode="activity" limit={30} />
+            </>
+          )}
+        </>
+      )}
+
+      {tab === "network" && social && (
+        <>
+          <div className="lb-stats pf-net-stats">
+            <span><strong>{n(social.followers)}</strong><span>followers</span></span>
+            <span><strong>{n(social.following)}</strong><span>following</span></span>
+            <span><strong>{n(social.friends.length)}</strong><span>friends</span></span>
+          </div>
+          <H title={`Friends · ${n(social.friends.length)}`} />
+          {social.friends.length === 0 && <div className="comment-meta">No friends yet: people you follow who follow you back show up here.</div>}
+          <div className="pf-list">
+            {social.friends.map((f) => (
+              <Link key={f.id} href={`/profile/${f.id}`} className="pf-list-row" style={{ alignItems: "center" }}>
+                <Avatar url={f.avatar_url} size={32} name={f.name} />
+                <span style={{ flex: 1 }}>{f.name ?? "anonymous"}<Supporter id={f.id} /></span>
+              </Link>
+            ))}
+          </div>
+          <div className="comment-meta" style={{ marginTop: 12 }}><Link href="/friends" className="text-link">Find people →</Link></div>
+        </>
+      )}
+
+      {isOwnProfile && (
+        <div className="comment-meta" style={{ lineHeight: 1.6, marginTop: 24 }}>
+          Visitors only see what you&apos;ve turned on in <Link href="/settings" className="text-link">privacy settings</Link>.
+          Friends (people you follow who follow you back) see everything.
         </div>
-
-        <aside className="pf-side">
-          {social && (
-            <>
-              <div className="sp-head hf-head"><h2>{isOwnProfile ? "Your network" : "Network"}</h2></div>
-              {network}
-            </>
-          )}
-          <div className="sp-head hf-head"><h2>Top contributors</h2></div>
-          <div className="pf-panel pf-panel-loose"><Leaderboard /></div>
-          {isOwnProfile && (
-            <div className="comment-meta" style={{ lineHeight: 1.6, padding: "0 2px" }}>
-              Visitors only see what you&apos;ve turned on in <Link href="/settings" className="text-link">privacy settings</Link>.
-              Friends (people you follow who follow you back) see everything.
-            </div>
-          )}
-        </aside>
-      </div>
+      )}
     </div>
   );
 }

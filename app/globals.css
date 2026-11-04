@@ -2870,3 +2870,21 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .lb-bar span { display: block; height: 100%; background: var(--accent); }
 @media (max-width: 700px) { .lb-artists { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
+
+/* Profile v2: banner like an artist page */
+.pf2 .artist-hero.ah2 { min-height: min(96vw, 420px); }
+.ah2-stats > button { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0; border-right: 1px solid var(--hair-strong); background: none; color: var(--bone); padding: 0 4px; min-width: 0; cursor: pointer; }
+.ah2-stats > button:last-child { border-right: 0; }
+.ah2-stats > button strong { font-family: var(--font-mono), monospace; font-size: 1.15rem; }
+.ah2-stats > button span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); }
+.pf-pfp-blank { display: flex; align-items: center; justify-content: center; font-family: var(--font-anton), sans-serif; font-size: 2.4rem; color: var(--smoke); }
+.pf-bio2 { font-family: var(--font-mono), monospace; font-size: 0.86rem; margin: 12px 0 0; padding: 0; border: 0; white-space: pre-wrap; }
+.pf2 .ap-tabs { margin-top: 16px; }
+.pf-favs { display: flex; gap: 18px; flex-wrap: wrap; }
+.pf-fav { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: var(--bone); width: 96px; text-align: center; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.pf-fav .pf-av { border: 2px solid var(--accent); }
+.pf-fav-tag { font-family: var(--font-mono), monospace; font-size: 0.6rem; font-weight: 700; border: 1px solid var(--bone); padding: 1px 6px; letter-spacing: 0.08em; }
+.pf-lists2 { margin-top: 22px; }
+.pf-net-stats { margin-top: 14px; }
+.pf-net-stats > span { display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--hair-strong); }
+.pf-net-stats > span:last-child { border-right: 0; }
