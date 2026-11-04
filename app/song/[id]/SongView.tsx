@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import TrackComments from "../../artist/[id]/TrackComments";
 import FanCovers from "./FanCovers";
+import SongTimeline, { type AutoEvent } from "./SongTimeline";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
@@ -243,17 +244,17 @@ export default function SongView({ id }: { id: string }) {
       : name]);
   }
 
-  // The song's life in order: when it leaked or came out, plus every status
-  // change the site has recorded (and where it came from).
-  const timeline: { at: string; text: ReactNode; note?: string | null }[] = [
-    ...(t.leak_date ? [{ at: t.leak_date, text: <><strong>leaked</strong></> }] : []),
-    ...(t.release_date ? [{ at: t.release_date, text: <><strong>released</strong>{t.album ? <> on {t.album}</> : null}</> }] : []),
+  // The known dates and every status change the site has recorded; the
+  // timeline adds the moments fans add (snippets, shows, interviews…).
+  const timeline: AutoEvent[] = [
+    ...(t.leak_date ? [{ at: t.leak_date, kind: "leak" as const, text: <>Leaked</> }] : []),
+    ...(t.release_date ? [{ at: t.release_date, kind: "release" as const, text: <>Released{t.album ? <> on {t.album}</> : null}</> }] : []),
     ...song.history.map((h) => ({
-      at: h.at,
-      text: h.from ? <>marked {h.from} → <strong>{h.to}</strong> here</> : <>added here as <strong>{h.to}</strong></>,
+      at: h.at, site: true,
+      text: h.from ? <>marked {h.from} → <strong>{h.to}</strong></> : <>added as <strong>{h.to}</strong></>,
       note: h.note ?? (h.by_suggestion ? "from an approved suggestion" : null),
     })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+  ];
 
   return (
     <div className="wrap song-page">
@@ -422,19 +423,7 @@ export default function SongView({ id }: { id: string }) {
         </>
       )}
 
-      {timeline.length > 0 && (
-        <>
-          <div className="section-label">History</div>
-          <ol className="song-history">
-            {timeline.map((h, i) => (
-              <li key={i}>
-                <span className="comment-meta">{formatDate(h.at)}</span>{" "}{h.text}
-                {h.note && <span className="comment-meta"> · {h.note}</span>}
-              </li>
-            ))}
-          </ol>
-        </>
-      )}
+      <SongTimeline trackId={t.id} auto={timeline} />
 
       {!t.cover_url && <FanCovers trackId={t.id} onChange={load} />}
 
