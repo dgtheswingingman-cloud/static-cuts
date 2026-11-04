@@ -2889,13 +2889,14 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .pf-net-stats > span { display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--hair-strong); }
 .pf-net-stats > span:last-child { border-right: 0; }
 
-/* Arrows on sideways rows */
-.strip-wrap { position: relative; }
-.strip-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--bone); background: color-mix(in srgb, var(--void) 85%, transparent); color: var(--bone); font-size: 1.6rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6); padding-bottom: 3px; }
-.strip-arrow:hover { border-color: var(--accent); color: var(--accent); }
-.strip-left { left: -10px; }
-.strip-right { right: -10px; }
-@media (max-width: 1023px) { .strip-left { left: 2px; } .strip-right { right: 2px; } .strip-arrow { width: 36px; height: 36px; font-size: 1.3rem; } }
+/* Arrows either side of sideways rows (computers); phones swipe. */
+.strip-wrap { display: flex; align-items: center; gap: 10px; }
+.strip-wrap > .hf-strip { flex: 1; min-width: 0; }
+.strip-arrow { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--bone); background: none; color: var(--bone); font-size: 1.5rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding-bottom: 3px; }
+.strip-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.strip-arrow:disabled { opacity: 0.2; cursor: default; }
+.strip-wrap:not(.has-arrows) > .strip-arrow { display: none; }
+@media (max-width: 1023px) { .strip-arrow { display: none !important; } }
 /* Profile tagline: a short quote under the name */
 .pf-tagline { margin-top: 10px; font-family: var(--font-mono), monospace; font-style: italic; font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bone); max-width: 640px; overflow-wrap: anywhere; }
 .pf-tagline::first-letter { color: var(--accent); }
