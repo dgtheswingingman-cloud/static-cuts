@@ -190,12 +190,12 @@ export function EditProfile({ userId, profile, style, premium, followed, onClose
       <Row label="Colour" premium locked={locked}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {SWATCHES.map((c) => (
-            <button key={c} aria-label={c} disabled={locked} onClick={async () => { setAccent(c); if (await save({ accent: c }, "Colour saved.")) onStyle(); }}
+            <button key={c} aria-label={c} disabled={locked} onClick={async () => { setAccent(c); if (await save({ accent: c }, "Colour saved.")) { onStyle(); window.dispatchEvent(new CustomEvent("sc-accent", { detail: c })); } }}
               style={{ width: 28, height: 28, background: c, border: accent === c ? "2px solid var(--bone)" : "1px solid var(--hair)", cursor: locked ? "not-allowed" : "pointer" }} />
           ))}
           <input className="search-input" style={{ width: 110 }} placeholder="#8B7CF6" value={accent} disabled={locked} onChange={(e) => setAccent(e.target.value)} />
-          <button className="tab" disabled={locked || busy || !/^#[0-9a-f]{6}$/i.test(accent)} onClick={async () => { if (await save({ accent }, "Colour saved.")) onStyle(); }}>set</button>
-          {style.accent && !locked && <button className="tab" disabled={busy} onClick={async () => { setAccent(""); if (await save({ accent: null }, "Colour reset.")) onStyle(); }}>default</button>}
+          <button className="tab" disabled={locked || busy || !/^#[0-9a-f]{6}$/i.test(accent)} onClick={async () => { if (await save({ accent }, "Colour saved.")) { onStyle(); window.dispatchEvent(new CustomEvent("sc-accent", { detail: accent })); } }}>set</button>
+          {style.accent && !locked && <button className="tab" disabled={busy} onClick={async () => { setAccent(""); if (await save({ accent: null }, "Colour reset.")) { onStyle(); window.dispatchEvent(new CustomEvent("sc-accent", { detail: null })); } }}>default</button>}
         </div>
       </Row>
 

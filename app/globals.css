@@ -2328,7 +2328,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 }
 .st-leaked { background: var(--red) !important; color: #070707 !important; }
 .st-released { background: var(--green) !important; color: #070707 !important; }
-.st-snippet { background: var(--accent) !important; color: #070707 !important; }
+.st-snippet { background: #8B7CF6 !important; color: #070707 !important; }
 .st-teased { background: var(--cyan) !important; color: #070707 !important; }
 .st-announced { background: var(--blue) !important; color: #070707 !important; }
 .st-rumored { background: #C9C9C9 !important; color: #070707 !important; }
@@ -2345,7 +2345,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .track-row:hover { border-color: var(--hair-strong); }
 .track-row[data-st="leaked"] { border-left-color: var(--red); }
 .track-row[data-st="released"] { border-left-color: var(--green); }
-.track-row[data-st="snippet"] { border-left-color: var(--accent); }
+.track-row[data-st="snippet"] { border-left-color: #8B7CF6; }
 .track-row[data-st="teased"] { border-left-color: var(--cyan); }
 .track-row[data-st="announced"] { border-left-color: var(--blue); }
 .track-title { font-weight: 500; }

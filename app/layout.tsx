@@ -18,6 +18,7 @@ import MobileTabBar from "./MobileTabBar";
 import SpotifyImportResume from "./SpotifyImportResume";
 import SitePause from "./SitePause";
 import AuthNotice from "./AuthNotice";
+import UserAccent from "./UserAccent";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <AdminViewProvider>
               <RegisterServiceWorker />
+              <UserAccent />
               <StaticOverlay />
               <SpotifyImportResume />
               <div className="scanlines" />
