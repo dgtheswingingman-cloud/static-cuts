@@ -2701,3 +2701,11 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .ah2-pfp { width: 96px; height: 96px; flex: none; border-radius: 50%; object-fit: cover; border: 3px solid var(--bone); box-shadow: 0 0 0 3px var(--accent), 0 10px 30px rgba(0, 0, 0, 0.6); background: var(--surface2); }
 @media (max-width: 600px) { .ah2-pfp { width: 72px; height: 72px; border-width: 2px; } .ah2-id { gap: 12px; } }
 @media (min-width: 1024px) { .ah2-pfp { width: 128px; height: 128px; } }
+.ah2-alert-wrap { position: relative; display: flex; }
+.ah2-alert-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--hair-strong); border-radius: 8px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.ah2-alert-menu button { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 11px 14px; background: none; border: 0; border-bottom: 1px solid var(--hair); color: var(--bone); cursor: pointer; font: inherit; }
+.ah2-alert-menu button:last-child { border-bottom: 0; }
+.ah2-alert-menu button:hover { background: var(--surface2); }
+.ah2-alert-menu button.on strong { color: var(--accent); }
+.ah2-alert-menu strong { font-family: var(--font-mono), monospace; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.ah2-alert-menu span { font-family: var(--font-mono), monospace; font-size: 0.64rem; color: var(--smoke); }
