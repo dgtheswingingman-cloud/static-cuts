@@ -47,6 +47,20 @@ export default function WhatsNew({ followingOnly }: { followingOnly: boolean }) 
   const [next, setNext] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+
+  // Artist photos for the rows.
+  useEffect(() => {
+    const ids = [...new Set((days ?? []).flatMap((d) => d.groups.map((g) => g.artist_id)))].filter((id) => !(id in photos)).slice(0, 200);
+    if (!ids.length) return;
+    supabase.from("artists").select("id, image_url").in("id", ids).then(({ data }) => {
+      const m: Record<string, string> = {};
+      for (const id of ids) m[id] = "";
+      for (const a of (data ?? []) as { id: string; image_url: string | null }[]) m[a.id] = a.image_url ?? "";
+      setPhotos((p) => ({ ...p, ...m }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days]);
 
   async function fetchPage(before: string | null) {
     const { data, error: err } = await supabase.rpc("rpc_whats_new", {
@@ -84,11 +98,11 @@ export default function WhatsNew({ followingOnly }: { followingOnly: boolean }) 
       <h1 className="detail-name page-title">{following ? "Following" : "What\u2019s new"}</h1>
       <div className="detail-meta">Songs added to the archive and status changes, newest first.</div>
 
-      <div className="tabs" style={{ alignItems: "center" }}>
+      <nav className="rd-chips rd-subchips" aria-label="Show">
         {KINDS.map(([k, label]) => (
-          <button key={k} className={`tab ${kind === k ? "active" : ""}`} onClick={() => setKind(k)}>{label}</button>
+          <button key={k} className={kind === k ? "on" : undefined} aria-pressed={kind === k} onClick={() => setKind(k)}>{label}</button>
         ))}
-      </div>
+      </nav>
 
       {following && !authLoading && !user && (
         <div className="empty-state"><Link href="/login" className="text-link">Log in</Link> and follow artists to see their updates here.</div>
@@ -105,11 +119,18 @@ export default function WhatsNew({ followingOnly }: { followingOnly: boolean }) 
         <div key={d.day}>
           <div className="section-label">{dayLabel(d.day)}</div>
           {d.groups.map((g, i) => (
-            <div key={i} className="feed-item">
+            <div key={i} className="feed-item rd-feed" data-st={g.kind === "added" ? "added" : g.to_status ?? ""}>
+              <Link href={`/artist/${g.artist_id}`} className="rd-feed-photo" aria-hidden="true" tabIndex={-1}>
+                {photos[g.artist_id]
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={photos[g.artist_id]} alt="" loading="lazy" />
+                  : <span>{(g.artist ?? "?").slice(0, 1)}</span>}
+              </Link>
+              <div className="rd-feed-body">
               <div className="feed-head">
                 <Link href={`/artist/${g.artist_id}`} className="feed-artist">{g.artist ?? "Unknown artist"}</Link>
                 <span className="comment-meta">{headline(g)}</span>
-                {g.kind === "status" && g.to_status && <span className="feature-tag">{g.to_status}</span>}
+                <span className={`feature-tag st st-${g.kind === "added" ? "added" : g.to_status}`}>{g.kind === "added" ? "added" : g.to_status}</span>
               </div>
               <div className="feed-tracks">
                 {g.tracks.map((t) => (
@@ -125,6 +146,7 @@ export default function WhatsNew({ followingOnly }: { followingOnly: boolean }) 
                     +{g.count - g.tracks.length} more
                   </Link>
                 )}
+              </div>
               </div>
             </div>
           ))}
