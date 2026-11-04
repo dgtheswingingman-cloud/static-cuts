@@ -2608,24 +2608,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
     linear-gradient(to bottom, color-mix(in srgb, var(--void) 45%, transparent) 0%, transparent 20%, color-mix(in srgb, var(--void) 30%, transparent) 50%, var(--void) 100%);
 }
 
-/* Artist banner in a frame: a bordered panel with a dark vignette so the
-   photos sit inside it instead of running edge to edge. */
-.artist-hero.ah2 { border-bottom: 1px solid var(--hair-strong); }
-.ah2-collage { opacity: 0.55; }
-.artist-hero.ah2.ah2-has-collage::before {
-  display: block; content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: none; filter: none; transform: none; opacity: 1;
-  box-shadow: inset 0 0 90px 30px var(--void);
-}
+/* A line in the artist's colour between the banner and the page. */
+.artist-hero.ah2 { border-bottom: 2px solid var(--accent); }
+.ah2-collage { opacity: 0.6; }
 .ah2-inner { z-index: 2; }
-@media (min-width: 1024px) {
-  .artist-hero.ah2 {
-    width: auto; margin: 6px 0 0; border: 1px solid var(--hair-strong); border-radius: 10px;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 20px 50px rgba(0, 0, 0, 0.6);
-  }
-  .artist-hero.ah2.has-img { min-height: 440px; }
-  .ah2-inner { padding: 0 32px 18px !important; }
-}
-@media (max-width: 1023px) {
-  .artist-hero.ah2 { box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
-}
