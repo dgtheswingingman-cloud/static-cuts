@@ -196,6 +196,9 @@ export default function ArtistPage() {
   // Less-used page actions (request check, import songs, find links).
   const [headerMore, setHeaderMore] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  // Alerts for this artist: instant, a daily round-up, or off.
+  const [followAlert, setFollowAlert] = useState<"instant" | "daily" | "off">("daily");
+  const [alertMenu, setAlertMenu] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [openLetters, setOpenLetters] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -398,11 +401,12 @@ export default function ArtistPage() {
       if (!user) { setIsFollowing(false); return; }
       const { data } = await supabase
         .from("follows")
-        .select("artist_id")
+        .select("artist_id, alert")
         .eq("user_id", user.id)
         .eq("artist_id", id)
         .maybeSingle();
       setIsFollowing(!!data);
+      if (data?.alert) setFollowAlert(data.alert as "instant" | "daily" | "off");
     }
     loadFollow();
   }, [user, id]);
@@ -1684,6 +1688,31 @@ export default function ArtistPage() {
               <button className={`tab ah2-follow ${isFollowing ? "on" : ""}`} disabled={followBusy} onClick={toggleFollow} aria-pressed={isFollowing}>
                 {isFollowing ? "✓ Following" : "+ Follow"}
               </button>
+            )}
+            {!isAdmin && isFollowing && (
+              <div className="ah2-alert-wrap">
+                <button className={`tab sp-icon-btn ${followAlert === "instant" ? "active" : ""}`} aria-haspopup="menu" aria-expanded={alertMenu}
+                  aria-label={`Alerts for this artist: ${followAlert === "instant" ? "instant" : followAlert === "daily" ? "daily round-up" : "off"}`}
+                  title="When to tell you about new songs, leaks and releases" onClick={() => setAlertMenu(!alertMenu)}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill={followAlert === "instant" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    {followAlert === "off" && <path d="M3 3l18 18" />}
+                  </svg>
+                </button>
+                {alertMenu && (
+                  <div className="ah2-alert-menu" role="menu">
+                    {([["instant", "Instant", "a leak, snippet or release as it happens"], ["daily", "Daily round-up", "one message a day"], ["off", "Off", "no alerts for this artist"]] as const).map(([v, label, sub]) => (
+                      <button key={v} role="menuitemradio" aria-checked={followAlert === v} className={followAlert === v ? "on" : undefined}
+                        onClick={async () => {
+                          setFollowAlert(v); setAlertMenu(false);
+                          await supabase.rpc("rpc_set_follow_alert", { p_artist: id, p_alert: v });
+                        }}>
+                        <strong>{followAlert === v ? "✓ " : ""}{label}</strong><span>{sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
               fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {
