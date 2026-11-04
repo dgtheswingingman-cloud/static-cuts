@@ -10,14 +10,11 @@ import Landing from "./components/Landing";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
-import AlbumOfWeek from "./components/AlbumOfWeek";
 import OnThisDay from "./OnThisDay";
 import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
-import LiveFeed from "./components/LiveFeed";
-import RadarColumn from "./components/RadarColumn";
-import MobileStrips from "./components/MobileStrips";
+import HomeFeed from "./components/HomeFeed";
 
 type Artist = {
   id: string;
@@ -344,9 +341,8 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
-      {!q && <MobileStrips photos={photos} />}
+      {!q && <HomeFeed photos={photos} followed={[...followedIds]} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>
-      {!q && <LiveFeed photos={photos} />}
       <div className="home-main">
 
       {!user && !isAdmin && !q && (
@@ -415,11 +411,10 @@ export default function HomePage() {
         </>
       )}
 
-      {!showTrackSection && <AlbumOfWeek />}
       {!showTrackSection && <OnThisDay />}
 
       <div className="section-head">
-        <div className="section-label">{sectionLabel}</div>
+        <div className="section-label" id="your-artists">{sectionLabel}</div>
         <div className="section-head-tools">
           <button className="tab" disabled={pickingRandom} onClick={pickRandomArtist}>
             {pickingRandom ? "…" : "random artist"}
@@ -552,7 +547,6 @@ export default function HomePage() {
         New here? <Link href="/faq" className="text-link">Read the FAQ</Link>.
       </div>
       </div>
-      {!q && <RadarColumn />}
       </div>
     </div>
   );
