@@ -2694,3 +2694,10 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
   .hf-update { flex: none; }
   .aotw-hero { grid-template-columns: 300px minmax(0, 1fr); gap: 22px; padding: 16px; }
 }
+
+/* Artist picture: one still, round photo next to the name (like profiles). */
+.ah2-id { display: flex; align-items: center; gap: 16px; max-width: 100%; }
+.ah2-id .artist-hero-name { min-width: 0; }
+.ah2-pfp { width: 96px; height: 96px; flex: none; border-radius: 50%; object-fit: cover; border: 3px solid var(--bone); box-shadow: 0 0 0 3px var(--accent), 0 10px 30px rgba(0, 0, 0, 0.6); background: var(--surface2); }
+@media (max-width: 600px) { .ah2-pfp { width: 72px; height: 72px; border-width: 2px; } .ah2-id { gap: 12px; } }
+@media (min-width: 1024px) { .ah2-pfp { width: 128px; height: 128px; } }

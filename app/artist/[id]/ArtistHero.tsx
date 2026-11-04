@@ -48,7 +48,13 @@ export default function ArtistHero({ artistId, name, aliases, genres = [], onCol
       )}
       <div className="artist-hero-inner ah2-inner">
         <span className="ah2-tag">Artist</span>
-        <h1 className="detail-name artist-hero-name">{name}</h1>
+        <div className="ah2-id">
+          {img && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={img} alt="" className="ah2-pfp" width={96} height={96} />
+          )}
+          <h1 className="detail-name artist-hero-name">{name}</h1>
+        </div>
         {genres.length > 0 && <div className="ah2-genres">{genres.join(" / ")}</div>}
         {aliases.length > 0 && <div className="artist-hero-aka">also known as {aliases.join(", ")}</div>}
         {children}
