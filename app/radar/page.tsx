@@ -87,7 +87,7 @@ export default function RadarOverview() {
     <div className="wrap">
       <RadarTabs active="all" />
 
-      <Head title={`Followed artist updates${mine && mine.length ? ` (${mine.length})` : ""}`} href={user ? "/new?following=1" : undefined} />
+      <Head title={`Followed artist updates${mine && mine.length ? ` (${mine.length})` : ""}`} href={user ? "/new/following" : undefined} />
       {!user && !authLoading && (
         <div className="comment-meta"><Link href="/login" className="text-link">Log in</Link> and follow artists to see their updates here.</div>
       )}
