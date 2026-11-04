@@ -3,7 +3,8 @@
 // Everything about one song: info, listen link, the other versions of it,
 // status history, who added it, collecting, rating and comments.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -120,7 +121,18 @@ export default function SongView({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const [sheet, setSheet] = useState<{ title: string; credit: string | null; url: string } | null>(null);
-  const [tab, setTab] = useState<"versions" | "timeline" | "info" | "comments">("versions");
+  const [more, setMore] = useState(false);
+  const [listenOpen, setListenOpen] = useState(false);
+  const [allComments, setAllComments] = useState(false);
+  // The page's colour, taken from the cover (like artist pages).
+  const [rgb, setRgb] = useState<Rgb | null>(null);
+  const coverUrl = song?.track.display_cover?.url ?? song?.track.cover_url ?? null;
+  useEffect(() => {
+    let alive = true;
+    setRgb(null);
+    swatch(coverUrl).then((c) => { if (alive) setRgb(c); });
+    return () => { alive = false; };
+  }, [coverUrl]);
 
   async function load() {
     const { data, error } = await supabase.rpc("rpc_song_page", { p_id: id });
@@ -249,16 +261,17 @@ export default function SongView({ id }: { id: string }) {
 
   const cover = t.display_cover?.url ?? t.cover_url ?? null;
   const status = statusOf(t);
-  const day = t.leak_date ? ["Leaked", formatDate(t.leak_date)] : t.release_date ? ["Released", formatDate(t.release_date)] : t.created_at ? ["Added", formatDate(t.created_at)] : null;
-  const tabs: [typeof tab, string][] = [
-    ["versions", `Versions${song.family.length > 1 ? ` ${song.family.length}` : ""}`],
-    ["timeline", "Timeline"],
-    ["info", "Info"],
-    ["comments", `Comments${song.comments > 0 ? ` ${song.comments}` : ""}`],
-  ];
+  const firstSeen = t.leak_date ?? t.release_date ?? t.created_at;
+  const listen = [
+    t.spotify_url ? { name: "Spotify", url: t.spotify_url } : null,
+    t.deezer_url ? { name: "Deezer", url: t.deezer_url } : null,
+    t.apple_url ? { name: "Apple Music", url: t.apple_url } : null,
+  ].filter(Boolean) as { name: string; url: string }[];
+  const themeStyle = (rgb ? { "--accent": accentCss(rgb), "--sp-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
+  const Dots = () => <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
 
   return (
-    <div className="wrap song-page">
+    <div className={`wrap song-page ${rgb ? "themed" : ""}`} style={themeStyle}>
       <section className={`sp-hero ${cover ? "has-img" : ""}`}>
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -269,7 +282,6 @@ export default function SongView({ id }: { id: string }) {
           <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
           <div className="sp-tags">
             <span className={`feature-tag st st-${status}`}>{status}</span>
-            {song.family.length > 1 && <span className="feature-tag sp-tag-line">{song.family.length} versions</span>}
             {t.explicit && <span className="feature-tag sp-tag-line" title="Explicit">E</span>}
             {t.is_featured && <span className="feature-tag sp-tag-line">featured</span>}
           </div>
@@ -288,20 +300,22 @@ export default function SongView({ id }: { id: string }) {
         </div>
       </section>
 
-      <div className="song-actions sp-actions">
+      <div className="sp-actions">
         {!isAdmin && (
-          <>
-            <button className={`tab ${song.owned ? "active" : ""}`} disabled={busy} onClick={toggleOwned}>
-              {song.owned ? "✓ library" : "+ library"}
-            </button>
-            {status !== "released" && <WantButton trackId={t.id} />}
-            <button className={`tab ${song.my_rating ? "active" : ""}`} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
-              {song.my_rating ? `★ ${song.my_rating}/10` : "rate"}
-            </button>
-            <AddToList trackId={t.id} />
-          </>
+          <button className={`tab sp-main-btn ${song.owned ? "owned" : ""}`} disabled={busy} onClick={toggleOwned} aria-pressed={song.owned}>
+            {song.owned ? "✓ In your library" : "+ Add to library"}
+          </button>
         )}
-        <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id}
+        {!isAdmin && status !== "released" && <WantButton trackId={t.id} icon />}
+        {!isAdmin && status === "released" && (
+          <button className={`tab sp-icon-btn ${song.my_rating ? "active" : ""}`} aria-label={song.my_rating ? `Your rating ${song.my_rating}/10` : "Rate"}
+            onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
+            {song.my_rating ? <span className="sp-icon-num">{song.my_rating}</span>
+              : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>}
+          </button>
+        )}
+        <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
+          label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>}
           fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
           kicker: `${status} · ${song.artist?.name ?? ""}`,
           title: t.title,
@@ -309,48 +323,22 @@ export default function SongView({ id }: { id: string }) {
           imageUrl: cover,
           footer: `static-cuts.com/song/${t.id}`,
         })} />
-        {!isAdmin && (["announced", "teased", "snippet", "rumored"].includes(status) ||
-          (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
+        {!isAdmin && (
+          <button className={`tab sp-icon-btn ${more ? "active" : ""}`} aria-label="More" aria-expanded={more} onClick={() => setMore(!more)}><Dots /></button>
+        )}
       </div>
-
-      <div className="sp-facts">
-        <div>
-          <span>Status</span>
-          <strong className={`sp-fact-st sp-c-${status}`}>{status}</strong>
-          {(() => {
-            const tr = trustOf(t);
-            return tr.level === "sourced" && t.status_source_url
-              ? <a href={t.status_source_url} target="_blank" rel="noopener noreferrer" className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label} ↗</a>
-              : <em className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</em>;
-          })()}
-        </div>
-        {day && <div><span>{day[0]}</span><strong>{day[1]}</strong></div>}
-        <div><span>In libraries</span><strong>{song.collectors.toLocaleString("en-GB")}</strong></div>
-        <div>
-          <span>Rating</span>
-          <strong>{song.my_rating && song.rating?.avg ? `${song.rating.avg}/10` : (song.rating?.count ?? 0) > 0 ? `${song.rating?.count} rated` : "—"}</strong>
-        </div>
-      </div>
-
-      {(t.spotify_url || t.deezer_url || t.apple_url) ? (
-        <div className="sp-listen">
-          {t.spotify_url && <a className="tab" href={t.spotify_url} target="_blank" rel="noopener noreferrer">Spotify ↗</a>}
-          <InlinePlayer url={t.spotify_url} />
-          {t.deezer_url && <a className="tab" href={t.deezer_url} target="_blank" rel="noopener noreferrer">Deezer ↗</a>}
-          {t.apple_url && <a className="tab" href={t.apple_url} target="_blank" rel="noopener noreferrer">Apple Music ↗</a>}
-        </div>
-      ) : (
-        <div className="comment-meta" style={{ marginTop: 12 }}>
-          No listen link yet.{" "}
-          <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">Know one? Add it</Link>
-          {" · "}<Link href="/listen" className="text-link">how to listen</Link>
+      {more && !isAdmin && (
+        <div className="sp-more">
+          {status !== "released" && (
+            <button className={`tab ${song.my_rating ? "active" : ""}`} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
+              {song.my_rating ? `★ rated ${song.my_rating}/10` : "rate it"}
+            </button>
+          )}
+          <AddToList trackId={t.id} />
+          {(["announced", "teased", "snippet", "rumored"].includes(status) ||
+            (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
         </div>
       )}
-
-      <FriendsWhoHaveIt trackId={t.id} signedIn={!!user} />
-      <MyFile trackId={t.id} />
-      <FileNote trackId={t.id} />
-      {isAdmin && <AdminModeNote what="collect, rate, comment, vote or add to a list" />}
 
       {rateOpen && !isAdmin && (
         <div className="comments-panel" style={{ marginTop: 10 }}>
@@ -368,82 +356,125 @@ export default function SongView({ id }: { id: string }) {
         </div>
       )}
 
+      <div className="sp-facts">
+        <div><span>Versions</span><strong>{song.family.length}</strong></div>
+        <div><span>First seen</span><strong>{firstSeen ? formatDate(firstSeen) : "—"}</strong></div>
+        <div>
+          <span>Status</span>
+          <strong><span className={`feature-tag st st-${status}`}>{status}</span></strong>
+        </div>
+        <div><span>In libraries</span><strong>{song.collectors.toLocaleString("en-GB")}</strong></div>
+      </div>
+      <div className="sp-trust">
+        {(() => {
+          const tr = trustOf(t);
+          return tr.level === "sourced" && t.status_source_url
+            ? <a href={t.status_source_url} target="_blank" rel="noopener noreferrer" className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label} ↗</a>
+            : <span className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</span>;
+        })()}
+        {song.rating && song.rating.count > 0 && (
+          <span className="sp-sub">{song.my_rating && song.rating.avg ? `rated ${song.rating.avg}/10 avg` : `${song.rating.count} rating${song.rating.count === 1 ? "" : "s"}`}</span>
+        )}
+      </div>
+
+      {listen.length > 0 ? (
+        <>
+          <button className="sp-listen" aria-expanded={listenOpen} onClick={() => setListenOpen(!listenOpen)}>
+            <span className="sp-listen-icons">
+              {t.spotify_url && <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1DB954" /><path d="M6.5 9.3c3.8-1.1 8-.8 11.2 1M7.2 12.4c3-.8 6.4-.5 9 1M7.9 15.3c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.7" strokeLinecap="round" fill="none" /></svg>}
+              {t.apple_url && <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8C7 7.3 5.5 8.2 4.7 9.700c-1.7 2.9-.4 7.200 1.200 9.6.8 1.1 1.700 2.400 2.900 2.300 1.200 0 1.600-.7 3-.7s1.800.7 3 .7c1.300 0 2.100-1.100 2.800-2.300.9-1.300 1.300-2.600 1.300-2.700-.1 0-2.500-1-2.500-3.900zM14.200 5.600c.6-.8 1.100-1.800 1-2.900-.9 0-2.100.6-2.700 1.400-.6.700-1.100 1.800-1 2.800 1 .1 2.100-.5 2.700-1.300z" /></svg>}
+              {!t.spotify_url && !t.apple_url && <span className="sp-sub">DZ</span>}
+            </span>
+            <span className="sp-listen-text">
+              <strong>Listen on streaming</strong>
+              <span>Official releases only</span>
+            </span>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="sp-chev"><path d="m9 6 6 6-6 6" /></svg>
+          </button>
+          {listenOpen && (
+            <div className="sp-listen-list">
+              {listen.map((l) => <a key={l.name} className="tab" href={l.url} target="_blank" rel="noopener noreferrer">{l.name} ↗</a>)}
+              <InlinePlayer url={t.spotify_url} />
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="comment-meta" style={{ marginTop: 12 }}>
+          No official release yet.{" "}
+          <Link href="/listen" className="text-link">How to listen</Link>
+        </div>
+      )}
+
+      <FriendsWhoHaveIt trackId={t.id} signedIn={!!user} />
+      <MyFile trackId={t.id} />
+      <FileNote trackId={t.id} />
+      {isAdmin && <AdminModeNote what="collect, rate, comment, vote or add to a list" />}
       {!isAdmin && VOTEABLE_STATUSES.includes(status) && <RealOrFake trackId={t.id} />}
 
-      <nav className="sp-tabs" aria-label="Song sections">
-        {tabs.map(([k, label]) => (
-          <button key={k} className={tab === k ? "on" : undefined} aria-pressed={tab === k} onClick={() => setTab(k)}>{label}</button>
+      <div className="sp-head">
+        <h2>Versions ({song.family.length})</h2>
+        <Link href={`/artist/${artistId}?highlight=${t.id}`}>Add version +</Link>
+      </div>
+      <div className="sp-versions">
+        {song.family.map((v) => {
+          const st = statusOf(v);
+          const here = v.id === t.id;
+          return (
+            <Link key={v.id} href={`/song/${v.id}`} className={`sp-version ${here ? "here" : ""}`} data-st={st} aria-current={here ? "page" : undefined}>
+              <span className="sp-version-text">
+                <span className="sp-version-title">{v.title}</span>
+                <span className="sp-sub">{[v.is_main ? "main song" : "version", here ? "you're here" : null].filter(Boolean).join(" · ")}</span>
+              </span>
+              <span className={`feature-tag st st-${st}`}>{st}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      <SongTimeline trackId={t.id} auto={timeline} />
+
+      <div className="sp-head">
+        <h2>Comments{song.comments > 0 ? ` (${song.comments})` : ""}</h2>
+        {song.comments > 1 && <button onClick={() => setAllComments(!allComments)}>{allComments ? "Show less" : "View all →"}</button>}
+      </div>
+      <div className={`sp-comments ${allComments || song.comments <= 1 ? "open" : ""}`}>
+        <TrackComments trackId={t.id} />
+      </div>
+
+      <details className="sp-info">
+        <summary>Info</summary>
+        {info.map(([label, value]) => (
+          <div key={label} className="song-info-row">
+            <div className="comment-meta">{label}</div>
+            <div className="comment-body">{value}</div>
+          </div>
         ))}
-      </nav>
-
-      {tab === "versions" && (
-        song.family.length > 1 ? (
-          <div className="sp-versions">
-            {song.family.map((v) => {
-              const st = statusOf(v);
-              const here = v.id === t.id;
-              return (
-                <Link key={v.id} href={`/song/${v.id}`} className={`track-row sp-version ${here ? "here" : ""}`} data-st={st} aria-current={here ? "page" : undefined}>
-                  {cover
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={cover} alt="" width={44} height={44} className="sp-thumb" />
-                    : <span className="sp-thumb sp-thumb-empty">SC//</span>}
-                  <span className="sp-version-text">
-                    <span className="track-title">{v.title}</span>
-                    <span className="sp-sub">{[v.is_main ? "main song" : null, here ? "you're here" : null].filter(Boolean).join(" · ") || "version"}</span>
-                  </span>
-                  <span className={`feature-tag st st-${st}`}>{st}</span>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="sp-empty">
-            <div>ONE VERSION.</div>
-            <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">Know another? Add it</Link>
-          </div>
-        )
-      )}
-
-      {tab === "timeline" && <SongTimeline trackId={t.id} auto={timeline} />}
-
-      {tab === "info" && (
-        <>
-          {info.map(([label, value]) => (
-            <div key={label} className="song-info-row">
-              <div className="comment-meta">{label}</div>
-              <div className="comment-body">{value}</div>
-            </div>
-          ))}
-          {relations.length > 0 && (
-            <>
-              <div className="section-label">Samples &amp; connections</div>
-              {Object.entries(relations.reduce<Record<string, Relation[]>>((acc, r) => { (acc[r.kind] ??= []).push(r); return acc; }, {}))
-                .map(([kind, rows]) => (
-                  <div key={kind} className="song-info-row">
-                    <div className="comment-meta">{RELATION_LABELS[kind] ?? kind}</div>
-                    <div className="comment-body">
-                      {rows.slice(0, 12).map((r, i) => (
-                        <span key={`${r.title}-${i}`}>
-                          {i > 0 && " · "}
-                          {r.track_id
-                            ? <Link href={`/song/${r.track_id}`} className="text-link">{r.title}</Link>
-                            : r.url ? <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-link">{r.title} ↗</a> : r.title}
-                          {r.artist && <span className="comment-meta"> by {r.artist}</span>}
-                        </span>
-                      ))}
-                      {rows.length > 12 && <span className="comment-meta"> and {rows.length - 12} more</span>}
-                    </div>
+        {relations.length > 0 && (
+          <>
+            <div className="section-label">Samples &amp; connections</div>
+            {Object.entries(relations.reduce<Record<string, Relation[]>>((acc, r) => { (acc[r.kind] ??= []).push(r); return acc; }, {}))
+              .map(([kind, rows]) => (
+                <div key={kind} className="song-info-row">
+                  <div className="comment-meta">{RELATION_LABELS[kind] ?? kind}</div>
+                  <div className="comment-body">
+                    {rows.slice(0, 12).map((r, i) => (
+                      <span key={`${r.title}-${i}`}>
+                        {i > 0 && " · "}
+                        {r.track_id
+                          ? <Link href={`/song/${r.track_id}`} className="text-link">{r.title}</Link>
+                          : r.url ? <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-link">{r.title} ↗</a> : r.title}
+                        {r.artist && <span className="comment-meta"> by {r.artist}</span>}
+                      </span>
+                    ))}
+                    {rows.length > 12 && <span className="comment-meta"> and {rows.length - 12} more</span>}
                   </div>
-                ))}
-              <div className="comment-meta" style={{ marginTop: 4 }}>From Genius.</div>
-            </>
-          )}
-          {!t.cover_url && <FanCovers trackId={t.id} onChange={load} />}
-        </>
-      )}
-
-      {tab === "comments" && <TrackComments trackId={t.id} />}
+                </div>
+              ))}
+            <div className="comment-meta" style={{ marginTop: 4 }}>From Genius.</div>
+          </>
+        )}
+        {!t.cover_url && <FanCovers trackId={t.id} onChange={load} />}
+      </details>
 
       <div className="comment-meta" style={{ marginTop: 30, display: "flex", gap: 14, flexWrap: "wrap" }}>
         <Link href={`/artist/${artistId}?highlight=${t.id}`} className="text-link">{isAdmin ? "edit on the artist page" : "suggest an edit or a version"}</Link>
