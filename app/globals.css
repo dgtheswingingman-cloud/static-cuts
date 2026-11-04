@@ -2246,3 +2246,147 @@ a.mod-btn { display: inline-block; text-decoration: none; }
   .tl-date { grid-column: 2; }
   .tl-body { grid-column: 2; }
 }
+
+/* ===================== UI kit (Nov 2026) =====================
+   The look from the slides across the whole site: near-black, Space Mono
+   labels, slanted Anton headings with an RGB split, square tracker tags
+   coloured by status, rows with a status stripe, purple for "you / do this".
+   Computers get a menu down the left side. */
+:root:not([data-theme="light"]) {
+  --void: #070707;
+  --surface: #0E0E0E;
+  --surface2: #161616;
+  --bone: #EDEDED;
+  --smoke: #8E8E8E;
+  --hair: #262626;
+  --hair-strong: #3E3E3E;
+  --accent: #8B7CF6;
+  --red: #FF3355;
+  --green: #2BD67B;
+  --cyan: #22D3EE;
+  --blue: #5B8CFF;
+}
+[data-theme="light"] { --accent: #6C5CE7; --red: #D61F45; --green: #13985A; --cyan: #0E8FA6; --blue: #2F5FD0; }
+:root { --side: 228px; }
+
+/* Headings: slanted condensed caps with a red/cyan split. */
+.wordmark, .detail-name, .site-home, .dnav-logo { font-style: italic; }
+:root:not([data-theme="light"]) .wordmark,
+:root:not([data-theme="light"]) .detail-name { text-shadow: -3px 0 rgba(255, 51, 85, 0.8), 3px 0 rgba(34, 211, 238, 0.8); }
+.detail-name { font-family: var(--font-anton), sans-serif; text-transform: uppercase; letter-spacing: 0.005em; line-height: 0.92; }
+.site-home, .dnav-logo { letter-spacing: 0.01em; }
+.site-home .slash, .dnav-logo .slash { color: var(--bone); }
+
+.section-label {
+  font-family: var(--font-anton), sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: 6px;
+}
+
+/* Buttons: square, mono caps. Purple = the thing you're doing / is on. */
+.tab {
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 9px 13px;
+  min-height: 38px;
+  border: 1px solid var(--hair-strong);
+  background: var(--surface);
+  color: var(--bone);
+  box-shadow: none;
+}
+.tab:hover { border-color: var(--bone); }
+.tab.active { background: var(--accent); border-color: var(--accent); color: #070707; font-weight: 700; }
+
+/* Search boxes: dark, square. */
+:root:not([data-theme="light"]) .search-input {
+  background: var(--surface);
+  color: var(--bone);
+  border: 1px solid var(--hair-strong);
+  border-radius: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.85rem;
+}
+:root:not([data-theme="light"]) .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Status tags: solid tracker labels. */
+.feature-tag.st {
+  border: 0;
+  font-weight: 700;
+  font-size: 0.6rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  background: #5A5A5A;
+  color: var(--bone);
+  white-space: nowrap;
+}
+.st-leaked { background: var(--red) !important; color: #070707 !important; }
+.st-released { background: var(--green) !important; color: #070707 !important; }
+.st-snippet { background: var(--accent) !important; color: #070707 !important; }
+.st-teased { background: var(--cyan) !important; color: #070707 !important; }
+.st-announced { background: var(--blue) !important; color: #070707 !important; }
+.st-rumored { background: #C9C9C9 !important; color: #070707 !important; }
+.st-removed { background: transparent !important; color: var(--red) !important; box-shadow: inset 0 0 0 1px var(--red); }
+
+/* Song rows: a bar with a status stripe down the left. */
+.track-row {
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-left: 5px solid #5A5A5A;
+  padding: 11px 10px 11px 12px;
+  margin-bottom: 5px;
+}
+.track-row:hover { border-color: var(--hair-strong); }
+.track-row[data-st="leaked"] { border-left-color: var(--red); }
+.track-row[data-st="released"] { border-left-color: var(--green); }
+.track-row[data-st="snippet"] { border-left-color: var(--accent); }
+.track-row[data-st="teased"] { border-left-color: var(--cyan); }
+.track-row[data-st="announced"] { border-left-color: var(--blue); }
+.track-title { font-weight: 500; }
+
+/* Phones: the bars along the top and bottom. */
+@media (max-width: 1023px) {
+  .site-home { font-size: 1.45rem; }
+  .tabbar a { font-family: var(--font-mono), monospace; font-size: 0.56rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+  .tabbar a.on { color: var(--accent); }
+  .site-icon { min-width: 36px; min-height: 36px; align-items: center; justify-content: center; }
+}
+
+/* Computers: the menu down the left side. */
+@media (min-width: 1024px) {
+  body { padding-left: var(--side); }
+  .dnav {
+    position: fixed; top: 0; left: 0; bottom: 0; width: var(--side);
+    z-index: 40; background: var(--void); backdrop-filter: none;
+    border-bottom: 0; border-right: 1px solid var(--hair);
+    overflow-y: auto; scrollbar-width: thin;
+  }
+  .dnav-inner { max-width: none; margin: 0; padding: 22px 14px 28px; flex-direction: column; align-items: stretch; gap: 18px; }
+  .dnav-logo { font-size: 1.6rem; padding: 0 4px; }
+  .dnav-search input { width: 100%; font-family: var(--font-mono), monospace; font-size: 0.72rem; padding: 9px 10px; }
+  .dnav-search input:focus { border-color: var(--accent); }
+  .dnav-links { flex-direction: column; gap: 2px; flex: none; flex-wrap: nowrap; }
+  .dnav-links a {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border-bottom: 0; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; color: var(--smoke);
+  }
+  .dnav-links a:hover { color: var(--bone); background: var(--surface); border-bottom-color: transparent; }
+  .dnav-links a.on { background: var(--accent); color: #070707; border-bottom-color: transparent; }
+  .dnav-count { margin-left: auto; background: var(--red); color: #fff; font-size: 0.58rem; padding: 1px 6px; }
+
+  .wrap.home-wide { max-width: calc(100vw - var(--side) - 72px); }
+  .live { top: 20px; }
+  .artist-hero { width: calc(100vw - var(--side)); margin-left: calc(50% - (100vw - var(--side)) / 2); margin-right: calc(50% - (100vw - var(--side)) / 2); }
+}
+/* The side rails need room beside the menu and the page. */
+@media (min-width: 1320px) and (max-width: 1599px) { .rail { display: none; } }
+@media (min-width: 1600px) {
+  .rail-left { left: max(calc(var(--side) + 24px), calc(var(--side) + (100vw - var(--side)) / 2 - 658px)); }
+  .rail-right { right: max(24px, calc((100vw - var(--side)) / 2 - 658px)); }
+}

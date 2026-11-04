@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Inter, JetBrains_Mono } from "next/font/google";
+import { Anton, Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import StaticOverlay from "./StaticOverlay";
@@ -21,7 +21,7 @@ import AuthNotice from "./AuthNotice";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
+const mono = Space_Mono({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://static-cuts.com"),
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0A",
+  themeColor: "#070707",
   // Full-screen when saved to the home screen; the app bar and tab bar keep
   // clear of the notch and the home bar.
   viewportFit: "cover",
