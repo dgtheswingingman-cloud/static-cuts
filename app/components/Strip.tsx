@@ -1,7 +1,7 @@
 "use client";
 
-// A sideways row (covers, artists, updates) with ‹ › arrows to page through
-// it. Arrows only show when there's more to see that way; swiping still works.
+// A sideways row (covers, artists, updates) with ‹ › arrows either side of
+// it (not over the pictures) on computers; phones swipe.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -32,10 +32,10 @@ export default function Strip({ className = "", children }: { className?: string
   const go = (dir: number) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.85, behavior: "smooth" });
 
   return (
-    <div className="strip-wrap">
-      {edges.left && <button className="strip-arrow strip-left" aria-label="Scroll back" onClick={() => go(-1)}>‹</button>}
+    <div className={`strip-wrap ${edges.left || edges.right ? "has-arrows" : ""}`}>
+      <button className="strip-arrow" aria-label="Scroll back" disabled={!edges.left} onClick={() => go(-1)}>‹</button>
       <div ref={ref} className={`hf-strip ${className}`} onScroll={check}>{children}</div>
-      {edges.right && <button className="strip-arrow strip-right" aria-label="Scroll on" onClick={() => go(1)}>›</button>}
+      <button className="strip-arrow" aria-label="Scroll on" disabled={!edges.right} onClick={() => go(1)}>›</button>
     </div>
   );
 }
