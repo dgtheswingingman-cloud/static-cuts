@@ -36,7 +36,19 @@ const VERB: Record<Event["kind"], string> = {
   confirmation: "confirmed",
 };
 
-export default function Contributions({ userId }: { userId: string }) {
+const ICON: Record<Event["kind"], string> = { song: "⊕", version: "⧉", status: "↻", correction: "✎", find: "✦", confirmation: "✓" };
+const TITLE: Record<Event["kind"], string> = { song: "Added a song", version: "Added a version", status: "Updated a status", correction: "Edited song details", find: "New find", confirmation: "Confirmed a find" };
+function ago(at: string) {
+  const m = Math.max(1, Math.round((Date.now() - Date.parse(at)) / 60000));
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  return d < 30 ? `${d}d ago` : new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// "activity": just the latest things they did, as rows (profile Activity tab).
+export default function Contributions({ userId, mode = "full", limit = 6 }: { userId: string; mode?: "full" | "activity"; limit?: number }) {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -45,6 +57,24 @@ export default function Contributions({ userId }: { userId: string }) {
   }, [userId]);
 
   if (!data || !data.visible) return null;
+  if (mode === "activity") {
+    const recent = (data.recent ?? []).slice(0, limit);
+    if (recent.length === 0) return <div className="comment-meta" style={{ padding: 12 }}>No activity yet.</div>;
+    return (
+      <div className="sp-versions">
+        {recent.map((e, i) => (
+          <Link key={i} href={e.track_id ? `/song/${e.track_id}` : e.artist_id ? `/artist/${e.artist_id}` : "#"} className="pf-act">
+            <span className="pf-act-icon" aria-hidden="true">{ICON[e.kind]}</span>
+            <span className="sp-version-text">
+              <span className="pf-act-title">{TITLE[e.kind]}</span>
+              <span className="sp-sub">{[e.artist_name, e.title].filter(Boolean).join(" — ")}</span>
+            </span>
+            <span className="hf-when">{ago(e.at)}</span>
+          </Link>
+        ))}
+      </div>
+    );
+  }
   const totals = data.totals ?? {};
   const kinds = (Object.keys(KIND_LABELS) as Event["kind"][]).filter((k) => (totals[k] ?? 0) > 0);
 
