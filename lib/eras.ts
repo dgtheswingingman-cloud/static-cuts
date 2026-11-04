@@ -16,9 +16,25 @@ export function dateOf(s: Song) {
   return s.release_date ?? s.leak_date;
 }
 
+// Album names that are tracker placeholders, not eras.
+const JUNK_ALBUM = /^(unknown\b|misc\b|miscellaneous|other\b|others\b|singles?$|unreleased$|n\/?a$|none$|total spreadsheet|spreadsheet\b|tbd$|tba$|\?+$)/i;
+
+// An album only counts as an era when two or more of the artist's songs are
+// on it and it isn't a placeholder. One-song "albums" (a single named after
+// itself, a feature on someone else's record) sit under their year instead.
+export function eraAlbum(s: Song, counts: Map<string, number>): string | null {
+  if (!s.album) return null;
+  const name = s.album.trim();
+  if (!name || JUNK_ALBUM.test(name)) return null;
+  return (counts.get(name.toLowerCase()) ?? 0) >= 2 ? name : null;
+}
+
 export function buildEras(songs: Song[]): Era[] {
+  const counts = new Map<string, number>();
+  for (const s of songs) if (s.album) counts.set(s.album.trim().toLowerCase(), (counts.get(s.album.trim().toLowerCase()) ?? 0) + 1);
   const map = new Map<string, Era>();
-  for (const s of songs) {
+  for (const raw of songs) {
+    const s = { ...raw, album: eraAlbum(raw, counts) };
     const d = dateOf(s);
     const key = s.album ? `album:${s.album.toLowerCase()}` : d ? `year:${d.slice(0, 4)}` : "undated";
     let e = map.get(key);
