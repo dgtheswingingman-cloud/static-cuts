@@ -1,13 +1,11 @@
-// The picture shown when a song link is shared on Discord, Reddit, X or in
-// a group chat, in the STATIC-CUTS// look: the cover cut through, the title
-// in the sliced type, artist, status, era and versions, so people get the
-// answer without opening the link.
+// The picture shown when a song link is shared on Discord, Reddit, Twitter
+// or in a group chat: title, artist, status, album and versions, with the
+// cover art, so people get the answer without opening the link.
 
 import { ImageResponse } from "next/og";
 import { supabase } from "@/lib/supabase";
-import { Sliced, SlicedImage, Mono, Label, Tag, Wordmark, staticOverlay, safeImage, slideOptions, clip, CREAM, DIM, INK, LINE } from "@/lib/slides";
 
-export const alt = "Song on STATIC-CUTS//";
+export const alt = "Song on Static Cuts//";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 3600;
@@ -19,49 +17,40 @@ type Song = {
   family?: { id: string }[];
 };
 
-const NICE: Record<string, string> = { leaked: "Leaked", snippet: "Snippet", released: "Released", unconfirmed: "Unreleased", rumored: "Rumoured", teased: "Teased", announced: "Announced" };
-
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [{ data }, options] = await Promise.all([supabase.rpc("rpc_song_page", { p_id: id }), slideOptions(1200, 630)]);
+  const { data } = await supabase.rpc("rpc_song_page", { p_id: id });
   const s = (data ?? {}) as Song;
   const t = s.track;
   const status = t?.release_status ?? "unconfirmed";
-  const cover = await safeImage(t?.display_cover?.url ?? t?.cover_url ?? null);
-  const title = clip((t?.title ?? "Song not found").toUpperCase(), 24);
-  const titleSize = Math.max(56, Math.min(140, Math.floor(620 / (title.length * 0.52))));
-  const versions = (s.family?.length ?? 1) - 1;
+  const confirmed = status === "released" && /open\.spotify\.com/.test(t?.spotify_url ?? "");
   const facts = [
-    t?.album ? `Era: ${t.album}` : null,
-    t?.release_date ? `Released ${t.release_date.slice(0, 4)}` : t?.leak_date ? `Leaked ${t.leak_date.slice(0, 4)}` : null,
-    versions > 0 ? `${versions} other version${versions === 1 ? "" : "s"}` : null,
+    t?.album,
+    t?.release_date ? `released ${t.release_date.slice(0, 4)}` : t?.leak_date ? `leaked ${t.leak_date.slice(0, 4)}` : null,
+    (s.family?.length ?? 0) > 1 ? `${(s.family?.length ?? 1) - 1} other version${(s.family?.length ?? 1) - 1 === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[];
 
   return new ImageResponse(
     (
-      <div style={{ width: 1200, height: 630, display: "flex", position: "relative", background: INK, color: CREAM }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={staticOverlay()} width={1200} height={630} alt="" style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630 }} />
-        <div style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, display: "flex", padding: 48 }}>
-          {cover
-            ? <SlicedImage src={cover} w={534} h={534} at={0.64} />
-            : <div style={{ display: "flex", width: 534, height: 534, background: "#151515", alignItems: "center", justifyContent: "center" }}><Wordmark size={64} /></div>}
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 44 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <Label size={18}>{s.artist?.name ?? "Song"}</Label>
-              <Wordmark size={28} />
-            </div>
-            <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
-              <Sliced size={titleSize}>{title}</Sliced>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${LINE}`, paddingTop: 18 }}>
-              <div style={{ display: "flex" }}><Tag size={20} solid={status === "leaked"}>{NICE[status] ?? status}</Tag></div>
-              {facts.length > 0 && <Mono size={18} color={DIM} style={{ marginTop: 16 }}>{facts.join(" · ")}</Mono>}
-            </div>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#0A0A0A", color: "#EDEDED", padding: 60, fontFamily: "sans-serif" }}>
+        {(t?.display_cover?.url ?? t?.cover_url) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={t?.display_cover?.url ?? t?.cover_url ?? ""} width={360} height={360} style={{ borderRadius: 18, marginRight: 56, objectFit: "cover" }} alt="" />
+        ) : (
+          <div style={{ width: 360, height: 360, borderRadius: 18, marginRight: 56, background: "#1D1D1D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, color: "#565656" }}>SC//</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
+          <div style={{ fontSize: t && t.title.length > 28 ? 56 : 72, fontWeight: 700, lineHeight: 1.05 }}>{t?.title ?? "Song not found"}</div>
+          <div style={{ fontSize: 40, color: "#A3A3A3", marginTop: 14 }}>{s.artist?.name ?? ""}</div>
+          <div style={{ display: "flex", gap: 14, marginTop: 30 }}>
+            <div style={{ fontSize: 30, padding: "6px 20px", border: "2px solid #EDEDED", borderRadius: 999 }}>{status}</div>
+            {confirmed && <div style={{ fontSize: 30, padding: "6px 20px", border: "2px solid #4caf6a", color: "#4caf6a", borderRadius: 999 }}>confirmed on Spotify</div>}
           </div>
+          {facts.length > 0 && <div style={{ fontSize: 30, color: "#A3A3A3", marginTop: 26 }}>{facts.join(" · ")}</div>}
+          <div style={{ fontSize: 26, color: "#565656", marginTop: 40 }}>static-cuts.com</div>
         </div>
       </div>
     ),
-    options,
+    size,
   );
 }
