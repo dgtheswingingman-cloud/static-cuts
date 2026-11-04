@@ -2896,3 +2896,6 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .strip-left { left: -10px; }
 .strip-right { right: -10px; }
 @media (max-width: 1023px) { .strip-left { left: 2px; } .strip-right { right: 2px; } .strip-arrow { width: 36px; height: 36px; font-size: 1.3rem; } }
+/* Profile tagline: a short quote under the name */
+.pf-tagline { margin-top: 10px; font-family: var(--font-mono), monospace; font-style: italic; font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bone); max-width: 640px; overflow-wrap: anywhere; }
+.pf-tagline::first-letter { color: var(--accent); }
