@@ -102,7 +102,7 @@ export default function RadarPage() {
               const allWatching = g.rows.every((r) => r.watching);
               const isAlbum = g.rows.length > 1;
               return (
-                <div key={g.key} className="radar-group">
+                <div key={g.key} className="radar-group rd-release" data-st={sec === "dropped" ? (g.rows[0].status || "released") : sec === "upcoming" ? "announced" : "teased"}>
                   <div className="radar-head">
                     {g.rows.find((r) => r.cover_url) && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -118,7 +118,8 @@ export default function RadarPage() {
                         {g.date && <span>{fmt(g.date)}</span>}
                         {!isAlbum && g.album && <span>{g.album}</span>}
                         {isAlbum && <span>{g.rows.length} songs</span>}
-                        {sec === "dropped" && !isAlbum && <span className="feature-tag">{g.rows[0].status}</span>}
+                        {sec === "dropped" && !isAlbum && <span className={`feature-tag st st-${g.rows[0].status}`}>{g.rows[0].status}</span>}
+                        {sec !== "dropped" && <span className={`feature-tag st st-${sec === "upcoming" ? "announced" : "teased"}`}>{sec === "upcoming" ? "dated" : "no date"}</span>}
                       </div>
                     </div>
                     <span style={{ display: "flex", gap: 6, alignItems: "center" }}>

@@ -2,7 +2,7 @@
 
 // This week on Static Cuts: what leaked and what came out (by date), what
 // the archive newly marked, how much was added.
-// Each week has its own link (?week=2026-10-19), made for sharing.
+// Each week has its own link (?week=2026-10-19).
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
@@ -33,23 +33,27 @@ const shift = (iso: string, days: number) => {
 };
 const nice = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
-function SongList({ songs, showDay }: { songs: Song[]; showDay?: boolean }) {
+// Songs as rows: cover, title, artist and day, coloured by status.
+function SongList({ songs, showDay, status, covers }: { songs: Song[]; showDay?: boolean; status?: string; covers: Record<string, string> }) {
   return (
-    <>
-      {songs.map((s) => (
-        <div key={`${s.id}-${s.kind ?? ""}`} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="review-row-title"><Link href={`/song/${s.id}`}>{s.title}</Link></div>
-            <div className="review-row-meta">
-              <Link href={`/artist/${s.artist_id}`}>{s.artist}</Link>
-              {showDay && s.day && <span>{nice(s.day)}</span>}
-              {!showDay && s.kind && <span className="feature-tag">{s.kind}</span>}
-            </div>
-          </div>
-          {s.spotify_url && <a className="listen-link" href={s.spotify_url} target="_blank" rel="noopener noreferrer">listen</a>}
-        </div>
-      ))}
-    </>
+    <div className="sp-versions">
+      {songs.map((s) => {
+        const st = status ?? s.kind ?? "";
+        return (
+          <Link key={`${s.id}-${s.kind ?? ""}`} href={`/song/${s.id}`} className="sp-version rd-row" data-st={st}>
+            {covers[s.id]
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={covers[s.id]} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
+              : <span className="sp-thumb sp-thumb-empty">SC//</span>}
+            <span className="sp-version-text">
+              <span className="sp-version-title">{s.title}</span>
+              <span className="sp-sub">{s.artist}{showDay && s.day ? `  ·  ${nice(s.day)}` : ""}</span>
+            </span>
+            {st && <span className={`feature-tag st st-${st}`}>{st}</span>}
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 
@@ -59,19 +63,25 @@ function WeeklyInner() {
   const thisWeek = monday(new Date());
   const week = params.get("week") ?? thisWeek;
   const [data, setData] = useState<Week | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [covers, setCovers] = useState<Record<string, string>>({});
   const isAdmin = useIsAdmin();
 
   useEffect(() => {
     setData(null);
-    supabase.rpc("rpc_weekly", { p_week_start: week }).then(({ data: d }) => setData(d as Week));
+    supabase.rpc("rpc_weekly", { p_week_start: week }).then(({ data: d }) => {
+      const w = d as Week;
+      setData(w);
+      // Covers for the rows.
+      const ids = [...new Set([...(w?.leaked ?? []), ...(w?.released ?? []), ...(w?.marked ?? [])].map((s) => s.id))].slice(0, 300);
+      if (ids.length) {
+        supabase.from("tracks").select("id, cover_url").in("id", ids).then(({ data: rows }) => {
+          const m: Record<string, string> = {};
+          for (const r of (rows ?? []) as { id: string; cover_url: string | null }[]) if (r.cover_url) m[r.id] = r.cover_url;
+          setCovers(m);
+        });
+      }
+    });
   }, [week]);
-
-  function share() {
-    const url = `${window.location.origin}/weekly?week=${week}`;
-    if (navigator.share) navigator.share({ title: `This week on Static Cuts (${nice(week)})`, url }).catch(() => {});
-    else navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
-  }
 
   const go = (w: string) => router.push(w === thisWeek ? "/weekly" : `/weekly?week=${w}`);
   const empty = data && !data.leaked.length && !data.released.length && !data.marked.length && !data.added_total;
@@ -86,7 +96,6 @@ function WeeklyInner() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <button className="tab" onClick={() => go(shift(week, -7))}>← earlier week</button>
         {week < thisWeek && <button className="tab" onClick={() => go(shift(week, 7))}>later week →</button>}
-        <button className="tab" onClick={share}>{copied ? "link copied" : "share this week"}</button>
         {isAdmin && (
           <span className="comment-meta" style={{ alignSelf: "center" }}>
             slides:{" "}
@@ -97,20 +106,20 @@ function WeeklyInner() {
         )}
       </div>
 
-      <AlbumOfWeek week={week} />
+      <AlbumOfWeek week={week} hero />
       {!data && <div className="empty-state">loading…</div>}
       {empty && <div className="empty-state">A quiet week. Nothing leaked, came out or changed.</div>}
 
-      {data && data.leaked.length > 0 && (<><div className="section-label">Leaked this week ({data.leaked.length})</div><SongList songs={data.leaked} showDay /></>)}
-      {data && data.released.length > 0 && (<><div className="section-label">Out this week ({data.released.length})</div><SongList songs={data.released} showDay /></>)}
-      {data && data.marked.length > 0 && (<><div className="section-label">Newly marked in the archive</div><SongList songs={data.marked} /></>)}
+      {data && data.leaked.length > 0 && (<><div className="section-label">Leaked this week ({data.leaked.length})</div><SongList songs={data.leaked} showDay status="leaked" covers={covers} /></>)}
+      {data && data.released.length > 0 && (<><div className="section-label">Out this week ({data.released.length})</div><SongList songs={data.released} showDay status="released" covers={covers} /></>)}
+      {data && data.marked.length > 0 && (<><div className="section-label">Newly marked in the archive</div><SongList songs={data.marked} covers={covers} /></>)}
       {data && data.added_total > 0 && (
         <>
           <div className="section-label">Added to the archive</div>
           <div className="comment-meta" style={{ marginBottom: 6 }}>{Number(data.added_total).toLocaleString("en-GB")} songs added this week, most for:</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {data.added_top.map((a) => (
-              <Link key={a.artist_id} href={`/artist/${a.artist_id}`} className="feature-tag" style={{ textDecoration: "none" }}>
+              <Link key={a.artist_id} href={`/artist/${a.artist_id}`} className="feature-tag st st-added" style={{ textDecoration: "none" }}>
                 {a.artist} +{a.n}
               </Link>
             ))}
