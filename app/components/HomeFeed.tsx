@@ -177,7 +177,7 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
           </div>
           {followed.length > 0 && (
             <>
-              <div className="hf-sub-head">Followed artists ({followed.length})</div>
+              <Link href="/library" className="hf-sub-head">Followed artists ({followed.length}) →</Link>
               <div className="hf-followed">
                 {followedWithPhotos.slice(0, 6).map((id) => (
                   <Link key={id} href={`/artist/${id}`} aria-label="Artist">
@@ -186,7 +186,7 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
                   </Link>
                 ))}
                 {followed.length > Math.min(6, followedWithPhotos.length) && (
-                  <a href="#your-artists" className="hf-more">+{followed.length - Math.min(6, followedWithPhotos.length)}</a>
+                  <a href="/library" className="hf-more">+{followed.length - Math.min(6, followedWithPhotos.length)}</a>
                 )}
               </div>
             </>
