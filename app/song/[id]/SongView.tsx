@@ -18,7 +18,7 @@ import WantButton from "./WantButton";
 import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
 import MyFile from "./MyFile";
-import StoryButton from "../../components/StoryButton";
+import ShareButton from "../../components/ShareButton";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 import FriendsWhoHaveIt from "./FriendsWhoHaveIt";
@@ -119,7 +119,6 @@ export default function SongView({ id }: { id: string }) {
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [sheet, setSheet] = useState<{ title: string; credit: string | null; url: string } | null>(null);
 
   async function load() {
@@ -169,14 +168,6 @@ export default function SongView({ id }: { id: string }) {
     if (!error) load();
   }
 
-  function share() {
-    const url = `${window.location.origin}/song/${id}`;
-    if (navigator.share) {
-      navigator.share({ title: song?.track.title, url }).catch(() => {});
-      return;
-    }
-    navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); });
-  }
 
   if (missing) {
     return (
@@ -310,8 +301,8 @@ export default function SongView({ id }: { id: string }) {
             </button>
           </>
         )}
-        <button className="tab" onClick={share}>{copied ? "link copied" : "share"}</button>
-        <StoryButton fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
+        <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id}
+          fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
           kicker: `${statusOf(t)} · ${song.artist?.name ?? ""}`,
           title: t.title,
           subtitle: [t.album, t.release_date ? new Date(t.release_date).getFullYear() : null].filter(Boolean).join(" · ") || undefined,

@@ -23,7 +23,6 @@ import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 import ShareButton from "../../components/ShareButton";
-import StoryButton from "../../components/StoryButton";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import ArtistPhotos from "./ArtistPhotos";
@@ -1646,8 +1645,8 @@ export default function ArtistPage() {
             <Link href={`/artist/${id}/eras`} className="tab">eras</Link>
             <Link href={`/collabs?artist=${id}`} className="tab">collabs</Link>
             <Link href={`/wanted?artist=${id}`} className="tab">most wanted</Link>
-            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} />
-            <StoryButton fileName={`static-cuts-${id}`} story={async () => {
+            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`}
+              fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {
               const { data: a } = await supabase.from("artists").select("image_url").eq("id", id).maybeSingle();
               const main = (tracks ?? []).filter((x) => !x.parent_track_id);
               const leaked = main.filter((x) => x.release_status === "leaked").length;
