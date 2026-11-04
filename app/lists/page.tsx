@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import AdminModeNote from "../components/AdminModeNote";
+import HeroCollage from "../components/HeroCollage";
 import type { ListRow } from "./ListRow";
 
 type Kind = "popular" | "new" | "mine" | "following";
@@ -117,13 +118,16 @@ export default function ListsPage() {
   }, [lists, q, sort]);
 
   const heroImg = (lists ?? []).map((l) => covers[l.id]?.[0]).find(Boolean);
+  // Every list's covers sliding behind the title.
+  const bannerCovers = [...new Set((lists ?? []).flatMap((l) => covers[l.id] ?? []))].slice(0, 30);
   const Bookmark = ({ on }: { on: boolean }) => (
     <svg viewBox="0 0 24 24" width="22" height="22" fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z" /></svg>
   );
 
   return (
     <div className="wrap ls-page">
-      <header className="ls-hero" style={heroImg ? ({ "--ls-img": `url("${heroImg}")` } as CSSProperties) : undefined}>
+      <header className={`ls-hero ${bannerCovers.length >= 3 ? "has-collage" : ""}`} style={heroImg && bannerCovers.length < 3 ? ({ "--ls-img": `url("${heroImg}")` } as CSSProperties) : undefined}>
+        {bannerCovers.length >= 3 && <HeroCollage images={bannerCovers} className="pf-collage ah2-collage" />}
         <div className="ls-crumb"><Link href="/library">My Library</Link> / <span>Lists</span></div>
         <h1 className="ls-title">LISTS<span>//</span></h1>
         <p className="ls-sub">Collections people have made from the archive. Favourite leaks, deep cuts, where to start.</p>
