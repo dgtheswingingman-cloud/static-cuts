@@ -10,6 +10,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
+import HeroCollage from "../components/HeroCollage";
 
 type ListRow = { id: string; title: string; songs: number; is_public: boolean };
 type Mine = { id: string; name: string; track_count: number; collected: number };
@@ -71,15 +72,20 @@ export default function LibraryPage() {
       .map((a) => ({ ...a, pinned: pinned.has(a.id) }));
   }, [follows, artistRows, sort, filter]);
 
+  // Your artists' photos sliding behind the title (pinned ones first).
+  const bannerPhotos = (mine ?? []).map((a) => photos[a.id]).filter(Boolean).slice(0, 24);
   const collectedTotal = (mine ?? []).reduce((t, a) => t + a.collected, 0);
   const songsTotal = (mine ?? []).reduce((t, a) => t + a.track_count, 0);
 
   return (
     <div className="wrap">
-      <div className="sr-top">
-        <div className="sr-title" aria-hidden="true">MY LIBRARY<span>//</span></div>
-        <div className="rd-sub">Artists / lists / local / import</div>
-      </div>
+      <header className={`lb-hero ${bannerPhotos.length >= 3 ? "has-collage" : ""}`}>
+        {bannerPhotos.length >= 3 && <HeroCollage images={bannerPhotos} className="pf-collage ah2-collage" />}
+        <div className="sr-top lb-hero-inner">
+          <div className="sr-title" aria-hidden="true">MY LIBRARY<span>//</span></div>
+          <div className="rd-sub">Artists / lists / local / import</div>
+        </div>
+      </header>
       <h1 className="sr-h1">My Library</h1>
       <div className="lb-lead">The artists you follow, your lists, your own files and imports.</div>
 
