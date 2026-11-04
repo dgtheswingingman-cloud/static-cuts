@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { readPicks, savePicks } from "./components/picks";
-import SinceLastVisit from "./components/SinceLastVisit";
 import Landing from "./components/Landing";
 import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
@@ -339,7 +338,7 @@ export default function HomePage() {
           <Link href="/faq">faq</Link>
         </nav>
       </div>
-      {!q && <HomeFeed photos={photos} followed={[...followedIds]} />}
+      {!q && <HomeFeed photos={photos} followed={[...followedIds]} afterAlbum={<OnThisDay />} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>
       <div className="home-main">
 
@@ -359,8 +358,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {!q && !isAdmin && user && <SinceLastVisit who={user.id} />}
-      {!q && !isAdmin && !user && picks.length > 0 && <SinceLastVisit who="picks" artistIds={picks} />}
 
       {showTrackSection && (
         <>
@@ -409,7 +406,6 @@ export default function HomePage() {
         </>
       )}
 
-      {!showTrackSection && <OnThisDay />}
 
       <div className="section-head">
         <div className="section-label" id="your-artists">{sectionLabel}</div>
