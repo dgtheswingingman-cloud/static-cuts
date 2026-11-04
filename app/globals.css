@@ -2301,7 +2301,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
   box-shadow: none;
 }
 .tab:hover { border-color: var(--bone); }
-.tab.active { background: var(--accent); border-color: var(--accent); color: #070707; font-weight: 700; }
+.tab.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); font-weight: 700; }
 
 /* Search boxes: dark, square. */
 :root:not([data-theme="light"]) .search-input {
@@ -2377,7 +2377,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
     border-bottom: 0; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; color: var(--smoke);
   }
   .dnav-links a:hover { color: var(--bone); background: var(--surface); border-bottom-color: transparent; }
-  .dnav-links a.on { background: var(--accent); color: #070707; border-bottom-color: transparent; }
+  .dnav-links a.on { background: var(--accent); color: var(--on-accent, #070707); border-bottom-color: transparent; }
   .dnav-count { margin-left: auto; background: var(--red); color: #fff; font-size: 0.58rem; padding: 1px 6px; }
 
   .wrap.home-wide { max-width: calc(100vw - var(--side) - 72px); }
@@ -2420,7 +2420,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 
 .sp-actions { display: flex; gap: 8px; margin-top: 16px; }
 .sp-actions .tab { min-height: 54px; border-radius: 6px; }
-.sp-main-btn { flex: 1 1 auto; background: var(--accent) !important; border-color: var(--accent) !important; color: #070707 !important; font-size: 0.86rem !important; letter-spacing: 0.1em !important; }
+.sp-main-btn { flex: 1 1 auto; background: var(--accent) !important; border-color: var(--accent) !important; color: var(--on-accent, #070707) !important; font-size: 0.86rem !important; letter-spacing: 0.1em !important; }
 .sp-main-btn.owned { background: transparent !important; color: var(--accent) !important; }
 .sp-icon-btn { flex: 0 0 auto; width: 64px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 !important; background: transparent; border-color: var(--bone) !important; color: var(--bone); position: relative; }
 .sp-icon-btn.active { background: transparent !important; color: var(--accent) !important; border-color: var(--accent) !important; }
@@ -2516,7 +2516,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
     linear-gradient(to bottom, color-mix(in srgb, var(--void) 60%, transparent) 0%, transparent 22%, transparent 50%, var(--void) 97%);
 }
 .ah2-inner { flex-direction: column; align-items: flex-start; gap: 0; padding-bottom: 14px; }
-.ah2-tag { background: var(--accent); color: #070707; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; margin-bottom: 8px; }
+.ah2-tag { background: var(--accent); color: var(--on-accent, #070707); font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; margin-bottom: 8px; }
 .ah2 .artist-hero-name { font-size: clamp(3rem, 15vw, 6rem) !important; line-height: 0.86; margin: 0 !important; max-width: 92%; }
 .ah2-genres { margin-top: 12px; font-family: var(--font-mono), monospace; font-size: 0.9rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone); }
 .ah2 .artist-hero-aka { margin-top: 4px; }
@@ -2528,7 +2528,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 
 .ah2-actions { display: flex !important; flex-wrap: nowrap !important; gap: 8px; margin: 14px 0 6px; overflow: visible !important; }
 .ah2-actions .tab { min-height: 54px; border-radius: 6px; }
-.ah2-follow { flex: 1 1 auto; background: var(--accent) !important; border-color: var(--accent) !important; color: #070707 !important; font-size: 0.86rem !important; letter-spacing: 0.12em !important; }
+.ah2-follow { flex: 1 1 auto; background: var(--accent) !important; border-color: var(--accent) !important; color: var(--on-accent, #070707) !important; font-size: 0.86rem !important; letter-spacing: 0.12em !important; }
 .ah2-follow:not(.on) { background: transparent !important; color: var(--accent) !important; }
 .ah2-follow.on { background: var(--accent) !important; }
 
@@ -2631,7 +2631,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .aotw-hero > * { position: relative; }
 .aotw-hero-cover img, .aotw-hero-cover .era-card-blank { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 6px; border: 1px solid var(--hair-strong); }
 .aotw-hero-body { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
-.aotw-hero-tag { background: var(--accent); color: #070707; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 10px; }
+.aotw-hero-tag { background: var(--accent); color: var(--on-accent, #070707); font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 10px; }
 .aotw-hero-title { margin-top: 6px; font-family: var(--font-anton), sans-serif; font-style: italic; font-size: clamp(1.7rem, 7vw, 3.2rem); line-height: 0.9; text-transform: uppercase; color: var(--bone); text-decoration: none; overflow-wrap: anywhere; }
 :root:not([data-theme="light"]) .aotw-hero-title { text-shadow: -2px 0 rgba(255, 51, 85, 0.8), 2px 0 rgba(34, 211, 238, 0.8); }
 .aotw-hero-artist { margin-top: 8px; font-family: var(--font-mono), monospace; font-size: 0.9rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone); text-decoration: none; }
@@ -2639,7 +2639,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .aotw-hero-blurb { font-family: var(--font-mono), monospace; font-size: 0.72rem; line-height: 1.45; color: var(--bone); margin: 8px 0 10px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .aotw-hero-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
 .aotw-hero-actions .tab { min-height: 46px; border-radius: 6px; display: flex; align-items: center; text-decoration: none; }
-.aotw-hero-go { background: var(--accent) !important; border-color: var(--accent) !important; color: #070707 !important; }
+.aotw-hero-go { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--on-accent, #070707) !important; }
 
 /* Strips */
 .hf-strip { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; scroll-snap-type: x proximity; }
@@ -2652,7 +2652,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .hf-update-artist { font-family: var(--font-anton), sans-serif; font-size: 1.05rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hf-update-what { font-family: var(--font-mono), monospace; font-size: 0.72rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hf-update-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
-.st-added { background: var(--accent) !important; color: #070707 !important; }
+.st-added { background: var(--accent) !important; color: var(--on-accent, #070707) !important; }
 .hf-when { font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
 
 .hf-cover { flex: 0 0 136px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 1px; padding: 8px; border: 1px solid var(--hair-strong); border-radius: 8px; text-decoration: none; color: var(--bone); background: var(--surface); }
@@ -2719,7 +2719,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .rd-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .rd-chips a { flex: none; min-height: 46px; padding: 0 18px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--bone); border-radius: 8px; color: var(--bone); text-decoration: none; font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .rd-chips a:hover { border-color: var(--accent); }
-.rd-chips a.on { background: var(--accent); border-color: var(--accent); color: #070707; }
+.rd-chips a.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
 .rd-top + .detail-name, .rd-top + h1 { display: none; }
 .rd-follow { display: flex; align-items: center; gap: 14px; padding: 9px 14px; border-bottom: 1px solid var(--hair); text-decoration: none; color: var(--bone); }
 .rd-follow:last-child { border-bottom: 0; }
@@ -2747,7 +2747,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .sr-box button { background: none; border: 0; color: var(--bone); font-size: 1.2rem; cursor: pointer; padding: 8px; }
 .sr-types { margin-top: 14px; }
 .sr-types button { flex: none; min-height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border: 1.5px solid var(--bone); border-radius: 8px; color: var(--bone); background: none; cursor: pointer; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase; }
-.sr-types button.on { background: var(--accent); border-color: var(--accent); color: #070707; }
+.sr-types button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
 .sr-count { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0; }
 .sr-filterbar { display: flex; gap: 8px; align-items: center; margin: 12px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .sr-filters-btn { flex: none; display: flex; align-items: center; gap: 8px; background: none; border: 0; border-right: 1px solid var(--hair-strong); color: var(--bone); padding: 8px 14px 8px 4px; font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
@@ -2825,7 +2825,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 :root:not([data-theme="light"]) .pf2 .pf-name { text-shadow: -2px 0 rgba(255, 51, 85, 0.75), 2px 0 rgba(34, 211, 238, 0.75); }
 .pf-card-actions { display: flex; gap: 8px; }
 .pf-main-btn { min-height: 44px; border-radius: 8px; border: 1.5px solid var(--bone) !important; background: transparent !important; color: var(--bone) !important; font-family: var(--font-anton), sans-serif !important; font-size: 0.95rem !important; letter-spacing: 0.06em !important; }
-.pf-card-actions .pf-main-btn:not(.on) { background: var(--accent) !important; border-color: var(--accent) !important; color: #070707 !important; }
+.pf-card-actions .pf-main-btn:not(.on) { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--on-accent, #070707) !important; }
 .pf-icon-btn { min-height: 44px; min-width: 48px; border-radius: 8px; border: 1.5px solid var(--bone) !important; background: transparent !important; color: var(--bone) !important; display: flex; align-items: center; justify-content: center; text-decoration: none; letter-spacing: 0.1em; }
 .pf2 .pf-bio { font-family: var(--font-mono), monospace; font-size: 0.84rem; margin: 0; padding: 0; border: 0; white-space: pre-wrap; }
 .pf-card-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); border-top: 1px solid var(--hair-strong); padding-top: 10px; margin-top: 2px; }
@@ -2835,7 +2835,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .pf-card-stats span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); }
 .pf-tabs { margin-top: 14px; }
 .pf-tabs button { flex: none; min-height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--bone); border-radius: 8px; color: var(--bone); background: none; cursor: pointer; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase; }
-.pf-tabs button.on { background: var(--accent); border-color: var(--accent); color: #070707; }
+.pf-tabs button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
 .pf-act { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid var(--hair); text-decoration: none; color: var(--bone); }
 .pf-act:last-child { border-bottom: 0; }
 .pf-act:hover { background: var(--surface); }
@@ -2903,7 +2903,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 
 /* ===================== Lists ===================== */
 .ls-hero { position: relative; margin: -22px calc(50% - 50vw) 0; width: 100vw; padding: 40px max(20px, calc(50vw - 390px)) 26px; overflow: hidden; }
-.ls-hero::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 60%; background: var(--ls-img, none) center 30% / cover no-repeat; filter: grayscale(1) contrast(1.15) brightness(0.8);
+.ls-hero::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 60%; background: var(--ls-img, none) center 30% / cover no-repeat; filter: brightness(0.85);
   -webkit-mask-image: linear-gradient(to right, transparent, #000 60%), linear-gradient(to bottom, #000 50%, transparent); -webkit-mask-composite: source-in;
   mask-image: linear-gradient(to right, transparent, #000 60%), linear-gradient(to bottom, #000 50%, transparent); mask-composite: intersect; opacity: 0.7; }
 .ls-hero > * { position: relative; }
@@ -2917,7 +2917,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .ls-bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-top: 18px; }
 .ls-chips { flex: 1; min-width: 0; }
 .ls-chips button { flex: none; min-height: 42px; padding: 0 16px; display: flex; align-items: center; border: 1.5px solid var(--bone); border-radius: 0; color: var(--bone); background: none; cursor: pointer; font-family: var(--font-mono), monospace; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.ls-chips button.on { background: var(--accent); border-color: var(--accent); color: #070707; font-weight: 700; }
+.ls-chips button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); font-weight: 700; }
 .ls-new { flex: none; min-height: 42px; padding: 0 18px; background: var(--bone); color: #070707; border: 0; font-family: var(--font-anton), sans-serif; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
 .ls-new:hover { background: var(--accent); }
 .ls-create { display: flex; gap: 8px; margin-top: 10px; }
@@ -2934,8 +2934,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .ls-card-link { display: block; position: relative; text-decoration: none; color: var(--bone); }
 .ls-art { display: grid; aspect-ratio: 1.1; overflow: hidden; background: var(--surface2); }
 .ls-art-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.ls-art img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(0.55) contrast(1.1); }
-.ls-card:hover .ls-art img { filter: none; }
+.ls-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ls-art-blank { display: flex; align-items: center; justify-content: center; font-family: var(--font-anton), sans-serif; font-size: 2.4rem; color: var(--hair-strong); }
 .ls-card-body { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 10px; background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--void) 92%, transparent) 55%); display: flex; flex-direction: column; gap: 6px; }
 .ls-card-title { font-family: var(--font-anton), sans-serif; font-style: italic; font-size: 1.6rem; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
@@ -2979,22 +2978,22 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .lv-private { border-color: var(--red) !important; color: var(--red); }
 .lv-photo { position: relative; transform: rotate(2deg); padding: 10px; background: #e9e6df; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7); max-width: 420px; justify-self: end; width: 100%; }
 .lv-photo::before { content: ""; position: absolute; top: -12px; left: 40%; width: 90px; height: 26px; background: rgba(200, 196, 186, 0.75); transform: rotate(-4deg); }
-.lv-photo img, .lv-photo span { width: 100%; aspect-ratio: 1.15; object-fit: cover; display: flex; align-items: center; justify-content: center; filter: grayscale(1) contrast(1.15); background: #111; color: #555; font-family: var(--font-anton), sans-serif; font-size: 2rem; }
+.lv-photo img, .lv-photo span { width: 100%; aspect-ratio: 1.15; object-fit: cover; display: flex; align-items: center; justify-content: center; background: #111; color: #555; font-family: var(--font-anton), sans-serif; font-size: 2rem; }
 .lv-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
 .lv-btn { min-height: 48px; padding: 0 18px; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--bone); background: none; color: var(--bone); cursor: pointer; font-family: var(--font-mono), monospace; font-size: 0.84rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .lv-btn:hover { border-color: var(--accent); }
 .lv-btn.on { color: var(--accent); border-color: var(--accent); }
-.lv-primary { background: var(--accent); border-color: var(--accent); color: #070707; font-weight: 700; }
+.lv-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); font-weight: 700; }
 .lv-icon { padding: 0 16px; letter-spacing: 0.15em; }
 .lv-desc { font-family: var(--font-mono), monospace; font-size: 0.88rem; line-height: 1.55; white-space: pre-wrap; margin: 14px 0 0; }
 .lv-tabs { display: flex; gap: 12px; margin: 22px 0 14px; padding-top: 16px; border-top: 1px dashed var(--hair-strong); overflow-x: auto; scrollbar-width: none; }
 .lv-tabs button { flex: none; min-height: 44px; padding: 0 22px; border: 1.5px solid var(--bone); background: none; color: var(--bone); cursor: pointer; font-family: var(--font-mono), monospace; font-size: 0.86rem; letter-spacing: 0.1em; text-transform: uppercase; }
-.lv-tabs button.on { background: var(--accent); border-color: var(--accent); color: #070707; font-weight: 700; }
+.lv-tabs button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); font-weight: 700; }
 .lv-rows { list-style: none; margin: 0; padding: 0; }
 .lv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-bottom: 1px solid var(--hair-strong); padding: 8px 0; position: relative; }
 .lv-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; text-decoration: none; color: var(--bone); }
 .lv-row-main:hover .lv-row-title { color: var(--accent); }
-.lv-cover { width: 64px; height: 64px; object-fit: cover; flex: none; border: 1px solid var(--hair-strong); filter: grayscale(0.4); }
+.lv-cover { width: 64px; height: 64px; object-fit: cover; flex: none; border: 1px solid var(--hair-strong); }
 .lv-cover-blank { display: flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--smoke); font-family: var(--font-anton), sans-serif; }
 .lv-num { font-family: var(--font-mono), monospace; font-size: 1rem; color: var(--smoke); width: 30px; flex: none; }
 .lv-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -3041,3 +3040,12 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
   .home-wide .hero + .hf, .home-wide .hf { margin-top: 0; }
   .home-wide .aotw-hero { margin-top: -28px; position: relative; z-index: 2; background: color-mix(in srgb, var(--void) 88%, transparent); }
 }
+
+
+/* The site is dark already: tell browsers not to auto-darken it (Opera GX
+   "force dark pages", Chrome auto dark mode), which turned dark text on
+   coloured buttons light. Text on the accent picks dark or light to stay
+   readable (--on-accent, set from the colour's brightness). */
+:root:not([data-theme="light"]) { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+:root { --on-accent: #070707; }

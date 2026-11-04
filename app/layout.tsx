@@ -43,6 +43,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#070707",
+  // Already dark: stops browsers (Opera GX, Chrome auto dark) recolouring it.
+  colorScheme: "dark light",
   // Full-screen when saved to the home screen; the app bar and tab bar keep
   // clear of the notch and the home bar.
   viewportFit: "cover",
