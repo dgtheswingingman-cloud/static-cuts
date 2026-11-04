@@ -66,7 +66,11 @@ export default function ListsPage() {
         const u = it.tracks?.cover_url;
         if (u && m[it.list_id] && m[it.list_id].length < 4 && !m[it.list_id].includes(u)) m[it.list_id].push(u);
       }
-      setCovers((p) => ({ ...p, ...m }));
+      // An uploaded list picture goes first.
+      supabase.from("song_lists").select("id, cover_url").in("id", ids.slice(0, 60)).not("cover_url", "is", null).then(({ data: own }) => {
+        for (const r of (own ?? []) as { id: string; cover_url: string }[]) m[r.id] = [r.cover_url];
+        setCovers((p) => ({ ...p, ...m }));
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lists]);

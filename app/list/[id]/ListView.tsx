@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import ExportToSpotify from "../../ExportToSpotify";
+import { shrinkImage } from "@/lib/shrinkImage";
 
 type Item = {
   track_id: string; title: string; artist_id: string; artist: string; note: string | null;
@@ -44,6 +45,41 @@ export default function ListView({ id }: { id: string }) {
   const [shown, setShown] = useState(50);
   const [ownerMenu, setOwnerMenu] = useState(false);
   const [rowMenu, setRowMenu] = useState<string | null>(null);
+  // The owner's uploaded picture for the list (else the first song's cover).
+  const [listCover, setListCover] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+
+  useEffect(() => {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+    supabase.from("song_lists").select("cover_url").eq("id", id).maybeSingle()
+      .then(({ data }) => setListCover((data as { cover_url: string | null } | null)?.cover_url ?? null));
+  }, [id]);
+
+  async function uploadCover(file: File) {
+    if (!user || !d) return;
+    setCoverBusy(true); setMessage(null);
+    try {
+      const blob = await shrinkImage(file, 1200);
+      const path = `list/${user.id}/${d.list.id}-${Date.now()}.jpg`;
+      const { error: up } = await supabase.storage.from("covers").upload(path, blob, { contentType: "image/jpeg" });
+      if (up) throw new Error(up.message);
+      const url = supabase.storage.from("covers").getPublicUrl(path).data.publicUrl;
+      const { error } = await supabase.from("song_lists").update({ cover_url: url }).eq("id", d.list.id);
+      if (error) throw new Error(error.message);
+      setListCover(url);
+      setOwnerMenu(false);
+    } catch (e) {
+      setMessage(`Couldn't upload that picture: ${(e as Error).message}`);
+    }
+    setCoverBusy(false);
+  }
+
+  async function removeCover() {
+    if (!d) return;
+    const { error } = await supabase.from("song_lists").update({ cover_url: null }).eq("id", d.list.id);
+    if (error) { setMessage(error.message); return; }
+    setListCover(null);
+  }
 
   async function load() {
     if (!/^[0-9a-f-]{36}$/i.test(id)) { setMissing(true); return; }
@@ -134,7 +170,7 @@ export default function ListView({ id }: { id: string }) {
   const firstLine = (d.list.description ?? "").split("\n")[0].trim();
   const tagline = firstLine.length > 0 && firstLine.length <= 90 ? firstLine : null;
   const rest = tagline ? (d.list.description ?? "").split("\n").slice(1).join("\n").trim() : (d.list.description ?? "").trim();
-  const heroCover = d.items.find((i) => i.cover_url)?.cover_url ?? null;
+  const heroCover = listCover ?? d.items.find((i) => i.cover_url)?.cover_url ?? null;
   const needle = tq.trim().toLowerCase();
   const indexed = d.items.map((it, i) => ({ it, i }));
   const filtered = indexed.filter(({ it }) => !needle || it.title.toLowerCase().includes(needle) || it.artist.toLowerCase().includes(needle) || (it.album ?? "").toLowerCase().includes(needle));
@@ -200,6 +236,11 @@ export default function ListView({ id }: { id: string }) {
       {ownerMenu && d.is_owner && !isAdmin && (
         <div className="artist-actions artist-more" style={{ marginTop: 8 }}>
           <button className="tab" onClick={() => { setDraft({ title: d.list.title, description: d.list.description ?? "" }); setEditing(true); setOwnerMenu(false); }}>edit title &amp; description</button>
+          <label className={`tab ${coverBusy ? "active" : ""}`} style={{ cursor: "pointer" }}>
+            {coverBusy ? "uploading…" : listCover ? "change cover picture" : "upload a cover picture"}
+            <input type="file" accept="image/*" hidden disabled={coverBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.target.value = ""; }} />
+          </label>
+          {listCover && <button className="tab" onClick={removeCover}>remove cover picture</button>}
           <button className="tab" onClick={togglePublic}>{d.list.is_public ? "make private" : "make public"}</button>
           <button className="tab danger-tab" onClick={deleteList}>delete list</button>
         </div>
