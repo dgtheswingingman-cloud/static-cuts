@@ -1,17 +1,17 @@
 // Radar is one section: the overview (/radar), followed artists only
-// (/new?following=1), the release list (/radar/releases), everything new
+// (/new/following), the release list (/radar/releases), everything new
 // (/new) and this week's round-up (/weekly). Big RADAR// header on top.
 
 import Link from "next/link";
 
-export const RADAR_PATHS = ["/radar", "/radar/releases", "/weekly", "/new"];
+export const RADAR_PATHS = ["/radar", "/radar/releases", "/weekly", "/new", "/new/following"];
 
 export type RadarTab = "all" | "following" | "releases" | "new" | "week";
 
 export default function RadarTabs({ active }: { active: RadarTab }) {
   const tabs: [RadarTab, string, string][] = [
     ["all", "/radar", "All"],
-    ["following", "/new?following=1", "Following"],
+    ["following", "/new/following", "Following"],
     ["releases", "/radar/releases", "Releases"],
     ["new", "/new", "What's new"],
     ["week", "/weekly", "This week"],
