@@ -25,6 +25,7 @@ import ArtistChangelog from "./ArtistChangelog";
 import ShareButton from "../../components/ShareButton";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
+import ArtistCollabs from "./ArtistCollabs";
 import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
@@ -158,7 +159,7 @@ export default function ArtistPage() {
   const [genreTagBusy, setGenreTagBusy] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
   // Overview / songs / projects. Songs when a link jumps to one track.
-  const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects">("overview");
+  const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects" | "collabs">("overview");
   const [eraSongs, setEraSongs] = useState<EraSong[] | null>(null);
   useEffect(() => {
     setEraSongs(null);
@@ -1614,7 +1615,13 @@ export default function ArtistPage() {
 
   const mainSongs = (tracks ?? []).filter((t) => !t.parent_track_id && !t.isCrossAppearance);
   const unreleasedCount = mainSongs.filter((t) => UNRELEASED.includes(t.release_status ?? (t.is_official ? "released" : "unconfirmed"))).length;
-  const projects = buildEras(eraSongs ?? []).filter((e) => e.kind === "album" && e.songs.length >= 2).reverse();
+  // Projects = official full albums (mostly released, 6+ songs). Unreleased
+  // tapes and song eras live on the Eras page.
+  const projects = buildEras(eraSongs ?? []).filter((e) => {
+    if (e.kind !== "album") return false;
+    const out = e.songs.filter((x) => x.status === "released").length;
+    return out >= 6 && out >= e.songs.length * 0.5;
+  }).reverse();
   const activeSince = (eraSongs ?? []).reduce<string | null>((min, x) => { const d = dateOf(x); return d && (!min || d < min) ? d : min; }, null);
   const latest = [...(eraSongs ?? [])].filter((x) => dateOf(x)).sort((a, b) => (dateOf(b) ?? "").localeCompare(dateOf(a) ?? "")).slice(0, 5);
   const shortDate = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.slice(0, 4) !== String(new Date().getFullYear()) ? { year: "numeric" } : {}) });
@@ -1665,6 +1672,9 @@ export default function ArtistPage() {
                   {activeSince && <div><strong>{activeSince.slice(0, 4)}</strong><span>active</span></div>}
                 </div>
               </ArtistHero>
+              <div className="ap-about">
+                <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
+              </div>
             </>
           )}
           <div className="artist-actions ah2-actions">
@@ -1906,7 +1916,7 @@ export default function ArtistPage() {
               <button key={k} className={artistTab === k ? "on" : undefined} aria-pressed={artistTab === k} onClick={() => setArtistTab(k)}>{label}</button>
             ))}
             <Link href={`/artist/${id}/eras`}>Eras</Link>
-            <Link href={`/collabs?artist=${id}`}>Collabs</Link>
+            <button className={artistTab === "collabs" ? "on" : undefined} aria-pressed={artistTab === "collabs"} onClick={() => setArtistTab("collabs")}>Collabs</button>
           </nav>
 
           {artistTab === "overview" && (
@@ -1946,19 +1956,19 @@ export default function ArtistPage() {
                 </>
               )}
 
-              <div className="sp-head"><h2>About</h2></div>
-              <ArtistAbout artistId={id} artistName={artist.name} isAdmin={isAdmin} canModerate={canModerate} hidePhoto />
               <ArtistIntro artistId={id} />
             </>
           )}
 
+          {artistTab === "collabs" && <ArtistCollabs artistId={id} />}
+
           {artistTab === "projects" && (
             <>
               {!eraSongs && <div className="empty-state">loading…</div>}
-              {eraSongs && projects.length === 0 && <div className="empty-state">No albums or projects yet.</div>}
+              {eraSongs && projects.length === 0 && <div className="empty-state">No official albums yet.</div>}
               <div className="ap-projects">{projects.map(projectTile)}</div>
               <div className="comment-meta" style={{ marginTop: 12 }}>
-                <Link href={`/artist/${id}/eras`} className="text-link">Every era on a timeline →</Link>
+                Unreleased tapes and song eras are on <Link href={`/artist/${id}/eras`} className="text-link">Eras →</Link>
               </div>
             </>
           )}
