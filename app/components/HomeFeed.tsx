@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "./AlbumOfWeek";
+import Strip from "./Strip";
 
 type Group = { kind: "added" | "status"; artist_id: string; artist: string | null; to_status: string | null; count: number; at: string; tracks: { id: string; title: string }[] };
 type Added = { id: string; title: string; cover_url: string | null; release_status: string | null; album: string | null; created_at: string; artist_id: string; artists: { name: string } | null };
@@ -84,7 +85,7 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
 
       <Head title="Latest updates" href="/new" />
       {updates && updates.length === 0 && <div className="comment-meta">Quiet for now.</div>}
-      <div className="hf-strip hf-updates">
+      <Strip className="hf-updates">
         {(updates ?? []).map((g, i) => {
           const st = g.kind === "added" ? "added" : g.to_status ?? "";
           const first = g.tracks[0];
@@ -111,12 +112,12 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
             </Link>
           );
         })}
-      </div>
+      </Strip>
 
       {added.length > 0 && (
         <>
           <Head title="Recently added" href="/new" />
-          <div className="hf-strip hf-covers">
+          <Strip className="hf-covers">
             {added.map((t) => (
               <Link key={t.id} href={`/song/${t.id}`} className="hf-cover">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -126,14 +127,14 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
                 <span className="hf-cover-meta">{[t.release_status, t.album ? "album" : "single"].filter(Boolean).join(" · ")}</span>
               </Link>
             ))}
-          </div>
+          </Strip>
         </>
       )}
 
       {soon.length > 0 && (
         <>
           <Head title="Coming up" href="/radar/releases" label="Radar" />
-          <div className="hf-strip hf-covers">
+          <Strip className="hf-covers">
             {soon.map((r) => (
               <Link key={r.track_id} href={`/song/${r.track_id}`} className="hf-cover">
                 {r.cover_url
@@ -145,7 +146,7 @@ export default function HomeFeed({ photos, followed }: { photos: Record<string, 
                 <span className="hf-cover-meta hf-soon">{when(r.release_date!)}</span>
               </Link>
             ))}
-          </div>
+          </Strip>
         </>
       )}
 

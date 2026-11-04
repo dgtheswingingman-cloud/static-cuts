@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Supporter from "../components/Supporter";
+import Strip from "../components/Strip";
 
 type Song = {
   id: string; title: string; artist_id: string; artist: string; spotify_url: string | null;
@@ -386,7 +387,9 @@ function SearchInner() {
       {albums.length > 0 && (type === "all" || type === "albums") && (
         <>
           <Sec icon="◎" title="Albums / projects" n={albums.length} to="albums" />
-          <div className={type === "all" ? "hf-strip hf-covers" : "sr-album-grid"}>{(type === "all" ? albums.slice(0, 8) : albums).map(albumTile)}</div>
+          {type === "all"
+            ? <Strip className="hf-covers">{albums.slice(0, 12).map(albumTile)}</Strip>
+            : <div className="sr-album-grid">{albums.map(albumTile)}</div>}
         </>
       )}
 
@@ -430,7 +433,7 @@ function SearchInner() {
           <div className="sp-head sr-head">
             <h2><span className="sr-icon" aria-hidden="true">✦</span>Discover <span className="sr-related">related to &ldquo;{top.name}&rdquo;</span></h2>
           </div>
-          <div className="hf-strip hf-covers">
+          <Strip className="hf-covers">
             {related.map((a) => (
               <Link key={a.id} href={`/artist/${a.id}`} className="hf-cover">
                 {a.image_url
@@ -441,7 +444,7 @@ function SearchInner() {
                 <span className="hf-cover-meta">{a.why ?? "related artist"}</span>
               </Link>
             ))}
-          </div>
+          </Strip>
         </>
       )}
     </div>
