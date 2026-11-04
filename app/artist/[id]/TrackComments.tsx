@@ -28,7 +28,7 @@ const REPORT_REASONS: [string, string][] = [
 
 type SortMode = "top" | "newest";
 
-export default function TrackComments({ trackId }: { trackId: string }) {
+export default function TrackComments({ trackId, limit }: { trackId: string; limit?: number }) {
   const user = usePersonalUser();
   // Admin mode reads comments but doesn't take part (no posting, votes,
   // replies or reports); that's done from the regular user view.
@@ -261,7 +261,7 @@ export default function TrackComments({ trackId }: { trackId: string }) {
         </div>
       </div>
 
-      {sortedTopLevel.map((c) => renderComment(c, 0))}
+      {(limit ? sortedTopLevel.slice(0, limit) : sortedTopLevel).map((c) => renderComment(c, 0))}
       {sortedTopLevel.length === 0 && (
         <div className="comments-count" style={{ marginBottom: 10 }}>
           {isAdmin ? "No comments yet." : "No comments yet. Be the first."}

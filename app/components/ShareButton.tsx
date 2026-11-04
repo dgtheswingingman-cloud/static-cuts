@@ -7,13 +7,15 @@
 // The picture is made ahead of time (the share sheet only opens straight
 // from a tap, so there's no time to draw it after the tap).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { drawStory, type Story } from "./story";
 
 type Props = {
   title: string;
   path?: string;
-  label?: string;
+  label?: ReactNode;
+  className?: string;
+  ariaLabel?: string;
   story?: () => Story | Promise<Story>;
   storyKey?: string; // change this when the story's contents change
   fileName?: string;
@@ -21,7 +23,7 @@ type Props = {
 
 type Nav = Navigator & { canShare?: (d: ShareData) => boolean };
 
-export default function ShareButton({ title, path, label = "share", story, storyKey, fileName = "static-cuts" }: Props) {
+export default function ShareButton({ title, path, label = "share", className = "tab", ariaLabel, story, storyKey, fileName = "static-cuts" }: Props) {
   const [copied, setCopied] = useState(false);
   const file = useRef<File | null>(null);
   const storyFn = useRef(story);
@@ -60,5 +62,5 @@ export default function ShareButton({ title, path, label = "share", story, story
     }
     navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); });
   }
-  return <button className="tab" onClick={share}>{copied ? "link copied" : label}</button>;
+  return <button className={className} aria-label={ariaLabel} onClick={share}>{copied ? "link copied" : label}</button>;
 }
