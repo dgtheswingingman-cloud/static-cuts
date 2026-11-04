@@ -3026,3 +3026,11 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
   .lv-row-menu, .lv-note, .lv-note-edit { padding-left: 0; }
   .lv-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* My Library banner: your artists sliding behind the title */
+.lb-hero { position: relative; width: 100vw; margin: -22px calc(50% - 50vw) 14px; min-height: 120px; display: flex; align-items: flex-end; overflow: hidden; border-bottom: 2px solid transparent; }
+.lb-hero.has-collage { min-height: 260px; border-bottom-color: var(--accent); }
+.lb-hero.has-collage::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, color-mix(in srgb, var(--void) 70%, transparent), transparent 60%), linear-gradient(to bottom, color-mix(in srgb, var(--void) 45%, transparent), transparent 25%, transparent 50%, var(--void)); }
+.lb-hero-inner { position: relative; z-index: 2; width: 100%; max-width: 780px; margin: 0 auto 0; padding: 0 20px 14px; }
+@media (max-width: 1023px) { .lb-hero { margin-top: -16px; } .lb-hero-inner { padding: 0 16px 12px; } .lb-hero.has-collage { min-height: 200px; } }
+@media (min-width: 1024px) { .lb-hero { width: calc(100vw - var(--side)); margin-left: calc(50% - (100vw - var(--side)) / 2); margin-right: calc(50% - (100vw - var(--side)) / 2); } .lb-hero-inner { max-width: 1080px; } }

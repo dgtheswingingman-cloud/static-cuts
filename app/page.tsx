@@ -304,7 +304,7 @@ export default function HomePage() {
   return (
     <div className="wrap home-wide">
       <div className="hero">
-        <HeroCollage artistIds={user ? [...followedIds] : undefined} />
+        <HeroCollage />
         <Link href="/" onClick={() => setQuery("")} style={{ textDecoration: "none" }}>
           <h1 className="wordmark">
             STATIC CUTS<span className="slash">//</span>
