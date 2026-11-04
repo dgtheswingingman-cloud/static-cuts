@@ -2219,3 +2219,30 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .pf-banner { background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--pf) 30%, transparent), transparent 60%), var(--void); }
 @media (prefers-reduced-motion: reduce) { .pf-collage .hc-track { animation: none; } }
 @keyframes pf-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Song timeline */
+.tl { margin-bottom: 18px; }
+.tl-form { border: 1px solid var(--hair); background: var(--surface); padding: 12px 14px; margin-bottom: 12px; }
+.tl-list { list-style: none; margin: 0; padding: 0 0 0 4px; position: relative; }
+.tl-list::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--hair); }
+.tl-row { position: relative; display: grid; grid-template-columns: 22px 110px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 9px 0; }
+.tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--smoke); border: 2px solid var(--void); position: relative; top: 1px; z-index: 1; justify-self: start; }
+.tl-date { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); white-space: nowrap; }
+.tl-body { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
+.tl-title { color: var(--bone); font-size: 0.9rem; }
+.tl-site { color: var(--smoke); font-size: 0.82rem; }
+.tl-meta { width: 100%; font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
+.tl-kind { font-family: var(--font-mono), monospace; font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; color: var(--smoke); white-space: nowrap; }
+.tl-dim { opacity: 0.7; }
+.k-snippet, .k-tease { color: #FFB020; } .tl-dot.k-snippet, .tl-dot.k-tease { background: #FFB020; }
+.k-live, .k-show { color: #22D3EE; } .tl-dot.k-live, .tl-dot.k-show { background: #22D3EE; }
+.k-interview, .k-video { color: #8B7CF6; } .tl-dot.k-interview, .tl-dot.k-video { background: #8B7CF6; }
+.k-leak { color: #FF3355; } .tl-dot.k-leak { background: #FF3355; }
+.k-release { color: #2BD67B; } .tl-dot.k-release { background: #2BD67B; }
+.tl-dot.k-site { background: var(--hair-strong); width: 8px; height: 8px; left: 2px; }
+.tl-kind.k-site { color: var(--hair-strong); }
+@media (max-width: 560px) {
+  .tl-row { grid-template-columns: 22px minmax(0, 1fr); }
+  .tl-date { grid-column: 2; }
+  .tl-body { grid-column: 2; }
+}
