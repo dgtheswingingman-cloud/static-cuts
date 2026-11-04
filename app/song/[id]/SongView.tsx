@@ -267,7 +267,7 @@ export default function SongView({ id }: { id: string }) {
     t.deezer_url ? { name: "Deezer", url: t.deezer_url } : null,
     t.apple_url ? { name: "Apple Music", url: t.apple_url } : null,
   ].filter(Boolean) as { name: string; url: string }[];
-  const themeStyle = (rgb ? { "--accent": accentCss(rgb), "--sp-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
+  const themeStyle = (rgb ? { "--accent": accentCss(rgb, typeof document !== "undefined" && document.documentElement.dataset.theme === "light"), "--sp-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
   const Dots = () => <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
 
   return (
@@ -437,9 +437,7 @@ export default function SongView({ id }: { id: string }) {
         <h2>Comments{song.comments > 0 ? ` (${song.comments})` : ""}</h2>
         {song.comments > 1 && <button onClick={() => setAllComments(!allComments)}>{allComments ? "Show less" : "View all →"}</button>}
       </div>
-      <div className={`sp-comments ${allComments || song.comments <= 1 ? "open" : ""}`}>
-        <TrackComments trackId={t.id} />
-      </div>
+      <TrackComments trackId={t.id} limit={allComments ? undefined : 1} />
 
       <details className="sp-info">
         <summary>Info</summary>
