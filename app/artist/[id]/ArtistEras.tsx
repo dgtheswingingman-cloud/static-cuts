@@ -17,14 +17,6 @@ export default function ArtistEras({ songs, focus }: { songs: Song[] | null; foc
   // Each era takes the main colour of its cover.
   const [colours, setColours] = useState<Record<string, Rgb>>({});
 
-  useEffect(() => {
-    supabase.rpc("rpc_artist_eras", { p_artist: id }).then(({ data }) => {
-      const d = data as { artist: { id: string; name: string } | null; songs: Song[] } | null;
-      setArtist(d?.artist ?? null);
-      setSongs(d?.songs ?? []);
-    });
-  }, [id]);
-
   const eras = useMemo(() => {
     const keep = (songs ?? []).filter((s) =>
       filter === "all" || (filter === "released" ? s.status === "released" : UNRELEASED.includes(s.status)));
