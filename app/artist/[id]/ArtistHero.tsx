@@ -1,11 +1,12 @@
 "use client";
 
-// The top of an artist page: their photo on the right fading into black and
-// static, an ARTIST tag, the name in big glitch type, their genres, and the
+// The top of an artist page: their photos sliding behind (or the one photo
+// on the right) fading into black and static, an ARTIST tag, the name in big glitch type, their genres, and the
 // numbers (passed in as children). The page's colour comes from the photo.
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import HeroCollage from "../../components/HeroCollage";
 import { deepCss, swatch, type Rgb } from "@/lib/swatch";
 
 export default function ArtistHero({ artistId, name, aliases, genres = [], onColour, children }: {
@@ -13,10 +14,16 @@ export default function ArtistHero({ artistId, name, aliases, genres = [], onCol
 }) {
   const [img, setImg] = useState<string | null>(null);
   const [rgb, setRgb] = useState<Rgb | null>(null);
+  // Their photo pool: three or more and the banner becomes sliding rows of
+  // them (like the homepage and profiles); fewer and it's the one photo.
+  const [pool, setPool] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
-    setImg(null); setRgb(null); onColour?.(null);
+    setImg(null); setRgb(null); setPool([]); onColour?.(null);
+    supabase.from("artist_photos").select("url").eq("artist_id", artistId).order("created_at").limit(40).then(({ data }) => {
+      if (alive) setPool(((data ?? []) as { url: string }[]).map((r) => r.url));
+    });
     supabase.from("artists").select("image_url").eq("id", artistId).maybeSingle().then(({ data }) => {
       const url = (data as { image_url: string | null } | null)?.image_url ?? null;
       if (!alive) return;
@@ -29,9 +36,13 @@ export default function ArtistHero({ artistId, name, aliases, genres = [], onCol
 
   const style = (rgb ? { "--hero-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
 
+  const photos = [...new Set([...(img ? [img] : []), ...pool])];
+  const collage = photos.length >= 3;
+
   return (
-    <header className={`artist-hero ah2 ${img ? "has-img" : ""}`} style={style}>
-      {img && (
+    <header className={`artist-hero ah2 ${img || collage ? "has-img" : ""} ${collage ? "ah2-has-collage" : ""}`} style={style}>
+      {collage && <HeroCollage images={photos} className="pf-collage ah2-collage" />}
+      {!collage && img && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={img} alt={name} className="ah2-img" />
       )}
