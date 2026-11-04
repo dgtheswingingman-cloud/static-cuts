@@ -2783,3 +2783,30 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
   .sr-go { display: none; }
   .sr-types, .sr-filterbar { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
 }
+
+/* ===================== Library ===================== */
+.lb-lead { font-family: var(--font-mono), monospace; font-size: 0.82rem; margin: -4px 0 14px; }
+.lb-head { margin-top: 22px; }
+.lb-head h2 { display: flex; align-items: center; gap: 10px; }
+.lb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--hair-strong); border-radius: 8px; padding: 12px 0; }
+.lb-stats > a { display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--hair-strong); text-decoration: none; color: var(--bone); padding: 0 4px; text-align: center; }
+.lb-stats > a:last-child { border-right: 0; }
+.lb-stats strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.7rem; }
+.lb-stats span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); }
+.lb-song { gap: 12px; }
+.lb-list img { width: 44px; height: 44px; object-fit: cover; border-radius: 3px; flex: none; }
+.lb-wanted { background: var(--red) !important; color: #070707 !important; }
+.lb-score { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.82rem; color: var(--accent); white-space: nowrap; }
+.lb-card { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--hair-strong); border-radius: 8px; text-decoration: none; color: var(--bone); margin-top: 6px; flex-wrap: wrap; }
+.lb-card:hover { border-color: var(--bone); }
+.lb-card-icon { font-size: 1.8rem; width: 40px; text-align: center; flex: none; }
+.lb-card strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.3rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.lb-card .sp-version-text > span { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lb-import { margin-top: 18px; }
+.lb-import-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.lb-import-pills span { border: 1.5px solid var(--bone); border-radius: 8px; padding: 9px 14px; font-family: var(--font-anton), sans-serif; font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase; }
+@media (max-width: 700px) {
+  .lb-stats strong { font-size: 1.3rem; }
+  .lb-import-pills { width: 100%; }
+  .lb-import-pills span { flex: 1; text-align: center; padding: 9px 6px; font-size: 0.78rem; }
+}

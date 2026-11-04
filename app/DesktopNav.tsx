@@ -19,7 +19,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; on?: (p: string) =>
   { href: "/", label: "Home", icon: I(<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />), on: (p) => p === "/" },
   { href: "/radar", label: "Radar", icon: I(<><path d="M12 12 19 5" /><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /></>), on: (p) => RADAR_PATHS.includes(p) },
   { href: "/search", label: "Search", icon: I(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>), on: (p) => p.startsWith("/search") },
-  { href: "/local", label: "Library", icon: I(<><path d="M5 4v16M10 4v16" /><path d="m14.5 4.5 5 15" /></>), on: (p) => p.startsWith("/local") || p.startsWith("/listening") },
+  { href: "/library", label: "Library", icon: I(<><path d="M5 4v16M10 4v16" /><path d="m14.5 4.5 5 15" /></>), on: (p) => p.startsWith("/library") || p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/collection") },
   { href: "/lists", label: "Lists", icon: I(<><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>), on: (p) => p.startsWith("/lists") || p.startsWith("/list/") },
   { href: "/wanted", label: "Most wanted", icon: I(<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />) },
   { href: "/genres", label: "Genres", icon: I(<><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></>), on: (p) => p.startsWith("/genre") },
