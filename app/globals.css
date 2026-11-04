@@ -3034,3 +3034,10 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .lb-hero-inner { position: relative; z-index: 2; width: 100%; max-width: 780px; margin: 0 auto 0; padding: 0 20px 14px; }
 @media (max-width: 1023px) { .lb-hero { margin-top: -16px; } .lb-hero-inner { padding: 0 16px 12px; } .lb-hero.has-collage { min-height: 200px; } }
 @media (min-width: 1024px) { .lb-hero { width: calc(100vw - var(--side)); margin-left: calc(50% - (100vw - var(--side)) / 2); margin-right: calc(50% - (100vw - var(--side)) / 2); } .lb-hero-inner { max-width: 1080px; } }
+
+/* Home: album of the week sits right under the banner (computers). */
+@media (min-width: 1024px) {
+  .home-wide .hero { padding-bottom: 44px; margin-bottom: 0; }
+  .home-wide .hero + .hf, .home-wide .hf { margin-top: 0; }
+  .home-wide .aotw-hero { margin-top: -28px; position: relative; z-index: 2; background: color-mix(in srgb, var(--void) 88%, transparent); }
+}
