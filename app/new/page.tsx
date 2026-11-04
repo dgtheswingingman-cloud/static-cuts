@@ -45,6 +45,8 @@ export default function WhatsNewPage() {
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("all");
   const [following, setFollowing] = useState(false);
+  // /new?following=1 (the Radar "Following" chip) starts on followed artists.
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("following") === "1") setFollowing(true); }, []);
   const [days, setDays] = useState<Day[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -82,8 +84,8 @@ export default function WhatsNewPage() {
 
   return (
     <div className="wrap">
-      <RadarTabs />
-      <h1 className="detail-name page-title">What&apos;s new</h1>
+      <RadarTabs active={following ? "following" : "new"} />
+      <h1 className="detail-name page-title">{following ? "Following" : "What\u2019s new"}</h1>
       <div className="detail-meta">Songs added to the archive and status changes, newest first.</div>
 
       <div className="tabs" style={{ alignItems: "center" }}>

@@ -45,7 +45,7 @@ export default function NotificationsPage() {
       intro={isAdmin ? (
         <>Things that need the admin: background jobs that failed, takedown requests and the like. These only show in admin mode.</>
       ) : (
-        <>Songs you asked to be reminded about (on the <Link href="/radar" className="text-link">release radar</Link> or a
+        <>Songs you asked to be reminded about (on the <Link href="/radar/releases" className="text-link">release radar</Link> or a
         song page), and songs you&apos;ve collected changing status.</>
       )}
     >

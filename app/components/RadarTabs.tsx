@@ -1,23 +1,30 @@
-"use client";
-
-// Radar is one section with three tabs: what's coming and just dropped
-// (/radar), this week's round-up (/weekly) and everything new (/new).
+// Radar is one section: the overview (/radar), followed artists only
+// (/new?following=1), the release list (/radar/releases), everything new
+// (/new) and this week's round-up (/weekly). Big RADAR// header on top.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
-export const RADAR_PATHS = ["/radar", "/weekly", "/new"];
+export const RADAR_PATHS = ["/radar", "/radar/releases", "/weekly", "/new"];
 
-export default function RadarTabs() {
-  const path = usePathname();
-  const tabs: [string, string][] = [["/radar", "Coming up"], ["/weekly", "This week"], ["/new", "What's new"]];
+export type RadarTab = "all" | "following" | "releases" | "new" | "week";
+
+export default function RadarTabs({ active }: { active: RadarTab }) {
+  const tabs: [RadarTab, string, string][] = [
+    ["all", "/radar", "All"],
+    ["following", "/new?following=1", "Following"],
+    ["releases", "/radar/releases", "Releases"],
+    ["new", "/new", "What's new"],
+    ["week", "/weekly", "This week"],
+  ];
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }} role="tablist" aria-label="Radar">
-      {tabs.map(([href, label]) => (
-        <Link key={href} href={href} role="tab" aria-selected={path === href} className={`tab${path === href ? " active" : ""}`} style={{ textDecoration: "none" }}>
-          {label}
-        </Link>
-      ))}
+    <div className="rd-top">
+      <div className="rd-title" aria-hidden="true">RADAR<span>//</span></div>
+      <div className="rd-sub">Updates / releases / discoveries</div>
+      <nav className="rd-chips" aria-label="Radar">
+        {tabs.map(([k, href, label]) => (
+          <Link key={k} href={href} aria-current={active === k ? "page" : undefined} className={active === k ? "on" : undefined}>{label}</Link>
+        ))}
+      </nav>
     </div>
   );
 }

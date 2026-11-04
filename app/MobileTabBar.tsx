@@ -28,7 +28,7 @@ export default function MobileTabBar() {
   const youLabel = !user ? "Log in" : isAdmin ? "Control" : "You";
   const tabs: [string, string, string, (p: string) => boolean][] = [
     ["home", "/", "Home", (p) => p === "/"],
-    ["new", "/radar", "Radar", (p) => p === "/new" || p === "/radar" || p === "/weekly"],
+    ["new", "/radar", "Radar", (p) => p === "/new" || p.startsWith("/radar") || p === "/weekly"],
     ["search", "/search", "Search", (p) => p.startsWith("/search")],
     ["local", "/local", "Library", (p) => p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/lists") || p.startsWith("/list/")],
     ["you", youHref, youLabel, (p) => p.startsWith("/profile") || p.startsWith("/friends") || p.startsWith("/messages") || p.startsWith("/settings") || p === "/login" || p.startsWith("/control")],
