@@ -6,8 +6,8 @@
 import { useState } from "react";
 import { SPOTIFY_CLIENT_ID, startSpotifyExport, trackUri } from "@/lib/spotifyExport";
 
-export default function ExportToSpotify({ name, description, urls, back }: {
-  name: string; description: string; urls: (string | null | undefined)[]; back: string;
+export default function ExportToSpotify({ name, description, urls, back, className = "tab", label }: {
+  name: string; description: string; urls: (string | null | undefined)[]; back: string; className?: string; label?: string;
 }) {
   const [note, setNote] = useState<string | null>(null);
   const uris = urls.map(trackUri).filter((u): u is string => !!u);
@@ -20,9 +20,9 @@ export default function ExportToSpotify({ name, description, urls, back }: {
 
   return (
     <>
-      <button className="tab" onClick={go}
+      <button className={className} onClick={go}
         title={`${uris.length} of ${urls.length} songs are on Spotify. Invited testers only for now: Spotify limits how many accounts new sites can use.`}>
-        export to Spotify ({uris.length})
+        {label ?? "export to Spotify"} ({uris.length})
       </button>
       {note && <span className="comment-meta" style={{ alignSelf: "center" }}>{note}</span>}
     </>
