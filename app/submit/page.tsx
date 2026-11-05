@@ -159,6 +159,13 @@ function SubmitForm() {
   useEffect(() => {
     if (prefilledArtistId) supabase.from("artists").select("image_url").eq("id", prefilledArtistId).maybeSingle()
       .then(({ data }) => setArtistImage((data as { image_url: string | null } | null)?.image_url ?? null));
+    // Opened with just a song (e.g. "Fill in" from Help wanted): load what it has now,
+    // so a fix only changes what you change.
+    if (sp("track_id") && !searchParams.has("current_url") && (initialType === "correction" || initialType === "status_change" || initialType === "flag_link")) {
+      supabase.from("tracks").select("id, title, artist_id, cover_url, release_status, artists!artist_id(name, image_url)").eq("id", sp("track_id")).maybeSingle()
+        .then(({ data }) => { if (data) pickSong(data as unknown as SongHit); });
+      return;
+    }
     const tid = sp("track_id") || sp("parent_track_id");
     if (tid) supabase.from("tracks").select("cover_url, release_status").eq("id", tid).maybeSingle().then(({ data }) => {
       const d = data as { cover_url: string | null; release_status: string | null } | null;
