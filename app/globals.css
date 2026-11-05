@@ -3892,3 +3892,7 @@ body:has(.ms-shell) .site-credit { display: none; }
   .im-cols { grid-template-columns: minmax(0, 1fr); }
   .im-side { border-left: 0; padding-left: 0; border-top: 1px solid var(--hair-strong); padding-top: 18px; }
 }
+
+/* Welcome: keep the big number in the "picked" count inside the bar. */
+.wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+.wl-bar b { line-height: 1; display: inline-block; }
