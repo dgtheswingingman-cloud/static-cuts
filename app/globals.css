@@ -3456,3 +3456,16 @@ body:has(.ms-chat-page) .site-credit { display: none; }
   .st-sub { padding-left: 0; }
   .st-lastfm-form { flex-basis: 100%; }
 }
+
+/* Album of the week on phones: the cover itself fades out (no dark band
+   ending in a hard edge), so it melts into the static behind it. */
+@media (max-width: 700px) {
+  .aotw-hero { background: none; }
+  .aotw-hero-cover img, .aotw-hero-cover .era-card-blank {
+    -webkit-mask-image: linear-gradient(to bottom, #000 35%, rgba(0, 0, 0, 0.75) 55%, rgba(0, 0, 0, 0.3) 78%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 35%, rgba(0, 0, 0, 0.75) 55%, rgba(0, 0, 0, 0.3) 78%, transparent 100%);
+  }
+  .aotw-hero-cover::after { display: none; }
+  .aotw-hero-title, .aotw-hero-artist, .aotw-hero-meta { text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85); }
+  :root:not([data-theme="light"]) .aotw-hero-title { text-shadow: -2px 0 rgba(255, 51, 85, 0.8), 2px 0 rgba(34, 211, 238, 0.8), 0 2px 14px rgba(0, 0, 0, 0.85); }
+}
