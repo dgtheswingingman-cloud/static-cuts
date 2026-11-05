@@ -3255,3 +3255,69 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
   .nt-pic { width: 48px; height: 48px; }
   .nt-digest { padding-left: 62px; }
 }
+
+/* ===================== Messages ===================== */
+.ms-avatar { border-radius: 50%; object-fit: cover; flex-shrink: 0; display: inline-block; border: 1px solid var(--hair-strong); }
+.ms-avatar-blank { background: var(--surface2); }
+.ms-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 6px 0 14px; }
+.ms-title { font-size: clamp(2.6rem, 13vw, 5rem); }
+.ms-title span { color: var(--accent); }
+.ms-search { flex: 1; max-width: 420px; min-width: 220px; }
+.ms-search input { padding: 11px 0; font-size: 0.9rem; }
+.ms-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.ms-chats, .ms-friends { display: flex; flex-direction: column; }
+.ms-chat { display: flex; align-items: center; gap: 14px; padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--hair-strong); border-left: 3px solid transparent; text-decoration: none; color: var(--bone); }
+.ms-chat:hover { background: var(--surface); }
+.ms-chat.unread { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.ms-chat-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.ms-chat-name { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+.ms-chat-last { font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--smoke); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-chat.unread .ms-chat-last { color: var(--bone); }
+.ms-chat-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.ms-when { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); white-space: nowrap; }
+.ms-badge { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--accent); color: var(--on-accent, #070707); font-family: var(--font-mono), monospace; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.ms-friends .nt-day { margin: 0 0 4px; font-size: 1.15rem; }
+.ms-friend { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--hair-strong); }
+.ms-friend-who { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-decoration: none; color: var(--bone); }
+.ms-say { flex: none; padding: 7px 12px; border: 1.5px solid var(--bone); border-radius: 4px; color: var(--bone); text-decoration: none; font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.ms-say:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
+@media (min-width: 1024px) {
+  .ms-cols { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; }
+  .ms-friends { border-left: 1px solid var(--hair-strong); padding-left: 28px; }
+}
+
+/* One chat */
+.ms-chat-page { max-width: 860px; }
+.ms-bar { display: flex; align-items: center; gap: 14px; padding: 6px 0 10px; border-bottom: 1px solid var(--hair-strong); }
+.ms-back, .ms-open { color: var(--bone); display: flex; padding: 6px; }
+.ms-back:hover, .ms-open:hover { color: var(--accent); }
+.ms-who { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; color: var(--bone); text-decoration: none; font-weight: 700; font-size: 1.2rem; }
+.ms-who span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-note { text-align: center; font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.ms-locked { border: 0; margin-top: 12px; }
+.ms-thread { display: flex; flex-direction: column; gap: 6px; padding: 12px 0 16px; min-height: 40vh; }
+.ms-stamp { text-align: center; font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--bone); margin: 10px 0 4px; }
+.ms-msg { display: flex; flex-direction: column; gap: 4px; max-width: min(78%, 520px); }
+.ms-msg.mine { margin-left: auto; align-items: flex-end; }
+.ms-msg.theirs { margin-right: auto; align-items: flex-start; }
+.ms-bubble { padding: 9px 14px; border-radius: 10px; font-family: var(--font-mono), monospace; font-size: 0.86rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ms-msg.mine .ms-bubble { background: var(--accent); color: var(--on-accent, #070707); }
+.ms-msg.theirs .ms-bubble { background: var(--surface2); color: var(--bone); }
+.ms-bubble a { color: inherit; text-decoration: underline; }
+.ms-time { font-family: var(--font-mono), monospace; font-size: 0.62rem; color: var(--smoke); }
+.ms-seen { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--bone); }
+.ms-card { display: flex; align-items: center; gap: 12px; padding: 6px 12px 6px 6px; border: 1.5px solid var(--accent); border-radius: 6px; background: var(--void); color: var(--bone); text-decoration: none; min-width: 220px; max-width: 100%; }
+.ms-card:hover { background: var(--surface); }
+.ms-card img, .ms-card-blank { width: 64px; height: 64px; object-fit: cover; border-radius: 3px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; }
+.ms-card img.round { border-radius: 50%; }
+.ms-card-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.ms-card-text strong { font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ms-card-text > span:not(.feature-tag) { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.ms-compose { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; padding: 10px 6px 10px 14px; border: 1.5px solid var(--bone); border-radius: 8px; background: var(--void); margin-bottom: 12px; }
+.ms-compose:focus-within { border-color: var(--accent); }
+.ms-compose textarea { flex: 1; min-width: 0; background: none; border: 0; outline: none; resize: none; color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.95rem; line-height: 1.4; padding: 6px 0; max-height: 140px; field-sizing: content; }
+.ms-send { flex: none; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; background: none; border: 0; color: var(--accent); cursor: pointer; }
+.ms-send:disabled { color: var(--smoke); cursor: default; }
+@media (max-width: 1023px) {
+  .ms-compose { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
