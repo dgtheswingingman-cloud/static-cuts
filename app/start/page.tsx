@@ -24,6 +24,8 @@ export default function StartPage() {
   const [busy, setBusy] = useState(false);
   const { session } = useAuth();
   const [fromSpotify, setFromSpotify] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [shownN, setShownN] = useState(60);
   // Part of the welcome for new accounts: pick at least 5, then on to step 2.
   const [welcome, setWelcome] = useState(false);
   // Admin preview of the welcome: same page, nothing saved.
@@ -78,6 +80,19 @@ export default function StartPage() {
     return (artists ?? []).filter((a) => !needle || a.name.toLowerCase().includes(needle) || (a.aliases ?? []).some((x) => x.toLowerCase().includes(needle)));
   }, [artists, q]);
 
+  // Photos for the artists on screen.
+  useEffect(() => {
+    const ids = shown.slice(0, shownN).map((a) => a.id).filter((id) => !(id in photos));
+    if (!ids.length) return;
+    supabase.from("artists").select("id, image_url").in("id", ids.slice(0, 120)).then(({ data }) => {
+      const m: Record<string, string> = {};
+      for (const id of ids.slice(0, 120)) m[id] = "";
+      for (const r of (data ?? []) as { id: string; image_url: string | null }[]) if (r.image_url) m[r.id] = r.image_url;
+      setPhotos((p) => ({ ...p, ...m }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, shownN]);
+
   function toggle(id: string) {
     setPicked((prev) => {
       const next = new Set(prev);
@@ -106,41 +121,54 @@ export default function StartPage() {
   }
 
   return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">{welcome ? "Pick 5 artists you're into" : "Who are you into?"}</h1>
+    <div className="wrap wl-page">
+      <h1 className="ls-title wl-title">{welcome ? "PICK YOUR ARTISTS" : "WHO ARE YOU INTO?"}<span>//</span></h1>
       {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
       {welcome && (
-        <div style={{ display: "flex", gap: 8, margin: "6px 0 14px", flexWrap: "wrap" }}>
-          <span className="feature-tag" style={{ borderColor: "var(--bone)" }}>1. Your artists</span>
-          <span className="feature-tag" style={{ opacity: 0.45 }}>2. Your profile</span>
-          <span className="feature-tag" style={{ opacity: 0.45 }}>3. Your music</span>
+        <div className="wl-steps">
+          <span>Step 1 of 3</span>
+          <Link href={nextUrl} className="wl-skip">Skip</Link>
+          <span className="wl-progress"><span style={{ width: "33.3%" }} /></span>
         </div>
       )}
-      <div className="detail-meta" style={{ marginBottom: 14 }}>
-        {welcome ? "You'll follow them: their new songs, leaks and releases show up on your home page and you get told when something lands." : "Pick a few artists and your home page will be about them: their songs, leaks, releases and what changed."}
+      <p className="wl-lead">
+        {welcome ? "Follow a few artists: their new songs, leaks and releases show up on your home page and you get told when something lands." : "Pick a few artists and your home page will be about them."}
         {!user && " No account needed to look around."}
-      </div>
+      </p>
       {fromSpotify !== null && fromSpotify > 0 && (
-        <div className="comments-panel" style={{ marginBottom: 14 }}>
-          Ticked {fromSpotify} artist{fromSpotify === 1 ? "" : "s"} you follow on Spotify. Untick any you don&apos;t want.
-        </div>
+        <div className="wl-message">Ticked {fromSpotify} artist{fromSpotify === 1 ? "" : "s"} you follow on Spotify. Untick any you don&apos;t want.</div>
       )}
-      <input className="search-input" style={{ width: "100%", marginBottom: 14 }} placeholder="Find an artist…" value={q} onChange={(e) => setQ(e.target.value)} />
-      {artists === null && <div className="empty-state">loading…</div>}
-      <div className="start-grid">
-        {shown.map((a) => (
-          <button key={a.id} className={`start-chip ${picked.has(a.id) ? "on" : ""}`} onClick={() => toggle(a.id)} aria-pressed={picked.has(a.id)}>
-            <span>{picked.has(a.id) ? "✓ " : ""}{a.name}</span>
-            <span className="comment-meta">{a.track_count.toLocaleString("en-GB")} songs</span>
-          </button>
-        ))}
+      <div className="sr-box wl-search">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input placeholder="Search artists…" value={q} onChange={(e) => { setQ(e.target.value); setShownN(60); }} aria-label="Search artists" />
+        {q && <button aria-label="Clear" onClick={() => setQ("")}>✕</button>}
       </div>
-      <div className="start-bar">
-        <span className="comment-meta">{picked.size} picked{welcome && picked.size < MIN ? ` · ${MIN - picked.size} more` : ""}</span>
-        <button className="tab active" disabled={busy || picked.size < MIN} onClick={done}>
-          {busy ? "…" : welcome ? "follow them, next" : user ? "follow them" : "show me their songs"}
+      {artists === null && <div className="empty-state">loading…</div>}
+      <div className="wl-grid">
+        {shown.slice(0, shownN).map((a) => {
+          const on = picked.has(a.id);
+          return (
+            <button key={a.id} className={`wl-artist ${on ? "on" : ""}`} onClick={() => toggle(a.id)} aria-pressed={on}>
+              <span className="wl-face">
+                {photos[a.id]
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={photos[a.id]} alt="" loading="lazy" />
+                  : <span>{a.name.slice(0, 2).toUpperCase()}</span>}
+                {on && <span className="wl-tick" aria-hidden="true">✓</span>}
+              </span>
+              <span className="wl-name">{a.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      {shown.length > shownN && (
+        <div style={{ textAlign: "center", margin: "16px 0" }}><button className="st-btn" onClick={() => setShownN(shownN + 90)}>More artists</button></div>
+      )}
+      <div className="wl-bar">
+        <span>{welcome ? <><b>{Math.min(picked.size, MIN)}</b> of {MIN} picked{picked.size > MIN ? ` (+${picked.size - MIN})` : ""}</> : <><b>{picked.size}</b> picked</>}</span>
+        <button className="sb-submit wl-next" disabled={busy || picked.size < MIN} onClick={done}>
+          {busy ? "…" : welcome ? "Next//" : user ? "Follow them//" : "Show me//"}
         </button>
-        <Link href={nextUrl} className="text-link comment-meta">skip</Link>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 
 // Where to go after logging in. Only same-site paths, so ?next= can't be
 // used to bounce people to another website.
@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { OAUTH_FLAG } from "../AuthNotice";
+import HeroCollage from "../components/HeroCollage";
 
 export default function LoginPage() {
   const { signUp, signIn } = useAuth();
@@ -23,6 +24,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [banner, setBanner] = useState<string[]>([]);
+
+  useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get("mode") === "signup") setMode("signup"); } catch { /* ignore */ }
+    supabase.from("artists").select("image_url").not("image_url", "is", null).limit(24)
+      .then(({ data, error: err }) => {
+        if (err) return;
+        setBanner(((data ?? []) as { image_url: string }[]).map((r) => r.image_url));
+      });
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -67,84 +79,56 @@ export default function LoginPage() {
     // nothing else to do here.
   }
 
-  return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">{mode === "login" ? "Log in" : "Sign up"}</h1>
+  const switchMode = (m: "login" | "signup") => { setMode(m); setError(null); setMessage(null); };
 
-      <div className="search-shell" style={{ marginTop: 20, marginLeft: 0 }}>
-        <form onSubmit={handleSubmit}>
-          <input
-            className="search-input"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ marginBottom: 10 }}
-          />
-          <input
-            className="search-input"
-            type="password"
-            placeholder="Password (6+ characters)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="tab active"
-            style={{ marginTop: 14, width: "100%", padding: "12px", textAlign: "center" }}
-          >
-            {busy ? "…" : mode === "login" ? "Log in" : "Sign up"}
-          </button>
-        </form>
-        {mode === "login" && (
-          <button className="back-btn" style={{ marginTop: 10 }} disabled={busy} onClick={handleForgot}>
-            Forgot your password?
-          </button>
-        )}
+  return (
+    <div className="wrap wl-page wl-login">
+      <header className="wl-hero">
+        {banner.length >= 3 && <HeroCollage images={banner} className="pf-collage ah2-collage wl-collage" />}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="Static Cuts//" className="logo-img wl-logo" width={1200} height={200} />
+      </header>
+
+      <div className="wl-card">
+        <div className="st-seg wl-tabs" role="tablist">
+          <button role="tab" aria-selected={mode === "login"} className={mode === "login" ? "on" : undefined} onClick={() => switchMode("login")}>Log in//</button>
+          <button role="tab" aria-selected={mode === "signup"} className={mode === "signup" ? "on" : undefined} onClick={() => switchMode("signup")}>Sign up//</button>
+        </div>
 
         {/* Spotify only lets new apps like ours have a handful of Spotify
-            accounts (added by hand in its developer dashboard), and it often
-            refuses even those when busy. Sign-up is email only; invited
-            testers can still log in with Spotify from a small link. */}
+            accounts (added by hand in its developer dashboard), so logging in
+            with Spotify is for invited testers; sign-up is email only. */}
         {mode === "login" && (
-          <div style={{ marginTop: 26, paddingTop: 12, borderTop: "1px solid var(--hair)" }}>
-            <button className="inline-link-btn comment-meta" onClick={() => handleOAuth()}>
-              Invited Spotify tester? Log in with Spotify
+          <>
+            <button className="wl-spotify" disabled={busy} onClick={() => handleOAuth()}>
+              <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1DB954" /><path d="M6.5 9.3c3.6-1.1 7.8-.8 11 1M7.2 12.3c3-.9 6.4-.6 9 .9M7.8 15.1c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.6" strokeLinecap="round" fill="none" /></svg>
+              Continue with Spotify
             </button>
-            <div className="comment-meta" style={{ marginTop: 6 }}>
-              Only for accounts we&apos;ve invited (Spotify limits new sites). Everyone else: sign up with email. You can still
-              bring in your Spotify music afterwards from Collection › Import, using Exportify.
-            </div>
-          </div>
+            <small className="wl-note">Spotify log-in is for invited testers for now (Spotify limits new sites). Everyone else: email.</small>
+            <div className="wl-or"><span>or with email</span></div>
+          </>
         )}
+
+        <form onSubmit={handleSubmit} className="wl-form">
+          <label className="wl-field">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1" /><path d="m3 7 9 6 9-6" /></svg>
+            <input type="email" placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <label className="wl-field">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+            <input type={showPw ? "text" : "password"} placeholder={mode === "signup" ? "Password (6+ characters)" : "Password"}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            <button type="button" className="wl-eye" aria-label={showPw ? "Hide password" : "Show password"} onClick={() => setShowPw(!showPw)}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />{showPw && <path d="M3 3l18 18" />}</svg>
+            </button>
+          </label>
+          {mode === "login" && <button type="button" className="wl-forgot" disabled={busy} onClick={handleForgot}>Forgot your password?</button>}
+          {error && <div className="sb-error">{error}</div>}
+          {message && <div className="wl-message">{message}</div>}
+          <button type="submit" disabled={busy} className="sb-submit wl-submit">{busy ? "…" : mode === "login" ? "Log in//" : "Create account//"}</button>
+        </form>
+        <p className="wl-small">Browsing doesn&apos;t need an account. An account saves your library, follows and alerts.</p>
       </div>
-
-      {error && (
-        <div className="empty-state error" style={{ marginTop: 16, maxWidth: 520 }}>
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="empty-state" style={{ marginTop: 16, maxWidth: 520 }}>
-          {message}
-        </div>
-      )}
-
-      <button
-        className="back-btn"
-        style={{ marginTop: 20 }}
-        onClick={() => {
-          setMode(mode === "login" ? "signup" : "login");
-          setError(null);
-          setMessage(null);
-        }}
-      >
-        {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
-      </button>
     </div>
   );
 }

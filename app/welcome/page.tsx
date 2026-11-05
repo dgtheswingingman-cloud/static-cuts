@@ -7,7 +7,7 @@
 // Finishing or skipping marks the account as welcomed (profiles.onboarded_at),
 // so it's only shown once.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -16,15 +16,12 @@ import { usePersonalUser } from "../useIsAdmin";
 import { useAuth } from "../AuthProvider";
 import { finishWelcome } from "../components/OnboardingGate";
 
-function Steps({ step }: { step: number }) {
-  const names = ["Your artists", "Your profile", "Your music"];
+function Steps({ step, skip }: { step: number; skip?: string }) {
   return (
-    <div style={{ display: "flex", gap: 8, margin: "6px 0 22px", flexWrap: "wrap" }}>
-      {names.map((n, i) => (
-        <span key={n} className={`feature-tag`} style={{ opacity: i + 1 === step ? 1 : 0.45, borderColor: i + 1 === step ? "var(--bone)" : undefined }}>
-          {i + 1}. {n}
-        </span>
-      ))}
+    <div className="wl-steps">
+      <span>Step {step} of 3</span>
+      {skip && <Link href={skip} className="wl-skip">Skip</Link>}
+      <span className="wl-progress"><span style={{ width: `${(step / 3) * 100}%` }} /></span>
     </div>
   );
 }
@@ -99,61 +96,58 @@ function Welcome() {
 
   if (step === 2) {
     return (
-      <div className="wrap" style={{ maxWidth: 560 }}>
-        <h1 className="detail-name page-title">Make it yours</h1>
+      <div className="wrap wl-page wl-narrow">
+        <h1 className="ls-title wl-title">MAKE IT YOURS<span>//</span></h1>
         {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
-        <Steps step={2} />
-        <div className="detail-meta" style={{ marginBottom: 16 }}>How you show up next to your comments, ratings and finds.</div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
+        <Steps step={2} skip={`/welcome?step=3${pq}`} />
+        <p className="wl-lead">How you show up next to your comments, lists and finds.</p>
+        <label className="wl-avatar" aria-label={avatar ? "Change picture" : "Add a picture"}>
           {avatar
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={avatar} alt="" width={84} height={84} style={{ borderRadius: 999, objectFit: "cover" }} />
-            : <div style={{ width: 84, height: 84, borderRadius: 999, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--smoke)" }}>SC//</div>}
-          <label className="tab" style={{ cursor: "pointer" }}>
-            {busy ? "…" : avatar ? "change picture" : "add a picture"}
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
-          </label>
-        </div>
-        <div className="section-label">Name</div>
-        <input className="search-input" style={{ width: "100%", marginBottom: 12 }} maxLength={40} placeholder="What should people call you?" value={name} onChange={(e) => setName(e.target.value)} />
-        <div className="section-label">About you <span className="comment-meta">(optional)</span></div>
-        <textarea className="search-input" style={{ width: "100%", minHeight: 70, marginBottom: 12 }} maxLength={200} placeholder="e.g. Opium leaks, Drain Gang deep cuts, always hunting V1s" value={about} onChange={(e) => setAbout(e.target.value)} />
-        {error && <div className="comment-meta error-text" style={{ marginBottom: 8 }}>{error}</div>}
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button className="tab active" disabled={busy} onClick={saveProfile}>next</button>
-          <Link href={`/welcome?step=3${pq}`} className="text-link comment-meta">skip</Link>
+            ? <img src={avatar} alt="" />
+            : <span className="wl-avatar-blank" aria-hidden="true"><svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg></span>}
+          <span className="wl-cam" aria-hidden="true">{busy ? "…" : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
+        </label>
+        <label className="wl-label">Display name
+          <input className="sb-text" maxLength={40} placeholder="What should people call you?" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="wl-label">Tagline <small>(optional)</small>
+          <textarea className="sb-text sb-area wl-tagline" maxLength={80} placeholder="e.g. Opium leaks, Drain Gang deep cuts, always hunting V1s" value={about} onChange={(e) => setAbout(e.target.value)} />
+          <small className="wl-count">{about.length} / 80</small>
+        </label>
+        {error && <div className="sb-error">{error}</div>}
+        <div className="wl-buttons">
+          <Link href={`/welcome?step=3${pq}`} className="st-btn wl-skip-btn">Skip</Link>
+          <button className="sb-submit wl-next" disabled={busy} onClick={saveProfile}>Next//</button>
         </div>
       </div>
     );
   }
 
+  const card = (key: string, icon: ReactNode, title: string, text: string) => (
+    <button key={key} className="wl-service" disabled={busy} onClick={() => finish("/collection/import")}>
+      <span className="wl-service-icon">{icon}</span>
+      <span className="wl-service-text"><strong>{title}</strong><span>{text}</span></span>
+      <span className="hf-chev" aria-hidden="true">›</span>
+    </button>
+  );
+
   return (
-    <div className="wrap" style={{ maxWidth: 560 }}>
-      <h1 className="detail-name page-title">Bring your music in</h1>
+    <div className="wrap wl-page wl-narrow">
+      <h1 className="ls-title wl-title">BRING YOUR MUSIC IN<span>//</span></h1>
       {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
       <Steps step={3} />
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Already have playlists? Bring them in and every song we have gets ticked in your collection, so you can see
-        what you&apos;ve got and what you&apos;re missing. Nothing is shared unless you choose to.
-      </div>
-      <div className="comments-panel" style={{ marginBottom: 12 }}>
-        <div className="comment-body"><b>Spotify</b></div>
-        <div className="comment-meta" style={{ margin: "4px 0 10px" }}>
-          Use <a href="https://exportify.app" target="_blank" rel="noopener noreferrer" className="text-link">Exportify</a> (free):
-          log in with Spotify, export your playlists or liked songs, then drop the file in on the next page.
-        </div>
-        <button className="tab active" disabled={busy} onClick={() => finish("/collection/import")}>import from Spotify</button>
-      </div>
-      <div className="comments-panel" style={{ marginBottom: 16 }}>
-        <div className="comment-body"><b>Apple Music</b></div>
-        <div className="comment-meta" style={{ margin: "4px 0 10px" }}>
-          In the Music app on a computer: pick a playlist, then File → Library → Export Playlist, and drop the file in on the next page.
-        </div>
-        <button className="tab" disabled={busy} onClick={() => finish("/collection/import")}>import from Apple Music</button>
-      </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <button className="tab" disabled={busy} onClick={() => finish("/")}>I&apos;m done, take me in</button>
-        <Link href={`/welcome?step=2${pq}`} className="text-link comment-meta">back</Link>
+      <p className="wl-lead">Already have playlists? Bring them in and every song we have gets ticked in your collection, so you can see what you&apos;ve got and what you&apos;re missing. Nothing is shared unless you choose to.</p>
+      {card("spotify", <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1DB954" /><path d="M6.5 9.3c3.6-1.1 7.8-.8 11 1M7.2 12.3c3-.9 6.4-.6 9 .9M7.8 15.1c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.6" strokeLinecap="round" fill="none" /></svg>,
+        "Spotify", "Your Liked Songs and playlists, using Exportify (free) to make the file.")}
+      {card("apple", <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#FA2D48" /><path d="M10 17.5V8l8-1.6v9.4" stroke="#fff" strokeWidth="1.6" fill="none" /><circle cx="8.6" cy="17.5" r="1.8" fill="#fff" /><circle cx="16.6" cy="15.8" r="1.8" fill="#fff" /></svg>,
+        "Apple Music", "In the Music app on a computer: File → Library → Export Playlist, then drop the file in.")}
+      {card("file", <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></svg>,
+        "File / CSV", "A list of songs from anywhere else (CSV or text).")}
+      <div className="wl-buttons">
+        <Link href={`/welcome?step=2${pq}`} className="st-btn wl-skip-btn">Back</Link>
+        <button className="sb-submit wl-next" disabled={busy} onClick={() => finish("/")}>Finish//</button>
       </div>
     </div>
   );
