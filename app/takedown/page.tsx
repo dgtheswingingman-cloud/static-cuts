@@ -5,8 +5,9 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
 const RELATIONSHIPS: { value: string; label: string }[] = [
   { value: "rights_holder", label: "I own the rights (label, publisher, writer)" },
@@ -16,7 +17,6 @@ const RELATIONSHIPS: { value: string; label: string }[] = [
 ];
 
 function TakedownForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const [pageUrl, setPageUrl] = useState(params.get("url") ?? "");
   const [name, setName] = useState("");
@@ -26,6 +26,7 @@ function TakedownForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [confirm, setConfirm] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,56 +45,46 @@ function TakedownForm() {
   }
 
   return (
-    <div className="wrap" style={{ maxWidth: 620 }}>
-      <h1 className="detail-name page-title">Request a Takedown</h1>
-      <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Static Cuts// lists information about music and links to where it can be found. It doesn&apos;t host audio.
-        If you own the rights to something listed here and want it taken down, tell us below. We aim to act within
-        a few days, and we&apos;ll reply by email. See the{" "}
-        <Link href="/legal#takedowns" className="text-link">takedown policy</Link>.
-      </div>
-
+    <InfoShell title="REQUEST A TAKEDOWN" here="/takedown"
+      intro={<>Report something you own the rights to and want removed. Static Cuts// lists information about music and links to where it can be found; it doesn&apos;t host audio. We aim to act within a few days and reply by email. See the <Link href="/legal#takedowns" className="text-link">takedown policy</Link>.</>}>
       {sent ? (
-        <div className="comments-panel">
-          Thanks, your request has been sent. We&apos;ll look at it and reply to {email}.
-        </div>
-      ) : (
-        <form onSubmit={submit} className="comments-panel" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <label className="comment-meta" htmlFor="td-url">
-            Link to the song or page on Static Cuts//
-            <input id="td-url" className="search-input" style={{ width: "100%", marginTop: 4 }}
-              placeholder="https://static-cuts.com/artist/…" value={pageUrl} onChange={(e) => setPageUrl(e.target.value)} />
-          </label>
-          <label className="comment-meta" htmlFor="td-name">
-            Your name
-            <input id="td-name" className="search-input" style={{ width: "100%", marginTop: 4 }} required
-              value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="comment-meta" htmlFor="td-email">
-            Email (we reply here)
-            <input id="td-email" type="email" className="search-input" style={{ width: "100%", marginTop: 4 }} required
-              value={email} onChange={(e) => setEmail(e.target.value)} />
-          </label>
-          <label className="comment-meta" htmlFor="td-rel">
-            How you&apos;re connected to the music
-            <select id="td-rel" className="sort-select" style={{ width: "100%", marginTop: 4 }} required
-              value={relationship} onChange={(e) => setRelationship(e.target.value)}>
-              <option value="" disabled>Choose one</option>
-              {RELATIONSHIPS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </label>
-          <label className="comment-meta" htmlFor="td-reason">
-            What should be removed, and why
-            <textarea id="td-reason" className="search-input" style={{ width: "100%", marginTop: 4, minHeight: 120 }} required
-              value={reason} onChange={(e) => setReason(e.target.value)} />
-          </label>
-          {error && <div className="comment-meta error-text">{error}</div>}
-          <div>
-            <button className="tab active" type="submit" disabled={busy}>{busy ? "sending…" : "send request"}</button>
+        <InfoSection title="Sent">
+          <div className="if-sent">
+            <span className="sb-tick" aria-hidden="true">✓</span>
+            <p className="if-p">Thanks, your request has been sent. We&apos;ll look at it and reply to <b>{email}</b>.</p>
           </div>
-        </form>
+        </InfoSection>
+      ) : (
+        <InfoSection>
+          <form onSubmit={submit} className="if-form">
+            <label className="wl-label" htmlFor="td-name">Your name <em className="if-req">*</em>
+              <input id="td-name" className="sb-text" required placeholder="e.g. John Doe" value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="wl-label" htmlFor="td-email">Email <em className="if-req">*</em> <small>(we reply here)</small>
+              <input id="td-email" type="email" className="sb-text" required placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </label>
+            <label className="wl-label" htmlFor="td-rel">How you&apos;re connected to the music <em className="if-req">*</em>
+              <select id="td-rel" className="sb-text" required value={relationship} onChange={(e) => setRelationship(e.target.value)}>
+                <option value="" disabled>Choose one…</option>
+                {RELATIONSHIPS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </label>
+            <label className="wl-label" htmlFor="td-url">Link to the song or page on Static Cuts//
+              <input id="td-url" className="sb-text" placeholder="https://static-cuts.com/song/…" value={pageUrl} onChange={(e) => setPageUrl(e.target.value)} />
+            </label>
+            <label className="wl-label" htmlFor="td-reason">What should be removed, and why <em className="if-req">*</em>
+              <textarea id="td-reason" className="sb-text sb-area" required placeholder="e.g. the song, the recording, the artwork" value={reason} onChange={(e) => setReason(e.target.value)} />
+            </label>
+            <label className="sb-check if-confirm">
+              <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} required />
+              I confirm I own the rights to this content (or represent someone who does) and this request is genuine.
+            </label>
+            {error && <div className="sb-error">{error}</div>}
+            <button className="sb-submit" type="submit" disabled={busy || !confirm}>{busy ? "Sending…" : "Submit//"}</button>
+          </form>
+        </InfoSection>
       )}
-    </div>
+    </InfoShell>
   );
 }
 
