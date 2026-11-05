@@ -5,6 +5,7 @@
 // collected, ratings, lists) and the side (contributions, artists they
 // follow, friends). Premium people's colour runs through it (--pf).
 
+import ProfileNetwork from "./ProfileNetwork";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -118,6 +119,12 @@ export default function ProfilePage() {
       setFollowedArtists((folRes.data as unknown as FollowedArtist[]) ?? []);
     }
     load();
+  }, [userId]);
+
+  // A link can open a tab directly, e.g. /profile/<id>#network.
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (h === "network" || h === "collection" || h === "contributions") setTab(h);
   }, [userId]);
 
   const isOwnProfile = viewer?.id === userId;
@@ -361,24 +368,8 @@ export default function ProfilePage() {
       )}
 
       {tab === "network" && social && (
-        <>
-          <div className="lb-stats pf-net-stats">
-            <span><strong>{n(social.followers)}</strong><span>followers</span></span>
-            <span><strong>{n(social.following)}</strong><span>following</span></span>
-            <span><strong>{n(social.friends.length)}</strong><span>friends</span></span>
-          </div>
-          <H title={`Friends · ${n(social.friends.length)}`} />
-          {social.friends.length === 0 && <div className="comment-meta">No friends yet: people you follow who follow you back show up here.</div>}
-          <div className="pf-list">
-            {social.friends.map((f) => (
-              <Link key={f.id} href={`/profile/${f.id}`} className="pf-list-row" style={{ alignItems: "center" }}>
-                <Avatar url={f.avatar_url} size={32} name={f.name} />
-                <span style={{ flex: 1 }}>{f.name ?? "anonymous"}<Supporter id={f.id} /></span>
-              </Link>
-            ))}
-          </div>
-          <div className="comment-meta" style={{ marginTop: 12 }}><Link href="/friends" className="text-link">Find people →</Link></div>
-        </>
+        <ProfileNetwork userId={userId} isOwn={isOwnProfile} viewerId={viewer?.id ?? null} social={social}
+          onChange={() => supabase.rpc("rpc_profile_social", { p_user: userId }).then(({ data }) => setSocial((data as Social) ?? null))} />
       )}
 
       {isOwnProfile && (
