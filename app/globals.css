@@ -3666,6 +3666,7 @@ body:has(.ms-chat-page) .site-credit { display: none; }
   .sp-hero2-inner { flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 26px; }
   .sp-cover { width: min(64vw, 240px); height: min(64vw, 240px); }
   .sp-hero2 .detail-name { font-size: clamp(2.4rem, 12vw, 3.6rem) !important; }
+}
 
 /* ===================== Messages: two panes ===================== */
 body:has(.ms-shell) .site-credit { display: none; }
