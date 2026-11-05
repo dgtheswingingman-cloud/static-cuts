@@ -19,6 +19,7 @@ import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
 import LastfmLink from "./LastfmLink";
 import Switch from "./Switch";
+import DevOptions from "./DevOptions";
 
 type Prefs = {
   show_completion_pct: boolean;
@@ -81,7 +82,7 @@ export default function SettingsPage() {
     window.location.assign("/");
   }
 
-  if (isAdmin) return <AdminModePage title="Settings" />;
+  if (isAdmin) return <><AdminModePage title="Settings" /><div className="wrap st-page"><DevOptions /></div></>;
 
   const since = me?.created_at ? new Date(me.created_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : null;
   const accent = style?.premium ? style.accent ?? null : null;
@@ -177,6 +178,8 @@ export default function SettingsPage() {
           <H>Your data</H>
           <YourData />
         </section>
+
+        <DevOptions />
       </div>
     </div>
   );
