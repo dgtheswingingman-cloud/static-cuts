@@ -69,3 +69,7 @@ a.al-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ap-project { text-decoration: none; }
 .ap-project-art { position: relative; display: block; width: 100%; }
 .ap-project-score { position: absolute; right: 6px; bottom: 6px; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; padding: 2px 7px; border-radius: 4px; background: var(--void); color: var(--bone); border: 1.5px solid var(--accent); }
+
+/* Song page: link to the album */
+.sp-album-link { color: var(--bone); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; font-weight: 600; }
+.sp-album-link:hover { color: var(--accent); }
