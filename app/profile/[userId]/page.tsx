@@ -241,10 +241,20 @@ export default function ProfilePage() {
         )}
       </div>
       {more && isOwnProfile && (
-        <div className="artist-actions artist-more">
-          <Link href="/settings" className="tab">settings</Link>
-          <Link href="/year" className="tab">your year</Link>
-        </div>
+        <nav className="pf-menu" aria-label="More">
+          <Link href="/year" className="pf-menu-item">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" /></svg>
+            <span><strong>Your year//</strong><small>Your top artists, songs and finds, ready to share.</small></span>
+          </Link>
+          <Link href="/my-submissions" className="pf-menu-item">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5" /><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>
+            <span><strong>My submissions</strong><small>Everything you&apos;ve suggested and where it&apos;s got to.</small></span>
+          </Link>
+          <Link href="/settings" className="pf-menu-item">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>
+            <span><strong>Settings</strong><small>Privacy, notifications, connections and your data.</small></span>
+          </Link>
+        </nav>
       )}
 
       {isOwnProfile && editing && pstyle && (
