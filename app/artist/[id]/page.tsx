@@ -1,4 +1,5 @@
 "use client";
+import "../../styles/album.css";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -15,7 +16,7 @@ import ArtistProfiles from "./ArtistProfiles";
 import MergeArtist from "./MergeArtist";
 import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
-import { buildEras, dateOf, span, UNRELEASED, type Song as EraSong } from "@/lib/eras";
+import { dateOf, UNRELEASED, type Song as EraSong } from "@/lib/eras";
 import { accentCss, type Rgb } from "@/lib/swatch";
 import SimilarArtists from "./SimilarArtists";
 
@@ -31,6 +32,8 @@ import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
 import { thumb } from "@/lib/thumb";
+
+type Project = { id: string; title: string; kind: string; date: string | null; cover: string | null; songs: number | null; score: number | null; rated: number };
 const genreSlug = (t: string) => t.toLowerCase().replace(/&/g, "n").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Track = {
@@ -173,6 +176,11 @@ export default function ArtistPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
   // Overview / songs / projects. Songs when a link jumps to one track.
   const [artistTab, setArtistTab] = useState<"overview" | "songs" | "projects" | "eras" | "collabs">("overview");
+  const [projectList, setProjectList] = useState<Project[] | null>(null);
+  useEffect(() => {
+    setProjectList(null);
+    supabase.rpc("rpc_artist_projects", { p_artist: id }).then(({ data }) => setProjectList((data as Project[] | null) ?? []));
+  }, [id]);
   const [eraFocus, setEraFocus] = useState<string | null>(null);
   const [eraSongs, setEraSongs] = useState<EraSong[] | null>(null);
   useEffect(() => {
@@ -1635,26 +1643,27 @@ export default function ArtistPage() {
   const unreleasedCount = mainSongs.filter((t) => UNRELEASED.includes(t.release_status ?? (t.is_official ? "released" : "unconfirmed"))).length;
   // Projects = official full albums (mostly released, 6+ songs). Unreleased
   // tapes and song eras live on the Eras page.
-  const projects = buildEras(eraSongs ?? []).filter((e) => {
-    if (e.kind !== "album") return false;
-    const out = e.songs.filter((x) => x.status === "released").length;
-    return out >= 6 && out >= e.songs.length * 0.5;
-  }).reverse();
+  // Projects = official albums and EPs (from Deezer), newest first.
+  const projects = projectList ?? [];
   const activeSince = (eraSongs ?? []).reduce<string | null>((min, x) => { const d = dateOf(x); return d && (!min || d < min) ? d : min; }, null);
   const latest = [...(eraSongs ?? [])].filter((x) => dateOf(x)).sort((a, b) => (dateOf(b) ?? "").localeCompare(dateOf(a) ?? "")).slice(0, 5);
   const shortDate = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.slice(0, 4) !== String(new Date().getFullYear()) ? { year: "numeric" } : {}) });
   const IconDots = <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
   const IconShare = <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>;
-  const projectTile = (e: (typeof projects)[number]) => (
-    <button key={e.key} className="ap-project" onClick={() => { setEraFocus(e.key); setArtistTab("eras"); }}>
-      {e.cover
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={thumb(e.cover)} alt="" loading="lazy" />
-        : <span className="ap-project-blank">SC//</span>}
-      <span className="ap-project-name">{e.name}</span>
-      <span className="ap-project-meta">{[span(e), `${e.songs.length} songs`].filter(Boolean).join(" · ")}</span>
-    </button>
+  const projectTile = (e: Project) => (
+    <Link key={e.id} href={`/album/${e.id}`} className="ap-project">
+      <span className="ap-project-art">
+        {e.cover
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={thumb(e.cover)} alt="" loading="lazy" />
+          : <span className="ap-project-blank">SC//</span>}
+        {e.score != null && e.rated >= 3 && <span className="ap-project-score">{Number(e.score).toFixed(1)}</span>}
+      </span>
+      <span className="ap-project-name">{e.title}</span>
+      <span className="ap-project-meta">{[e.kind === "ep" ? "EP" : "Album", e.date?.slice(0, 4), e.songs ? `${e.songs} songs` : null].filter(Boolean).join(" · ")}</span>
+    </Link>
   );
+
 
   return (
     <div className="wrap artist-page" style={accentStyle}>
@@ -1686,7 +1695,7 @@ export default function ArtistPage() {
                 <div className="ah2-stats">
                   <div><strong>{tracks ? mainSongs.length.toLocaleString("en-GB") : "…"}</strong><span>songs</span></div>
                   <div><strong>{tracks ? unreleasedCount.toLocaleString("en-GB") : "…"}</strong><span>unreleased</span></div>
-                  <div><strong>{eraSongs ? projects.length : "…"}</strong><span>projects</span></div>
+                  <div><strong>{projectList ? projects.length : "…"}</strong><span>projects</span></div>
                   {activeSince && <div><strong>{activeSince.slice(0, 4)}</strong><span>active</span></div>}
                 </div>
               </ArtistHero>
@@ -2013,8 +2022,8 @@ export default function ArtistPage() {
 
           {artistTab === "projects" && (
             <>
-              {!eraSongs && <div className="empty-state">loading…</div>}
-              {eraSongs && projects.length === 0 && <div className="empty-state">No official albums yet.</div>}
+              {!projectList && <div className="empty-state">loading…</div>}
+              {projectList && projects.length === 0 && <div className="empty-state">No official albums or EPs found yet.</div>}
               <div className="ap-projects">{projects.map(projectTile)}</div>
               <div className="comment-meta" style={{ marginTop: 12 }}>
                 Unreleased tapes and song eras are on <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }} onClick={() => { setEraFocus(null); setArtistTab("eras"); }}>Eras →</button>
