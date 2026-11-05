@@ -16,7 +16,7 @@ export const STATUS_COLOURS: Record<string, string> = {
 
 function fontVar(name: string, fallback: string) {
   try {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const v = (getComputedStyle(document.body).getPropertyValue(name) || getComputedStyle(document.documentElement).getPropertyValue(name)).trim();
     return v ? `${v}, ${fallback}` : fallback;
   } catch { return fallback; }
 }
@@ -95,19 +95,22 @@ function footer(ctx: Ctx, logo: HTMLImageElement | null, f: Fonts, url: string) 
   ctx.textAlign = "left";
   if (logo) {
     const w = 210, h = (logo.height / logo.width) * w;
-    ctx.drawImage(logo, 70, H - 170, w, h);
+    ctx.drawImage(logo, 70, H - 150, w, h);
   }
-  ctx.fillStyle = BONE;
-  ctx.font = `32px ${f.mono}`;
-  ctx.fillText(url.replace(/^https?:\/\//, ""), 70, H - 90);
+  ctx.fillStyle = SMOKE;
+  ctx.font = `30px ${f.mono}`;
+  let u = url.replace(/^https?:\/\//, "");
+  if (ctx.measureText(u).width > W - 140) { while (u.length > 1 && ctx.measureText(u + "…").width > W - 140) u = u.slice(0, -1); u += "…"; }
+  ctx.fillText(u, 70, H - 72);
 }
 
 // A big title with // in the accent colour.
 function heading(ctx: Ctx, f: Fonts, text: string, x: number, y: number, size: number, accent: string) {
   ctx.textAlign = "left";
-  ctx.font = `italic ${size}px ${f.display}`;
-  ctx.fillStyle = BONE;
   const t = text.toUpperCase();
+  ctx.font = `italic ${size}px ${f.display}`;
+  while (ctx.measureText(t + "//").width + 6 > W - 140 && size > 40) { size -= 4; ctx.font = `italic ${size}px ${f.display}`; }
+  ctx.fillStyle = BONE;
   ctx.fillText(t, x, y);
   const w = ctx.measureText(t).width;
   ctx.fillStyle = accent;
@@ -192,29 +195,30 @@ export async function songCard(d: SongCardData): Promise<Blob | null> {
   const { c, ctx, f, logo } = await setup(accent);
   header(ctx, logo, f, accent);
   const img = await loadImage(d.cover);
-  cover(ctx, img, 70, 260, W - 140, W - 140, false, "rgba(237,237,237,0.85)", 4);
-  let y = 260 + (W - 140) + 120;
+  const cs = 860, cx = (W - cs) / 2;
+  cover(ctx, img, cx, 230, cs, cs, false, "rgba(237,237,237,0.85)", 4);
+  let y = 230 + cs + 130;
   ctx.textAlign = "left";
   const title = d.title.toUpperCase();
-  ctx.font = `110px ${f.display}`;
-  let lines = wrap(ctx, title, W - 140, 2);
   let size = 110;
-  while (lines.length > 1 && ctx.measureText(lines[0]).width > W - 140 && size > 70) { size -= 8; ctx.font = `${size}px ${f.display}`; lines = wrap(ctx, title, W - 140, 2); }
+  ctx.font = `${size}px ${f.display}`;
+  let lines = wrap(ctx, title, W - 140, 2);
+  while ((lines.length > 1 || ctx.measureText(lines[0] ?? "").width > W - 140) && size > 72) {
+    size -= 6; ctx.font = `${size}px ${f.display}`; lines = wrap(ctx, title, W - 140, 2);
+    if (lines.length === 1 && ctx.measureText(lines[0]).width <= W - 140) break;
+  }
   ctx.fillStyle = BONE;
-  for (const l of lines) { ctx.fillText(l, 70, y); y += size * 1.0; }
-  ctx.font = `48px ${f.mono}`;
-  ctx.fillStyle = BONE;
-  ctx.fillText(d.artist, 70, y + 10);
-  y += 50;
-  tag(ctx, f, d.status, 70, y, 40);
-  y += 110;
-  ctx.font = `40px ${f.mono}`;
-  ctx.fillStyle = BONE;
-  const meta = [d.album, d.year ? String(d.year) : null].filter(Boolean) as string[];
-  for (const m of meta) { ctx.fillText(wrap(ctx, m, W - 140, 1)[0] ?? "", 70, y); y += 56; }
-  if (d.versions && d.versions > 1) {
-    y += 10; line(ctx, y); y += 70;
-    ctx.fillText(`Versions: ${d.versions}`, 70, y);
+  lines.forEach((l, i) => { ctx.fillText(l, 70, y); if (i < lines.length - 1) y += size * 0.98; });
+  y += 70;
+  ctx.font = `46px ${f.mono}`;
+  ctx.fillText(wrap(ctx, d.artist, W - 140, 1)[0] ?? "", 70, y);
+  y += 36;
+  tag(ctx, f, d.status, 70, y, 36);
+  y += 54 + 80;
+  const meta = [d.album, d.year ? String(d.year) : null, d.versions && d.versions > 1 ? `${d.versions} versions` : null].filter(Boolean) as string[];
+  if (meta.length && y < H - 200) {
+    ctx.font = `36px ${f.mono}`; ctx.fillStyle = SMOKE;
+    ctx.fillText(wrap(ctx, meta.join("  ·  "), W - 140, 1)[0] ?? "", 70, y);
   }
   footer(ctx, logo, f, d.url);
   return toBlob(c);
@@ -294,7 +298,7 @@ export async function yearIntro(d: YearData): Promise<Blob | null> {
   const av = await loadImage(d.avatar);
   cover(ctx, av, 70, 460, 300, 300, true, accent, 8);
   ctx.fillStyle = BONE; ctx.textAlign = "left";
-  ctx.font = `64px ${f.display}`;
+  ctx.font = `${fitText(ctx, d.name, (sz) => `${sz}px ${f.display}`, W - 140, 64, 40)}px ${f.display}`;
   ctx.fillText(d.name, 70, 860);
   ctx.font = `38px ${f.mono}`;
   ctx.fillText("This year, you kept the archive alive.", 70, 920);
@@ -303,12 +307,12 @@ export async function yearIntro(d: YearData): Promise<Blob | null> {
     heading(ctx, f, "Top 5 artists", 70, 1090, 64, accent);
     const imgs = await Promise.all(d.topArtists.slice(0, 5).map((a) => loadImage(a.image)));
     d.topArtists.slice(0, 5).forEach((a, i) => {
-      const y = 1150 + i * 120;
+      const y = 1140 + i * 112;
       ctx.fillStyle = BONE; ctx.font = `64px ${f.display}`; ctx.textAlign = "left";
       ctx.fillText(String(i + 1), 80, y + 72);
       cover(ctx, imgs[i], 170, y, 96, 96, true, BONE, 3);
       ctx.font = `42px ${f.mono}`;
-      ctx.fillText(wrap(ctx, a.name, 560, 1)[0] ?? "", 300, y + 62);
+      ctx.fillText(wrap(ctx, a.name, 470, 1)[0] ?? "", 300, y + 62);
       ctx.fillStyle = SMOKE; ctx.font = `32px ${f.mono}`; ctx.textAlign = "right";
       ctx.fillText(`${a.n} songs`, W - 70, y + 62);
       ctx.textAlign = "left";
@@ -326,17 +330,18 @@ export async function yearFinds(d: YearData): Promise<Blob | null> {
   const list = d.finds.slice(0, 5);
   const imgs = await Promise.all(list.map((x) => loadImage(x.cover)));
   list.forEach((s, i) => {
-    const y = 450 + i * 270;
-    ctx.fillStyle = BONE; ctx.font = `76px ${f.display}`; ctx.textAlign = "left";
-    ctx.fillText(String(i + 1), 80, y + 90);
-    cover(ctx, imgs[i], 170, y, 230, 230, false, BONE, 3);
-    ctx.font = `700 44px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.title, W - 520, 1)[0] ?? "", 440, y + 50);
-    ctx.font = `36px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.artist, W - 520, 1)[0] ?? "", 440, y + 100);
-    if (s.status) tag(ctx, f, s.status, 440, y + 125, 30, false);
-    ctx.fillStyle = BONE; ctx.font = `30px ${f.mono}`;
-    ctx.fillText([s.year, s.holders === 1 ? "only you have it" : `${s.holders} collectors`].filter(Boolean).join(" · "), 440, y + 215);
+    const y = 440 + i * 250;
+    ctx.fillStyle = BONE; ctx.font = `70px ${f.display}`; ctx.textAlign = "left";
+    ctx.fillText(String(i + 1), 76, y + 84);
+    cover(ctx, imgs[i], 150, y, 210, 210, false, BONE, 3);
+    const tx = 400, tw = W - 70 - tx;
+    ctx.font = `700 42px ${f.mono}`;
+    ctx.fillText(wrap(ctx, s.title, tw, 1)[0] ?? "", tx, y + 46);
+    ctx.font = `34px ${f.mono}`;
+    ctx.fillText(wrap(ctx, s.artist, tw, 1)[0] ?? "", tx, y + 92);
+    if (s.status) tag(ctx, f, s.status, tx, y + 112, 26, false);
+    ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`;
+    ctx.fillText(wrap(ctx, [s.year, s.holders === 1 ? "only you have it" : `${s.holders} collectors`].filter(Boolean).join(" · "), tw, 1)[0] ?? "", tx, y + 196);
   });
   footer(ctx, logo, f, d.url);
   return toBlob(c);
@@ -350,23 +355,24 @@ export async function yearBiggest(d: YearData): Promise<Blob | null> {
   heading(ctx, f, "Your biggest find", 70, 380, 120, accent);
   if (s) {
     const img = await loadImage(s.cover);
-    cover(ctx, img, 70, 450, W - 140, W - 140, false, BONE, 4);
-    let y = 450 + (W - 140) + 100;
+    const cs = 820;
+    cover(ctx, img, (W - cs) / 2, 440, cs, cs, false, BONE, 4);
+    let y = 440 + cs + 100;
     ctx.fillStyle = BONE; ctx.textAlign = "left";
-    ctx.font = `700 60px ${f.mono}`;
+    ctx.font = `700 56px ${f.mono}`;
     ctx.fillText(wrap(ctx, s.title, W - 140, 1)[0] ?? "", 70, y);
-    y += 64;
-    ctx.font = `44px ${f.mono}`;
-    ctx.fillText(s.artist, 70, y);
-    y += 40;
+    y += 62;
+    ctx.font = `42px ${f.mono}`;
+    ctx.fillText(wrap(ctx, s.artist, W - 140, 1)[0] ?? "", 70, y);
+    y += 36;
     const label = s.holders === 1 ? "ONLY YOU HAVE IT" : `ONLY ${s.holders} COLLECTORS`;
     ctx.font = `700 38px ${f.mono}`;
     const w = ctx.measureText(label).width + 30;
     ctx.fillStyle = accent; ctx.fillRect(70, y, w, 58);
     ctx.fillStyle = "#070707"; ctx.fillText(label, 85, y + 42);
-    y += 120;
-    ctx.fillStyle = BONE; ctx.font = `36px ${f.mono}`;
-    for (const l of wrap(ctx, s.holders === 1 ? "Nobody else on Static Cuts has collected this one." : "One of the rarest songs in anyone's collection.", W - 140, 2)) { ctx.fillText(l, 70, y); y += 50; }
+    y += 118;
+    ctx.fillStyle = SMOKE; ctx.font = `34px ${f.mono}`;
+    for (const l of wrap(ctx, s.holders === 1 ? "Nobody else on Static Cuts has collected this one." : "One of the rarest songs in anyone's collection.", W - 140, 2)) { if (y > H - 190) break; ctx.fillText(l, 70, y); y += 46; }
   }
   footer(ctx, logo, f, d.url);
   return toBlob(c);
@@ -378,16 +384,17 @@ export async function yearNumbers(d: YearData): Promise<Blob | null> {
   header(ctx, logo, f, accent);
   heading(ctx, f, "Your numbers", 70, 380, 130, accent);
   d.numbers.slice(0, 4).forEach(([label, value, note], i) => {
-    const y = 470 + i * 320;
+    const y = 450 + i * 300, bh = 260;
     ctx.strokeStyle = "rgba(237,237,237,0.6)"; ctx.lineWidth = 3;
-    ctx.strokeRect(70, y, W - 140, 270);
-    ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(170, y + 135, 50, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeRect(70, y, W - 140, bh);
+    ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(170, y + bh / 2, 50, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#070707"; ctx.font = `60px ${f.display}`; ctx.textAlign = "center";
-    ctx.fillText(String(i + 1), 170, y + 158);
+    ctx.fillText(String(i + 1), 170, y + bh / 2 + 22);
     ctx.textAlign = "left"; ctx.fillStyle = BONE;
-    ctx.font = `34px ${f.mono}`; ctx.fillText(label.toUpperCase(), 270, y + 80);
-    ctx.font = `110px ${f.display}`; ctx.fillText(value, 270, y + 190);
-    ctx.fillStyle = SMOKE; ctx.font = `30px ${f.mono}`; ctx.fillText(note, 270, y + 240);
+    const tw = W - 70 - 30 - 270;
+    ctx.font = `32px ${f.mono}`; ctx.fillText(wrap(ctx, label.toUpperCase(), tw, 1)[0] ?? "", 270, y + 70);
+    ctx.font = `${fitText(ctx, value, (sz) => `${sz}px ${f.display}`, tw, 104, 50)}px ${f.display}`; ctx.fillText(value, 270, y + 175);
+    ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`; ctx.fillText(wrap(ctx, note, tw, 1)[0] ?? "", 270, y + 225);
   });
   footer(ctx, logo, f, d.url);
   return toBlob(c);

@@ -72,3 +72,11 @@
   .pg-tile-n { font-size: 1.6rem; }
   .pg-auth { margin-top: 4vh; padding: 22px 16px; }
 }
+
+/* Weekly: full-width boxes, songs laid out in columns so nothing leaves gaps */
+.pg-page.pg-weekly { max-width: 1400px !important; }
+.pg-stack { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.pg-songgrid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 6px 12px; }
+.pg-songgrid > .sp-version { margin: 0; min-width: 0; }
+.pg-more { display: block; margin: 12px auto 0; font-family: var(--font-mono), monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 16px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: none; color: var(--bone); cursor: pointer; }
+.pg-more:hover { border-color: var(--accent); }

@@ -47,7 +47,7 @@ export default function Wrapped({ review, userId, onClose }: { review: Review; u
       const p = me as { display_name: string | null; avatar_url: string | null } | null;
       const d: YearData = {
         year: review.year, name: p?.display_name ?? "You", avatar: p?.avatar_url ?? null,
-        accent: st?.premium ? st.accent ?? null : null, url: `static-cuts.com/profile/${userId}`,
+        accent: st?.premium ? st.accent ?? null : null, url: "static-cuts.com",
         topArtists: review.top_artists.map((a) => ({ name: a.artist, image: img.get(a.artist_id) ?? null, n: a.n })),
         finds: review.rarest.map((r) => {
           const t = tr.get(r.track_id);

@@ -11,7 +11,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
-import ShareButton from "../components/ShareButton";
 import Wrapped from "./Wrapped";
 
 type Review = {
@@ -165,10 +164,6 @@ function YearInner() {
             )}
           </div>
 
-          <div className="yr-foot">
-            <span>Share a slide from Play, or</span>
-            <ShareButton title={`My ${year} on Static Cuts//`} label="share my profile" path={user ? `/profile/${user.id}` : "/"} />
-          </div>
         </>
       )}
     </div>
