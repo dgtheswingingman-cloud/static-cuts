@@ -23,6 +23,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; on?: (p: string) =>
   { href: "/lists", label: "Lists", icon: I(<><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>), on: (p) => p.startsWith("/lists") || p.startsWith("/list/") },
   { href: "/genres", label: "Genres", icon: I(<><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></>), on: (p) => p.startsWith("/genre") },
   { href: "/collabs", label: "Collabs", icon: I(<><circle cx="8" cy="9" r="3.5" /><circle cx="16" cy="9" r="3.5" /><path d="M2 20c1-3.5 3.5-5 6-5s5 1.5 6 5M12.5 15.3c1-.2 2.3-.3 3.5-.3 2.5 0 5 1.5 6 5" /></>) },
+  { href: "/submit", label: "Suggest", icon: I(<><path d="M12 15V4M7 9l5-5 5 5" /><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></>), on: (p) => p.startsWith("/submit") || p.startsWith("/my-submissions") },
   { href: "/help", label: "Help wanted", icon: I(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" /></>) },
 ];
 
