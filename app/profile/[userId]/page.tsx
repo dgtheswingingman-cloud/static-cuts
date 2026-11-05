@@ -356,6 +356,15 @@ export default function ProfilePage() {
 
       {tab === "contributions" && (
         <>
+          {isOwnProfile && (
+            <Link href="/my-submissions" className="lb-card pf-subs-link">
+              <span className="sp-version-text">
+                <strong>My submissions</strong>
+                <span>Everything you&apos;ve suggested: pending, approved and rejected, with moderator notes.</span>
+              </span>
+              <span aria-hidden="true" className="hf-chev">›</span>
+            </Link>
+          )}
           {contribTotal === null && <div className="empty-state">Contributions are private.</div>}
           {contribTotal !== null && (
             <>

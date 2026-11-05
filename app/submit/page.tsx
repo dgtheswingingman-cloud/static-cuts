@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+// Suggest// : add to the archive. Pick what you're suggesting (new artist,
+// new song, new version, fix details, status change, broken link), find the
+// artist or song it's about, fill in what you know. A moderator checks it
+// first, unless you're a trusted contributor. Song and artist pages link here
+// with everything filled in already.
+
+import { useEffect, useState, Suspense, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
@@ -8,7 +15,46 @@ import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import DateDropdownPicker from "../components/DateDropdownPicker";
 import AlbumAutocomplete from "../components/AlbumAutocomplete";
 
-type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "flag_link" | "flag_deletion";
+type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "status_change" | "flag_link" | "flag_deletion";
+type Tag = { id: string; name: string };
+type SongHit = { id: string; title: string; artist_id: string; cover_url: string | null; release_status: string | null; artists: { name: string; image_url: string | null } | null };
+
+const STATUSES = ["released", "leaked", "snippet", "teased", "announced", "unconfirmed"];
+
+const CARDS: [SubmitType, string, ReactNode][] = [
+  ["new_artist", "New artist", <svg key="a" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>],
+  ["new_track", "New song", <svg key="s" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>],
+  ["new_version", "New version", <svg key="v" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="1" /><path d="M4 16V5a1 1 0 0 1 1-1h11" /></svg>],
+  ["correction", "Fix details", <svg key="f" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z" /><path d="M14 6l3 3" /></svg>],
+  ["status_change", "Status change", <svg key="c" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4" /></svg>],
+  ["flag_link", "Broken link", <svg key="l" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>],
+];
+
+const HEAD: Record<SubmitType, [string, string]> = {
+  new_artist: ["New artist", "Suggest an artist who isn't in the archive yet."],
+  new_track: ["New song", "Suggest a new song for the archive."],
+  new_version: ["New version", "Add an alternate version of a song that's already here (demo, live, a different mix)."],
+  correction: ["Fix details", "Change whatever needs fixing on a song; leave the rest as it is."],
+  status_change: ["Status change", "A song leaked, came out, or got snippeted? Say what it is now."],
+  flag_link: ["Broken link", "The listen link on a song is dead or wrong."],
+  flag_deletion: ["Remove a song", "A song that shouldn't be here (duplicate, wrong artist, doesn't exist)."],
+};
+
+function Field({ label, req, hint, children }: { label: string; req?: boolean; hint?: string; children: ReactNode }) {
+  return (
+    <div className="sb-field">
+      <div className="sb-label">{label}{req && <em> *</em>}{hint && <small>{hint}</small>}</div>
+      <div className="sb-input">{children}</div>
+    </div>
+  );
+}
+
+function Face({ url, round = true }: { url: string | null | undefined; round?: boolean }) {
+  return url
+    // eslint-disable-next-line @next/next/no-img-element
+    ? <img src={url} alt="" className={round ? "sb-face" : "sb-face sq"} />
+    : <span className={round ? "sb-face blank" : "sb-face sq blank"} />;
+}
 
 function SubmitForm() {
   const { loading: authLoading } = useAuth();
@@ -16,55 +62,44 @@ function SubmitForm() {
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const sp = (k: string) => searchParams.get(k) ?? "";
 
   const typeParam = searchParams.get("type") as SubmitType | null;
-  const prefilledArtistId = searchParams.get("artist_id") ?? "";
-  const prefilledArtistName = searchParams.get("artist_name") ?? "";
-  const prefillNewArtistName = searchParams.get("prefill_name") ?? "";
-  const prefilledParentTrackId = searchParams.get("parent_track_id") ?? "";
-  const prefilledParentTitle = searchParams.get("parent_title") ?? "";
-  const prefilledTrackId = searchParams.get("track_id") ?? "";
-  const prefilledTrackTitle = searchParams.get("track_title") ?? "";
-  const currentUrl = searchParams.get("current_url") ?? "";
-  const currentFeatured = searchParams.get("current_featured") === "true";
-  const currentOfficial = searchParams.get("current_official") === "true";
-  const currentParentId = searchParams.get("current_parent_id") ?? "";
-  const currentParentTitle = searchParams.get("current_parent_title") ?? "";
-  const currentAliases = searchParams.get("current_aliases") ?? "";
-  const currentTrackNumber = searchParams.get("current_track_number") ?? "";
-  const currentReleaseDate = searchParams.get("current_release_date") ?? "";
-  const currentProducers = searchParams.get("current_producers") ?? "";
-  const currentFeaturedArtistTags: { id: string; name: string }[] = (() => {
+  const prefillNewArtistName = sp("prefill_name");
+  const currentFeaturedArtistTags: Tag[] = (() => {
     const raw = searchParams.get("current_featured_artist_tags");
     if (!raw) return [];
     try { return JSON.parse(raw); } catch { return []; }
   })();
-  const currentGenre = searchParams.get("current_genre") ?? "";
-  const currentNotes = searchParams.get("current_notes") ?? "";
-  const currentAlbum = searchParams.get("current_album") ?? "";
 
-  const [parentSearch, setParentSearch] = useState(currentParentTitle);
+  const initialType: SubmitType = typeParam ? typeParam : sp("parent_track_id") ? "new_version" : sp("artist_id") ? "new_track" : prefillNewArtistName ? "new_artist" : "new_track";
+  const [type, setType] = useState<SubmitType>(initialType);
+
+  // What it's about: filled from the link, or picked here.
+  const [prefilledArtistId, setArtistId] = useState(sp("artist_id"));
+  const [prefilledArtistName, setArtistName2] = useState(sp("artist_name"));
+  const [artistImage, setArtistImage] = useState<string | null>(null);
+  const [prefilledParentTrackId, setParentTrackId] = useState(sp("parent_track_id"));
+  const [prefilledParentTitle, setParentTitle] = useState(sp("parent_title"));
+  const [prefilledTrackId, setTrackId] = useState(sp("track_id"));
+  const [prefilledTrackTitle, setTrackTitle2] = useState(sp("track_title"));
+  const [currentUrl, setCurrentUrl] = useState(sp("current_url"));
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
+  const [pickedCover, setPickedCover] = useState<string | null>(null);
+
+  const [parentSearch, setParentSearch] = useState(sp("current_parent_title"));
   const [parentResults, setParentResults] = useState<{ id: string; title: string }[]>([]);
   const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
 
-  const initialType: SubmitType = typeParam
-    ? typeParam
-    : prefilledParentTrackId
-    ? "new_version"
-    : prefilledArtistId
-    ? "new_track"
-    : "new_artist";
-
-  const [type] = useState<SubmitType>(initialType);
   const [artistName, setArtistName] = useState(prefillNewArtistName);
   const [trackTitle, setTrackTitle] = useState("");
   const [trackUrl, setTrackUrl] = useState("");
   const [versionTitle, setVersionTitle] = useState("");
   const [versionUrl, setVersionUrl] = useState("");
+  const [newStatus, setNewStatus] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-  const [isOfficial, setIsOfficial] = useState(false);
   const [mainArtistSearch, setMainArtistSearch] = useState("");
-  const [mainArtistResults, setMainArtistResults] = useState<{ id: string; name: string }[]>([]);
+  const [mainArtistResults, setMainArtistResults] = useState<Tag[]>([]);
   const [mainArtistId, setMainArtistId] = useState("");
   const [subVersionSearch, setSubVersionSearch] = useState("");
   const [subVersionResults, setSubVersionResults] = useState<{ id: string; title: string }[]>([]);
@@ -77,29 +112,39 @@ function SubmitForm() {
   const [newGenre, setNewGenre] = useState("");
   const [newNotes, setNewNotes] = useState("");
 
-  // Correction-mode fields, prefilled from the track's current values
-  const [editTitle, setEditTitle] = useState(prefilledTrackTitle);
-  const [editUrl, setEditUrl] = useState(currentUrl);
-  const [editFeatured, setEditFeatured] = useState(currentFeatured);
-  const [editOfficial, setEditOfficial] = useState(currentOfficial);
-  const [editParentId, setEditParentId] = useState(currentParentId);
-  const [editAliases, setEditAliases] = useState(currentAliases);
-  const [editTrackNumber, setEditTrackNumber] = useState(currentTrackNumber);
-  const [editReleaseDate, setEditReleaseDate] = useState(currentReleaseDate);
-  const [editProducers, setEditProducers] = useState(currentProducers);
-  const [newFeaturedTags, setNewFeaturedTags] = useState<{ id: string; name: string }[]>([]);
+  // Fix details: the song's current values.
+  const [editTitle, setEditTitle] = useState(sp("track_title"));
+  const [editUrl, setEditUrl] = useState(sp("current_url"));
+  const [editFeatured, setEditFeatured] = useState(sp("current_featured") === "true");
+  const [editOfficial, setEditOfficial] = useState(sp("current_official") === "true");
+  const [editParentId, setEditParentId] = useState(sp("current_parent_id"));
+  const [editAliases, setEditAliases] = useState(sp("current_aliases"));
+  const [editTrackNumber, setEditTrackNumber] = useState(sp("current_track_number"));
+  const [editReleaseDate, setEditReleaseDate] = useState(sp("current_release_date"));
+  const [editProducers, setEditProducers] = useState(sp("current_producers"));
+  const [newFeaturedTags, setNewFeaturedTags] = useState<Tag[]>([]);
   const [newFeaturedSearch, setNewFeaturedSearch] = useState("");
-  const [newFeaturedResults, setNewFeaturedResults] = useState<{ id: string; name: string }[]>([]);
-  const [editFeaturedTags, setEditFeaturedTags] = useState<{ id: string; name: string }[]>(currentFeaturedArtistTags);
+  const [newFeaturedResults, setNewFeaturedResults] = useState<Tag[]>([]);
+  const [editFeaturedTags, setEditFeaturedTags] = useState<Tag[]>(currentFeaturedArtistTags);
   const [editFeaturedSearch, setEditFeaturedSearch] = useState("");
-  const [editFeaturedResults, setEditFeaturedResults] = useState<{ id: string; name: string }[]>([]);
-  const [editGenre, setEditGenre] = useState(currentGenre);
-  const [editNotes, setEditNotes] = useState(currentNotes);
-  const [editAlbum, setEditAlbum] = useState(currentAlbum);
+  const [editFeaturedResults, setEditFeaturedResults] = useState<Tag[]>([]);
+  const [editGenre, setEditGenre] = useState(sp("current_genre"));
+  const [editNotes, setEditNotes] = useState(sp("current_notes"));
+  const [editAlbum, setEditAlbum] = useState(sp("current_album"));
   const [flagReason, setFlagReason] = useState("");
   const [flagReplacement, setFlagReplacement] = useState("");
   const [deletionReason, setDeletionReason] = useState("");
+  const [toStatus, setToStatus] = useState("");
+  const [statusDate, setStatusDate] = useState("");
+  const [statusLink, setStatusLink] = useState("");
 
+  // Pickers
+  const [artistQ, setArtistQ] = useState("");
+  const [artistHits, setArtistHits] = useState<{ id: string; name: string; image_url: string | null }[]>([]);
+  const [songQ, setSongQ] = useState("");
+  const [songHits, setSongHits] = useState<SongHit[]>([]);
+
+  const [trust, setTrust] = useState<{ approved: number; rejected: number; trusted: boolean } | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -108,65 +153,124 @@ function SubmitForm() {
     if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
 
+  useEffect(() => { supabase.rpc("rpc_my_trust").then(({ data }) => setTrust(data ?? null)); }, []);
+
+  // Picture of the artist (and the song's cover and status) when they came in on the link.
+  useEffect(() => {
+    if (prefilledArtistId) supabase.from("artists").select("image_url").eq("id", prefilledArtistId).maybeSingle()
+      .then(({ data }) => setArtistImage((data as { image_url: string | null } | null)?.image_url ?? null));
+    const tid = sp("track_id") || sp("parent_track_id");
+    if (tid) supabase.from("tracks").select("cover_url, release_status").eq("id", tid).maybeSingle().then(({ data }) => {
+      const d = data as { cover_url: string | null; release_status: string | null } | null;
+      setPickedCover(d?.cover_url ?? null);
+      setCurrentStatus(d?.release_status ?? null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Artist search (new song).
+  useEffect(() => {
+    const q = artistQ.trim();
+    if (q.length < 2) { setArtistHits([]); return; }
+    const h = setTimeout(async () => {
+      const { data } = await supabase.from("artists").select("id, name, image_url").ilike("name", `%${q}%`).limit(8);
+      setArtistHits((data as { id: string; name: string; image_url: string | null }[]) ?? []);
+    }, 250);
+    return () => clearTimeout(h);
+  }, [artistQ]);
+
+  // Song search (version, fix, status, link).
+  useEffect(() => {
+    const q = songQ.trim();
+    if (q.length < 2) { setSongHits([]); return; }
+    const h = setTimeout(async () => {
+      let req = supabase.from("tracks").select("id, title, artist_id, cover_url, release_status, artists!artist_id(name, image_url)").ilike("title", `%${q}%`);
+      if (type === "new_version") req = req.is("parent_track_id", null);
+      const { data } = await req.limit(10);
+      setSongHits((data as unknown as SongHit[]) ?? []);
+    }, 250);
+    return () => clearTimeout(h);
+  }, [songQ, type]);
+
+  function pickArtist(a: { id: string; name: string; image_url: string | null }) {
+    setArtistId(a.id); setArtistName2(a.name); setArtistImage(a.image_url); setArtistQ(""); setArtistHits([]);
+  }
+
+  async function pickSong(s: SongHit) {
+    setSongQ(""); setSongHits([]);
+    setArtistId(s.artist_id); setArtistName2(s.artists?.name ?? ""); setArtistImage(s.artists?.image_url ?? null);
+    setPickedCover(s.cover_url); setCurrentStatus(s.release_status);
+    if (type === "new_version") { setParentTrackId(s.id); setParentTitle(s.title); return; }
+    setTrackId(s.id); setTrackTitle2(s.title);
+    // Everything about the song as it is now, so a fix only changes what you change.
+    const [{ data: t }, { data: feats }] = await Promise.all([
+      supabase.from("tracks").select("title, spotify_url, is_featured, is_official, parent_track_id, aliases, track_number, release_date, producers, genre, notes, album").eq("id", s.id).maybeSingle(),
+      supabase.from("track_appearances").select("artist_id, artists!artist_id(name)").eq("track_id", s.id),
+    ]);
+    const d = (t ?? {}) as Record<string, string | number | boolean | null>;
+    setCurrentUrl((d.spotify_url as string) ?? "");
+    setEditTitle((d.title as string) ?? s.title);
+    setEditUrl((d.spotify_url as string) ?? "");
+    setEditFeatured(!!d.is_featured);
+    setEditOfficial(!!d.is_official);
+    setEditParentId((d.parent_track_id as string) ?? "");
+    setEditAliases((d.aliases as string) ?? "");
+    setEditTrackNumber(d.track_number != null ? String(d.track_number) : "");
+    setEditReleaseDate((d.release_date as string) ?? "");
+    setEditProducers((d.producers as string) ?? "");
+    setEditGenre((d.genre as string) ?? "");
+    setEditNotes((d.notes as string) ?? "");
+    setEditAlbum((d.album as string) ?? "");
+    setEditFeaturedTags(((feats ?? []) as unknown as { artist_id: string; artists: { name: string } | null }[])
+      .filter((f) => f.artists?.name).map((f) => ({ id: f.artist_id, name: f.artists!.name })));
+    if (d.parent_track_id) {
+      const { data: p } = await supabase.from("tracks").select("title").eq("id", d.parent_track_id as string).maybeSingle();
+      setParentSearch((p as { title: string } | null)?.title ?? "");
+    } else setParentSearch("");
+  }
+
+  function clearTarget() {
+    setArtistId(""); setArtistName2(""); setArtistImage(null); setParentTrackId(""); setParentTitle("");
+    setTrackId(""); setTrackTitle2(""); setCurrentUrl(""); setCurrentStatus(null); setPickedCover(null);
+  }
+
+  function changeType(t: SubmitType) {
+    if (t === type) return;
+    // Keep the artist when moving between song kinds; clear a picked song.
+    setTrackId(""); setTrackTitle2(""); setParentTrackId(""); setParentTitle(""); setCurrentUrl(""); setPickedCover(null);
+    setError(null);
+    setType(t);
+  }
+
   useEffect(() => {
     if (type !== "correction" || !prefilledArtistId) return;
     const q = parentSearch.trim();
     if (q.length < 2) { setParentResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase
-        .from("tracks")
-        .select("id, title")
-        .eq("artist_id", prefilledArtistId)
-        .is("parent_track_id", null)
-        .neq("id", prefilledTrackId)
-        .ilike("title", `%${q}%`)
-        .limit(8);
+      const { data } = await supabase.from("tracks").select("id, title").eq("artist_id", prefilledArtistId)
+        .is("parent_track_id", null).neq("id", prefilledTrackId || "-").ilike("title", `%${q}%`).limit(8);
       setParentResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
   }, [parentSearch, type, prefilledArtistId, prefilledTrackId]);
 
   // Checks for an existing track with a matching title (under the same
-  // parent scope) or the same listen link, and asks for confirmation
-  // before submitting a likely duplicate. Returns true if it's OK to
-  // proceed.
-  async function checkForDuplicates(opts: {
-    artistId: string;
-    title: string;
-    url: string;
-    parentTrackId?: string | null;
-    excludeTrackId?: string;
-  }): Promise<boolean> {
+  // parent scope) or the same listen link, and asks before submitting a
+  // likely duplicate. Returns true if it's OK to go ahead.
+  async function checkForDuplicates(opts: { artistId: string; title: string; url: string; parentTrackId?: string | null; excludeTrackId?: string }): Promise<boolean> {
     const { artistId, title, url, parentTrackId, excludeTrackId } = opts;
-
-    let titleQuery = supabase
-      .from("tracks")
-      .select("id, title")
-      .eq("artist_id", artistId)
-      .ilike("title", title.trim());
+    let titleQuery = supabase.from("tracks").select("id, title").eq("artist_id", artistId).ilike("title", title.trim());
     if (parentTrackId) titleQuery = titleQuery.eq("parent_track_id", parentTrackId);
     else titleQuery = titleQuery.is("parent_track_id", null);
     const { data: titleMatches } = await titleQuery;
-    const realTitleMatches = (titleMatches ?? []).filter((t) => t.id !== excludeTrackId);
-    if (realTitleMatches.length > 0) {
-      if (!window.confirm(`A track named "${title.trim()}" already exists here. Submit anyway?`)) {
-        return false;
-      }
+    if ((titleMatches ?? []).some((t) => t.id !== excludeTrackId)) {
+      if (!window.confirm(`A song called "${title.trim()}" is already here. Submit anyway?`)) return false;
     }
-
     if (url.trim()) {
-      const { data: linkMatches } = await supabase
-        .from("tracks")
-        .select("id, title")
-        .eq("spotify_url", url.trim());
-      const realLinkMatches = (linkMatches ?? []).filter((t) => t.id !== excludeTrackId);
-      if (realLinkMatches.length > 0) {
-        if (!window.confirm(`That link is already attached to "${realLinkMatches[0].title}". Submit anyway?`)) {
-          return false;
-        }
-      }
+      const { data: linkMatches } = await supabase.from("tracks").select("id, title").eq("spotify_url", url.trim());
+      const real = (linkMatches ?? []).filter((t) => t.id !== excludeTrackId);
+      if (real.length > 0 && !window.confirm(`That link is already on "${real[0].title}". Submit anyway?`)) return false;
     }
-
     return true;
   }
 
@@ -174,29 +278,20 @@ function SubmitForm() {
     const q = mainArtistSearch.trim();
     if (q.length < 2) { setMainArtistResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId || "-").limit(8);
       setMainArtistResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
   }, [mainArtistSearch, prefilledArtistId]);
 
-  // Inline "is this a version of something that already exists?" search
-  // for the new_track form -- searches whichever artist is actually going
-  // to be the home (the featured main artist if picked, otherwise the
-  // page this was submitted from), only matching main tracks, not other
-  // sub-versions, to avoid nesting.
+  // "Is this a version of something already here?" for a new song: searches
+  // whichever artist it'll live under, main songs only.
   useEffect(() => {
     const q = subVersionSearch.trim();
     const homeArtist = isFeatured ? mainArtistId : prefilledArtistId;
     if (q.length < 2 || !homeArtist) { setSubVersionResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase
-        .from("tracks")
-        .select("id, title")
-        .eq("artist_id", homeArtist)
-        .is("parent_track_id", null)
-        .ilike("title", `%${q}%`)
-        .limit(8);
+      const { data } = await supabase.from("tracks").select("id, title").eq("artist_id", homeArtist).is("parent_track_id", null).ilike("title", `%${q}%`).limit(8);
       setSubVersionResults(data ?? []);
     }, 300);
     return () => clearTimeout(handle);
@@ -206,7 +301,7 @@ function SubmitForm() {
     const q = newFeaturedSearch.trim();
     if (q.length < 2) { setNewFeaturedResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId || "-").limit(8);
       setNewFeaturedResults((data ?? []).filter((a) => !newFeaturedTags.some((t) => t.id === a.id)));
     }, 300);
     return () => clearTimeout(handle);
@@ -216,57 +311,29 @@ function SubmitForm() {
     const q = editFeaturedSearch.trim();
     if (q.length < 2) { setEditFeaturedResults([]); return; }
     const handle = setTimeout(async () => {
-      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId ?? "").limit(8);
+      const { data } = await supabase.from("artists").select("id, name").ilike("name", `%${q}%`).neq("id", prefilledArtistId || "-").limit(8);
       setEditFeaturedResults((data ?? []).filter((a) => !editFeaturedTags.some((t) => t.id === a.id)));
     }, 300);
     return () => clearTimeout(handle);
   }, [editFeaturedSearch, editFeaturedTags, prefilledArtistId]);
 
-  // Shared render for both tag pickers -- no "create on the fly" here,
-  // since regular users can't create artists directly; if someone's
-  // missing, they use the separate "suggest a new artist" flow instead.
-  function featuredTagPicker(
-    tags: { id: string; name: string }[],
-    setTags: (t: { id: string; name: string }[]) => void,
-    search: string,
-    setSearch: (s: string) => void,
-    results: { id: string; name: string }[]
-  ) {
+  // Featured artists picker (no creating artists here: suggest a new artist instead).
+  function featuredTagPicker(tags: Tag[], setTags: (t: Tag[]) => void, search: string, setSearch: (s: string) => void, results: Tag[]) {
     return (
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-          {tags.map((a) => (
-            <span key={a.id} className="feature-tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              {a.name}
-              <span style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => setTags(tags.filter((t) => t.id !== a.id))}>✕</span>
-            </span>
-          ))}
-        </div>
-        <div style={{ position: "relative" }}>
-          <input
-            className="search-input"
-            style={{ width: "100%" }}
-            placeholder="Search artists to add…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div>
+        {tags.length > 0 && (
+          <div className="sb-tags">
+            {tags.map((a) => (
+              <span key={a.id} className="feature-tag">{a.name}<button aria-label={`Remove ${a.name}`} onClick={() => setTags(tags.filter((t) => t.id !== a.id))}>✕</button></span>
+            ))}
+          </div>
+        )}
+        <div className="sb-drop-wrap">
+          <input className="sb-text" placeholder="Search artists to add…" value={search} onChange={(e) => setSearch(e.target.value)} />
           {search.trim().length >= 2 && (
-            <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
-              {results.map((a) => (
-                <div
-                  key={a.id}
-                  className="comment-item"
-                  style={{ cursor: "pointer", padding: "8px 6px" }}
-                  onClick={() => { setTags([...tags, a]); setSearch(""); }}
-                >
-                  <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
-                </div>
-              ))}
-              {results.length === 0 && (
-                <div className="comments-count" style={{ padding: "8px 6px" }}>
-                  Not found — if they&apos;re not in the archive yet, suggest them as a new artist separately.
-                </div>
-              )}
+            <div className="sb-drop">
+              {results.map((a) => <button key={a.id} onClick={() => { setTags([...tags, a]); setSearch(""); }}>{a.name}</button>)}
+              {results.length === 0 && <small>Not found. If they&apos;re not here yet, suggest them as a new artist.</small>}
             </div>
           )}
         </div>
@@ -281,155 +348,117 @@ function SubmitForm() {
     try {
       if (type === "new_artist") {
         if (!artistName.trim()) throw new Error("Enter an artist name.");
-        const { data: existingArtists } = await supabase
-          .from("artists")
-          .select("id, name")
-          .ilike("name", artistName.trim());
-        if ((existingArtists ?? []).length > 0) {
-          const ok = window.confirm(`"${existingArtists![0].name}" already exists in the archive. Submit anyway?`);
-          if (!ok) { setBusy(false); return; }
-        }
-        const { error: err } = await supabase.from("submissions").insert({
-          type: "new_artist",
-          submitted_by: user.id,
-          payload: { name: artistName.trim() },
-        });
+        const { data: existing } = await supabase.from("artists").select("id, name").ilike("name", artistName.trim());
+        if ((existing ?? []).length > 0 && !window.confirm(`"${existing![0].name}" is already in the archive. Submit anyway?`)) { setBusy(false); return; }
+        const { error: err } = await supabase.from("submissions").insert({ type: "new_artist", submitted_by: user.id, payload: { name: artistName.trim() } });
         if (err) throw err;
       } else if (type === "new_track") {
-        if (!prefilledArtistId) throw new Error("Missing artist — go to an artist's page and use \"suggest a track\" there.");
-        if (!trackTitle.trim()) throw new Error("Enter a track title.");
-        if (isFeatured && !mainArtistId) throw new Error("Since this is marked featured, select who the actual main artist is first.");
+        if (!prefilledArtistId) throw new Error("Pick the artist first.");
+        if (!trackTitle.trim()) throw new Error("Enter the song title.");
+        if (isFeatured && !mainArtistId) throw new Error("Since they're only featured, pick who the main artist is.");
         const ok = await checkForDuplicates({ artistId: prefilledArtistId, title: trackTitle, url: trackUrl });
         if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
-          type: "new_track",
-          artist_id: prefilledArtistId,
-          submitted_by: user.id,
+          type: "new_track", artist_id: prefilledArtistId, submitted_by: user.id,
           payload: {
-            title: trackTitle.trim(),
-            spotify_url: trackUrl.trim() || undefined,
-            is_featured: isFeatured,
-            is_official: isOfficial,
-            has_audio: true,
-            main_artist_id: isFeatured ? mainArtistId : undefined,
-            parent_track_id: subVersionParentId || undefined,
-            aliases: newAliases.trim(),
-            album: newAlbum.trim(),
-            track_number: newTrackNumber.trim(),
-            release_date: newReleaseDate.trim(),
-            producers: newProducers.trim(),
-            featured_artist_ids: isFeatured ? [] : newFeaturedTags.map((a) => a.id),
-            genre: newGenre.trim(),
-            notes: newNotes.trim(),
+            title: trackTitle.trim(), spotify_url: trackUrl.trim() || undefined, is_featured: isFeatured, is_official: newStatus === "released",
+            release_status: newStatus || undefined, has_audio: true, main_artist_id: isFeatured ? mainArtistId : undefined,
+            parent_track_id: subVersionParentId || undefined, aliases: newAliases.trim(), album: newAlbum.trim(), track_number: newTrackNumber.trim(),
+            release_date: newReleaseDate.trim(), producers: newProducers.trim(), featured_artist_ids: isFeatured ? [] : newFeaturedTags.map((a) => a.id),
+            genre: newGenre.trim(), notes: newNotes.trim(),
           },
         });
         if (err) throw err;
       } else if (type === "new_version") {
-        if (!prefilledParentTrackId || !prefilledArtistId) throw new Error("Missing the original track — go back and use \"suggest an alternate version\" from that track.");
-        if (!versionTitle.trim()) throw new Error("Enter a title for this version.");
-        const ok = await checkForDuplicates({
-          artistId: prefilledArtistId,
-          title: versionTitle,
-          url: versionUrl,
-          parentTrackId: prefilledParentTrackId,
-        });
+        if (!prefilledParentTrackId || !prefilledArtistId) throw new Error("Pick the original song first.");
+        if (!versionTitle.trim()) throw new Error("Give this version a name (e.g. Demo).");
+        const ok = await checkForDuplicates({ artistId: prefilledArtistId, title: versionTitle, url: versionUrl, parentTrackId: prefilledParentTrackId });
         if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
-          type: "new_version",
-          artist_id: prefilledArtistId,
-          submitted_by: user.id,
+          type: "new_version", artist_id: prefilledArtistId, submitted_by: user.id,
           payload: {
-            title: versionTitle.trim(),
-            spotify_url: versionUrl.trim() || undefined,
-            parent_track_id: prefilledParentTrackId,
-            is_featured: false,
-            is_official: false,
-            has_audio: true,
-            aliases: newAliases.trim(),
-            album: newAlbum.trim(),
-            track_number: newTrackNumber.trim(),
-            release_date: newReleaseDate.trim(),
-            producers: newProducers.trim(),
-            featured_artist_ids: newFeaturedTags.map((a) => a.id),
-            genre: newGenre.trim(),
-            notes: newNotes.trim(),
+            title: versionTitle.trim(), spotify_url: versionUrl.trim() || undefined, parent_track_id: prefilledParentTrackId,
+            is_featured: false, is_official: newStatus === "released", release_status: newStatus || undefined, has_audio: true,
+            aliases: newAliases.trim(), album: newAlbum.trim(), track_number: newTrackNumber.trim(), release_date: newReleaseDate.trim(),
+            producers: newProducers.trim(), featured_artist_ids: newFeaturedTags.map((a) => a.id), genre: newGenre.trim(), notes: newNotes.trim(),
           },
         });
         if (err) throw err;
       } else if (type === "correction") {
-        // correction -- suggest a link or metadata fix on an existing track
-        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"suggest edit\" from that track.");
-        if (!editTitle.trim()) throw new Error("Title can't be empty.");
-        const ok = await checkForDuplicates({
-          artistId: prefilledArtistId,
-          title: editTitle,
-          url: editUrl,
-          excludeTrackId: prefilledTrackId,
-        });
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Pick the song first.");
+        if (!editTitle.trim()) throw new Error("The title can't be empty.");
+        const ok = await checkForDuplicates({ artistId: prefilledArtistId, title: editTitle, url: editUrl, excludeTrackId: prefilledTrackId });
         if (!ok) { setBusy(false); return; }
         const { error: err } = await supabase.from("submissions").insert({
-          type: "correction",
-          artist_id: prefilledArtistId,
-          submitted_by: user.id,
+          type: "correction", artist_id: prefilledArtistId, submitted_by: user.id,
           payload: {
-            track_id: prefilledTrackId,
-            title: editTitle.trim(),
-            spotify_url: editUrl.trim(),
-            is_featured: editFeatured,
-            is_official: editOfficial,
-            parent_track_id: editParentId,
-            aliases: editAliases.trim(),
-            track_number: editTrackNumber.trim(),
-            release_date: editReleaseDate.trim(),
-            producers: editProducers.trim(),
-            featured_artist_ids: editFeaturedTags.map((a) => a.id),
-            genre: editGenre.trim(),
-            notes: editNotes.trim(),
+            track_id: prefilledTrackId, title: editTitle.trim(), spotify_url: editUrl.trim(), is_featured: editFeatured, is_official: editOfficial,
+            parent_track_id: editParentId, aliases: editAliases.trim(), track_number: editTrackNumber.trim(), release_date: editReleaseDate.trim(),
+            producers: editProducers.trim(), featured_artist_ids: editFeaturedTags.map((a) => a.id), genre: editGenre.trim(), notes: editNotes.trim(),
             album: editAlbum.trim(),
           },
         });
         if (err) throw err;
-      } else if (type === "flag_link") {
-        // flag_link -- report a dead/wrong link, optionally with a known replacement
-        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"flag link\" from that track.");
+      } else if (type === "status_change") {
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Pick the song first.");
+        if (!toStatus) throw new Error("Pick what it is now.");
+        if (toStatus === currentStatus) throw new Error(`It's already marked ${toStatus}.`);
         const { error: err } = await supabase.from("submissions").insert({
-          type: "flag_link",
-          artist_id: prefilledArtistId,
-          submitted_by: user.id,
+          type: "status_change", artist_id: prefilledArtistId, submitted_by: user.id,
           payload: {
-            track_id: prefilledTrackId,
-            reason: flagReason.trim(),
-            suggested_replacement_url: flagReplacement.trim() || undefined,
+            track_id: prefilledTrackId, from_status: currentStatus, to_status: toStatus,
+            release_date: statusDate.trim() || undefined, link_candidate_url: statusLink.trim() || undefined,
           },
         });
         if (err) throw err;
-      } else if (type === "flag_deletion") {
-        // flag_deletion -- report a track that shouldn't exist (duplicate, wrong artist, etc)
-        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the track — go back and use \"flag for deletion\" from that track.");
-        if (!deletionReason.trim()) throw new Error("Say why it should be removed — this one's permanent, so admin needs the reason.");
+      } else if (type === "flag_link") {
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Pick the song first.");
         const { error: err } = await supabase.from("submissions").insert({
-          type: "flag_deletion",
-          artist_id: prefilledArtistId,
-          submitted_by: user.id,
+          type: "flag_link", artist_id: prefilledArtistId, submitted_by: user.id,
+          payload: { track_id: prefilledTrackId, reason: flagReason.trim(), suggested_replacement_url: flagReplacement.trim() || undefined },
+        });
+        if (err) throw err;
+      } else if (type === "flag_deletion") {
+        if (!prefilledTrackId || !prefilledArtistId) throw new Error("Missing the song: use \"flag for deletion\" from that song.");
+        if (!deletionReason.trim()) throw new Error("Say why it should go. This one's permanent, so the moderators need the reason.");
+        const { error: err } = await supabase.from("submissions").insert({
+          type: "flag_deletion", artist_id: prefilledArtistId, submitted_by: user.id,
           payload: { track_id: prefilledTrackId, reason: deletionReason.trim() },
         });
         if (err) throw err;
       }
       setSubmitted(true);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+      window.scrollTo({ top: 0 });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e));
     } finally {
       setBusy(false);
     }
   }
 
+  const trustBar = trust && (
+    <div className="sb-trust">
+      <span className="sb-trust-icon" aria-hidden="true"><i /><i /><i /></span>
+      <span>
+        {trust.trusted
+          ? <><b>Trusted contributor.</b> Your suggestions go live straight away (removing songs still waits for a moderator).</>
+          : <><b>{trust.approved} of 25 approved:</b> at 25 your suggestions go live straight away.</>}
+      </span>
+      {trust.trusted && <span className="sb-trusted">Trusted ✓</span>}
+      {!trust.trusted && <span className="sb-trust-bar"><span style={{ width: `${Math.min(100, (trust.approved / 25) * 100)}%` }} /></span>}
+    </div>
+  );
+
   if (submitted) {
     return (
-      <div className="wrap">
-        <h1 className="detail-name page-title">Thanks!</h1>
-        <div className="empty-state" style={{ marginTop: 16 }}>
-          Your submission is in the queue for review. Check{" "}
-          <a href="/my-submissions" style={{ color: "var(--bone)" }}>my submissions</a> for status.
+      <div className="wrap sb-page">
+        <h1 className="ls-title sb-title">SUGGEST<span>//</span></h1>
+        <div className="nw-panel sb-thanks">
+          <span className="sb-tick" aria-hidden="true">✓</span>
+          <h2>Thanks!</h2>
+          <p>{trust?.trusted && type !== "flag_deletion" ? "It's live. You're a trusted contributor, so it went straight in." : "Your suggestion is in. A moderator will check it soon."}</p>
+          <button className="sb-submit" onClick={() => window.location.assign("/submit")}>Suggest another</button>
+          <Link href="/my-submissions" className="st-btn st-wide sb-see">See my submissions</Link>
         </div>
       </div>
     );
@@ -437,353 +466,230 @@ function SubmitForm() {
 
   if (isAdmin) {
     return (
-      <div className="wrap">
-        <button className="back-btn" onClick={() => router.back()}>← back</button>
-        <h1 className="detail-name page-title">Suggestions</h1>
-        <div className="empty-state" style={{ marginTop: 16 }}>
-          Admin mode doesn&apos;t send suggestions: edit the artist page directly, or switch your role to
-          &ldquo;Regular user&rdquo; (under your name on the home page) to suggest like everyone else.
-        </div>
+      <div className="wrap sb-page">
+        <h1 className="ls-title sb-title">SUGGEST<span>//</span></h1>
+        <div className="empty-state">Admin mode doesn&apos;t send suggestions: edit the artist page directly, or switch to your account to suggest like everyone else.</div>
       </div>
     );
   }
 
-  const titles: Record<SubmitType, string> = {
-    new_artist: "Suggest a new artist",
-    new_track: "Suggest a track",
-    new_version: "Suggest an alternate version",
-    correction: "Suggest an edit",
-    flag_link: "Flag a broken link",
-    flag_deletion: "Flag a track for deletion",
-  };
+  const songTypes: SubmitType[] = ["new_version", "correction", "status_change", "flag_link"];
+  const needsSong = songTypes.includes(type);
+  const pickedSong = type === "new_version" ? prefilledParentTrackId : prefilledTrackId;
+  const pickedTitle = type === "new_version" ? prefilledParentTitle : prefilledTrackTitle;
+
+  const statusChips = (value: string, set: (s: string) => void, current?: string | null) => (
+    <div className="sb-chips">
+      {STATUSES.map((s) => (
+        <button key={s} className={`feature-tag st st-${s} ${value === s ? "on" : ""}`} aria-pressed={value === s} disabled={current === s}
+          onClick={() => set(value === s ? "" : s)}>{s}//</button>
+      ))}
+    </div>
+  );
+
+  const extras = (album: { v: string; set: (s: string) => void; prefix: string; artist: string | null },
+    num: [string, (s: string) => void], date: [string, (s: string) => void], prod: [string, (s: string) => void],
+    alias: [string, (s: string) => void], genre: [string, (s: string) => void], notes: [string, (s: string) => void], feats: ReactNode) => (
+    <>
+      <div className="sb-two">
+        <Field label="Release date"><DateDropdownPicker idPrefix={`${album.prefix}-date`} value={date[0]} onChange={date[1]} /></Field>
+        <Field label="Track number"><input className="sb-text" type="number" aria-label="Track number" value={num[0]} onChange={(e) => num[1](e.target.value)} /></Field>
+      </div>
+      <Field label="Album"><AlbumAutocomplete idPrefix={album.prefix} artistId={album.artist} value={album.v} onChange={album.set} /></Field>
+      <Field label="Producers"><input className="sb-text" placeholder="e.g. F1lthy, Art Dealer" value={prod[0]} onChange={(e) => prod[1](e.target.value)} /></Field>
+      {feats}
+      <Field label="Aliases" hint="comma separated"><input className="sb-text" placeholder="Other names it goes by" value={alias[0]} onChange={(e) => alias[1](e.target.value)} /></Field>
+      <Field label="Genre"><input className="sb-text" value={genre[0]} onChange={(e) => genre[1](e.target.value)} /></Field>
+      <Field label="Notes"><textarea className="sb-text sb-area" placeholder="Where it's from, other titles it goes by…" value={notes[0]} onChange={(e) => notes[1](e.target.value)} /></Field>
+    </>
+  );
 
   return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">{titles[type]}</h1>
-      <div className="detail-meta" style={{ marginBottom: 20 }}>
-        Reviewed before it goes live — nothing you submit appears in the archive automatically.
-      </div>
+    <div className="wrap sb-page">
+      <header className="sb-head">
+        <div>
+          <h1 className="ls-title sb-title">SUGGEST<span>//</span></h1>
+          <p className="sb-lead">Add to the archive. A moderator checks it first, unless you&apos;re a trusted contributor.</p>
+        </div>
+        <Link href="/my-submissions" className="sb-mine">My submissions →</Link>
+      </header>
+      {trustBar}
 
-      <div style={{ maxWidth: 480 }}>
+      {type !== "flag_deletion" && (
+        <nav className="sb-cards" aria-label="What are you suggesting?">
+          {CARDS.map(([k, label, icon]) => (
+            <button key={k} className={type === k ? "on" : undefined} aria-pressed={type === k} onClick={() => changeType(k)}>
+              <span className="sb-card-icon" aria-hidden="true">{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <section className="nw-panel sb-form">
+        <h2 className="sb-form-h">{HEAD[type][0]}</h2>
+        <p className="sb-form-sub">{HEAD[type][1]}</p>
+
         {type === "new_artist" && (
-          <input
-            className="search-input"
-            placeholder="Artist name"
-            value={artistName}
-            onChange={(e) => setArtistName(e.target.value)}
-            style={{ marginBottom: 12 }}
-          />
+          <Field label="Artist name" req>
+            <input className="sb-text" placeholder="Their name as it appears on releases" value={artistName} onChange={(e) => setArtistName(e.target.value)} />
+          </Field>
         )}
 
+        {/* Which artist (new song) */}
         {type === "new_track" && (
-          <>
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
-              Adding a track to <b style={{ color: "var(--bone)" }}>{prefilledArtistName}</b>
-            </div>
-            <input
-              className="search-input"
-              placeholder="Track title"
-              value={trackTitle}
-              onChange={(e) => setTrackTitle(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <input
-              className="search-input"
-              placeholder="Listen link, if you have one (optional)"
-              value={trackUrl}
-              onChange={(e) => setTrackUrl(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
-                <input type="checkbox" checked={isFeatured} onChange={(e) => { setIsFeatured(e.target.checked); setMainArtistId(""); setMainArtistSearch(""); }} /> featured (guest artist)
-              </label>
-              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
-                <input type="checkbox" checked={isOfficial} onChange={(e) => setIsOfficial(e.target.checked)} /> official release
-              </label>
-            </div>
-
-            {isFeatured ? (
-              <div style={{ marginBottom: 12 }}>
-                <div className="detail-meta" style={{ marginBottom: 6 }}>
-                  Since {prefilledArtistName} is just featured here, who&apos;s the actual main artist?
-                </div>
-                <div style={{ position: "relative" }}>
-                  <input
-                    className="search-input"
-                    style={{ width: "100%" }}
-                    placeholder="Search artists…"
-                    value={mainArtistSearch}
-                    onChange={(e) => { setMainArtistSearch(e.target.value); setMainArtistId(""); }}
-                  />
-                  {mainArtistSearch.trim().length >= 2 && !mainArtistId && (
-                    <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
-                      {mainArtistResults.map((a) => (
-                        <div key={a.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
-                          onClick={() => { setMainArtistId(a.id); setMainArtistSearch(a.name); }}>
-                          <span className="comment-body" style={{ fontSize: "0.82rem" }}>{a.name}</span>
-                        </div>
-                      ))}
-                      {mainArtistResults.length === 0 && <div className="comments-count">No matches — try the exact name, or ask an admin to add them first.</div>}
-                    </div>
-                  )}
-                </div>
-                {mainArtistId && (
-                  <div className="detail-meta" style={{ marginTop: 4 }}>
-                    Will be added under {mainArtistSearch}, and linked here as a feature.
+          <Field label="Artist" req>
+            {prefilledArtistId ? (
+              <div className="sb-picked"><Face url={artistImage} /><span>{prefilledArtistName}</span><button aria-label="Change artist" onClick={clearTarget}>✕</button></div>
+            ) : (
+              <div className="sb-drop-wrap">
+                <input className="sb-text" placeholder="Search artists…" value={artistQ} onChange={(e) => setArtistQ(e.target.value)} autoFocus />
+                {artistQ.trim().length >= 2 && (
+                  <div className="sb-drop">
+                    {artistHits.map((a) => <button key={a.id} onClick={() => pickArtist(a)}><Face url={a.image_url} />{a.name}</button>)}
+                    {artistHits.length === 0 && <small>Not here yet? <button className="text-link sb-inline" onClick={() => { setArtistName(artistQ); changeType("new_artist"); }}>Suggest them as a new artist</button></small>}
                   </div>
                 )}
-              </div>
-            ) : (
-              <div style={{ marginBottom: 4 }}>
-                <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists, if any (optional)</div>
-                {featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}
               </div>
             )}
+          </Field>
+        )}
 
-            <div style={{ marginBottom: 12 }}>
-              <div className="detail-meta" style={{ marginBottom: 6 }}>
-                Is this a version of a track that already exists? (optional — if you're not sure, leave this blank)
-              </div>
-              <div style={{ position: "relative" }}>
-                <input
-                  className="search-input"
-                  style={{ width: "100%" }}
-                  placeholder="Search this artist's existing tracks…"
-                  value={subVersionSearch}
-                  onChange={(e) => { setSubVersionSearch(e.target.value); setSubVersionParentId(""); }}
-                />
-                {subVersionSearch.trim().length >= 2 && !subVersionParentId && (
-                  <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 180, overflowY: "auto", padding: "6px 4px" }}>
-                    {subVersionResults.map((t) => (
-                      <div key={t.id} className="comment-item" style={{ cursor: "pointer", padding: "8px 6px" }}
-                        onClick={() => { setSubVersionParentId(t.id); setSubVersionSearch(t.title); }}>
-                        <span className="comment-body" style={{ fontSize: "0.82rem" }}>{t.title}</span>
-                      </div>
+        {/* Which song (version, fix, status, link) */}
+        {(needsSong || type === "flag_deletion") && (
+          <Field label={type === "new_version" ? "Original song" : "Song"} req>
+            {pickedSong ? (
+              <div className="sb-picked"><Face url={pickedCover} round={false} /><span>{prefilledArtistName ? `${prefilledArtistName} – ` : ""}{pickedTitle}</span>
+                {currentStatus && <span className={`feature-tag st st-${currentStatus}`}>{currentStatus}</span>}
+                {type !== "flag_deletion" && <button aria-label="Change song" onClick={clearTarget}>✕</button>}</div>
+            ) : (
+              <div className="sb-drop-wrap">
+                <input className="sb-text" placeholder="Search songs…" value={songQ} onChange={(e) => setSongQ(e.target.value)} autoFocus />
+                {songQ.trim().length >= 2 && (
+                  <div className="sb-drop">
+                    {songHits.map((s) => (
+                      <button key={s.id} onClick={() => pickSong(s)}>
+                        <Face url={s.cover_url ?? s.artists?.image_url} round={!s.cover_url} />
+                        <span className="sb-drop-text">{s.artists?.name} – {s.title}</span>
+                        {s.release_status && <span className={`feature-tag st st-${s.release_status}`}>{s.release_status}</span>}
+                      </button>
                     ))}
-                    {subVersionResults.length === 0 && <div className="comments-count">No matches.</div>}
+                    {songHits.length === 0 && <small>No songs match.</small>}
                   </div>
                 )}
               </div>
-              {subVersionParentId && (
-                <div className="detail-meta" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                  Will be added as an alternate version of &quot;{subVersionSearch}&quot;
-                  <button className="rating-clear" onClick={() => { setSubVersionParentId(""); setSubVersionSearch(""); }}>clear</button>
-                </div>
-              )}
-            </div>
-
-            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
-              value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
-            <div style={{ marginBottom: 8 }}>
-              <AlbumAutocomplete
-                idPrefix="new-track"
-                artistId={isFeatured ? (mainArtistId || null) : prefilledArtistId}
-                value={newAlbum}
-                onChange={setNewAlbum}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" id="new-version-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
-                value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <DateDropdownPicker idPrefix="new-version-release-date" value={newReleaseDate} onChange={setNewReleaseDate} />
-            </div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
-              value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
-              value={newGenre} onChange={(e) => setNewGenre(e.target.value)} />
-            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
-              value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
-
-            <div className="detail-meta">
-              Got a demo, live version, or alt take of a track that&apos;s already listed? Go to that
-              track and use &quot;suggest an alternate version&quot; instead of adding it here as a new
-              main track.
-            </div>
-          </>
+            )}
+          </Field>
         )}
 
-        {type === "new_version" && (
+        {type === "new_track" && prefilledArtistId && (
           <>
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
-              Alternate version of <b style={{ color: "var(--bone)" }}>{prefilledParentTitle}</b> —
-              this will show up nested under the original, not as its own separate track.
-            </div>
-            <input
-              className="search-input"
-              placeholder='e.g. "Demo", "Live at Radio City", "Alt Mix"'
-              value={versionTitle}
-              onChange={(e) => setVersionTitle(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <input
-              className="search-input"
-              placeholder="Listen link, if you have one (optional)"
-              value={versionUrl}
-              onChange={(e) => setVersionUrl(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-
-            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
-              value={newAliases} onChange={(e) => setNewAliases(e.target.value)} />
-            <div style={{ marginBottom: 8 }}>
-              <AlbumAutocomplete idPrefix="new-version" artistId={prefilledArtistId} value={newAlbum} onChange={setNewAlbum} />
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" id="new-track-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
-                value={newTrackNumber} onChange={(e) => setNewTrackNumber(e.target.value)} />
-              <DateDropdownPicker idPrefix="new-track-release-date" value={newReleaseDate} onChange={setNewReleaseDate} />
-            </div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
-              value={newProducers} onChange={(e) => setNewProducers(e.target.value)} />
-            <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists, if any (optional)</div>
-            {featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
-              value={newGenre} onChange={(e) => setNewGenre(e.target.value)} />
-            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
-              value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
-          </>
-        )}
-
-        {type === "correction" && (
-          <>
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
-              Editing an existing track. Change whatever needs fixing — leave the rest as-is.
-            </div>
-            <input
-              className="search-input"
-              placeholder="Title"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <input
-              className="search-input"
-              placeholder="Listen link (e.g. Spotify URL) — leave blank to remove"
-              value={editUrl}
-              onChange={(e) => setEditUrl(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
-                <input type="checkbox" checked={editFeatured} onChange={(e) => setEditFeatured(e.target.checked)} /> featured (guest artist)
-              </label>
-              <label style={{ fontFamily: "var(--font-inter)", fontSize: "0.85rem", color: "var(--smoke)" }}>
-                <input type="checkbox" checked={editOfficial} onChange={(e) => setEditOfficial(e.target.checked)} /> official release
-              </label>
-            </div>
-            <div className="detail-meta" style={{ marginBottom: 6 }}>
-              Should this be a sub-version of another track (e.g. a demo/alt-mix that got added
-              as its own main track by mistake)?
-            </div>
-            <div style={{ position: "relative", marginBottom: 12 }}>
-              <input
-                className="search-input"
-                style={{ width: "100%" }}
-                placeholder="Type to search main tracks…"
-                value={parentSearch}
-                onChange={(e) => { setParentSearch(e.target.value); setParentSuggestionsOpen(true); if (!e.target.value) setEditParentId(""); }}
-                onFocus={() => setParentSuggestionsOpen(true)}
-              />
-              {parentSuggestionsOpen && parentSearch.trim().length >= 2 && (
-                <div className="autosuggest-dropdown" style={{ position: "absolute", zIndex: 5, width: "100%", maxHeight: 220, overflowY: "auto", padding: "6px 4px" }}>
-                  {parentResults.map((mt) => (
-                    <div
-                      key={mt.id}
-                      className="comment-item"
-                      style={{ cursor: "pointer", padding: "8px 6px" }}
-                      onClick={() => {
-                        setEditParentId(mt.id);
-                        setParentSearch(mt.title);
-                        setParentSuggestionsOpen(false);
-                      }}
-                    >
-                      <span className="comment-body" style={{ fontSize: "0.82rem" }}>{mt.title}</span>
+            <Field label="Song title" req><input className="sb-text" value={trackTitle} onChange={(e) => setTrackTitle(e.target.value)} /></Field>
+            <Field label="Listen link" hint="optional"><input className="sb-text" placeholder="https://" value={trackUrl} onChange={(e) => setTrackUrl(e.target.value)} /></Field>
+            <Field label="Release status">{statusChips(newStatus, setNewStatus)}</Field>
+            <Field label="Featured?">
+              <label className="sb-check"><input type="checkbox" checked={isFeatured} onChange={(e) => { setIsFeatured(e.target.checked); setMainArtistId(""); setMainArtistSearch(""); }} /> {prefilledArtistName} is only featured on it</label>
+              {isFeatured && (
+                <div className="sb-drop-wrap" style={{ marginTop: 8 }}>
+                  <input className="sb-text" placeholder="Who's the main artist?" value={mainArtistSearch} onChange={(e) => { setMainArtistSearch(e.target.value); setMainArtistId(""); }} />
+                  {mainArtistSearch.trim().length >= 2 && !mainArtistId && (
+                    <div className="sb-drop">
+                      {mainArtistResults.map((a) => <button key={a.id} onClick={() => { setMainArtistId(a.id); setMainArtistSearch(a.name); }}>{a.name}</button>)}
+                      {mainArtistResults.length === 0 && <small>No matches. Suggest them as a new artist first.</small>}
                     </div>
-                  ))}
-                  {parentResults.length === 0 && <div className="comments-count">No matches.</div>}
+                  )}
+                  {mainArtistId && <small className="sb-note">Goes under {mainArtistSearch}, linked here as a feature.</small>}
                 </div>
               )}
-            </div>
-            <div className="detail-meta" style={{ marginBottom: 12 }}>
-              {editParentId ? "Will become a sub-version." : "Clear the box to keep it a main track."}
-            </div>
-
-            <div className="detail-meta" style={{ marginBottom: 6 }}>Verbose info (optional)</div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Aliases (comma separated)"
-              value={editAliases} onChange={(e) => setEditAliases(e.target.value)} />
-            <div style={{ marginBottom: 8 }}>
-              <AlbumAutocomplete idPrefix="correction" artistId={prefilledArtistId} value={editAlbum} onChange={setEditAlbum} />
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="search-input" style={{ flex: 1 }} type="number" id="correction-track-number" name="track-number" aria-label="Track number" placeholder="Track #"
-                value={editTrackNumber} onChange={(e) => setEditTrackNumber(e.target.value)} />
-              <DateDropdownPicker idPrefix="correction-release-date" value={editReleaseDate} onChange={setEditReleaseDate} />
-            </div>
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Producers"
-              value={editProducers} onChange={(e) => setEditProducers(e.target.value)} />
-            <div className="detail-meta" style={{ marginBottom: 6 }}>Featured artists</div>
-            {featuredTagPicker(editFeaturedTags, setEditFeaturedTags, editFeaturedSearch, setEditFeaturedSearch, editFeaturedResults)}
-            <input className="search-input" style={{ width: "100%", marginBottom: 8 }} placeholder="Genre"
-              value={editGenre} onChange={(e) => setEditGenre(e.target.value)} />
-            <textarea className="comment-textarea" style={{ marginBottom: 12 }} placeholder="Notes"
-              value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </Field>
+            <Field label="Version of" hint="optional">
+              <div className="sb-drop-wrap">
+                <input className="sb-text" placeholder="Is it a version of a song already here?" value={subVersionSearch} onChange={(e) => { setSubVersionSearch(e.target.value); setSubVersionParentId(""); }} />
+                {subVersionSearch.trim().length >= 2 && !subVersionParentId && (
+                  <div className="sb-drop">
+                    {subVersionResults.map((t) => <button key={t.id} onClick={() => { setSubVersionParentId(t.id); setSubVersionSearch(t.title); }}>{t.title}</button>)}
+                    {subVersionResults.length === 0 && <small>No matches.</small>}
+                  </div>
+                )}
+                {subVersionParentId && <small className="sb-note">Goes in as a version of &ldquo;{subVersionSearch}&rdquo;. <button className="text-link sb-inline" onClick={() => { setSubVersionParentId(""); setSubVersionSearch(""); }}>clear</button></small>}
+              </div>
+            </Field>
+            {extras({ v: newAlbum, set: setNewAlbum, prefix: "new-track", artist: isFeatured ? (mainArtistId || null) : prefilledArtistId },
+              [newTrackNumber, setNewTrackNumber], [newReleaseDate, setNewReleaseDate], [newProducers, setNewProducers],
+              [newAliases, setNewAliases], [newGenre, setNewGenre], [newNotes, setNewNotes],
+              !isFeatured && <Field label="Featuring" hint="optional">{featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}</Field>)}
           </>
         )}
 
-        {type === "flag_link" && (
+        {type === "new_version" && prefilledParentTrackId && (
           <>
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
-              Flagging the link on <b style={{ color: "var(--bone)" }}>{prefilledTrackTitle}</b>.
-              Current link: <span style={{ wordBreak: "break-all" }}>{currentUrl}</span>
-            </div>
-            <textarea
-              className="comment-textarea"
-              placeholder="What's wrong with it? (optional)"
-              value={flagReason}
-              onChange={(e) => setFlagReason(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-            <div className="detail-meta" style={{ marginBottom: 6 }}>
-              Know the correct link? Paste it below — feel free to switch tabs to go find it first,
-              this page will still be here when you get back.
-            </div>
-            <input
-              className="search-input"
-              placeholder="Correct link (optional)"
-              value={flagReplacement}
-              onChange={(e) => setFlagReplacement(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
+            <Field label="Version name" req><input className="sb-text" placeholder='e.g. "Demo", "Live at Radio City", "Alt Mix"' value={versionTitle} onChange={(e) => setVersionTitle(e.target.value)} /></Field>
+            <Field label="Listen link" hint="optional"><input className="sb-text" placeholder="https://" value={versionUrl} onChange={(e) => setVersionUrl(e.target.value)} /></Field>
+            <Field label="Release status">{statusChips(newStatus, setNewStatus)}</Field>
+            {extras({ v: newAlbum, set: setNewAlbum, prefix: "new-version", artist: prefilledArtistId },
+              [newTrackNumber, setNewTrackNumber], [newReleaseDate, setNewReleaseDate], [newProducers, setNewProducers],
+              [newAliases, setNewAliases], [newGenre, setNewGenre], [newNotes, setNewNotes],
+              <Field label="Featuring" hint="optional">{featuredTagPicker(newFeaturedTags, setNewFeaturedTags, newFeaturedSearch, setNewFeaturedSearch, newFeaturedResults)}</Field>)}
+          </>
+        )}
+
+        {type === "correction" && prefilledTrackId && (
+          <>
+            <Field label="Title" req><input className="sb-text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} /></Field>
+            <Field label="Listen link" hint="blank removes it"><input className="sb-text" placeholder="https://" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} /></Field>
+            <Field label="Flags">
+              <label className="sb-check"><input type="checkbox" checked={editFeatured} onChange={(e) => setEditFeatured(e.target.checked)} /> Featured (guest artist)</label>
+              <label className="sb-check"><input type="checkbox" checked={editOfficial} onChange={(e) => setEditOfficial(e.target.checked)} /> Official release</label>
+            </Field>
+            <Field label="Version of" hint="if it's really a demo or alt of another song">
+              <div className="sb-drop-wrap">
+                <input className="sb-text" placeholder="Search main songs…" value={parentSearch}
+                  onChange={(e) => { setParentSearch(e.target.value); setParentSuggestionsOpen(true); if (!e.target.value) setEditParentId(""); }}
+                  onFocus={() => setParentSuggestionsOpen(true)} />
+                {parentSuggestionsOpen && parentSearch.trim().length >= 2 && (
+                  <div className="sb-drop">
+                    {parentResults.map((mt) => <button key={mt.id} onClick={() => { setEditParentId(mt.id); setParentSearch(mt.title); setParentSuggestionsOpen(false); }}>{mt.title}</button>)}
+                    {parentResults.length === 0 && <small>No matches.</small>}
+                  </div>
+                )}
+                <small className="sb-note">{editParentId ? "Becomes a version of that song." : "Leave empty to keep it a main song."}</small>
+              </div>
+            </Field>
+            {extras({ v: editAlbum, set: setEditAlbum, prefix: "correction", artist: prefilledArtistId },
+              [editTrackNumber, setEditTrackNumber], [editReleaseDate, setEditReleaseDate], [editProducers, setEditProducers],
+              [editAliases, setEditAliases], [editGenre, setEditGenre], [editNotes, setEditNotes],
+              <Field label="Featuring">{featuredTagPicker(editFeaturedTags, setEditFeaturedTags, editFeaturedSearch, setEditFeaturedSearch, editFeaturedResults)}</Field>)}
+          </>
+        )}
+
+        {type === "status_change" && prefilledTrackId && (
+          <>
+            <Field label="It's now" req>{statusChips(toStatus, setToStatus, currentStatus)}</Field>
+            {toStatus === "released" && <Field label="Release date" hint="optional"><DateDropdownPicker idPrefix="status-date" value={statusDate} onChange={setStatusDate} /></Field>}
+            <Field label="Source link" hint="optional"><input className="sb-text" placeholder="Where you saw it (a post, a listen link)" value={statusLink} onChange={(e) => setStatusLink(e.target.value)} /></Field>
+          </>
+        )}
+
+        {type === "flag_link" && prefilledTrackId && (
+          <>
+            <Field label="Current link"><span className="sb-current">{currentUrl || "No link on this song."}</span></Field>
+            <Field label="What's wrong" hint="optional"><textarea className="sb-text sb-area" placeholder="Dead, wrong song, region-locked…" value={flagReason} onChange={(e) => setFlagReason(e.target.value)} /></Field>
+            <Field label="Correct link" hint="optional"><input className="sb-text" placeholder="https://" value={flagReplacement} onChange={(e) => setFlagReplacement(e.target.value)} /></Field>
           </>
         )}
 
         {type === "flag_deletion" && (
-          <>
-            <div className="detail-meta" style={{ marginBottom: 10 }}>
-              Flagging <b style={{ color: "var(--bone)" }}>{prefilledTrackTitle}</b> for removal.
-              If approved, this deletes it entirely — permanent, so be specific about why.
-            </div>
-            <textarea
-              className="comment-textarea"
-              placeholder="Why should this be removed? e.g. duplicate of another entry, doesn't belong to this artist, doesn't exist"
-              value={deletionReason}
-              onChange={(e) => setDeletionReason(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
-          </>
+          <Field label="Why remove it" req>
+            <textarea className="sb-text sb-area" placeholder="Duplicate of another entry, not by this artist, doesn't exist…" value={deletionReason} onChange={(e) => setDeletionReason(e.target.value)} />
+            <small className="sb-note">If approved it's deleted for good, so be specific.</small>
+          </Field>
         )}
 
-        {error && (
-          <div className="empty-state error" style={{ marginBottom: 12 }}>{error}</div>
-        )}
-
-        <button className="comment-post-btn" disabled={busy} onClick={submit}>
-          {busy ? "…" : "submit for review"}
+        {error && <div className="sb-error">{error}</div>}
+        <button className="sb-submit" disabled={busy || (needsSong && !pickedSong) || (type === "new_track" && !prefilledArtistId)} onClick={submit}>
+          {busy ? "Sending…" : "Submit//"}
         </button>
-      </div>
+      </section>
     </div>
   );
 }
