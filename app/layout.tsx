@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
+import "./styles/phone.css";
 import Link from "next/link";
 import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
@@ -48,6 +49,10 @@ export const viewport: Viewport = {
   // Full-screen when saved to the home screen; the app bar and tab bar keep
   // clear of the notch and the home bar.
   viewportFit: "cover",
+  // Phones: start at the page's real width and don't zoom out past it.
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
