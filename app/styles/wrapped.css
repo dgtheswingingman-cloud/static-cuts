@@ -1,0 +1,4 @@
+/* Your year: each slide is the share picture itself. */
+.wrapped-pic { padding: 12px; }
+.wrapped-pic img { max-height: 100%; max-width: 100%; height: calc(100dvh - 140px); width: auto; aspect-ratio: 9 / 16; object-fit: contain; border: 1px solid rgba(237, 237, 237, 0.2); border-radius: 8px; }
+@media (max-width: 600px) { .wrapped-pic img { height: auto; width: 100%; } }

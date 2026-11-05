@@ -17,26 +17,29 @@ type Props = {
   className?: string;
   ariaLabel?: string;
   story?: () => Story | Promise<Story>;
+  image?: () => Promise<Blob | null>; // a ready-made share picture (cards.ts), used instead of story
   storyKey?: string; // change this when the story's contents change
   fileName?: string;
 };
 
 type Nav = Navigator & { canShare?: (d: ShareData) => boolean };
 
-export default function ShareButton({ title, path, label = "share", className = "tab", ariaLabel, story, storyKey, fileName = "static-cuts" }: Props) {
+export default function ShareButton({ title, path, label = "share", className = "tab", ariaLabel, story, image, storyKey, fileName = "static-cuts" }: Props) {
   const [copied, setCopied] = useState(false);
   const file = useRef<File | null>(null);
   const storyFn = useRef(story);
   storyFn.current = story;
+  const imageFn = useRef(image);
+  imageFn.current = image;
 
   useEffect(() => {
     file.current = null;
     const nav = navigator as Nav;
-    if (!storyFn.current || !nav.canShare) return;
+    if ((!storyFn.current && !imageFn.current) || !nav.canShare) return;
     let gone = false;
     (async () => {
       try {
-        const blob = await drawStory(await storyFn.current!());
+        const blob = imageFn.current ? await imageFn.current() : await drawStory(await storyFn.current!());
         if (!blob || gone) return;
         const f = new File([blob], `${fileName}.png`, { type: "image/png" });
         if (nav.canShare?.({ files: [f] })) file.current = f;

@@ -19,6 +19,7 @@ import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
 import MyFile from "./MyFile";
 import ShareButton from "../../components/ShareButton";
+import { songCard } from "../../components/cards";
 import HeroCollage from "../../components/HeroCollage";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
@@ -335,7 +336,14 @@ export default function SongView({ id }: { id: string }) {
         )}
         <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
           label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>}
-          fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`} story={() => ({
+          fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`}
+          image={() => songCard({
+            title: t.title, artist: song.artist?.name ?? "", status, album: t.album,
+            year: (t.release_date ?? t.leak_date ?? "").slice(0, 4) || null, versions: song.family.length, cover,
+            tint: rgb ? `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}` : null,
+            url: `static-cuts.com/song/${t.id}`,
+          })}
+          story={() => ({
           kicker: `${status} · ${song.artist?.name ?? ""}`,
           title: t.title,
           subtitle: [t.album, t.release_date ? new Date(t.release_date).getFullYear() : null].filter(Boolean).join(" · ") || undefined,
