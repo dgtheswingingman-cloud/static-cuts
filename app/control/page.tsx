@@ -1,4 +1,5 @@
 "use client";
+import "../styles/control.css";
 
 // The Control room: one place for running the site, shaped by who you are.
 //   Work         (moderators, admins, owner) every list waiting for a decision
