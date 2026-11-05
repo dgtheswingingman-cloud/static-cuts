@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Q = {
   id: string; track_id: string; track_title: string; artist_id: string; artist: string; version: string | null;
@@ -55,7 +56,7 @@ export default function VersionQuestions() {
     <Link href={`/song/${id}`} target="_blank" className="vq-art">
       {covers[id]
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={covers[id]} alt="" />
+        ? <img src={thumb(covers[id])} alt="" />
         : <span className="vq-blank">SC//</span>}
       <span className="vq-cap"><strong>{title}</strong><small>{artist}</small></span>
     </Link>

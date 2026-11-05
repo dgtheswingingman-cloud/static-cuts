@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Similar = { id: string; name: string; image_url: string | null; why: string | null };
 
@@ -23,7 +24,7 @@ export default function SimilarArtists({ artistId }: { artistId: string }) {
           <Link key={a.id} href={`/artist/${a.id}`} className="similar-item" title={a.why ?? undefined}>
             {a.image_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={a.image_url} alt="" loading="lazy" />
+              ? <img src={thumb(a.image_url)} alt="" loading="lazy" />
               : <span className="similar-blank">{a.name.slice(0, 1)}</span>}
             <span className="similar-name">{a.name}</span>
             {a.why && <span className="similar-why">{a.why}</span>}

@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { shrinkImage } from "@/lib/shrinkImage";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Photo = { id: string; url: string; added_by: string | null };
 
@@ -67,7 +68,7 @@ export default function ArtistPhotos({ artistId, artistName }: { artistId: strin
             {photos.map((p) => (
               <div key={p.id} style={{ position: "relative" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" width={72} height={72} style={{ objectFit: "cover" }} />
+                <img src={thumb(p.url)} alt="" width={72} height={72} style={{ objectFit: "cover" }} />
                 {(canModerate || (user && p.added_by === user.id)) && (
                   <button className="rating-clear" style={{ position: "absolute", top: 0, right: 2 }} onClick={() => remove(p)} title="Remove">×</button>
                 )}

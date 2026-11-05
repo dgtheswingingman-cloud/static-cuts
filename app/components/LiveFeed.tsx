@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Group = {
   kind: "added" | "status"; artist_id: string; artist: string | null; to_status: string | null;
@@ -47,7 +48,7 @@ export default function LiveFeed({ photos }: { photos: Record<string, string> })
             <Link href={`/artist/${g.artist_id}`} className="live-thumb" aria-hidden="true" tabIndex={-1}>
               {img
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={img} alt="" loading="lazy" />
+                ? <img src={thumb(img)} alt="" loading="lazy" />
                 : <span>{(g.artist ?? "?").slice(0, 1)}</span>}
             </Link>
             <div className="live-body">

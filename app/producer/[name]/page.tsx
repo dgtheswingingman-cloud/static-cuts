@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import HeroCollage from "../../components/HeroCollage";
 import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
+import { thumb } from "@/lib/thumb";
 
 type Song = {
   track_id: string; title: string; artist_id: string; artist: string; status: string; release_date: string | null;
@@ -112,7 +113,7 @@ export default function ProducerPage() {
     <Link key={s.track_id} href={`/song/${s.track_id}`} className="sp-version ap-latest" data-st={s.status}>
       {s.cover_url
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={s.cover_url} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
+        ? <img src={thumb(s.cover_url)} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
         : <span className="sp-thumb sp-thumb-empty">SC//</span>}
       <span className="sp-version-text">
         <span className="sp-version-title">{s.title}</span>
@@ -129,7 +130,7 @@ export default function ProducerPage() {
         <span className="ap-collab-rank">{String(i + 1).padStart(2, "0")}</span>
         {photos[a.id]
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={photos[a.id]} alt="" width={44} height={44} className="sp-thumb ap-collab-photo" loading="lazy" />
+          ? <img src={thumb(photos[a.id])} alt="" width={44} height={44} className="sp-thumb ap-collab-photo" loading="lazy" />
           : <span className="sp-thumb sp-thumb-empty ap-collab-photo">{a.name.slice(0, 2).toUpperCase()}</span>}
         <span className="sp-version-text">
           <span className="sp-version-title">{a.name}</span>
@@ -153,7 +154,7 @@ export default function ProducerPage() {
           <div className="ah2-id">
             {self?.image_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={self.image_url} alt="" className="ah2-pfp" width={96} height={96} />
+              ? <img src={thumb(self.image_url)} alt="" className="ah2-pfp" width={96} height={96} />
               : <span className="ah2-pfp pr-pfp-blank" aria-hidden="true">{name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "SC"}</span>}
             <h1 className="detail-name artist-hero-name">{name}</h1>
           </div>

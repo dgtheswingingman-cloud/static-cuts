@@ -14,6 +14,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import DateDropdownPicker from "../components/DateDropdownPicker";
 import AlbumAutocomplete from "../components/AlbumAutocomplete";
+import { thumb } from "@/lib/thumb";
 
 type SubmitType = "new_artist" | "new_track" | "new_version" | "correction" | "status_change" | "flag_link" | "flag_deletion";
 type Tag = { id: string; name: string };
@@ -52,7 +53,7 @@ function Field({ label, req, hint, children }: { label: string; req?: boolean; h
 function Face({ url, round = true }: { url: string | null | undefined; round?: boolean }) {
   return url
     // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={url} alt="" className={round ? "sb-face" : "sb-face sq"} />
+    ? <img src={thumb(url)} alt="" className={round ? "sb-face" : "sb-face sq"} />
     : <span className={round ? "sb-face blank" : "sb-face sq blank"} />;
 }
 

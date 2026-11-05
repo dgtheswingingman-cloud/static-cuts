@@ -30,6 +30,7 @@ import ArtistEras from "./ArtistEras";
 import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
+import { thumb } from "@/lib/thumb";
 const genreSlug = (t: string) => t.toLowerCase().replace(/&/g, "n").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Track = {
@@ -1648,7 +1649,7 @@ export default function ArtistPage() {
     <button key={e.key} className="ap-project" onClick={() => { setEraFocus(e.key); setArtistTab("eras"); }}>
       {e.cover
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={e.cover} alt="" loading="lazy" />
+        ? <img src={thumb(e.cover)} alt="" loading="lazy" />
         : <span className="ap-project-blank">SC//</span>}
       <span className="ap-project-name">{e.name}</span>
       <span className="ap-project-meta">{[span(e), `${e.songs.length} songs`].filter(Boolean).join(" · ")}</span>
@@ -1979,7 +1980,7 @@ export default function ArtistPage() {
                     <Link key={x.id} href={`/song/${x.id}`} className="sp-version ap-latest" data-st={x.status}>
                       {x.cover_url
                         // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={x.cover_url} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
+                        ? <img src={thumb(x.cover_url)} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
                         : <span className="sp-thumb sp-thumb-empty">SC//</span>}
                       <span className="sp-version-text">
                         <span className="sp-version-title">{x.title}</span>

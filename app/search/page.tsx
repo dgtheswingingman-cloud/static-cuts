@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Supporter from "../components/Supporter";
 import Strip from "../components/Strip";
+import { thumb } from "@/lib/thumb";
 
 type Song = {
   id: string; title: string; artist_id: string; artist: string; spotify_url: string | null;
@@ -207,7 +208,7 @@ function SearchInner() {
     <Link key={s.id} href={`/song/${s.id}`} className="sp-version sr-song" data-st={s.status}>
       {covers[s.id]
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={covers[s.id]} alt="" width={52} height={52} className="sp-thumb sr-thumb" loading="lazy" />
+        ? <img src={thumb(covers[s.id])} alt="" width={52} height={52} className="sp-thumb sr-thumb" loading="lazy" />
         : <span className="sp-thumb sp-thumb-empty sr-thumb">SC//</span>}
       <span className="sp-version-text">
         <span className="sp-version-title">{s.title}</span>
@@ -223,7 +224,7 @@ function SearchInner() {
     <Link key={a.key} href={`/artist/${a.artist_id}/eras#${encodeURIComponent(`album:${a.name.toLowerCase()}`)}`} className="hf-cover sr-album">
       {a.cover
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={a.cover} alt="" loading="lazy" />
+        ? <img src={thumb(a.cover)} alt="" loading="lazy" />
         : <span className="hf-cover-blank">SC//</span>}
       <span className="hf-cover-artist">{a.name}</span>
       <span className="hf-cover-title">{a.artist}</span>
@@ -381,7 +382,7 @@ function SearchInner() {
             <Link href={`/artist/${top.id}`} className="sr-top-artist">
               {top.image_url
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={top.image_url} alt="" />
+                ? <img src={thumb(top.image_url)} alt="" />
                 : <span className="sp-thumb-empty">SC//</span>}
               <span className="sr-top-name">
                 <strong>{top.name}</strong>
@@ -403,7 +404,7 @@ function SearchInner() {
                 <Link key={a.id} href={`/artist/${a.id}`} className="sr-artist">
                   {a.image_url
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={a.image_url} alt="" loading="lazy" />
+                    ? <img src={thumb(a.image_url)} alt="" loading="lazy" />
                     : <span className="sr-artist-blank">{a.name.slice(0, 1)}</span>}
                   <span>{a.name}</span>
                 </Link>
@@ -448,7 +449,7 @@ function SearchInner() {
               <Link key={p.id} href={`/profile/${p.id}`} className="sr-artist">
                 {p.avatar_url
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={p.avatar_url} alt="" loading="lazy" />
+                  ? <img src={thumb(p.avatar_url)} alt="" loading="lazy" />
                   : <span className="sr-artist-blank">{(p.display_name ?? "?").slice(0, 1)}</span>}
                 <span>{p.display_name ?? "anonymous"}<Supporter id={p.id} /></span>
               </Link>
@@ -468,7 +469,7 @@ function SearchInner() {
               <Link key={a.id} href={`/artist/${a.id}`} className="hf-cover">
                 {a.image_url
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={a.image_url} alt="" loading="lazy" />
+                  ? <img src={thumb(a.image_url)} alt="" loading="lazy" />
                   : <span className="hf-cover-blank">{a.name.slice(0, 1)}</span>}
                 <span className="hf-cover-artist">{a.name}</span>
                 <span className="hf-cover-meta">{a.why ?? "related artist"}</span>

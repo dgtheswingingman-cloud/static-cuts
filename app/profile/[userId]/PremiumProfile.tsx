@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { artistTag, forgetBadges } from "../../components/Supporter";
+import { thumb } from "@/lib/thumb";
 
 export type ShowSong = { id: string; title: string; artist_id: string; artist: string; status: string; cover: string | null };
 export type ProfileStyle = { premium: boolean; accent?: string | null; banner_url?: string | null; showcase?: ShowSong[] };
@@ -32,7 +33,7 @@ export function Showcase({ songs, accent, bare = false }: { songs: ShowSong[]; a
           <Link key={s.id} href={`/song/${s.id}`} className="pf-show-card" style={{ borderColor: accent ?? undefined }}>
             {s.cover
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={s.cover} alt="" loading="lazy" />
+              ? <img src={thumb(s.cover)} alt="" loading="lazy" />
               : <div className="era-card-blank" />}
             <span className="pf-show-title">{s.title}</span>
             <span className="pf-show-meta">{s.artist} · {s.status}</span>

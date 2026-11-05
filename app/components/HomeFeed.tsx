@@ -9,6 +9,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "./AlbumOfWeek";
 import Strip from "./Strip";
+import { thumb } from "@/lib/thumb";
 
 type Group = { kind: "added" | "status"; artist_id: string; artist: string | null; to_status: string | null; count: number; at: string; tracks: { id: string; title: string }[] };
 type Added = { id: string; title: string; cover_url: string | null; release_status: string | null; album: string | null; created_at: string; artist_id: string; artists: { name: string } | null };
@@ -64,7 +65,7 @@ export default function HomeFeed({ photos, followed, afterAlbum }: { photos: Rec
               <span className="hf-update-img">
                 {photos[g.artist_id]
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={photos[g.artist_id]} alt="" loading="lazy" />
+                  ? <img src={thumb(photos[g.artist_id])} alt="" loading="lazy" />
                   : <span>{(g.artist ?? "?").slice(0, 1)}</span>}
               </span>
               <span className="hf-update-body">
@@ -91,7 +92,7 @@ export default function HomeFeed({ photos, followed, afterAlbum }: { photos: Rec
             {added.map((t) => (
               <Link key={t.id} href={`/song/${t.id}`} className="hf-cover">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={t.cover_url!} alt="" loading="lazy" />
+                <img src={thumb(t.cover_url!)} alt="" loading="lazy" />
                 <span className="hf-cover-artist">{t.artists?.name ?? ""}</span>
                 <span className="hf-cover-title">{t.title}</span>
                 <span className="hf-cover-meta">{[t.release_status, t.album ? "album" : "single"].filter(Boolean).join(" · ")}</span>
@@ -108,7 +109,7 @@ export default function HomeFeed({ photos, followed, afterAlbum }: { photos: Rec
             {followedWithPhotos.slice(0, 6).map((id) => (
               <Link key={id} href={`/artist/${id}`} aria-label="Artist">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photos[id]} alt="" width={40} height={40} loading="lazy" />
+                <img src={thumb(photos[id])} alt="" width={40} height={40} loading="lazy" />
               </Link>
             ))}
             {followed.length > Math.min(6, followedWithPhotos.length) && (

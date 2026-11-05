@@ -16,6 +16,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Node = { key: string; artist_id: string | null; name: string; degree: number; songs: number };
 type Edge = { a: string; b: string; songs: number; tracks: string[] };
@@ -346,7 +347,7 @@ function Inner() {
   const [pairLimit, setPairLimit] = useState(40);
 
   useEffect(() => {
-    supabase.rpc("rpc_collab_graph", { p_artist: null })
+    supabase.rpc("rpc_collab_graph_cached")
       .then(({ data: d }) => setData((d as { nodes: Node[]; edges: Edge[] }) ?? { nodes: [], edges: [] }));
     supabase.rpc("rpc_collab_extras")
       .then(({ data: d }) => setExtras((d as { genres: Record<string, string>; recent: Recent[] }) ?? { genres: {}, recent: [] }));
@@ -576,7 +577,7 @@ function Inner() {
             <Link key={r.id} href={`/song/${r.id}`} className="cm-recent">
               {r.cover_url
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={r.cover_url} alt="" loading="lazy" />
+                ? <img src={thumb(r.cover_url)} alt="" loading="lazy" />
                 : <span className="cm-recent-blank" />}
               <span className="cm-recent-text">
                 <b>{r.title}</b>

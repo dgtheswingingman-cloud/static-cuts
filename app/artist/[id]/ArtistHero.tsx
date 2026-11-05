@@ -8,6 +8,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import HeroCollage from "../../components/HeroCollage";
 import { deepCss, swatch, type Rgb } from "@/lib/swatch";
+import { thumb } from "@/lib/thumb";
 
 export default function ArtistHero({ artistId, name, aliases, genres = [], onColour, children }: {
   artistId: string; name: string; aliases: string[]; genres?: string[]; onColour?: (rgb: Rgb | null) => void; children?: ReactNode;
@@ -51,7 +52,7 @@ export default function ArtistHero({ artistId, name, aliases, genres = [], onCol
         <div className="ah2-id">
           {img && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={img} alt="" className="ah2-pfp" width={96} height={96} />
+            <img src={thumb(img)} alt="" className="ah2-pfp" width={96} height={96} />
           )}
           <h1 className="detail-name artist-hero-name">{name}</h1>
         </div>

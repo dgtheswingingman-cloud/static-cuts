@@ -20,6 +20,7 @@ import Supporter from "../../components/Supporter";
 import HeroCollage from "../../components/HeroCollage";
 import { useProfileStyle, Showcase, EditProfile } from "./PremiumProfile";
 import { usePremium } from "../../usePremium";
+import { thumb } from "@/lib/thumb";
 
 type Profile = {
   id: string;
@@ -176,7 +177,7 @@ export default function ProfilePage() {
     <Link key={id} href={`/song/${id}`} className="pf-cover">
       {t?.cover_url
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={t.cover_url} alt="" loading="lazy" />
+        ? <img src={thumb(t.cover_url)} alt="" loading="lazy" />
         : <span className="pf-cover-blank">SC//</span>}
       <span className="pf-cover-title">{t?.title ?? "unknown"}</span>
       <span className="pf-cover-meta">{sub ?? t?.artists?.name ?? ""}</span>

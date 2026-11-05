@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Leaderboard from "./Leaderboard";
+import { thumb } from "@/lib/thumb";
 
 type Row = {
   section: "upcoming" | "dropped" | "tba"; track_id: string; title: string; artist_id: string; artist: string;
@@ -28,7 +29,7 @@ function Item({ r }: { r: Row }) {
       <Link href={`/song/${r.track_id}`} className="live-thumb" aria-hidden="true" tabIndex={-1}>
         {r.cover_url
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={r.cover_url} alt="" loading="lazy" />
+          ? <img src={thumb(r.cover_url)} alt="" loading="lazy" />
           : <span>{r.title.slice(0, 1)}</span>}
       </Link>
       <div className="live-body">

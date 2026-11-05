@@ -11,6 +11,7 @@ import OnThisDay from "../OnThisDay";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Group = { kind: "added" | "status"; artist_id: string; artist: string | null; to_status: string | null; count: number; at: string; tracks: { id: string; title: string }[] };
 type Radar = { section: string; track_id: string; title: string; artist_id: string; artist: string; album: string | null; release_date: string | null; cover_url?: string | null };
@@ -101,7 +102,7 @@ export default function RadarOverview() {
               <Link key={i} href={g.count === 1 && g.tracks[0] ? `/song/${g.tracks[0].id}` : `/artist/${g.artist_id}`} className="rd-follow">
                 {photos[g.artist_id]
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={photos[g.artist_id]} alt="" width={52} height={52} loading="lazy" />
+                  ? <img src={thumb(photos[g.artist_id])} alt="" width={52} height={52} loading="lazy" />
                   : <span className="rd-follow-blank">{(g.artist ?? "?").slice(0, 1)}</span>}
                 <span className="sp-version-text">
                   <span className="rd-follow-artist">{g.artist ?? g.artist_id}</span>
@@ -158,7 +159,7 @@ export default function RadarOverview() {
             <Link key={r.track_id} href={`/song/${r.track_id}`} className="rd-follow">
               {r.cover_url
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={r.cover_url} alt="" width={52} height={52} loading="lazy" />
+                ? <img src={thumb(r.cover_url)} alt="" width={52} height={52} loading="lazy" />
                 : <span className="rd-follow-blank">SC//</span>}
               <span className="sp-version-text">
                 <span className="rd-follow-artist">{r.artist}</span>

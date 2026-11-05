@@ -12,6 +12,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import Wrapped from "./Wrapped";
+import { thumb } from "@/lib/thumb";
 
 type Review = {
   year: number; collected: number; unreleased_collected: number; artists: number;
@@ -94,7 +95,7 @@ function YearInner() {
             <span className="yr-play-pics" aria-hidden>
               {r.top_artists.slice(0, 5).map((a) => pics[a.artist_id]
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img key={a.artist_id} src={pics[a.artist_id]!} alt="" />
+                ? <img key={a.artist_id} src={thumb(pics[a.artist_id]!)} alt="" />
                 : <span key={a.artist_id} />)}
             </span>
             <span className="yr-play-text">
@@ -124,7 +125,7 @@ function YearInner() {
                     <span className="yr-rank">{i + 1}</span>
                     {pics[a.artist_id]
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img className="yr-pic round" src={pics[a.artist_id]!} alt="" />
+                      ? <img className="yr-pic round" src={thumb(pics[a.artist_id]!)} alt="" />
                       : <span className="yr-pic round" />}
                     <span className="yr-row-main"><b>{a.artist}</b></span>
                     <span className="yr-num">{n(a.n)} songs</span>
@@ -139,7 +140,7 @@ function YearInner() {
                   <Link key={s.track_id} href={`/song/${s.track_id}`} className="yr-row">
                     {covers[s.track_id]?.cover
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img className="yr-pic" src={covers[s.track_id]!.cover!} alt="" />
+                      ? <img className="yr-pic" src={thumb(covers[s.track_id]!.cover!)} alt="" />
                       : <span className="yr-pic" />}
                     <span className="yr-row-main"><b>{s.title}</b><span>{s.artist}</span></span>
                     <span className={`yr-tag ${s.holders === 1 ? "hot" : ""}`}>{s.holders === 1 ? "only you" : `${s.holders} collectors`}</span>
@@ -154,7 +155,7 @@ function YearInner() {
                   <Link key={s.track_id} href={`/song/${s.track_id}`} className="yr-row">
                     {covers[s.track_id]?.cover
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img className="yr-pic" src={covers[s.track_id]!.cover!} alt="" />
+                      ? <img className="yr-pic" src={thumb(covers[s.track_id]!.cover!)} alt="" />
                       : <span className="yr-pic" />}
                     <span className="yr-row-main"><b>{s.title}</b><span>{s.artist}</span></span>
                     <span className="yr-score">{s.value}<small>/10</small></span>

@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Friend = { user_id: string; name: string | null; avatar_url: string | null };
 
@@ -24,7 +25,7 @@ export default function FriendsWhoHaveIt({ trackId, signedIn }: { trackId: strin
           style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "var(--bone)" }}>
           {f.avatar_url
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={f.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
+            ? <img src={thumb(f.avatar_url)} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
             : <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--surface)", display: "inline-block" }} />}
           <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.82rem" }}>{f.name ?? "a friend"}</span>
         </Link>

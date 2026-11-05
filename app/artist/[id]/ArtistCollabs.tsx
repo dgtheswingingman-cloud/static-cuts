@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Node = { key: string; artist_id: string | null; name: string };
 type Edge = { a: string; b: string; songs: number; tracks: string[] };
@@ -73,7 +74,7 @@ export default function ArtistCollabs({ artistId }: { artistId: string }) {
               <span className="ap-collab-rank">{String(i + 1).padStart(2, "0")}</span>
               {r.artistId && photos[r.artistId]
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={photos[r.artistId]} alt="" width={44} height={44} className="sp-thumb ap-collab-photo" loading="lazy" />
+                ? <img src={thumb(photos[r.artistId])} alt="" width={44} height={44} className="sp-thumb ap-collab-photo" loading="lazy" />
                 : <span className="sp-thumb sp-thumb-empty ap-collab-photo">{r.name.slice(0, 2).toUpperCase()}</span>}
               <span className="sp-version-text">
                 <span className="sp-version-title">{r.name}</span>

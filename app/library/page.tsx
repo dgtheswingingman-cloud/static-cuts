@@ -12,6 +12,7 @@ import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
 import HeroCollage from "../components/HeroCollage";
 import ExportCard from "./ExportCard";
+import { thumb } from "@/lib/thumb";
 
 type ListRow = { id: string; title: string; songs: number; is_public: boolean };
 type Mine = { id: string; name: string; track_count: number; collected: number };
@@ -149,7 +150,7 @@ export default function LibraryPage() {
                 <Link key={l.id} href={`/list/${l.id}`} className="hf-trend lb-list">
                   {listCovers[l.id]
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={listCovers[l.id]} alt="" width={44} height={44} loading="lazy" />
+                    ? <img src={thumb(listCovers[l.id])} alt="" width={44} height={44} loading="lazy" />
                     : <span className="hf-trend-blank">≡</span>}
                   <span className="sp-version-text">
                     <span className="hf-trend-name">{l.title}</span>

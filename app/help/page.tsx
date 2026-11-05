@@ -12,6 +12,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import AdminModeNote from "../components/AdminModeNote";
 import VersionQuestions from "./VersionQuestions";
+import { thumb } from "@/lib/thumb";
 
 type Kind = "links" | "info" | "status" | "thin";
 type Counts = Record<Kind, number>;
@@ -135,7 +136,7 @@ export default function HelpWantedPage() {
     const u = round ? faces[id] : covers[id];
     return u
       // eslint-disable-next-line @next/next/no-img-element
-      ? <img src={u} alt="" className={`hw-cover ${round ? "round" : ""}`} loading="lazy" />
+      ? <img src={thumb(u)} alt="" className={`hw-cover ${round ? "round" : ""}`} loading="lazy" />
       : <span className={`hw-cover blank ${round ? "round" : ""}`}>SC//</span>;
   };
 

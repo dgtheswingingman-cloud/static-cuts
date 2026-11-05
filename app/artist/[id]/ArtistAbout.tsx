@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Info = {
   image_url: string | null; bio: string | null; bio_source: string | null; bio_source_url: string | null;
@@ -118,7 +119,7 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
     <div className="artist-about">
       {info?.image_url && !hidePhoto && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={info.image_url} alt={artistName} className="artist-photo" width={120} height={120} />
+        <img src={thumb(info.image_url)} alt={artistName} className="artist-photo" width={120} height={120} />
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
         {info && (info.real_name || info.country || info.active_from || (info.links?.length ?? 0) > 0) && (

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { buildEras, dateOf, span, STATUS_ORDER, UNRELEASED, type Filter, type Song } from "@/lib/eras";
 import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
+import { thumb } from "@/lib/thumb";
 
 export default function ArtistEras({ songs, focus }: { songs: Song[] | null; focus?: string | null }) {
   const [filter, setFilter] = useState<Filter>("all");
@@ -75,7 +76,7 @@ export default function ArtistEras({ songs, focus }: { songs: Song[] | null; foc
               <div className="era-head">
                 {e.cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={e.cover} alt="" className="era-cover" width={84} height={84} loading="lazy" />
+                  <img src={thumb(e.cover)} alt="" className="era-cover" width={84} height={84} loading="lazy" />
                 ) : <div className="era-cover era-cover-empty" aria-hidden>{e.kind === "year" ? e.name : "—"}</div>}
                 <div style={{ minWidth: 0 }}>
                   <div className="era-name">{e.name}</div>
