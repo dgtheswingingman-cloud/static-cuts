@@ -1,4 +1,5 @@
 "use client";
+import "../styles/pages.css";
 
 // Your Last.fm: your most-played songs and artists (from your linked Last.fm
 // username), matched to the archive: collect songs or follow artists in a
@@ -67,7 +68,7 @@ export default function ListeningPage() {
 
   if (isAdmin) return <AdminModePage title="Your Last.fm" />;
   if (!loading && !user) {
-    return <div className="wrap"><h1 className="detail-name page-title">Your Last.fm</h1>
+    return <div className="wrap pg-page"><h1 className="detail-name page-title pg-title">Your Last.fm</h1>
       <div className="empty-state"><Link href="/login?next=/listening" className="text-link">Log in</Link> to see your listening.</div></div>;
   }
 
@@ -75,70 +76,72 @@ export default function ListeningPage() {
   const notCollected = here.filter((t) => !t.owned).map((t) => t.track_id!) ;
   const notFollowed = (data?.artists ?? []).filter((a) => a.artist_id && !a.following).map((a) => a.artist_id!);
   const n = (x: number) => x.toLocaleString("en-GB");
+  const topPlays = Math.max(1, ...(data?.tracks ?? []).map((t) => t.plays));
 
   return (
-    <div className="wrap" style={{ maxWidth: 760 }}>
-      <h1 className="detail-name page-title">Your Last.fm</h1>
+    <div className="wrap pg-page">
+      <h1 className="detail-name page-title pg-title">Your Last.fm</h1>
       {username === null && (
-        <div className="empty-state">
-          Link your Last.fm username in <Link href="/settings#lastfm" className="text-link">Settings</Link> to see your
-          most-played songs and artists here, matched to the archive.
-        </div>
+        <section className="pg-box pg-empty">
+          <h2>Link Last.fm</h2>
+          <p>Add your Last.fm username in Settings to see your most-played songs and artists here, matched to the archive. Only you see this page.</p>
+          <Link href="/settings#lastfm" className="st-btn">Open Settings →</Link>
+        </section>
       )}
       {username && (
         <>
-          <div className="detail-meta" style={{ marginBottom: 12 }}>
-            From <a href={`https://www.last.fm/user/${encodeURIComponent(username)}`} target="_blank" rel="noopener noreferrer" className="text-link">{username}</a> on Last.fm.
-            Only you see this page.
-          </div>
-          <div className="tabs" style={{ marginBottom: 14 }}>
+          <p className="pg-lead">
+            From <a href={`https://www.last.fm/user/${encodeURIComponent(username)}`} target="_blank" rel="noopener noreferrer" className="text-link">{username}</a> on Last.fm, matched to the archive. Only you see this page.
+          </p>
+          <div className="st-seg pg-seg" role="tablist">
             {PERIODS.map(([p, label]) => (
-              <button key={p} className={`tab ${period === p ? "active" : ""}`} onClick={() => { setData(null); setPeriod(p); }}>{label}</button>
+              <button key={p} role="tab" aria-selected={period === p} className={period === p ? "on" : undefined} onClick={() => { setData(null); setPeriod(p); }}>{label}</button>
             ))}
           </div>
           {busy && <div className="empty-state">asking Last.fm…</div>}
           {error && <div className="empty-state error">{error}</div>}
           {data && !busy && (
-            <>
-              <div className="section-label" style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <span>Most played artists</span>
-                {notFollowed.length > 0 && <button className="rating-chip" onClick={() => follow(notFollowed)}>follow all {notFollowed.length} here</button>}
-              </div>
-              {data.artists.length === 0 && <div className="comment-meta">Nothing played in this period.</div>}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
-                {data.artists.map((a) => (
-                  a.artist_id ? (
-                    <span key={a.name} className="rating-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                      <Link href={`/artist/${a.artist_id}`}>{a.name}</Link>
-                      <span className="comment-meta">{n(a.plays)}</span>
-                      {!a.following && <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }}
-                        onClick={() => follow([a.artist_id!])}>+ follow</button>}
-                    </span>
-                  ) : (
-                    <span key={a.name} className="rating-chip" style={{ opacity: 0.6 }} title="Not on Static Cuts yet">{a.name} · {n(a.plays)}</span>
-                  )
-                ))}
-              </div>
-
-              <div className="section-label" style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <span>Most played songs ({here.length} of {data.tracks.length} are in the archive)</span>
-                {notCollected.length > 0 && <button className="rating-chip" onClick={() => collect(notCollected)}>collect all {notCollected.length}</button>}
-              </div>
-              {data.tracks.map((t, i) => (
-                <div key={i} className="year-row">
-                  <span style={{ minWidth: 0 }}>
-                    <span className="comment-meta">{i + 1}. </span>
-                    {t.track_id ? <Link href={`/song/${t.track_id}`} className="text-link">{t.archive_title ?? t.title}</Link> : <span style={{ opacity: 0.6 }}>{t.title}</span>}
-                    <span className="comment-meta"> · {t.artist_id ? <Link href={`/artist/${t.artist_id}`}>{t.artist}</Link> : t.artist}</span>
-                  </span>
-                  <span className="comment-meta" style={{ whiteSpace: "nowrap" }}>
-                    {n(t.plays)} plays
-                    {t.track_id && (t.owned ? " · ✓ collected" : <> · <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }}
-                      onClick={() => collect([t.track_id!])}>collect</button></>)}
-                  </span>
+            <div className="pg-two">
+              <section className="pg-box">
+                <div className="pg-box-head">
+                  <h2>Most played artists</h2>
+                  {notFollowed.length > 0 && <button className="st-btn pg-small" onClick={() => follow(notFollowed)}>Follow all {notFollowed.length}</button>}
                 </div>
-              ))}
-            </>
+                {data.artists.length === 0 && <div className="comment-meta">Nothing played in this period.</div>}
+                {data.artists.map((a, i) => (
+                  <div key={a.name} className={`pg-row${a.artist_id ? "" : " off"}`}>
+                    <span className="pg-rank">{i + 1}</span>
+                    <span className="pg-row-main">
+                      {a.artist_id ? <Link href={`/artist/${a.artist_id}`}><b>{a.name}</b></Link> : <b title="Not on Static Cuts yet">{a.name}</b>}
+                      <span>{n(a.plays)} plays{!a.artist_id ? " · not on the site yet" : ""}</span>
+                    </span>
+                    {a.artist_id && (a.following
+                      ? <span className="pg-done">✓ following</span>
+                      : <button className="pg-act" onClick={() => follow([a.artist_id!])}>+ Follow</button>)}
+                  </div>
+                ))}
+              </section>
+              <section className="pg-box">
+                <div className="pg-box-head">
+                  <h2>Most played songs</h2>
+                  {notCollected.length > 0 && <button className="st-btn pg-small" onClick={() => collect(notCollected)}>Collect all {notCollected.length}</button>}
+                </div>
+                <div className="comment-meta pg-note">{here.length} of {data.tracks.length} are in the archive.</div>
+                {data.tracks.map((t, i) => (
+                  <div key={i} className={`pg-row${t.track_id ? "" : " off"}`}>
+                    <span className="pg-rank">{i + 1}</span>
+                    <span className="pg-row-main">
+                      {t.track_id ? <Link href={`/song/${t.track_id}`}><b>{t.archive_title ?? t.title}</b></Link> : <b>{t.title}</b>}
+                      <span>{t.artist_id ? <Link href={`/artist/${t.artist_id}`}>{t.artist}</Link> : t.artist} · {n(t.plays)} plays</span>
+                      <span className="pg-bar" aria-hidden><span style={{ width: `${Math.round((t.plays / topPlays) * 100)}%` }} /></span>
+                    </span>
+                    {t.track_id && (t.owned
+                      ? <span className="pg-done">✓ collected</span>
+                      : <button className="pg-act" onClick={() => collect([t.track_id!])}>+ Collect</button>)}
+                  </div>
+                ))}
+              </section>
+            </div>
           )}
         </>
       )}

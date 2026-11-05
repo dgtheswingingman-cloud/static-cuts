@@ -1,0 +1,74 @@
+/* ===================== Smaller pages (Listening, Weekly, password reset, Eras) ===================== */
+.pg-page { max-width: 1000px !important; padding-bottom: 60px; }
+.pg-page.pg-wide { max-width: 1200px !important; }
+.pg-page.pg-narrow { max-width: 480px !important; }
+.pg-title { font-size: clamp(2.4rem, 8vw, 4.4rem); margin: 6px 0 0; }
+.pg-title.page-title::after { color: var(--accent); }
+.pg-kicker { font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 10px; }
+.pg-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
+.pg-arrows { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.pg-arrows button { font-family: var(--font-mono), monospace; font-size: 0.72rem; padding: 8px 12px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: none; color: var(--bone); cursor: pointer; }
+.pg-arrows button:hover { border-color: var(--accent); }
+.pg-lead { font-family: var(--font-mono), monospace; font-size: 0.8rem; line-height: 1.6; color: var(--smoke); margin: 8px 0 18px; max-width: 760px; }
+.pg-seg { margin: 0 0 18px; }
+.pg-seg button { padding: 10px 18px; }
+
+.pg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.pg-tile { --c: var(--hair-strong); border: 1.5px solid var(--hair-strong); border-left: 3px solid var(--c); border-radius: 8px; padding: 12px 14px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.pg-tile[data-st="leaked"] { --c: #FF3355; }
+.pg-tile[data-st="released"] { --c: #22C55E; }
+.pg-tile[data-st="teased"] { --c: #22D3EE; }
+.pg-tile[data-st="added"] { --c: var(--bone); }
+.pg-tile-label { font-family: var(--font-mono), monospace; font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+.pg-tile-n { font-family: var(--font-anton), sans-serif; font-size: 2rem; line-height: 1.05; margin-top: 4px; }
+
+.pg-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; align-items: start; margin-top: 14px; }
+.pg-box { border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 14px 16px; background: color-mix(in srgb, var(--void) 80%, transparent); min-width: 0; }
+.pg-box h2, .pg-box-head h2 { margin: 0; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.25rem; text-transform: uppercase; color: var(--bone); }
+.pg-box h2::after { content: "//"; color: var(--accent); margin-left: 2px; }
+.pg-box-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--hair); }
+.pg-box .sp-versions { margin: 0; }
+.pg-num { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); }
+.pg-note { margin: -2px 0 8px; }
+.pg-small { font-size: 0.64rem !important; padding: 6px 10px !important; }
+.pg-empty p { color: var(--smoke); line-height: 1.6; margin: 10px 0 14px; }
+.pg-empty .st-btn { display: inline-block; text-decoration: none; }
+
+.pg-row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--hair); }
+.pg-row:last-child { border-bottom: none; }
+.pg-row.off { opacity: 0.55; }
+.pg-rank { font-family: var(--font-anton), sans-serif; font-size: 1.1rem; color: var(--smoke); width: 22px; text-align: right; flex: none; }
+.pg-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pg-row-main b { font-weight: 600; font-size: 0.9rem; color: var(--bone); overflow-wrap: anywhere; }
+.pg-row-main a { color: inherit; text-decoration: none; }
+.pg-row-main a:hover b, .pg-row-main span a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pg-row-main > span { font-size: 0.74rem; color: var(--smoke); }
+.pg-bar { display: block; height: 3px; background: var(--hair); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.pg-bar > span { display: block; height: 100%; background: var(--accent); }
+.pg-act { flex: none; font-family: var(--font-mono), monospace; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 10px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: none; color: var(--bone); cursor: pointer; white-space: nowrap; }
+.pg-act:hover { border-color: var(--accent); }
+.pg-done { flex: none; font-family: var(--font-mono), monospace; font-size: 0.66rem; color: #22C55E; white-space: nowrap; }
+
+.pg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pg-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--hair-strong); border-radius: 999px; color: var(--bone); text-decoration: none; font-size: 0.8rem; }
+.pg-chip:hover { border-color: var(--accent); }
+.pg-chip span { font-family: var(--font-mono), monospace; font-size: 0.68rem; color: #22C55E; }
+
+/* Password reset card */
+.pg-auth { margin-top: 8vh; padding: 28px 24px; text-align: left; }
+.pg-auth-logo { display: block; height: 34px; width: auto; margin-bottom: 18px; }
+.pg-auth-title { font-size: clamp(2rem, 7vw, 2.8rem); }
+.pg-form { display: flex; flex-direction: column; gap: 12px; }
+.pg-form .pg-lead { margin-bottom: 4px; }
+.pg-field { display: flex; flex-direction: column; gap: 6px; }
+.pg-field span { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+.pg-field input { width: 100%; box-sizing: border-box; border-radius: 4px; }
+.pg-full { display: block; width: 100%; box-sizing: border-box; text-align: center; text-decoration: none; padding: 12px !important; }
+.pg-primary { background: var(--bone) !important; color: var(--void) !important; font-weight: 700; }
+.pg-error { border: 1px solid #FF3355; color: #FF6680; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; }
+
+@media (max-width: 720px) {
+  .pg-tiles { grid-template-columns: 1fr 1fr; }
+  .pg-tile-n { font-size: 1.6rem; }
+  .pg-auth { margin-top: 4vh; padding: 22px 16px; }
+}
