@@ -1,4 +1,5 @@
 "use client";
+import "../styles/local.css";
 
 // Local Cuts: drop your music folder in, get a tidy zip out, ready for
 // Spotify Local Files. One run, no setup:
@@ -15,6 +16,7 @@
 // Originals are never touched. Saving the zip is premium; helping the
 // archive is free.
 
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +29,7 @@ import { readCover, readDetails, type FileDetails } from "./details";
 import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
 import { pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
+import { thumb } from "@/lib/thumb";
 
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
@@ -428,118 +431,227 @@ export default function LocalCutsPage() {
     archive: "Sharing what your files know with the archive", ready: "", saving: "Writing your zip", saved: "",
   };
 
+  const ORDER: Stage[] = ["reading", "matching", "claude", "archive"];
+  const STEPS: [Stage, string, string, string][] = [
+    ["reading", "Read", "Reading files", "Each file's title, artist, album and art, read on your computer."],
+    ["matching", "Match", "Matching to the archive", "Finding each file's song on Static Cuts."],
+    ["claude", "Check", "Claude checking the unsure ones", "A closer look at files that didn't match cleanly."],
+    ["archive", "Share", "Helping the archive", "What your well-tagged files know, sent for review."],
+  ];
+  const at = ORDER.indexOf(stage);
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const preview = plan.filter((o) => (o.kind === "tidied" || o.kind === "claude") && o.tags).slice(0, 6);
+  const fileName = (o: Out) => o.song.file.webkitRelativePath?.split("/").pop() || o.song.file.name;
+  const newName = (o: Out) => o.path.split("/").pop() ?? o.path;
+  const styles: ["Feat." | "feat." | "none", string][] = [
+    ["Feat.", "Shoota [Extended] (Feat. Lil Uzi Vert)"],
+    ["feat.", "Shoota [Extended] (feat. Lil Uzi Vert)"],
+    ["none", "Shoota [Extended]"],
+  ];
+  const results = (stage === "ready" || stage === "saved") && plan.length > 0;
+
   return (
-    <div className="wrap local-cuts" style={{ maxWidth: 760 }}>
-      <h1 className="detail-name page-title">Local Cuts</h1>
-      <div className="detail-meta" style={{ marginBottom: 14 }}>
-        Drop in your music folder and get back a tidy zip for Spotify Local Files: every song named properly, with
-        the right artist, album, year and cover art from the archive, sorted into Artist / Album folders. Files
-        that are already well formatted are kept as they are and help fill gaps in the archive.{" "}
-        <b>Your music is never uploaded and your originals are never touched.</b>
-      </div>
+    <div className="wrap lc-page">
+      <h1 className="detail-name page-title lc-title">Local Cuts</h1>
+      <p className="lc-lead">
+        {busy ? "Working through your folder." : results ? "Your folder has been read, matched and tidied. Here's how it went."
+          : "Drop in your own music folder and get back a tidy copy, ready for Spotify Local Files."}
+      </p>
+      <div className="lc-promise"><span className="lc-sl" style={{ color: "#22C55E" }}>//</span> Never uploaded. Originals never touched.</div>
 
-      {premium === false && user && (
-        <div className="comments-panel" style={{ marginBottom: 12 }}>
-          <b>Saving the zip is a premium feature.</b> You can still run your folder through: see how it matches, and your
-          well-formatted files will help fill gaps in the archive. Ask the site owner about premium.
-        </div>
-      )}
       {!loading && !user && (
-        <div className="comments-panel" style={{ marginBottom: 12 }}>
-          <Link href="/login?next=/local" className="text-link">Log in</Link> to use Local Cuts.
+        <div className="lc-note-box">
+          <span className="lc-sl" style={{ color: "#22D3EE" }}>//</span>
+          <span><Link href="/login?next=/local" className="text-link">Log in</Link> to use Local Cuts: tidy your folder and add matches to your collection.</span>
         </div>
       )}
 
-      {(stage === "idle" || stage === "ready" || stage === "saved") && user && (
-        <label
-          className={`local-drop ${hover ? "is-over" : ""}`}
+      {/* ---------------------------------------------------------------- drop */}
+      {(stage === "idle" || stage === "ready" || stage === "saved") && user && !results && (
+        <label className={`lc-drop ${hover ? "is-over" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
-          onDrop={async (e) => { e.preventDefault(); setHover(false); run(await filesFromDrop(e.dataTransfer.items)); }}
-        >
+          onDrop={async (e) => { e.preventDefault(); setHover(false); run(await filesFromDrop(e.dataTransfer.items)); }}>
           <input type="file" multiple hidden onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; run(f); }}
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-          <div className="local-drop-big">{stage === "idle" ? "Drop your music folder here" : "Drop another folder"}</div>
-          <div className="comment-meta">or click to choose one</div>
+          <svg className="lc-folder" viewBox="0 0 64 52" aria-hidden><path d="M3 8a4 4 0 0 1 4-4h16l6 6h28a4 4 0 0 1 4 4v30a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" /></svg>
+          <span className="lc-drop-big">Drop your music folder here</span>
+          <span className="lc-drop-sub">or click to choose one</span>
         </label>
       )}
-      {note && <div className="comments-panel" style={{ marginTop: 10 }}>{note}</div>}
+      {note && <div className="lc-note-box warn"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span><span>{note}</span></div>}
 
-      {busy && (
-        <div className="local-progress">
-          <div className="review-row-title">{label[stage]}…</div>
-          <div className="local-bar"><div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} /></div>
-          <div className="comment-meta">{done.toLocaleString("en-GB")} of {total.toLocaleString("en-GB")}{stage === "saving" ? ` · ${gb(size)} in all` : ""}</div>
-        </div>
+      {stage === "idle" && (
+        <>
+          <h2 className="lc-h">How it works</h2>
+          <div className="lc-how">
+            {[["Read", "#22C55E", "Reads each file's details (title, artist, album, art) on your computer."],
+              ["Match", "#8B7CF6", "Finds each song in the Static Cuts archive and fills in what's missing."],
+              ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album or “Unreleased <year>”, year, track number and cover art."],
+              ["Save", "#F5B841", "Gives you a clean copy in Artist / Album folders, ready for Local Files."]].map(([t, c, d], i) => (
+              <div key={t} className="lc-how-card">
+                <div className="lc-how-top"><span className="lc-how-n">0{i + 1}</span><b>{t}</b><span className="lc-sl" style={{ color: c }}>//</span></div>
+                <p>{d}</p>
+              </div>
+            ))}
+          </div>
+          {premium === false && user && (
+            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Not premium? You can still run a folder, see how it matches and help fill gaps in the archive. Saving the tidy copy is premium.</p>
+          )}
+        </>
       )}
 
-      {(stage === "ready" || stage === "saved") && plan.length > 0 && (
-        <div className="local-summary">
-          <div className="local-stats">
-            <div><b>{count("tidied").toLocaleString("en-GB")}</b><span>tidied from the archive</span></div>
-            <div><b>{count("kept").toLocaleString("en-GB")}</b><span>already well formatted</span></div>
-            {count("claude") > 0 && <div><b>{count("claude").toLocaleString("en-GB")}</b><span>not on the site, tidied by Claude</span></div>}
-            <div><b>{unsorted.length.toLocaleString("en-GB")}</b><span>couldn&apos;t be identified</span></div>
+      {/* ------------------------------------------------------------- working */}
+      {busy && stage !== "saving" && (
+        <section className="lc-box lc-work">
+          <div className="lc-work-head">
+            <h2 className="lc-h in">Processing your folder</h2>
+            <span className="lc-count">{done.toLocaleString("en-GB")} <small>of</small> {total.toLocaleString("en-GB")}</span>
+          </div>
+          <div className="lc-bar"><span style={{ width: `${pct}%` }} /></div>
+          <div className="lc-steps">
+            {STEPS.map(([k, short, title, blurb], i) => (
+              <div key={k} className={`lc-step ${i < at ? "done" : i === at ? "on" : ""}`}>
+                <span className="lc-step-mark" aria-hidden>{i < at ? "✓" : i === at ? <span className="lc-spin" /> : String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <b>{title}</b>
+                  <p>{i === at ? `${label[stage]}… ${pct}%` : blurb}</p>
+                </div>
+                <span className="lc-step-short">{short}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {stage === "saving" && (
+        <section className="lc-box lc-work">
+          <div className="lc-work-head">
+            <h2 className="lc-h in">Saving your tidy copy</h2>
+            <span className="lc-count">{done.toLocaleString("en-GB")} <small>of</small> {total.toLocaleString("en-GB")}</span>
+          </div>
+          <div className="lc-bar"><span style={{ width: `${pct}%` }} /></div>
+          <p className="lc-small">{gb(size)} in all. Keep this tab open until it finishes.</p>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------------- results */}
+      {results && (
+        <>
+          {stage === "saved" && saved && (
+            <section className={`lc-box lc-saved ${saved.startsWith("Saving stopped") ? "bad" : ""}`}>
+              <svg className="lc-folder" viewBox="0 0 64 52" aria-hidden><path d="M3 8a4 4 0 0 1 4-4h16l6 6h28a4 4 0 0 1 4 4v30a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" /></svg>
+              <h2 className="lc-saved-big">{saved.startsWith("Saving stopped") ? "Saving stopped" : "Tidy copy saved"}</h2>
+              <p>{saved}</p>
+            </section>
+          )}
+
+          <div className="lc-tiles">
+            <div className="lc-tile" style={{ "--c": "#22C55E" } as React.CSSProperties}><span>Tidied from the archive</span><b>{count("tidied").toLocaleString("en-GB")}</b></div>
+            <div className="lc-tile" style={{ "--c": "#22D3EE" } as React.CSSProperties}><span>Already well formatted</span><b>{count("kept").toLocaleString("en-GB")}</b></div>
+            <div className="lc-tile" style={{ "--c": "#8B7CF6" } as React.CSSProperties}><span>Not on the site (tidied by Claude)</span><b>{count("claude").toLocaleString("en-GB")}</b></div>
+            <div className="lc-tile" style={{ "--c": "#F5B841" } as React.CSSProperties}><span>Couldn&apos;t be identified</span><b>{unsorted.length.toLocaleString("en-GB")}</b></div>
           </div>
 
           {sent && (sent.details > 0 || sent.songs > 0 || sent.problem) && (
-            <div className="comment-meta" style={{ marginBottom: 8 }}>
-              Helped the archive: {sent.details > 0 && <>details for {sent.details} song{sent.details === 1 ? "" : "s"}{sent.covers ? ` (${sent.covers} with cover art)` : ""}</>}
+            <p className="lc-small">
+              <span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Helped the archive:{" "}
+              {sent.details > 0 && <>details for {sent.details} song{sent.details === 1 ? "" : "s"}{sent.covers ? ` (${sent.covers} with cover art)` : ""}</>}
               {sent.details > 0 && sent.songs > 0 && " and "}
               {sent.songs > 0 && <>{sent.songs} song{sent.songs === 1 ? "" : "s"} the site didn&apos;t have</>}
               {(sent.details > 0 || sent.songs > 0) && ", sent for review. Thanks!"}
               {sent.problem && <> (stopped: {sent.problem})</>}
-            </div>
+            </p>
           )}
-          <div className="comment-meta" style={{ marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            Song names:
-            <select className="sort-select" value={featStyle} onChange={(e) => setFeatStyle(e.target.value as "Feat." | "feat." | "none")} aria-label="How song names are written">
-              <option value="Feat.">Shoota [Extended] (Feat. Lil Uzi Vert)</option>
-              <option value="feat.">Shoota [Extended] (feat. Lil Uzi Vert)</option>
-              <option value="none">Shoota [Extended]</option>
-            </select>
-          </div>
-          {claudeNote && <div className="comment-meta" style={{ marginBottom: 8 }}>{claudeNote}</div>}
-          {premium === false && unsorted.length > 0 && (
-            <div className="comment-meta" style={{ marginBottom: 8 }}>With premium, Claude also looks at the files that couldn&apos;t be identified.</div>
-          )}
+          {claudeNote && <p className="lc-small">{claudeNote}</p>}
 
-          <div className="review-toolbar" style={{ marginTop: 10 }}>
-            <button className="tab active local-save" disabled={!premium || busy} onClick={saveZip}>
-              {premium ? `Download zip (${gb(size)})` : "Download zip (premium)"}
+          <section className="lc-box">
+            <div className="lc-box-head"><h2 className="lc-h in">Song name style</h2><span className="lc-small">How features are written in your tidy copy.</span></div>
+            <div className="lc-radios" role="radiogroup" aria-label="How song names are written">
+              {styles.map(([v, ex]) => (
+                <button key={v} role="radio" aria-checked={featStyle === v} className={`lc-radio ${featStyle === v ? "on" : ""}`} onClick={() => setFeatStyle(v)}>
+                  <span className="lc-dot" aria-hidden />{ex}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="lc-actions">
+            <button className="lc-save" disabled={!premium || busy} onClick={saveZip}>
+              {premium ? `Save tidy copy (${gb(size)})` : "Save tidy copy (premium)"}
             </button>
             {premium && songs.some((s) => s.track_id) && !collected && (
-              <button className="tab" onClick={collectAll}>add matched songs to my collection</button>
+              <button className="lc-second" onClick={collectAll}>+ Add matched songs to my collection</button>
             )}
+            <label className="lc-second">
+              <input type="file" multiple hidden onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; run(f); }}
+                {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+              Drop another folder
+            </label>
           </div>
-          {saved && <div className="comments-panel" style={{ marginTop: 10 }}>{saved}</div>}
-          {collected && <div className="comment-meta" style={{ marginTop: 6 }}>{collected}</div>}
-          {untaggable > 0 && (
-            <div className="comment-meta" style={{ marginTop: 6 }}>
-              {untaggable} M4A/WAV/OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.
-            </div>
+          {premium === false && (
+            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Saving the tidy copy is premium.{unsorted.length > 0 ? " With premium, Claude also looks at the files that couldn't be identified." : ""}</p>
+          )}
+          {collected && <p className="lc-small">{collected}</p>}
+
+          {preview.length > 0 && (
+            <section className="lc-box">
+              <div className="lc-box-head"><h2 className="lc-h in">Tidied files</h2><span className="lc-small">A few examples, before and after.</span></div>
+              <div className="lc-preview">
+                {preview.map((o) => (
+                  <div key={o.song.key} className="lc-pv">
+                    {o.coverUrl
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={thumb(o.coverUrl)} alt="" loading="lazy" />
+                      : <span className="lc-pv-blank">SC//</span>}
+                    <div className="lc-pv-text">
+                      <span className="lc-pv-k">Before</span>
+                      <span className="lc-pv-old">{fileName(o)}</span>
+                      <span className="lc-pv-k">→ After</span>
+                      <span className="lc-pv-new">{newName(o)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {untaggable > 0 && (
+                <p className="lc-small"><span className="lc-sl" style={{ color: "#22D3EE" }}>//</span> {untaggable} M4A / WAV / OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.</p>
+              )}
+            </section>
           )}
 
           {guesses.length > 0 && (
-            <details style={{ marginTop: 12 }}>
-              <summary className="section-label" style={{ cursor: "pointer" }}>Claude&apos;s best guesses ({guesses.length})</summary>
-              {guesses.map((o) => (
-                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>
-                  {o.song.file.name} → <Link className="text-link" href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link>{o.song.why ? ` (${o.song.why})` : ""}
-                </div>
-              ))}
+            <details className="lc-box lc-fold">
+              <summary><h2 className="lc-h in">Claude&apos;s best guesses</h2><span className="lc-small">{guesses.length} file{guesses.length === 1 ? "" : "s"}</span></summary>
+              <div className="lc-table">
+                <div className="lc-tr lc-th"><span>File in your folder</span><span /><span>Matched song</span><span>Why</span></div>
+                {guesses.map((o) => (
+                  <div key={o.song.key} className="lc-tr">
+                    <span className="lc-mono">{fileName(o)}</span><span className="lc-arrow">→</span>
+                    <span><Link className="text-link" href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link></span>
+                    <span className="lc-why">{o.song.why ?? ""}</span>
+                  </div>
+                ))}
+              </div>
             </details>
           )}
           {unsorted.length > 0 && (
-            <details style={{ marginTop: 8 }}>
-              <summary className="section-label" style={{ cursor: "pointer" }}>Couldn&apos;t be identified ({unsorted.length}): kept as they were, in &ldquo;Unsorted&rdquo;</summary>
-              {unsorted.slice(0, 500).map((o) => (
-                <div key={o.song.key} className="comment-meta" style={{ padding: "3px 0" }}>{o.song.file.webkitRelativePath || o.song.file.name}</div>
-              ))}
-              {unsorted.length > 500 && <div className="comment-meta">…and {unsorted.length - 500} more (all listed in the changes file in the zip).</div>}
+            <details className="lc-box lc-fold">
+              <summary><h2 className="lc-h in">Couldn&apos;t be identified</h2><span className="lc-small">{unsorted.length} file{unsorted.length === 1 ? "" : "s"}, kept as they were in &ldquo;Unsorted&rdquo;</span></summary>
+              <div className="lc-table one">
+                {unsorted.slice(0, 500).map((o) => (
+                  <div key={o.song.key} className="lc-tr"><span className="lc-mono">{o.song.file.webkitRelativePath || o.song.file.name}</span></div>
+                ))}
+                {unsorted.length > 500 && <div className="lc-tr"><span className="lc-small">…and {unsorted.length - 500} more (all listed in the changes file in the copy).</span></div>}
+              </div>
             </details>
           )}
-        </div>
+        </>
+      )}
+
+      {!busy && (
+        <p className="lc-small lc-foot">
+          Local Cuts fixes the title (with features), artist, album or &ldquo;Unreleased &lt;year&gt;&rdquo;, year, track number and cover art,
+          and sorts everything into Artist / Album folders. Files that are already well formatted are kept as they are.
+        </p>
       )}
     </div>
   );
