@@ -3203,3 +3203,13 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 @media (max-width: 1023px) {
   .home-wide .hero .search-shell { display: none; }
 }
+
+/* ===================== Logo ===================== */
+.logo-img { display: block; height: auto; max-width: 100%; }
+.site-home .logo-img { width: 170px; }
+.dnav-logo .logo-img { width: 180px; }
+.wordmark-img { text-shadow: none !important; line-height: 0; }
+.wordmark-img .logo-img { width: min(560px, 86vw); }
+.home-wide .wordmark-img .logo-img { width: min(680px, 60vw); }
+/* The logo is bone-coloured; on the light theme it goes dark. */
+[data-theme="light"] .logo-img { filter: invert(1) brightness(0.15); }

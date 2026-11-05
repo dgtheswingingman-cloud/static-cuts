@@ -39,7 +39,10 @@ export default function DesktopNav() {
   return (
     <header className="dnav">
       <div className="dnav-inner">
-        <Link href="/" className="dnav-logo">STATIC-CUTS<span className="slash">//</span></Link>
+        <Link href="/" className="dnav-logo" aria-label="Static Cuts// home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.webp" alt="Static Cuts//" className="logo-img" width={1200} height={200} />
+        </Link>
         <form className="dnav-search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`); }}>
           <input type="search" placeholder="Search Static Cuts//…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
         </form>
