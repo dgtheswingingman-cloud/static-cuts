@@ -1,0 +1,84 @@
+/* ===================== Moderator pages (components/Mod.tsx) =====================
+   Every page under the control room: boxed toolbar, card rows, clearer
+   buttons and more breathing room. Scoped to .mod-page so nothing else moves. */
+
+.mod-page { max-width: 1180px; padding-bottom: 60px; }
+.mod-page .mod-back { font-family: var(--font-mono), monospace; font-size: 0.72rem; text-transform: lowercase; letter-spacing: 0.03em; text-decoration: none; }
+.mod-page .mod-back:hover { text-decoration: underline; }
+.mod-page .mod-head { margin-top: 6px; }
+.mod-page .detail-name.page-title { font-size: clamp(2.2rem, 7vw, 3.8rem); margin: 4px 0 10px; }
+.mod-page .detail-name.page-title::after { color: var(--accent); }
+.mod-page .mod-intro { border-left: 2px solid var(--accent); padding: 2px 0 2px 14px; margin: 0 0 22px; max-width: 820px; line-height: 1.6; }
+
+/* Stat tiles along the top */
+.mod-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 0 0 18px; }
+.mod-stat { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 14px 16px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.mod-stat::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 140% at 100% 100%, color-mix(in srgb, var(--tint, transparent) 22%, transparent), transparent 60%); }
+.mod-stat-icon { font-size: 1.4rem; line-height: 1; color: var(--tint, var(--smoke)); width: 26px; text-align: center; flex: none; }
+.mod-stat-label { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+.mod-stat-n { font-family: var(--font-anton), sans-serif; font-size: 1.9rem; line-height: 1; color: var(--bone); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.mod-stat.hot { border-color: var(--accent); }
+
+/* Toolbar: a boxed bar that sticks while scrolling */
+.mod-page .mod-toolbar { border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: color-mix(in srgb, var(--void) 92%, transparent); gap: 10px 14px; }
+.mod-page .mod-toolbar.sticky { top: 8px; padding-top: 10px; backdrop-filter: blur(6px); }
+.mod-page .mod-tabs { gap: 6px; }
+.mod-page .mod-tabs .tab { padding: 8px 14px; border-radius: 4px; }
+.mod-page .mod-tabs .tab.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mod-page .sort-select, .mod-page .search-input { border-radius: 4px; }
+.mod-search { flex: 1 1 260px; min-width: 200px; position: relative; }
+.mod-search input { width: 100%; box-sizing: border-box; padding-left: 32px !important; }
+.mod-search::before { content: "⌕"; position: absolute; left: 11px; top: 50%; transform: translateY(-52%); color: var(--smoke); font-size: 1rem; pointer-events: none; }
+.mod-sub-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 16px; }
+.mod-sub-bar .grow { flex: 1; }
+
+/* Buttons */
+.mod-page .mod-btn { border-radius: 4px; padding: 8px 14px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.68rem; }
+.mod-page .mod-btn.approve::before { content: "✓ "; }
+.mod-page .mod-btn.dismiss::before { content: "✕ "; }
+.mod-page .mod-btn.dismiss { color: var(--bone); }
+.mod-page .mod-btn.danger { border-color: #FF3355; color: #FF6680; }
+.mod-page .mod-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, #FF3355 14%, transparent); }
+.mod-btn.go { border-color: #22D3EE; color: #22D3EE; }
+.mod-btn.go:hover:not(:disabled) { background: color-mix(in srgb, #22D3EE 12%, transparent); }
+
+/* Group heading */
+.mod-page .mod-section { margin: 22px 0 8px; padding: 0 2px; border-bottom: none; font-family: var(--font-mono), monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.mod-page .mod-section > span:first-child { color: var(--bone); }
+
+/* Rows: one card each */
+.mod-page .mod-row { border: 1px solid var(--hair); border-radius: 6px; padding: 12px 14px; margin-bottom: 6px; background: color-mix(in srgb, var(--void) 75%, transparent); gap: 6px 16px; transition: border-color .12s, background .12s; }
+.mod-page .mod-row:hover { border-color: var(--hair-strong); background: var(--surface); }
+.mod-page .mod-row.has-check:has(input:checked) { border-color: var(--accent); }
+.mod-page .mod-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.mod-page .mod-row-title { font-size: 0.98rem; font-weight: 600; }
+.mod-page .mod-row-title a { text-underline-offset: 3px; }
+.mod-page .mod-row-meta { gap: 4px 14px; margin-top: 5px; font-size: 0.74rem; align-items: center; }
+.mod-page .mod-row-actions { gap: 8px; }
+.mod-page .mod-tag { border-radius: 3px; padding: 2px 7px; }
+.mod-page .mod-tag.warn { color: #F5B841; border-color: color-mix(in srgb, #F5B841 55%, transparent); }
+
+/* Source pills */
+.mod-src { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono), monospace; font-size: 0.62rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
+.mod-src.genius { color: #F5B841; }
+.mod-src.lastfm { color: #FF3355; }
+.mod-src.spotify { color: #22C55E; }
+.mod-src.sheet { color: #8B7CF6; }
+.mod-src.local { color: #22D3EE; }
+
+/* Bulk bar, notices, empty */
+.mod-page .mod-bulk { border: 1.5px solid var(--accent); border-radius: 8px; padding: 10px 14px; gap: 10px; margin-bottom: 12px; position: sticky; top: 80px; z-index: 2; background: var(--void); }
+.mod-page .mod-notice { border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; }
+.mod-page .mod-state { border-radius: 8px; padding: 28px 16px; }
+.mod-page .mod-group { border-radius: 8px; border-color: var(--hair-strong); padding: 14px 16px; }
+.mod-page .mod-grid { gap: 10px; }
+.mod-page .mod-card { border-radius: 6px; }
+
+@media (max-width: 720px) {
+  .mod-stats { grid-template-columns: 1fr 1fr; }
+  .mod-stat { padding: 12px; gap: 10px; }
+  .mod-stat-n { font-size: 1.5rem; }
+  .mod-page .mod-toolbar.sticky { position: static; }
+  .mod-page .mod-bulk { top: 0; }
+  .mod-page .mod-row-actions .mod-btn { flex: 1; }
+}

@@ -1,4 +1,5 @@
 "use client";
+import "../styles/mod.css";
 
 // The building blocks every moderator and admin page uses, so they all look
 // and behave the same: the page frame (back link, title, one-line intro), the
@@ -7,6 +8,7 @@
 // in the same place.
 
 import Link from "next/link";
+import type React from "react";
 import type { ReactNode, MouseEvent } from "react";
 
 // Page frame: "← control room", the title, a short intro, then the page.
@@ -65,7 +67,7 @@ export function ModCount({ n }: { n: number }) {
 // Buttons. approve: solid; dismiss: outline; danger: red, asks first when
 // `confirm` is given; plain: secondary actions.
 export function ModButton({ kind = "plain", confirm: ask, busy, disabled, onClick, children, title, type = "button" }: {
-  kind?: "approve" | "dismiss" | "danger" | "plain";
+  kind?: "approve" | "dismiss" | "danger" | "plain" | "go";
   confirm?: string;
   busy?: boolean;
   disabled?: boolean;
@@ -153,6 +155,24 @@ export function ModSection({ children, right }: { children: ReactNode; right?: R
     <div className="mod-section">
       <span>{children}</span>
       {right}
+    </div>
+  );
+}
+
+// Stat tiles along the top of a page ("Waiting 121").
+export type ModStatItem = { label: ReactNode; n: number | string | null; icon?: ReactNode; tint?: string; hot?: boolean };
+export function ModStats({ items }: { items: ModStatItem[] }) {
+  return (
+    <div className="mod-stats">
+      {items.map((it, k) => (
+        <div key={k} className={`mod-stat${it.hot ? " hot" : ""}`} style={it.tint ? ({ "--tint": it.tint } as React.CSSProperties) : undefined}>
+          {it.icon && <span className="mod-stat-icon" aria-hidden>{it.icon}</span>}
+          <div>
+            <div className="mod-stat-label">{it.label}</div>
+            <div className="mod-stat-n">{it.n == null ? "–" : typeof it.n === "number" ? it.n.toLocaleString("en-GB") : it.n}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

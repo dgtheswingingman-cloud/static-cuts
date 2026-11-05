@@ -86,13 +86,15 @@ export default function OwnerPanel() {
   }
 
   return (
-    <>
-      <PremiumPanel />
+    <div className="cr-owner">
+      <section className="cr-box cr-owner-premium"><PremiumPanel /></section>
+      <section className="cr-box cr-owner-speed">
+      <div className="section-label">Automatic work</div>
 
       {geniusPace && (
         <>
-          <div className="section-label">Genius credits</div>
-          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+          <div className="cr-sub">Genius credits</div>
+          <div className="review-row cr-setting">
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">How fast to fill in producers, features, dates and artwork</div>
               <div className="review-row-meta">
@@ -125,8 +127,8 @@ export default function OwnerPanel() {
 
       {deezer && (
         <>
-          <div className="section-label">Deezer</div>
-          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+          <div className="cr-sub">Deezer</div>
+          <div className="review-row cr-setting">
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">How fast to read releases</div>
               <div className="review-row-meta">
@@ -156,8 +158,8 @@ export default function OwnerPanel() {
 
       {newArtists && (
         <>
-          <div className="section-label">New artists</div>
-          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+          <div className="cr-sub">New artists</div>
+          <div className="review-row cr-setting">
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">Fill in new artists&apos; songs automatically</div>
               <div className="review-row-meta">
@@ -174,8 +176,8 @@ export default function OwnerPanel() {
 
       {genius && (
         <>
-          <div className="section-label">Genius imports</div>
-          <div className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+          <div className="cr-sub">Genius imports</div>
+          <div className="review-row cr-setting">
             <div style={{ minWidth: 0 }}>
               <div className="review-row-title">Add clear-cut songs without review</div>
               <div className="review-row-meta">
@@ -191,6 +193,8 @@ export default function OwnerPanel() {
         </>
       )}
 
+      </section>
+      <section className="cr-box cr-owner-leaks">
       <div className="section-label">Leak file links</div>
       <div className="comment-meta" style={{ marginBottom: 10 }}>
         Links to these sites never show as a listen link. They&apos;re kept on the song privately: only you see them, on
@@ -213,6 +217,7 @@ export default function OwnerPanel() {
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && draft.trim()) set(draft, true); }} />
         <button className="mod-btn approve" disabled={busy || !draft.trim()} onClick={() => set(draft, true)}>add</button>
       </div>
-    </>
+      </section>
+    </div>
   );
 }
