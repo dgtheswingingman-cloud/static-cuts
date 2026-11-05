@@ -5,7 +5,7 @@
 // filters live in the address, so a search can be shared ("every Carti leak
 // from 2019 without a link").
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -238,6 +238,19 @@ function SearchInner() {
   );
   const top = artists?.[0];
 
+  // On computers the box is ready to type in; on phones it isn't, so the
+  // keyboard doesn't cover the browse options.
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (window.innerWidth >= 1024) box.current?.focus(); }, []);
+
+  const BROWSE = [
+    ["/genres", "Genres", "every style in the archive"],
+    ["/producers", "Producers", "who made the beats"],
+    ["/collabs", "Collab map", "who's worked with who"],
+    ["/lists", "Lists", "collections people made"],
+    ["/local", "Local Cuts", "your own files"],
+  ] as const;
+
   return (
     <div className="wrap">
       <div className="sr-top">
@@ -253,10 +266,17 @@ function SearchInner() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           aria-label="Search"
-          autoFocus
+          ref={box}
         />
         {q && <button aria-label="Clear" onClick={() => setQ("")}>✕</button>}
       </div>
+      {/* Always one tap away, even mid-search. */}
+      {hasAnything && (
+        <nav className="sr-browse-row" aria-label="Browse">
+          <span>Browse<em>//</em></span>
+          {BROWSE.map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
+        </nav>
+      )}
 
       <nav className="rd-chips sr-types" aria-label="Show">
         {counts.map(([k, label, n]) => (
@@ -327,13 +347,7 @@ function SearchInner() {
           <div className="empty-state">Type an artist, a song, an album, a producer or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>
           <div className="sp-head sr-head"><h2><span className="sr-icon" aria-hidden="true">✦</span>Browse</h2></div>
           <div className="sr-browse">
-            {([
-              ["/genres", "Genres", "every style in the archive"],
-              ["/producers", "Producers", "who made the beats"],
-              ["/collabs", "Collab map", "who's worked with who"],
-              ["/lists", "Lists", "collections people made"],
-              ["/local", "Local Cuts", "your own files"],
-            ] as const).map(([href, label, sub]) => (
+            {BROWSE.map(([href, label, sub]) => (
               <Link key={href} href={href} className="sr-browse-tile"><strong>{label}<em>//</em></strong><span>{sub}</span></Link>
             ))}
           </div>
