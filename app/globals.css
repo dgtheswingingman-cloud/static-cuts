@@ -3916,3 +3916,7 @@ body:has(.ms-shell) .site-credit { display: none; }
 .if-links a { color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
 .if-links a:hover { color: var(--accent); }
 @media (max-width: 700px) { .if-cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* Welcome: keep the big number in the "picked" count inside the bar. */
+.wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+.wl-bar b { line-height: 1; display: inline-block; }
