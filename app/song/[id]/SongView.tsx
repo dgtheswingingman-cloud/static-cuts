@@ -19,6 +19,7 @@ import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
 import MyFile from "./MyFile";
 import ShareButton from "../../components/ShareButton";
+import HeroCollage from "../../components/HeroCollage";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import AdminModeNote from "../../components/AdminModeNote";
 import FriendsWhoHaveIt from "./FriendsWhoHaveIt";
@@ -115,6 +116,7 @@ export default function SongView({ id }: { id: string }) {
   const user = usePersonalUser();
   const isAdmin = useIsAdmin();
   const router = useRouter();
+  const [artistPhotos, setArtistPhotos] = useState<string[]>([]);
   const [song, setSong] = useState<Song | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -126,6 +128,23 @@ export default function SongView({ id }: { id: string }) {
   // The page's colour, taken from the cover (like artist pages).
   const [rgb, setRgb] = useState<Rgb | null>(null);
   const coverUrl = song?.track.display_cover?.url ?? song?.track.cover_url ?? null;
+  // Photos of the artist for the banner behind the cover.
+  const photoArtist = song?.artist?.id ?? song?.track.artist_id ?? null;
+  useEffect(() => {
+    if (!photoArtist) return;
+    let alive = true;
+    Promise.all([
+      supabase.from("artist_photos").select("url").eq("artist_id", photoArtist).order("created_at").limit(30),
+      supabase.from("artists").select("image_url").eq("id", photoArtist).maybeSingle(),
+    ]).then(([{ data: ph }, { data: a }]) => {
+      if (!alive) return;
+      const list = ((ph ?? []) as { url: string }[]).map((x) => x.url);
+      const main = (a as { image_url: string | null } | null)?.image_url;
+      setArtistPhotos([...new Set([...(main ? [main] : []), ...list])]);
+    });
+    return () => { alive = false; };
+  }, [photoArtist]);
+
   useEffect(() => {
     let alive = true;
     setRgb(null);
@@ -271,13 +290,21 @@ export default function SongView({ id }: { id: string }) {
 
   return (
     <div className={`wrap song-page ${rgb ? "themed" : ""}`} style={themeStyle}>
-      <section className={`sp-hero ${cover ? "has-img" : ""}`}>
-        {cover && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="sp-hero-img"
-            title={t.display_cover?.kind === "fan" ? "Cover picked by fans" : t.display_cover?.kind === "artist" ? "No cover yet: a photo of the artist" : undefined} />
-        )}
-        <div className="sp-hero-inner">
+      <section className={`sp-hero sp-hero2 ${artistPhotos.length ? "has-img" : ""}`}>
+        {/* The artist's photos sliding behind; the cover sits in front on the left. */}
+        {artistPhotos.length >= 3
+          ? <HeroCollage images={artistPhotos} className="pf-collage ah2-collage sp-collage" />
+          : artistPhotos[0] && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={artistPhotos[0]} alt="" className="sp-hero-img" />
+          )}
+        <div className="sp-hero-inner sp-hero2-inner">
+          {cover
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={cover} alt={`${t.title} cover`} className="sp-cover"
+                title={t.display_cover?.kind === "fan" ? "Cover picked by fans" : t.display_cover?.kind === "artist" ? "No cover yet: a photo of the artist" : undefined} />
+            : <span className="sp-cover sp-cover-blank">SC//</span>}
+          <div className="sp-hero-text">
           <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
           <div className="sp-tags">
             <span className={`feature-tag st st-${status}`}>{status}</span>
@@ -296,6 +323,7 @@ export default function SongView({ id }: { id: string }) {
               {main && main.id !== t.id && <>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></>}
             </div>
           )}
+          </div>
         </div>
       </section>
 
