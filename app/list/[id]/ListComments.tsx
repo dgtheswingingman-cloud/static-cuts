@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Supporter from "../../components/Supporter";
+import { thumb } from "@/lib/thumb";
 
 type C = { id: string; body: string; created_at: string; user_id: string; profiles: { display_name: string | null; avatar_url: string | null } | null };
 
@@ -70,7 +71,7 @@ export default function ListComments({ listId, userId, isOwner, onCount }: { lis
             <Link href={`/profile/${c.user_id}`} className="lc-av" aria-hidden="true" tabIndex={-1}>
               {c.profiles?.avatar_url
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={c.profiles.avatar_url} alt="" />
+                ? <img src={thumb(c.profiles.avatar_url)} alt="" />
                 : <span>{(c.profiles?.display_name ?? "?").slice(0, 1).toUpperCase()}</span>}
             </Link>
             <div className="lc-main">

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Supporter from "./Supporter";
+import { thumb } from "@/lib/thumb";
 
 type Row = { rank: number; user_id: string; display_name: string | null; avatar_url: string | null; points: number };
 
@@ -41,7 +42,7 @@ export default function Leaderboard() {
           <span className="lb-avatar">
             {r.avatar_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={r.avatar_url} alt="" loading="lazy" />
+              ? <img src={thumb(r.avatar_url)} alt="" loading="lazy" />
               : (r.display_name ?? "?").slice(0, 1)}
           </span>
           <span className="lb-name">{r.display_name ?? "anonymous"}<Supporter id={r.user_id} /></span>

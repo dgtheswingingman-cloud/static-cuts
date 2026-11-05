@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin } from "../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Note = {
   id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null;
@@ -121,7 +122,7 @@ export default function NotificationsPage() {
                   <span className={`nt-pic ${n.round ? "round" : ""}`}>
                     {n.image
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={n.image} alt="" width={56} height={56} loading="lazy" />
+                      ? <img src={thumb(n.image)} alt="" width={56} height={56} loading="lazy" />
                       : <Icon kind={n.kind} />}
                   </span>
                   <span className="nt-text">

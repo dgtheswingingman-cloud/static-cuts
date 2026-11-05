@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Supporter from "../../components/Supporter";
+import { thumb } from "@/lib/thumb";
 
 type Person = { id: string; display_name: string | null; avatar_url: string | null };
 type Social = { followers: number; following: number; i_follow: boolean; follows_me: boolean; friends: { id: string; name: string | null; avatar_url: string | null }[] };
@@ -162,7 +163,7 @@ export default function ProfileNetwork({ userId, isOwn, viewerId, social, onChan
             <span className="nw-act-cover">
               {f.cover_url
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={f.cover_url} alt="" width={64} height={64} loading="lazy" />
+                ? <img src={thumb(f.cover_url)} alt="" width={64} height={64} loading="lazy" />
                 : <ListIcon />}
             </span>
             <Face url={f.avatar_url} size={26} />

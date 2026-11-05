@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
+import { thumb } from "@/lib/thumb";
 
 type Submission = {
   id: string;
@@ -223,7 +224,7 @@ export default function MySubmissionsPage() {
                 <span className={`nt-pic ${x.type === "new_artist" ? "round" : ""}`}>
                   {p
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={p} alt="" width={56} height={56} loading="lazy" />
+                    ? <img src={thumb(p)} alt="" width={56} height={56} loading="lazy" />
                     : <span className="nw-blank">SC//</span>}
                 </span>
                 <span className="nt-text">

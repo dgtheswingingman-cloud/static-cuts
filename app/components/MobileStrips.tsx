@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Group = { kind: "added" | "status"; artist_id: string; artist: string | null; to_status: string | null; count: number; at: string; tracks: { id: string; title: string }[] };
 type Radar = { section: string; track_id: string; title: string; artist_id: string; artist: string; release_date: string | null; cover_url: string | null };
@@ -50,7 +51,7 @@ export default function MobileStrips({ photos }: { photos: Record<string, string
                 <span className="mcard-img">
                   {photos[g.artist_id]
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={photos[g.artist_id]} alt="" loading="lazy" />
+                    ? <img src={thumb(photos[g.artist_id])} alt="" loading="lazy" />
                     : <span>{(g.artist ?? "?").slice(0, 1)}</span>}
                 </span>
                 <span className="mcard-title">{g.artist ?? g.artist_id}</span>
@@ -72,7 +73,7 @@ export default function MobileStrips({ photos }: { photos: Record<string, string
                 <span className="mcard-img">
                   {r.cover_url
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={r.cover_url} alt="" loading="lazy" />
+                    ? <img src={thumb(r.cover_url)} alt="" loading="lazy" />
                     : <span>{r.title.slice(0, 1)}</span>}
                 </span>
                 <span className="mcard-title">{r.title}</span>

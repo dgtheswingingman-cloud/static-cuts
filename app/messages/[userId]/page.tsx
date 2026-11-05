@@ -12,6 +12,7 @@ import { useAuth } from "../../AuthProvider";
 import { usePersonalUser } from "../../useIsAdmin";
 import { Avatar, stamp } from "../shared";
 import ChatList from "../ChatList";
+import { thumb } from "@/lib/thumb";
 
 type Msg = { id: string; sender: string; recipient: string; body: string; created_at: string; read_at: string | null };
 type Person = { id: string; display_name: string | null; avatar_url: string | null };
@@ -167,7 +168,7 @@ export default function ChatPage() {
                   <Link key={c.href} href={c.href} className="ms-card">
                     {c.image
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={c.image} alt="" width={64} height={64} className={c.round ? "round" : undefined} loading="lazy" />
+                      ? <img src={thumb(c.image)} alt="" width={64} height={64} className={c.round ? "round" : undefined} loading="lazy" />
                       : <span className="ms-card-blank">SC//</span>}
                     <span className="ms-card-text">
                       <strong>{c.title}</strong>

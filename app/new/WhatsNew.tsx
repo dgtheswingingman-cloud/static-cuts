@@ -8,6 +8,7 @@ import RadarTabs from "../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Group = {
   kind: "added" | "status";
@@ -123,7 +124,7 @@ export default function WhatsNew({ followingOnly }: { followingOnly: boolean }) 
               <Link href={`/artist/${g.artist_id}`} className="rd-feed-photo" aria-hidden="true" tabIndex={-1}>
                 {photos[g.artist_id]
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={photos[g.artist_id]} alt="" loading="lazy" />
+                  ? <img src={thumb(photos[g.artist_id])} alt="" loading="lazy" />
                   : <span>{(g.artist ?? "?").slice(0, 1)}</span>}
               </Link>
               <div className="rd-feed-body">

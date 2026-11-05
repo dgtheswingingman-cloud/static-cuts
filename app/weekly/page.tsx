@@ -12,6 +12,7 @@ import RadarTabs from "../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "../components/AlbumOfWeek";
 import { useIsAdmin } from "../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Song = { id: string; title: string; artist_id: string; artist: string; day?: string; kind?: string; spotify_url: string | null };
 type Week = {
@@ -47,7 +48,7 @@ function SongList({ songs, showDay, status, covers }: { songs: Song[]; showDay?:
           <Link key={`${s.id}-${s.kind ?? ""}`} href={`/song/${s.id}`} className="sp-version rd-row" data-st={st}>
             {covers[s.id]
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={covers[s.id]} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
+              ? <img src={thumb(covers[s.id])} alt="" width={48} height={48} className="sp-thumb" loading="lazy" />
               : <span className="sp-thumb sp-thumb-empty">SC//</span>}
             <span className="sp-version-text">
               <span className="sp-version-title">{s.title}</span>

@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import { useAuth } from "../AuthProvider";
 import { readPicks, savePicks } from "../components/picks";
+import { thumb } from "@/lib/thumb";
 
 type A = { id: string; name: string; track_count: number; aliases: string[] | null };
 
@@ -152,7 +153,7 @@ export default function StartPage() {
               <span className="wl-face">
                 {photos[a.id]
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={photos[a.id]} alt="" loading="lazy" />
+                  ? <img src={thumb(photos[a.id])} alt="" loading="lazy" />
                   : <span>{a.name.slice(0, 2).toUpperCase()}</span>}
                 {on && <span className="wl-tick" aria-hidden="true">✓</span>}
               </span>

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Supporter from "./Supporter";
+import { thumb } from "@/lib/thumb";
 
 type Row = { user_id: string; display_name: string | null; avatar_url: string | null; total: number };
 
@@ -27,7 +28,7 @@ export default function HomeLeaders() {
         <Link href={`/profile/${r.user_id}`} className="hl-who">
           {r.avatar_url
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={r.avatar_url} alt="" className="ms-avatar" style={{ width: 56, height: 56 }} />
+            ? <img src={thumb(r.avatar_url)} alt="" className="ms-avatar" style={{ width: 56, height: 56 }} />
             : <span className="ms-avatar ms-avatar-blank" style={{ width: 56, height: 56 }} />}
           <span className="hl-text">
             <strong>{r.display_name || "unnamed"}<Supporter id={r.user_id} /></strong>

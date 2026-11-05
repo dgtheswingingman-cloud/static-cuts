@@ -8,6 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { buildEras, span, type Song } from "@/lib/eras";
 import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
+import { thumb } from "@/lib/thumb";
 
 export default function EraStrip({ artistId }: { artistId: string }) {
   const [songs, setSongs] = useState<Song[] | null>(null);
@@ -40,7 +41,7 @@ export default function EraStrip({ artistId }: { artistId: string }) {
               style={c ? ({ "--era": accentCss(c), "--era-deep": deepCss(c) } as CSSProperties) : undefined}>
               {e.cover
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={e.cover} alt="" loading="lazy" />
+                ? <img src={thumb(e.cover)} alt="" loading="lazy" />
                 : <span className="era-card-blank" />}
               <span className="era-card-name">{e.name}</span>
               <span className="era-card-meta">{[span(e), `${e.songs.length} songs`].filter(Boolean).join(" · ")}</span>

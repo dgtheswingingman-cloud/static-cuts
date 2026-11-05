@@ -11,6 +11,7 @@ import RadarTabs from "../../components/RadarTabs";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
+import { thumb } from "@/lib/thumb";
 
 type Row = {
   section: "upcoming" | "tba" | "dropped"; track_id: string; title: string; artist_id: string; artist: string;
@@ -106,7 +107,7 @@ export default function RadarPage() {
                   <div className="radar-head">
                     {g.rows.find((r) => r.cover_url) && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={g.rows.find((r) => r.cover_url)!.cover_url!} alt="" className="thumb-cover" width={48} height={48} loading="lazy" />
+                      <img src={thumb(g.rows.find((r) => r.cover_url)!.cover_url!)} alt="" className="thumb-cover" width={48} height={48} loading="lazy" />
                     )}
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div className="review-row-title">

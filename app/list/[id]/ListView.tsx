@@ -13,6 +13,7 @@ import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import ExportToSpotify from "../../ExportToSpotify";
 import { shrinkImage } from "@/lib/shrinkImage";
 import ListComments from "./ListComments";
+import { thumb } from "@/lib/thumb";
 
 type Item = {
   track_id: string; title: string; artist_id: string; artist: string; note: string | null;
@@ -340,7 +341,7 @@ export default function ListView({ id }: { id: string }) {
                 <Link href={`/song/${it.track_id}`} className="lv-row-main">
                   {it.cover_url
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={it.cover_url} alt="" width={64} height={64} loading="lazy" className="lv-cover" />
+                    ? <img src={thumb(it.cover_url)} alt="" width={64} height={64} loading="lazy" className="lv-cover" />
                     : <span className="lv-cover lv-cover-blank">SC//</span>}
                   <span className="lv-num">{String(i + 1).padStart(2, "0")}</span>
                   <span className="lv-row-text">

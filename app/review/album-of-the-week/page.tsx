@@ -14,6 +14,7 @@ import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 import { ModPage, ModRow, ModButton, ModNotice, ModLoading, ModEmpty, ModTag } from "../../components/Mod";
 import { eraHref } from "../../components/AlbumOfWeek";
+import { thumb } from "@/lib/thumb";
 
 type Cand = {
   week_start: string; artist_id: string; artist: string; album_key: string; title: string; year: number | null; cover: string | null;
@@ -112,7 +113,7 @@ export default function AlbumOfTheWeekAdmin() {
             title={<span style={{ display: "flex", gap: 10, alignItems: "center" }}>
               {c.cover
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={c.cover} alt="" width={56} height={56} style={{ objectFit: "cover", flex: "0 0 auto" }} />
+                ? <img src={thumb(c.cover)} alt="" width={56} height={56} style={{ objectFit: "cover", flex: "0 0 auto" }} />
                 : null}
               <span><Link href={eraHref(c)} className="text-link">{c.title}</Link> · <Link href={`/artist/${c.artist_id}`} className="text-link">{c.artist}</Link>{c.year ? ` · ${c.year}` : ""}</span>
               {picked && <ModTag kind="good">picked</ModTag>}

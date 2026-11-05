@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { thumb } from "@/lib/thumb";
 
 type Pick = { id: string; title: string; status: string | null; spotify_url: string | null; cover_url: string | null; avg: number | null; ratings: number; collected: number };
 type Intro = {
@@ -51,7 +52,7 @@ export default function ArtistIntro({ artistId }: { artistId: string }) {
                 <span className="start-here-num">{i + 1}</span>
                 {s.cover_url
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={s.cover_url} alt="" width={44} height={44} loading="lazy" />
+                  ? <img src={thumb(s.cover_url)} alt="" width={44} height={44} loading="lazy" />
                   : <span className="start-here-blank" />}
                 <span style={{ minWidth: 0 }}>
                   <span className="start-here-title">{s.title}</span>
