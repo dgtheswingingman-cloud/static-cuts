@@ -150,6 +150,17 @@ export default function ArtistPage() {
   const [sameOpen, setSameOpen] = useState(false);
   // The page's own colour, from the artist's photo.
   const [artistColour, setArtistColour] = useState<Rgb | null>(null);
+  // Their producer credits under their own name or an alias (self-producing artists).
+  const [producerCredit, setProducerCredit] = useState<{ name: string; songs: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setProducerCredit(null);
+    supabase.rpc("rpc_artist_producer", { p_artist_id: id }).then(({ data }) => {
+      const r = ((data as { name: string; songs: number }[]) ?? [])[0];
+      if (alive && r && r.songs > 0) setProducerCredit(r);
+    });
+    return () => { alive = false; };
+  }, [id]);
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasError, setAliasError] = useState<string | null>(null);
@@ -1713,6 +1724,11 @@ export default function ArtistPage() {
                   </div>
                 )}
               </div>
+            )}
+            {producerCredit && (
+              <Link href={`/producer/${encodeURIComponent(producerCredit.name)}`} className="tab" title={`${producerCredit.songs} songs produced`}>
+                Producer page →
+              </Link>
             )}
             <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
               fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {

@@ -3160,3 +3160,8 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .gn-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-family: var(--font-mono), monospace; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); }
 .gn-stats strong { color: var(--bone); font-size: 1.1rem; letter-spacing: 0; margin-right: 4px; }
 .gn-related { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+/* ===================== Producers ===================== */
+.pr-bar { gap: 16px; }
+.pr-bar .gn-modes { margin: 0; }
+.pr-pfp-blank { display: inline-flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--bone); font-family: var(--font-anton), sans-serif; font-size: 2rem; border: 2px solid var(--accent); }
