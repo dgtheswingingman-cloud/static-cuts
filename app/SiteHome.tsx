@@ -21,7 +21,8 @@ export default function SiteHome() {
   return (
     <div className="site-top">
       <Link href="/" className="site-home" aria-label="Static Cuts// home">
-        STATIC-CUTS<span className="slash">//</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="Static Cuts//" className="logo-img" width={1200} height={200} />
       </Link>
       <span className="site-top-icons">
         <Link href="/search" aria-label="Search" className="site-icon">
