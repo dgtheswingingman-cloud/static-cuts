@@ -3866,3 +3866,7 @@ body:has(.ms-shell) .site-credit { display: none; }
 .pf-menu-item strong { font-family: var(--font-mono), monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .pf-menu-item small { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); line-height: 1.4; }
 @media (max-width: 700px) { .pf-menu { grid-template-columns: minmax(0, 1fr); } }
+
+/* Welcome: keep the big number in the "picked" count inside the bar. */
+.wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+.wl-bar b { line-height: 1; display: inline-block; }
