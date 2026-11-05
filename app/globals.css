@@ -3856,3 +3856,7 @@ body:has(.ms-shell) .site-credit { display: none; }
   .hw-cover { width: 52px; height: 52px; }
   .hw-row .hw-act { padding: 6px 10px; font-size: 0.66rem; }
 }
+
+/* Welcome: keep the big number in the "picked" count inside the bar. */
+.wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+.wl-bar b { line-height: 1; display: inline-block; }
