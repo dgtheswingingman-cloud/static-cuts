@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import RadarTabs from "../components/RadarTabs";
+import OnThisDay from "../OnThisDay";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
@@ -146,6 +147,8 @@ export default function RadarOverview() {
           ))}
         </div>
       )}
+
+      <div className="rd-otd"><OnThisDay limit={6} /></div>
 
       <Head title="Upcoming releases" href="/radar/releases" />
       {soon && soon.length === 0 && <div className="comment-meta">Nothing dated on the radar right now. <Link href="/radar/releases" className="text-link">Announced, no date yet →</Link></div>}

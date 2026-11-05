@@ -10,6 +10,7 @@ import AuthBar from "./AuthBar";
 import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
 import OnThisDay from "./OnThisDay";
+import HomeLeaders from "./components/HomeLeaders";
 import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
@@ -327,7 +328,7 @@ export default function HomePage() {
           />
         </div>
       </div>
-      {!q && <HomeFeed photos={photos} followed={[...followedIds]} afterAlbum={<OnThisDay />} />}
+      {!q && <HomeFeed photos={photos} followed={[...followedIds]} afterAlbum={<div className="home-pair"><OnThisDay limit={4} /><HomeLeaders /></div>} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>
       <div className="home-main">
 
