@@ -71,7 +71,7 @@ function ControlInner() {
       {tab === "people" && <HealthPanel part="people" />}
       {tab === "owner" && (
         <>
-          <div className="mod-grid" style={{ marginBottom: 18 }}>
+          <div className="mod-grid cr-owner-cards">
             <Card href="/admin/moderators" title="Team" blurb="Choose admins and moderators, and see what they've done." />
             <Card href="/admin/api-keys" title="API keys" blurb="Read-only access for other fan sites and bots." />
             <Card href="/admin/auto-approve" title="Auto-approve" blurb="Rules for adding trusted finds without review." />

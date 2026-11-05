@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
-import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
+import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty, ModSection, ModStats } from "../../components/Mod";
 
 type Suggestion = {
   id: string;
@@ -29,6 +29,11 @@ type Suggestion = {
 };
 
 const SOURCE_NAMES: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Community sheet", local: "Someone's music files" };
+const SOURCE_SHORT: Record<string, string> = { genius: "Genius", lastfm: "Last.fm", spotify: "Spotify", sheet: "Sheet", local: "Local Cuts" };
+const SOURCE_ICON: Record<string, string> = { genius: "G", lastfm: "♫", spotify: "◉", sheet: "▦", local: "▤" };
+const SOURCE_TINT: Record<string, string> = { genius: "#F5B841", lastfm: "#FF3355", spotify: "#22C55E", sheet: "#8B7CF6", local: "#22D3EE" };
+type Stats = { waiting: number; added_today: number; dismissed_today: number; added_week: number; by_source: Record<string, number> };
+type Sort = "popular" | "newest" | "az";
 
 export default function ImportReviewPage() {
   const { user, loading: authLoading } = useAuth();
@@ -42,6 +47,9 @@ export default function ImportReviewPage() {
   const [view, setView] = useState<"waiting" | "dismissed">("waiting");
   const [artistFilter, setArtistFilter] = useState("");
   const [limit, setLimit] = useState(300);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<Sort>("popular");
+  const [stats, setStats] = useState<Stats | null>(null);
 
   async function load(which = view) {
     const { data, error: err } = await supabase.rpc(
@@ -50,6 +58,7 @@ export default function ImportReviewPage() {
     setError(null);
     setItems((data as Suggestion[]) ?? []);
     setSelected(new Set());
+    supabase.rpc("admin_import_stats").then(({ data: st }) => { if (st) setStats(st as Stats); });
   }
 
   useEffect(() => {
@@ -64,10 +73,15 @@ export default function ImportReviewPage() {
     return Object.entries(n).sort((a, b) => b[1] - a[1]);
   }, [items]);
   const shown = useMemo(() => {
-    const list = (items ?? []).filter((s) => !artistFilter || s.artist_name === artistFilter);
+    const needle = q.trim().toLowerCase();
+    const list = (items ?? []).filter((s) => (!artistFilter || s.artist_name === artistFilter) &&
+      (!needle || [s.title, s.artist_name, s.album, s.main_artist_name, s.extra?.featuring, s.extra?.producers]
+        .some((x) => x && x.toLowerCase().includes(needle))));
+    if (sort === "az") return [...list].sort((a, b) => a.title.localeCompare(b.title));
+    if (sort === "newest") return [...list].sort((a, b) => (b.decided_at ?? b.created_at ?? "").localeCompare(a.decided_at ?? a.created_at ?? ""));
     return view === "dismissed" ? list
       : [...list].sort((a, b) => popularity(b) - popularity(a) || a.title.localeCompare(b.title));
-  }, [items, view, artistFilter]);
+  }, [items, view, artistFilter, q, sort]);
   const groups = useMemo(() => {
     const out: Record<string, Suggestion[]> = {};
     shown.slice(0, limit).forEach((s) => {
@@ -141,14 +155,29 @@ export default function ImportReviewPage() {
         automatically when they&apos;re a version, and can be reversed from the <UndoHistoryLink />.
       </>}
     >
+      <ModStats items={[
+        { label: "Waiting", n: stats?.waiting ?? (view === "waiting" ? items?.length ?? null : null), icon: "⧗", tint: "#FF3355", hot: (stats?.waiting ?? 0) > 0 },
+        { label: "Added today", n: stats?.added_today ?? null, icon: "✓", tint: "#22C55E" },
+        { label: "Dismissed today", n: stats?.dismissed_today ?? null, icon: "✕", tint: "#FF3355" },
+        ...Object.entries(stats?.by_source ?? {}).sort((a, b) => b[1] - a[1]).map(([src, n]) => (
+          { label: `Waiting from ${SOURCE_SHORT[src] ?? src}`, n, icon: SOURCE_ICON[src] ?? "•", tint: SOURCE_TINT[src] })),
+      ]} />
+
       <ModToolbar
         sticky
         right={items && items.length > 0 ? (
-          <select className="sort-select" aria-label="Artist" value={artistFilter}
-            onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); setLimit(300); }}>
-            <option value="">all artists ({items.length.toLocaleString()})</option>
-            {artists.map(([a, n]) => <option key={a} value={a}>{a} ({n.toLocaleString()})</option>)}
-          </select>
+          <>
+            <select className="sort-select" aria-label="Artist" value={artistFilter}
+              onChange={(e) => { setArtistFilter(e.target.value); setSelected(new Set()); setLimit(300); }}>
+              <option value="">Artist: all ({items.length.toLocaleString()})</option>
+              {artists.map(([a, n]) => <option key={a} value={a}>{a} ({n.toLocaleString()})</option>)}
+            </select>
+            <select className="sort-select" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              <option value="popular">{view === "dismissed" ? "Sort: as dismissed" : "Sort: most played"}</option>
+              <option value="newest">Sort: newest first</option>
+              <option value="az">Sort: A–Z</option>
+            </select>
+          </>
         ) : undefined}
       >
         <ModTabs value={view} onChange={switchView} tabs={[
@@ -156,16 +185,25 @@ export default function ImportReviewPage() {
           { key: "dismissed", label: "dismissed", count: view === "dismissed" ? items?.length ?? null : null },
         ]} />
         {items && items.length > 0 && (
+          <div className="mod-search">
+            <input className="search-input" type="search" placeholder="Search songs, artists, albums…" value={q}
+              onChange={(e) => { setQ(e.target.value); setLimit(300); }} aria-label="Search imports" />
+          </div>
+        )}
+      </ModToolbar>
+
+      {items && items.length > 0 && (
+        <div className="mod-sub-bar">
           <>
-            <ModButton onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>tick all ({shown.length.toLocaleString()})</ModButton>
+            <ModButton onClick={() => setSelected(new Set(shown.map((s) => s.id)))}>select all ({shown.length.toLocaleString()})</ModButton>
             {view === "waiting" ? (
               <>
                 <ModButton kind="approve" busy={busy} disabled={shown.length === 0}
                   confirm={`Approve all ${shown.length.toLocaleString()} songs${artistFilter ? ` by ${artistFilter}` : ""}?`}
-                  onClick={() => run("approve", shown.map((s) => s.id))}>approve all</ModButton>
+                  onClick={() => run("approve", shown.map((s) => s.id))}>approve all{shown.length !== items.length ? ` (${shown.length.toLocaleString()})` : ""}</ModButton>
                 <ModButton kind="danger" busy={busy} disabled={shown.length === 0}
                   confirm={`Dismiss all ${shown.length.toLocaleString()} songs${artistFilter ? ` by ${artistFilter}` : ""}? They won't be suggested again (you can bring them back from "dismissed").`}
-                  onClick={() => run("dismiss", shown.map((s) => s.id))}>dismiss all</ModButton>
+                  onClick={() => run("dismiss", shown.map((s) => s.id))}>dismiss all{shown.length !== items.length ? ` (${shown.length.toLocaleString()})` : ""}</ModButton>
               </>
             ) : (
               <ModButton busy={busy} disabled={restorable.length === 0}
@@ -173,8 +211,10 @@ export default function ImportReviewPage() {
                 onClick={() => run("restore", restorable.map((s) => s.id))}>restore all ({restorable.length.toLocaleString()})</ModButton>
             )}
           </>
-        )}
-      </ModToolbar>
+          <span className="grow" />
+          {q && <span className="comment-meta">{shown.length.toLocaleString()} match{shown.length === 1 ? "" : "es"}</span>}
+        </div>
+      )}
 
       <ModBulkBar count={selectedHere.length} onClear={() => setSelected(new Set())}>
         {view === "waiting" ? (
@@ -197,7 +237,7 @@ export default function ImportReviewPage() {
       {Object.keys(groups).map((g) => (
         <div key={g}>
           <ModSection right={
-            <button className="mod-link" onClick={() => setSelected((prev) => { const n = new Set(prev); groups[g].forEach((s) => n.add(s.id)); return n; })}>tick these</button>
+            <button className="mod-link" onClick={() => setSelected((prev) => { const n = new Set(prev); groups[g].forEach((s) => n.add(s.id)); return n; })}>select these</button>
           }>{g} ({groups[g].length})</ModSection>
           {groups[g].map((s) => (
             <ModRow
@@ -205,8 +245,9 @@ export default function ImportReviewPage() {
               check={{ checked: selected.has(s.id), onChange: () => toggle(s.id) }}
               title={s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}
               meta={<>
+                <span className={`mod-src ${s.source}`}>{SOURCE_SHORT[s.source] ?? s.source}</span>
                 {s.status_guess !== "unconfirmed" && <ModTag>{s.status_guess}</ModTag>}
-                {s.version_of && <ModTag>version of {s.version_of}</ModTag>}
+                {s.version_of && <ModTag kind="warn">possible version of “{s.version_of}”</ModTag>}
                 {s.main_artist_name && <span>feature on {s.main_artist_name}&apos;s song</span>}
                 {s.extra?.featuring && <span>feat. {s.extra.featuring}</span>}
                 {s.extra?.producers && <span>prod. {s.extra.producers}</span>}

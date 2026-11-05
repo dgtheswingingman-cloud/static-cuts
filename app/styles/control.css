@@ -22,3 +22,41 @@
 .cr-page .review-row { border-bottom-color: var(--hair-strong); }
 .cr-page .health-columns { gap: 18px; }
 
+
+/* ---- Spacing pass ---- */
+.cr-page { padding-bottom: 60px; }
+.cr-page .sb-lead { margin-bottom: 4px; }
+.cr-tabs { margin: 14px 0 22px; }
+.cr-box { padding: 18px 20px; margin-bottom: 18px; }
+.cr-grid { column-gap: 18px; }
+.cr-page .section-label { margin: 0 0 14px !important; padding-bottom: 10px; border-bottom: 1px solid var(--hair); }
+.cr-page .review-row { padding: 12px 0; gap: 6px 18px; }
+.cr-page .review-row:last-child { border-bottom: none; }
+.cr-page .review-row-title { font-size: 0.95rem; }
+.cr-page .review-row-meta { margin-top: 4px; line-height: 1.5; }
+/* Long lists (trackers, timers, problems) scroll inside their box so the
+   columns stay even instead of leaving big gaps. */
+.cr-grid > .cr-box { max-height: 720px; overflow: auto; scrollbar-width: thin; }
+.cr-grid > .cr-box .section-label { position: sticky; top: -18px; z-index: 1; background: var(--void); padding-top: 4px; }
+.cr-grid > .cr-wide, .cr-grid > .cr-box:has(.health-tiles) { max-height: none; overflow: visible; }
+
+/* Owner tab */
+.cr-owner-cards { margin-bottom: 18px; }
+.cr-owner { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 18px; align-items: start; }
+@media (min-width: 1100px) {
+  .cr-owner { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+  .cr-owner-premium { grid-row: span 2; }
+}
+.cr-setting { grid-template-columns: minmax(0, 1fr) auto !important; align-items: center; }
+.cr-setting > div:last-child:not(:first-child), .cr-setting > button { justify-self: end; }
+.cr-setting .tab { border-radius: 4px; padding: 8px 14px; }
+.cr-sub { font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); margin: 16px 0 2px; }
+.cr-sub:first-of-type { margin-top: 0; }
+.cr-owner-leaks .search-input { border-radius: 4px; }
+.cr-page .mod-btn { border-radius: 4px; padding: 7px 12px; }
+.cr-page .comment-meta { line-height: 1.55; }
+@media (max-width: 720px) {
+  .cr-box { padding: 14px; }
+  .cr-setting { grid-template-columns: minmax(0, 1fr) !important; }
+  .cr-setting > div:last-child:not(:first-child), .cr-setting > button { justify-self: start; }
+}
