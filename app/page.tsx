@@ -325,18 +325,6 @@ export default function HomePage() {
             }}
           />
         </div>
-        <nav className="home-nav" aria-label="Explore">
-          <Link href="/weekly">this week</Link>
-          <Link href="/new">what&apos;s new</Link>
-          <Link href="/search">search songs</Link>
-          <Link href="/radar/releases">release radar</Link>
-          <Link href="/lists">lists</Link>
-          <Link href="/collabs">collab map</Link>
-          <Link href="/local">local cuts</Link>
-          <Link href="/producers">producers</Link>
-          <Link href="/help">help wanted</Link>
-          <Link href="/faq">faq</Link>
-        </nav>
       </div>
       {!q && <HomeFeed photos={photos} followed={[...followedIds]} afterAlbum={<OnThisDay />} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>

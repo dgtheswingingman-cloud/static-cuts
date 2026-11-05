@@ -3069,7 +3069,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 /* ===================== Genres ===================== */
 .gn-head { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin: 6px 0 18px; }
 .gn-title { margin: 0; font-size: clamp(3rem, 12vw, 5rem); }
-.gn-title span { color: var(--red) !important; }
+.gn-title span { color: var(--accent) !important; }
 .gn-lead { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--hair-strong); padding-left: 20px; max-width: 640px; font-family: var(--font-mono), monospace; }
 .gn-lead strong { font-size: 0.9rem; letter-spacing: 0.18em; text-transform: uppercase; }
 .gn-lead span { font-size: 0.76rem; color: var(--smoke); line-height: 1.5; }
@@ -3079,7 +3079,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .gn-modes button.on { background: var(--bone); color: #070707; }
 .gn-az { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
 .gn-az-label { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.16em; text-transform: uppercase; }
-.gn-az-label em, .gn-sec h2 em { font-style: normal; color: var(--red); }
+.gn-az-label em, .gn-sec h2 em { font-style: normal; color: var(--accent); }
 .gn-letters { display: flex; gap: 6px; flex-wrap: wrap; }
 .gn-letters button { width: 34px; height: 34px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: none; color: var(--bone); cursor: pointer; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.8rem; }
 .gn-letters button:hover { border-color: var(--bone); }
@@ -3093,8 +3093,8 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .gn-top { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .gn-card { position: relative; min-height: 104px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--hair-strong); border-radius: 6px; overflow: hidden; text-decoration: none; color: var(--bone);
   background: linear-gradient(to right, var(--void) 30%, color-mix(in srgb, var(--void) 40%, transparent)), var(--gn-img, none) right 30% / 65% auto no-repeat, var(--surface); }
-.gn-card:hover, .gn-card.first { border-color: var(--red); }
-.gn-rank { position: absolute; top: 10px; left: 14px; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.7rem; color: var(--red); border: 1.5px solid var(--red); padding: 0 5px; }
+.gn-card:hover, .gn-card.first { border-color: var(--accent); }
+.gn-rank { position: absolute; top: 10px; left: 14px; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.7rem; color: var(--accent); border: 1.5px solid var(--accent); padding: 0 5px; }
 .gn-card-name { font-family: var(--font-anton), sans-serif; font-style: italic; font-size: 1.7rem; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; margin-top: 22px; }
 .gn-card-n { font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
 .gn-pills { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
@@ -3155,7 +3155,7 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 /* One genre */
 .gn-hero.has-collage { min-height: 300px; }
 .gn-hero .ls-crumb { margin-bottom: 10px; }
-.gn-tag { background: var(--red); color: #070707; display: inline-block; }
+.gn-tag { background: var(--accent); color: var(--on-accent, #070707); display: inline-block; }
 .gn-one { margin-top: 6px; text-transform: uppercase; overflow-wrap: anywhere; font-size: clamp(2.6rem, 11vw, 5.4rem); }
 .gn-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-family: var(--font-mono), monospace; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); }
 .gn-stats strong { color: var(--bone); font-size: 1.1rem; letter-spacing: 0; margin-right: 4px; }
@@ -3165,3 +3165,41 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .pr-bar { gap: 16px; }
 .pr-bar .gn-modes { margin: 0; }
 .pr-pfp-blank { display: inline-flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--bone); font-family: var(--font-anton), sans-serif; font-size: 2rem; border: 2px solid var(--accent); }
+
+/* ===================== Home on phones + search browse ===================== */
+.sr-browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 10px; }
+.sr-browse-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px; min-height: 84px; justify-content: flex-end; border: 1.5px solid var(--hair-strong); border-radius: 8px; background: var(--surface); color: var(--bone); text-decoration: none; }
+.sr-browse-tile:hover { border-color: var(--accent); }
+.sr-browse-tile strong { font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.5rem; line-height: 1; text-transform: uppercase; }
+.sr-browse-tile em { font-style: normal; color: var(--accent); }
+.sr-browse-tile span { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+
+/* Album of the week on phones: the cover runs full width with the title
+   over its bottom edge, then the blurb and two full-width buttons. */
+@media (max-width: 700px) {
+  .aotw-hero { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0; }
+  .aotw-hero::before { display: none; }
+  .aotw-hero-cover { display: block; position: relative; }
+  .aotw-hero-cover img, .aotw-hero-cover .era-card-blank { aspect-ratio: 1; border: 0; border-radius: 0; }
+  .aotw-hero-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, color-mix(in srgb, var(--void) 70%, transparent) 70%, var(--void)); pointer-events: none; }
+  .aotw-hero-body { margin-top: -132px; padding: 0 14px 14px; z-index: 1; }
+  .aotw-hero-title { font-size: clamp(2.2rem, 11vw, 3rem); }
+  .aotw-hero-artist { font-size: 0.85rem; }
+  .aotw-hero-blurb { -webkit-line-clamp: 3; font-size: 0.74rem; margin: 10px 0 12px; }
+  .aotw-hero-actions { width: 100%; display: grid; grid-template-columns: 1.4fr 1fr; }
+  .aotw-hero-actions .tab { justify-content: center; font-size: 0.7rem; min-height: 48px; }
+  .aotw-hero-more { display: flex !important; }
+}
+
+.sr-browse-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+.sr-browse-row::-webkit-scrollbar { display: none; }
+.sr-browse-row span { flex: none; font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--smoke); margin-right: 4px; }
+.sr-browse-row em { font-style: normal; color: var(--accent); }
+.sr-browse-row a { flex: none; padding: 6px 12px; border: 1px solid var(--hair-strong); border-radius: 999px; color: var(--bone); text-decoration: none; font-family: var(--font-mono), monospace; font-size: 0.72rem; }
+.sr-browse-row a:hover { border-color: var(--accent); }
+
+/* Phones: no search box on the home page; the search icon up top and the
+   Search tab open the search page, which has the browse options. */
+@media (max-width: 1023px) {
+  .home-wide .hero .search-shell { display: none; }
+}
