@@ -1,0 +1,10 @@
+/* Profile: the ••• menu under Edit profile. */
+.pf-menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.pf-menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid var(--hair-strong); border-radius: 6px; background: var(--surface); color: var(--bone); text-decoration: none; }
+.pf-menu-item:hover { border-color: var(--accent); }
+.pf-menu-item svg { flex: none; color: var(--accent); }
+.pf-menu-item span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pf-menu-item strong { font-family: var(--font-mono), monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.pf-menu-item small { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); line-height: 1.4; }
+@media (max-width: 700px) { .pf-menu { grid-template-columns: minmax(0, 1fr); } }
+

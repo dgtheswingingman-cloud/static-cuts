@@ -1,4 +1,5 @@
 "use client";
+import "../../styles/profile-menu.css";
 
 // Someone's profile: a hero (their artists sliding across the top, big avatar, name, badges, counts, bio),
 // then two columns: their music (showcase, collection progress, recently

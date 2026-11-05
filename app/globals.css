@@ -3857,15 +3857,41 @@ body:has(.ms-shell) .site-credit { display: none; }
   .hw-row .hw-act { padding: 6px 10px; font-size: 0.66rem; }
 }
 
-/* Profile: the ••• menu under Edit profile. */
-.pf-menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 4px; }
-.pf-menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid var(--hair-strong); border-radius: 6px; background: var(--surface); color: var(--bone); text-decoration: none; }
-.pf-menu-item:hover { border-color: var(--accent); }
-.pf-menu-item svg { flex: none; color: var(--accent); }
-.pf-menu-item span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pf-menu-item strong { font-family: var(--font-mono), monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
-.pf-menu-item small { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); line-height: 1.4; }
-@media (max-width: 700px) { .pf-menu { grid-template-columns: minmax(0, 1fr); } }
+/* ===================== Import ===================== */
+.im-page { max-width: 1180px !important; }
+.im-title { font-size: clamp(2.2rem, 9vw, 4.8rem); }
+.im-title span { color: var(--accent); }
+.im-stats { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 12px 0 14px; padding: 12px 16px; border: 1.5px solid var(--bone); border-radius: 6px; font-family: var(--font-mono), monospace; font-size: 0.86rem; }
+.im-stat { display: flex; align-items: center; gap: 12px; }
+.im-stat b { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.3rem; }
+.im-export { color: var(--bone); font-size: 0.76rem; text-decoration: underline; text-underline-offset: 3px; }
+.im-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.im-sources button { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1.5px solid var(--hair-strong); border-radius: 8px; background: var(--surface); color: var(--bone); cursor: pointer; text-align: left; font: inherit; }
+.im-sources button:hover { border-color: var(--bone); }
+.im-sources button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.im-sources span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.im-sources strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.35rem; text-transform: uppercase; }
+.im-sources small { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); line-height: 1.4; }
+.im-panel { padding: 16px 20px 20px; }
+.im-h { font-size: 2rem; margin: 0; }
+.im-sub { margin: 2px 0 14px; font-family: var(--font-mono), monospace; font-size: 0.76rem; color: var(--smoke); line-height: 1.5; }
+.im-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+.im-side { border-left: 1px solid var(--hair-strong); padding-left: 28px; }
+.im-h3 { margin: 0 0 8px; font-family: var(--font-mono), monospace; font-size: 0.86rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.im-h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--smoke); }
+.im-steps { margin: 0 0 14px; padding-left: 20px; font-family: var(--font-mono), monospace; font-size: 0.78rem; line-height: 1.6; }
+.im-small { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); margin: 0 0 10px; }
+.im-what { margin-top: 16px; padding: 12px 14px; border: 1.5px solid var(--hair-strong); border-radius: 6px; }
+.im-what strong { font-family: var(--font-mono), monospace; font-size: 0.82rem; }
+.im-what ul { margin: 6px 0 0; padding-left: 18px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); line-height: 1.6; }
+.im-file { display: inline-block; margin: 4px 0 10px; cursor: pointer; }
+.im-page .ls-crumb a { color: var(--smoke); }
+@media (max-width: 860px) {
+  .im-sources { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .im-sources button { padding: 12px 14px; }
+  .im-cols { grid-template-columns: minmax(0, 1fr); }
+  .im-side { border-left: 0; padding-left: 0; border-top: 1px solid var(--hair-strong); padding-top: 18px; }
+}
 
 /* Welcome: keep the big number in the "picked" count inside the bar. */
 .wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
