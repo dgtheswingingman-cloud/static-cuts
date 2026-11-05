@@ -124,7 +124,7 @@ const TIMER_GROUPS: { title: string; timers: Record<string, string> }[] = [
   {
     title: "Housekeeping",
     timers: {
-      "undo-trim": "Clears old undo history (automatic changes after 14 days, people's after 60). Nightly.",
+      "undo-trim": "Clears old undo history (automatic changes after 7 days, people's after 60). Nightly.",
       "cron-history-trim": "Clears timer logs older than 3 days. Nightly.",
       "api-budget-tidy": "Clears old API allowance counts. Nightly.",
     },
