@@ -3666,4 +3666,38 @@ body:has(.ms-chat-page) .site-credit { display: none; }
   .sp-hero2-inner { flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 26px; }
   .sp-cover { width: min(64vw, 240px); height: min(64vw, 240px); }
   .sp-hero2 .detail-name { font-size: clamp(2.4rem, 12vw, 3.6rem) !important; }
+
+/* ===================== Messages: two panes ===================== */
+body:has(.ms-shell) .site-credit { display: none; }
+.ms-wrap { padding-bottom: 0 !important; }
+.ms-list-head { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 10px; }
+.ms-list .ms-search { max-width: none; min-width: 0; }
+.ms-pad { padding: 12px 4px; line-height: 1.5; }
+.ms-chat.active { border-left-color: var(--accent); background: var(--surface); }
+.ms-friend.active { background: var(--surface); }
+.ms-friends { margin-top: 18px; }
+.ms-pick { display: none; }
+/* Phones: the list is the page; an open chat is the whole page. */
+@media (max-width: 1023px) {
+  .ms-shell.has-chat .ms-list { display: none; }
+}
+@media (min-width: 1024px) {
+  .wrap.ms-wrap { max-width: none; padding: 0 !important; margin: 0; }
+  .ms-shell { display: grid; grid-template-columns: 380px minmax(0, 1fr); height: 100dvh; }
+  .ms-list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hair-strong); background: color-mix(in srgb, var(--void) 70%, transparent); }
+  .ms-list-head { padding: 20px 20px 12px; margin: 0; border-bottom: 1px solid var(--hair-strong); }
+  .ms-list .ms-title { font-size: 3rem; }
+  .ms-list-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 20px; }
+  .ms-list .ms-friends .nt-day { font-size: 1rem; margin-top: 4px; }
+  .ms-pane { min-width: 0; min-height: 0; }
+  .ms-pick { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--smoke); text-align: center; }
+  .ms-pick strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 2rem; color: var(--bone); text-transform: uppercase; }
+  .ms-pick span { font-family: var(--font-mono), monospace; font-size: 0.78rem; }
+  .ms-shell .ms-chat-page { max-width: none; height: 100dvh; padding: 0 28px; box-sizing: border-box; }
+  .ms-shell .ms-chat-page .ms-bar { padding: 18px 0 14px; }
+  .ms-shell .ms-thread { padding: 16px 0; }
+  .ms-shell .ms-msg { max-width: min(64%, 620px); }
+  .ms-shell .ms-compose { margin: 8px 0 20px; }
+  /* No back arrow needed: the list is right there. */
+  .ms-shell .ms-back { display: none; }
 }
