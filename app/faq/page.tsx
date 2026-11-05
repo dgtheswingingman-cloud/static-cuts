@@ -3,6 +3,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
 export const metadata: Metadata = {
   title: "FAQ · Static Cuts//",
@@ -289,29 +290,18 @@ const SECTIONS: Section[] = [
 
 export default function FaqPage() {
   return (
-    <div className="wrap faq">
-      <h1 className="detail-name page-title">FAQ</h1>
-      <div className="detail-meta">How the archive works, and how to help build it.</div>
-      <nav className="faq-jump" aria-label="Sections">
-        {SECTIONS.map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="tab">{s.title}</a>
-        ))}
-      </nav>
-      {SECTIONS.map((s) => (
-        <section key={s.id} id={s.id}>
-          <h2>{s.title}</h2>
-          {s.items.map((qa) => (
-            <details key={qa.q} id={qa.id && qa.id !== s.id ? qa.id : undefined}>
+    <InfoShell title="FAQ" here="/faq" intro="Answers to common questions about Static Cuts//: how the archive works, and how to help build it."
+      sections={SECTIONS.map((x) => [x.id, x.title] as [string, string])}>
+      {SECTIONS.map((x) => (
+        <InfoSection key={x.id} id={x.id} title={x.title} className="if-faq">
+          {x.items.map((qa) => (
+            <details key={qa.q} id={qa.id && qa.id !== x.id ? qa.id : undefined} className="if-q">
               <summary>{qa.q}</summary>
-              <div>{qa.a}</div>
+              <div className="if-a">{qa.a}</div>
             </details>
           ))}
-        </section>
+        </InfoSection>
       ))}
-      <p className="detail-meta" style={{ marginTop: 28 }}>
-        Something not covered here? Ask in the comments on any song, or check the{" "}
-        <Link href="/legal" className="text-link">privacy &amp; terms</Link>.
-      </p>
-    </div>
+    </InfoShell>
   );
 }
