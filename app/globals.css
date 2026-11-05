@@ -3325,28 +3325,38 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 /* ===================== Profile: Network ===================== */
 .nw { margin-top: 14px; }
 .nw-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--hair-strong); border-radius: 8px; overflow: hidden; }
-.nw-switch button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; background: none; border: 0; border-right: 1px solid var(--hair-strong); color: var(--smoke); cursor: pointer; }
+.nw-switch button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 6px 12px; background: none; border: 0; border-right: 1px solid var(--hair-strong); color: var(--smoke); cursor: pointer; }
 .nw-switch button:last-child { border-right: 0; }
-.nw-switch strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.8rem; line-height: 1; color: var(--bone); }
+.nw-switch strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 2.2rem; line-height: 1; color: var(--bone); }
 .nw-switch span { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
-.nw-switch button.on { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 -3px 0 var(--accent); color: var(--bone); }
-.nw-sec { margin-top: 24px; }
-.nw-people { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 28px; }
-@media (min-width: 900px) { .nw-people { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.nw-switch button.on { background: var(--surface); box-shadow: inset 0 -3px 0 var(--accent); color: var(--bone); }
+.nw-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+.nw-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (min-width: 1024px) { .nw-cols.own { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
+.nw-panel { border: 1px solid var(--hair-strong); border-radius: 8px; padding: 12px 14px 8px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.nw-h-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nw-h { margin: 2px 0 6px; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.5rem; text-transform: uppercase; color: var(--bone); }
+.nw-h span { color: var(--accent); }
+.nw-select { background: var(--void); color: var(--bone); border: 1px solid var(--hair-strong); border-radius: 4px; padding: 4px 8px; font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.nw-person:last-of-type { border-bottom: 0; }
 .nw-follow { background: none; cursor: pointer; font: inherit; font-family: var(--font-mono), monospace; font-size: 0.72rem; }
 .nw-follow:disabled { opacity: 0.5; }
 .nw-following { flex: none; font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--smoke); text-transform: uppercase; letter-spacing: 0.08em; }
-.nw-act-pics { position: relative; flex: none; display: flex; }
-.nw-act-pics .ms-avatar { position: absolute; left: -6px; bottom: -6px; z-index: 1; border: 2px solid var(--void); }
-.nw-act .nt-pic { margin-left: 14px; }
-.nw-act .nt-what strong { font-weight: 700; }
-.nw-blank { font-family: var(--font-anton), sans-serif; font-size: 0.8rem; color: var(--smoke); }
-.nw-sugg { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-.nw-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); text-align: center; }
-.nw-card-who { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--bone); text-decoration: none; min-width: 0; width: 100%; }
-.nw-card-who strong { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.nw-card-who span { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); line-height: 1.4; }
-@media (max-width: 700px) { .nw-sugg { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nw-act .nt-meta { padding-left: 82px; } }
+.nw-more { display: block; width: 100%; margin-top: 4px; padding: 10px 0 6px; background: none; border: 0; border-top: 1px solid var(--hair-strong); color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.74rem; letter-spacing: 0.06em; cursor: pointer; text-align: center; }
+.nw-more:hover { color: var(--accent); }
+.nw-act { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--hair-strong); color: var(--bone); text-decoration: none; }
+.nw-act:last-of-type { border-bottom: 0; }
+.nw-act:hover .nw-act-title { color: var(--accent); }
+.nw-act-pics { position: relative; flex: none; }
+.nw-act-cover { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hair-strong); border-radius: 4px; overflow: hidden; background: var(--surface); color: var(--bone); }
+.nw-act-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nw-act-pics .ms-avatar { position: absolute; right: -6px; bottom: -6px; border: 2px solid var(--void); }
+.nw-act-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; font-family: var(--font-mono), monospace; }
+.nw-act-what { font-size: 0.8rem; }
+.nw-act-what strong { font-weight: 700; }
+.nw-act-title { font-size: 0.82rem; overflow-wrap: anywhere; }
+.nw-act-artist { font-size: 0.7rem; color: var(--smoke); }
+.nw-act-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
 
 /* One chat fills the screen like a messaging app: the bar at the top, the
    messages scroll in the middle, the box sits at the bottom. No footer. */
