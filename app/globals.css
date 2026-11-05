@@ -3164,5 +3164,3 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 /* ===================== Producers ===================== */
 .pr-bar { gap: 16px; }
 .pr-bar .gn-modes { margin: 0; }
-button.lb-artist { font: inherit; text-align: left; cursor: pointer; background-color: var(--surface); }
-.lb-artist.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
