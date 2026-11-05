@@ -1,0 +1,24 @@
+/* ===================== Control room ===================== */
+.cr-page { max-width: none !important; }
+.cr-title { font-size: clamp(2.4rem, 9vw, 4.6rem); }
+.cr-title span { color: var(--accent); }
+.cr-tabs { margin: 10px 0 16px; }
+.cr-tabs button { padding: 10px 22px; }
+.cr-box { border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 14px 16px; background: color-mix(in srgb, var(--void) 80%, transparent); margin-bottom: 14px; break-inside: avoid; display: block; min-width: 0; }
+.cr-page .section-label { margin: 0 0 10px !important; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.4rem; letter-spacing: 0; text-transform: uppercase; color: var(--bone); }
+.cr-page .section-label::after { content: "//"; color: var(--accent); margin-left: 2px; }
+.cr-grid { columns: 3 400px; column-gap: 14px; }
+.cr-grid > .cr-box { display: inline-block; width: 100%; box-sizing: border-box; }
+.cr-wide .health-tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.cr-page .health-tiles { margin-bottom: 4px; }
+.cr-work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+@media (min-width: 1200px) { .cr-work { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; } }
+.cr-page .mod-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.cr-page .mod-card { border-radius: 6px; }
+.cr-page .mod-card.waiting { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cr-page .mod-card-count { background: var(--bone); color: #070707; border-radius: 3px; padding: 1px 7px; font-weight: 700; }
+.cr-page .mod-card.clear .mod-card-count { background: none; color: var(--smoke); }
+.cr-tools { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
+.cr-page .review-row { border-bottom-color: var(--hair-strong); }
+.cr-page .health-columns { gap: 18px; }
+

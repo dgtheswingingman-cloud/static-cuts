@@ -1,4 +1,5 @@
 "use client";
+import "../styles/control.css";
 
 // The Control room: one place for running the site, shaped by who you are.
 //   Work         (moderators, admins, owner) every list waiting for a decision
@@ -48,11 +49,12 @@ function ControlInner() {
   const tab: Tab = tabs.some(([t]) => t === asked) ? asked : "todo";
 
   return (
-    <div className="wrap">
-      <h1 className="detail-name page-title">Control room</h1>
-      <div className="tabs" style={{ marginBottom: 18 }}>
+    <div className="wrap cr-page">
+      <h1 className="ls-title cr-title">CONTROL ROOM<span>//</span></h1>
+      <p className="sb-lead">Manage the archive, queues, imports and automated jobs.</p>
+      <div className="st-seg cr-tabs" role="tablist">
         {tabs.map(([t, label]) => (
-          <button key={t} className={`tab ${tab === t ? "active" : ""}`}
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : undefined}
             onClick={() => router.replace(t === "todo" ? "/control" : `/control?tab=${t}`, { scroll: false })}>
             {label}
           </button>
@@ -62,8 +64,7 @@ function ControlInner() {
       {tab === "todo" && <ReviewHub />}
       {tab === "health" && (
         <>
-          <LivePanel />
-          <div style={{ height: 18 }} />
+          <section className="cr-box cr-live"><LivePanel /></section>
           <HealthPanel part="health" />
         </>
       )}
