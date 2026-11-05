@@ -1,4 +1,5 @@
 "use client";
+import "../../styles/album.css";
 
 // Everything about one song: info, listen link, the other versions of it,
 // status history, who added it, collecting, rating and comments.
@@ -119,6 +120,12 @@ export default function SongView({ id }: { id: string }) {
   const router = useRouter();
   const [artistPhotos, setArtistPhotos] = useState<string[]>([]);
   const [song, setSong] = useState<Song | null>(null);
+  // The official albums / EPs this song is on, for links to their album pages.
+  const [onAlbums, setOnAlbums] = useState<{ id: string; title: string; kind: string; position: number; disk: number }[]>([]);
+  useEffect(() => {
+    setOnAlbums([]);
+    supabase.rpc("rpc_track_albums", { p_track: id }).then(({ data }) => setOnAlbums((data as typeof onAlbums | null) ?? []));
+  }, [id]);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
@@ -216,7 +223,14 @@ export default function SongView({ id }: { id: string }) {
 
   const info: [string, ReactNode][] = [];
   if (t.aliases) info.push(["Also known as", t.aliases]);
-  if (t.album) info.push(["Album", t.album]);
+  if (onAlbums.length) info.push([onAlbums.length > 1 ? "On" : onAlbums[0].kind === "ep" ? "EP" : "Album", (
+    <span>
+      {onAlbums.map((a, i) => (
+        <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link>{a.position ? <span className="sp-sub"> (track {a.position})</span> : null}</span>
+      ))}
+    </span>
+  )]);
+  else if (t.album) info.push(["Album", t.album]);
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
@@ -317,10 +331,12 @@ export default function SongView({ id }: { id: string }) {
             <Link href={`/artist/${artistId}`}>{song.artist?.name ?? "Unknown artist"}</Link>
             {t.credited_as && <span className="sp-sub"> as {t.credited_as}</span>}
           </div>
-          {(t.album || (main && main.id !== t.id)) && (
+          {(t.album || onAlbums.length > 0 || (main && main.id !== t.id)) && (
             <div className="sp-sub">
-              {t.album}
-              {t.album && main && main.id !== t.id && " · "}
+              {onAlbums.length > 0
+                ? <Link href={`/album/${onAlbums[0].id}`} className="sp-album-link">{onAlbums[0].title} →</Link>
+                : t.album}
+              {(t.album || onAlbums.length > 0) && main && main.id !== t.id && " · "}
               {main && main.id !== t.id && <>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></>}
             </div>
           )}
