@@ -6,7 +6,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { usePersonalUser } from "./useIsAdmin";
 import { RADAR_PATHS } from "./components/RadarTabs";
@@ -27,8 +27,6 @@ const LINKS: { href: string; label: string; icon: ReactNode; on?: (p: string) =>
 
 export default function DesktopNav() {
   const path = usePathname();
-  const router = useRouter();
-  const [q, setQ] = useState("");
   const user = usePersonalUser();
   const [unread, setUnread] = useState(0);
   useEffect(() => {
@@ -42,9 +40,6 @@ export default function DesktopNav() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.webp" alt="Static Cuts//" className="logo-img" width={1200} height={200} />
         </Link>
-        <form className="dnav-search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`); }}>
-          <input type="search" placeholder="Search Static Cuts//…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
-        </form>
         <nav className="dnav-links" aria-label="Main">
           {LINKS.map((l) => {
             const on = l.on ? l.on(path) : path === l.href;

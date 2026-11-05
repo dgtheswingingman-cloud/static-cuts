@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { usePersonalUser } from "../../useIsAdmin";
 import { Avatar, stamp } from "../shared";
+import ChatList from "../ChatList";
 
 type Msg = { id: string; sender: string; recipient: string; body: string; created_at: string; read_at: string | null };
 type Person = { id: string; display_name: string | null; avatar_url: string | null };
@@ -131,7 +132,10 @@ export default function ChatPage() {
   const lastMine = [...(msgs ?? [])].reverse().find((m) => m.sender === user?.id);
 
   return (
-    <div className="wrap ms-page ms-chat-page">
+    <div className="wrap ms-wrap">
+    <div className="ms-shell has-chat">
+    <ChatList userId={user?.id ?? null} activeId={userId} />
+    <div className="ms-pane ms-chat-page">
       <header className="ms-bar">
         <Link href="/messages" className="ms-back" aria-label="Back to messages">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
@@ -201,6 +205,8 @@ export default function ChatPage() {
         </div>
       )}
       {error && <div className="comment-meta error-text" style={{ marginTop: 6 }}>{error}</div>}
+    </div>
+    </div>
     </div>
   );
 }
