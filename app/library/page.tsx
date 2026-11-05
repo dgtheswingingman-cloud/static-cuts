@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { usePersonalUser } from "../useIsAdmin";
 import HeroCollage from "../components/HeroCollage";
+import ExportCard from "./ExportCard";
 
 type ListRow = { id: string; title: string; songs: number; is_public: boolean };
 type Mine = { id: string; name: string; track_count: number; collected: number };
@@ -174,7 +175,7 @@ export default function LibraryPage() {
       </section>
 
       <section>
-        <div className="sp-head lb-head"><h2><span className="sr-icon" aria-hidden="true">⇣</span>Import</h2></div>
+        <div className="sp-head lb-head"><h2><span className="sr-icon" aria-hidden="true">⇅</span>Import &amp; export</h2></div>
         <Link href="/collection/import" className="lb-card lb-import">
           <span className="sp-version-text">
             <strong>From other services</strong>
@@ -184,6 +185,7 @@ export default function LibraryPage() {
             <span>Spotify</span><span>Apple Music</span><span>File / CSV</span>
           </span>
         </Link>
+        {user && <ExportCard userId={user.id} />}
       </section>
     </div>
   );

@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Switch from "./Switch";
 
 // Public half of the signing key pair (the private half is only on the server).
 const PUBLIC_KEY = "BMHBNRhHIsImjVkMlPM-TXbtvADXpnePEWGBDrWJuY-DSVFu-GRyGm8LxquPcqaxZZK03EsdLOEsf7vvvI3MSds";
@@ -64,22 +65,15 @@ export default function PhoneAlerts() {
   }
 
   return (
-    <div style={{ maxWidth: 520, marginBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 0" }}>
-        <span style={{ fontFamily: "var(--font-inter)", fontSize: "0.9rem" }}>Phone alerts on this device</span>
-        {supported === false ? (
-          <span className="comment-meta">not available in this browser</span>
-        ) : (
-          <button className={`tab ${on ? "active" : ""}`} disabled={busy || supported === null} onClick={on ? turnOff : turnOn}>
-            {busy ? "…" : on ? "on" : "off"}
-          </button>
-        )}
-      </div>
-      <div className="comment-meta">
-        Your notifications also pop up here, even with the site closed. Turn it on for each device you want them on.
-        On iPhone, add the site to your home screen first (Share → Add to Home Screen) and turn it on from there.
-      </div>
-      {message && <div className="comment-meta" style={{ marginTop: 6 }}>{message}</div>}
+    <div className="st-row">
+      <span className="st-row-text">
+        <span>Phone alerts on this device</span>
+        <small>Your notifications pop up here even with the site closed. Turn it on for each device. iPhone: add the site to your Home Screen first (Share → Add to Home Screen).</small>
+        {message && <small className="st-msg">{message}</small>}
+      </span>
+      {supported === false
+        ? <small className="st-na">Not available in this browser</small>
+        : <Switch on={on} label="Phone alerts on this device" disabled={busy || supported === null} onChange={on ? turnOff : turnOn} />}
     </div>
   );
 }

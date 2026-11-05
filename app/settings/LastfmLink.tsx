@@ -25,21 +25,19 @@ export default function LastfmLink() {
   }
 
   return (
-    <>
-      <div className="section-label" id="lastfm">Last.fm</div>
-      <div className="comments-panel">
-        <div className="comment-meta" style={{ marginBottom: 10 }}>
-          Link your Last.fm username to see your most-played songs and artists matched to the archive, and collect or
-          follow them in one tap. Only you can see it.
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: 480 }}>
-          <input className="search-input" style={{ flex: 1 }} placeholder="Your Last.fm username" value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <button className="tab active" disabled={!draft.trim() || draft.trim() === current} onClick={() => save(draft)}>save</button>
-          {current && <button className="tab" onClick={() => save("")}>unlink</button>}
-        </div>
-        {current && <div className="comment-meta" style={{ marginTop: 8 }}><Link href="/listening" className="text-link">See your listening →</Link></div>}
-        {message && <div className="comment-meta" style={{ marginTop: 8 }}>{message}</div>}
-      </div>
-    </>
+    <div className="st-conn" id="lastfm">
+      <span className="st-logo st-lastfm" aria-hidden="true">as</span>
+      <span className="st-conn-text">
+        <strong>Last.fm</strong>
+        <span>Your most-played songs matched to the archive. Only you see it.{current && <> <Link href="/listening" className="text-link">See your listening →</Link></>}</span>
+      </span>
+      <span className="st-lastfm-form">
+        <input className="st-input" placeholder="Username" value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && draft.trim() && draft.trim() !== current) save(draft); }} aria-label="Last.fm username" />
+        {draft.trim() && draft.trim() !== current && <button className="st-btn" onClick={() => save(draft)}>Save</button>}
+        {current && draft.trim() === current && <button className="st-btn" onClick={() => save("")}>Unlink</button>}
+      </span>
+      {message && <div className="st-msg">{message}</div>}
+    </div>
   );
 }

@@ -12,6 +12,7 @@ import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import { AdminModePage } from "../../components/AdminModeNote";
 import ExportifyImport from "./ExportifyImport";
+import SpotifyImport from "./SpotifyImport";
 
 type Match = { row: number; artist_in: string | null; title_in: string; artist_id: string | null; track_id: string | null; title: string | null; owned: boolean };
 
@@ -195,9 +196,9 @@ export default function CollectionImportPage() {
         </div>
       </div>
       <ExportifyImport />
-      <Link href="/settings#spotify-import" className="tab" style={{ display: "inline-block", textDecoration: "none", marginBottom: 18 }}>
-        import from Spotify (invited testers)
-      </Link>
+      <div className="section-label">Straight from Spotify (invited testers)</div>
+      <SpotifyImport />
+      <div style={{ marginBottom: 18 }} />
 
       <div className="section-label">From a spreadsheet</div>
       <div className="detail-meta" style={{ marginBottom: 12 }}>

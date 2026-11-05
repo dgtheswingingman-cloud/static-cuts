@@ -10,6 +10,7 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
   const [origin, setOrigin] = useState("");
   const [lastRun, setLastRun] = useState<Run | null | undefined>(undefined);
   const [copied, setCopied] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -35,48 +36,40 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
   const connectorUrl = `${origin}/api/mcp`;
 
   return (
-    <>
-      <div className="section-label">Help keep my artists updated with ChatGPT</div>
-      <div className="detail-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
-        Connect ChatGPT and schedule a task that checks the artists you follow for new songs, leaks,
-        snippets and status changes. What it finds goes to the moderators, and nothing goes live
-        until it&apos;s approved. Needs a paid ChatGPT plan.
-      </div>
-      <ol className="detail-meta" style={{ maxWidth: 520, paddingLeft: 18, lineHeight: 1.7, marginBottom: 12 }}>
-        <li>
-          In ChatGPT, add a custom connector with this address, then sign in with your Static Cuts account:
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
-            <code style={{ wordBreak: "break-all" }}>{connectorUrl}</code>
-            <button className="tab" onClick={() => copy("url", connectorUrl)}>{copied === "url" ? "copied" : "copy"}</button>
-          </div>
-        </li>
-        <li>
-          Ask ChatGPT to run <code>test_connection</code> once to check it works.
-        </li>
-        <li>
-          Create a scheduled task (daily is plenty) with these instructions:
-          <div style={{ marginTop: 4 }}>
-            <button className="tab" onClick={() => copy("prompt", ROUTINE_PROMPT)}>
-              {copied === "prompt" ? "copied" : "copy instructions"}
-            </button>
-          </div>
-        </li>
-      </ol>
-      <div className="comment-meta" style={{ marginBottom: 12, maxWidth: 520 }}>
-        <b>How often it runs</b> is set in ChatGPT, not here: open the scheduled task in ChatGPT and change its
-        schedule (or ask ChatGPT &ldquo;change my Static Cuts task to run every 3 days&rdquo;). Daily is plenty;
-        research is shared with everyone, so more often mostly finds nothing new.
-        <br />
-        <b>Other AI assistants:</b> any assistant that can add a custom connector (MCP) and run scheduled tasks can
-        should work with the same connector link and instructions (Claude, for example). Only ChatGPT has been tested so far.
-      </div>
-      <div className="detail-meta" style={{ marginBottom: 20, maxWidth: 520 }}>
-        {lastRun === undefined
-          ? ""
-          : lastRun
-          ? `Last run: ${new Date(lastRun.started_at).toLocaleString()} · checked ${lastRun.artists_checked ?? 0} artist(s), reported ${lastRun.submitted ?? 0}.`
-          : "Not connected yet: no runs recorded."}
-      </div>
-    </>
+    <div className="st-conn st-gpt">
+      <button className="st-gpt-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="st-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18" /></svg>
+        </span>
+        <span className="st-conn-text">
+          <strong>ChatGPT</strong>
+          <span>
+            Connect ChatGPT to help keep your followed artists up to date.
+            {lastRun ? ` Last run ${new Date(lastRun.started_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}: checked ${lastRun.artists_checked ?? 0}, reported ${lastRun.submitted ?? 0}.` : lastRun === null ? " Not connected yet." : ""}
+          </span>
+        </span>
+        <span className="hf-chev" aria-hidden="true">{open ? "⌄" : "›"}</span>
+      </button>
+      {open && (
+        <div className="st-steps">
+          <strong className="st-steps-h">Connect ChatGPT//</strong>
+          <ol>
+            <li>
+              <span>In ChatGPT, add a custom connector with: <code>{connectorUrl}</code></span>
+              <button className="st-btn" onClick={() => copy("url", connectorUrl)}>{copied === "url" ? "Copied" : "Copy"}</button>
+            </li>
+            <li><span>Sign in with your Static Cuts account and ask it to run <code>test_connection</code>.</span></li>
+            <li>
+              <span>Create a scheduled task (daily is plenty) with these instructions to check your followed artists for new songs, leaks and status changes.</span>
+              <button className="st-btn" onClick={() => copy("prompt", ROUTINE_PROMPT)}>{copied === "prompt" ? "Copied" : "Copy"}</button>
+            </li>
+          </ol>
+          <small>
+            What it finds goes to the moderators; nothing goes live until it&apos;s approved. Needs a paid ChatGPT plan. How often it
+            runs is set in ChatGPT. Other assistants that support custom connectors (MCP) and scheduled tasks should work too.
+          </small>
+        </div>
+      )}
+    </div>
   );
 }
