@@ -1,0 +1,71 @@
+/* ===================== Album page ===================== */
+.al-page { max-width: 1180px !important; padding-bottom: 60px; }
+.al-hero { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 32px; align-items: end; margin: 14px 0 24px; }
+.al-cover img, .al-cover-blank { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border: 3px solid var(--bone); border-radius: 4px; box-shadow: 0 20px 60px rgba(0,0,0,.6); background: var(--surface2); }
+.al-cover-blank { display: grid; place-items: center; font-family: var(--font-anton), sans-serif; font-size: 3rem; color: var(--smoke); }
+.al-kind { font-family: var(--font-mono), monospace; font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone); }
+.al-kind span { color: var(--accent); margin-left: 2px; }
+.al-title { font-size: clamp(2.4rem, 7vw, 5rem) !important; margin: 6px 0 10px !important; line-height: 0.92; overflow-wrap: anywhere; }
+.al-artist { display: inline-flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 700; font-size: 1.05rem; text-decoration: none; }
+.al-artist:hover { text-decoration: underline; text-underline-offset: 4px; }
+.al-artist img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--bone); }
+.al-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 16px; }
+.al-facts span { font-family: var(--font-mono), monospace; font-size: 0.72rem; padding: 5px 10px; border: 1px solid var(--hair-strong); border-radius: 999px; color: var(--bone); }
+
+.al-score { display: inline-flex; align-items: center; gap: 16px; padding: 12px 18px; border: 1.5px solid var(--accent); border-radius: 10px; box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 20%, transparent); max-width: 100%; }
+.al-score.empty { border-color: var(--hair-strong); box-shadow: none; }
+.al-score-n { font-family: var(--font-anton), sans-serif; font-style: italic; font-size: 3rem; line-height: 1; }
+.al-score-n small { font-size: 0.4em; color: var(--smoke); margin-left: 2px; }
+.al-score-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.al-score-text b { font-family: var(--font-mono), monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.al-score-text span { font-size: 0.78rem; color: var(--smoke); }
+.al-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.al-actions .st-btn { text-decoration: none; }
+
+.al-box { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 16px 18px; margin-top: 18px; background: color-mix(in srgb, var(--void) 82%, transparent); }
+.al-box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--hair); }
+.al-box-head h2 { margin: 0; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.5rem; text-transform: uppercase; }
+.al-box-head h2::after { content: "//"; color: var(--accent); margin-left: 2px; }
+.al-num { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); }
+.al-note { font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--smoke); line-height: 1.55; margin: 10px 0; }
+.al-disk { font-family: var(--font-mono), monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); margin: 14px 0 4px; }
+
+.al-tracks { list-style: none; margin: 0; padding: 0; }
+.al-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 44px 64px 48px; gap: 12px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--hair); border-radius: 4px; }
+.al-row:last-child { border-bottom: none; }
+.al-row:hover { background: var(--surface); }
+.al-row.off .al-name { color: var(--smoke); }
+.al-pos { font-family: var(--font-anton), sans-serif; font-size: 1.2rem; color: var(--smoke); text-align: right; }
+.al-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.al-name { font-weight: 600; color: var(--bone); text-decoration: none; overflow-wrap: anywhere; }
+a.al-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.al-sub { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 0.72rem; color: var(--smoke); }
+.al-e { font-family: var(--font-mono), monospace; font-size: 0.6rem; padding: 0 4px; border: 1px solid var(--smoke); border-radius: 2px; }
+.al-st { font-family: var(--font-mono), monospace; font-size: 0.6rem; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; }
+.al-st.st-leaked { color: #FF3355; } .al-st.st-snippet { color: #8B7CF6; } .al-st.st-teased, .al-st.st-announced { color: #22D3EE; } .al-st.st-rumored { color: #F5B841; }
+.al-vers { color: var(--accent); text-decoration: none; }
+.al-vers:hover { text-decoration: underline; }
+.al-avg { font-family: var(--font-anton), sans-serif; font-size: 1.15rem; text-align: center; }
+.al-rate { font-family: var(--font-mono), monospace; font-size: 0.72rem; padding: 5px 6px; border: 1.5px solid var(--hair-strong); border-radius: 4px; background: var(--void); color: var(--bone); width: 100%; }
+.al-len { font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--smoke); text-align: right; }
+
+.al-more { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin-top: 8px; }
+.al-more-card { display: flex; flex-direction: column; gap: 4px; color: var(--bone); text-decoration: none; min-width: 0; }
+.al-more-card img, .al-more-card .al-cover-blank { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--hair-strong); border-radius: 4px; font-size: 1.4rem; }
+.al-more-card:hover img { border-color: var(--accent); }
+.al-more-card b { font-family: var(--font-anton), sans-serif; font-weight: 400; text-transform: uppercase; font-size: 0.95rem; line-height: 1.1; overflow-wrap: anywhere; }
+.al-more-card span { font-family: var(--font-mono), monospace; font-size: 0.64rem; color: var(--smoke); }
+
+@media (max-width: 760px) {
+  .al-hero { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .al-cover { max-width: 320px; }
+  .al-row { grid-template-columns: 26px minmax(0, 1fr) 36px 58px; gap: 8px; }
+  .al-len { display: none; }
+  .al-score-n { font-size: 2.4rem; }
+  .al-more { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Artist page: project tiles link to album pages, with the album rating */
+.ap-project { text-decoration: none; }
+.ap-project-art { position: relative; display: block; width: 100%; }
+.ap-project-score { position: absolute; right: 6px; bottom: 6px; font-family: var(--font-anton), sans-serif; font-size: 0.95rem; padding: 2px 7px; border-radius: 4px; background: var(--void); color: var(--bone); border: 1.5px solid var(--accent); }
