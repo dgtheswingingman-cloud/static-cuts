@@ -29,17 +29,17 @@ export function AnniversaryRow({ a }: { a: Anniversary }) {
   );
 }
 
-export default function OnThisDay() {
+export default function OnThisDay({ limit = 5 }: { limit?: number }) {
   const [items, setItems] = useState<Anniversary[] | null>(null);
   useEffect(() => {
-    supabase.rpc("rpc_on_this_day", { p_limit: 5 }).then(({ data }) => setItems((data as Anniversary[]) ?? []));
-  }, []);
+    supabase.rpc("rpc_on_this_day", { p_limit: limit }).then(({ data }) => setItems((data as Anniversary[]) ?? []));
+  }, [limit]);
   if (!items || items.length === 0) return null;
   return (
     <div className="otd" style={{ marginBottom: 10 }}>
-      <div className="section-label" style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-        <span>On this day</span>
-        <Link href="/on-this-day" className="text-link" style={{ textTransform: "none", letterSpacing: 0 }}>more →</Link>
+      <div className="sp-head hf-head">
+        <h2>On this day</h2>
+        <Link href="/on-this-day">View all →</Link>
       </div>
       <div className="otd-list">{items.map((a) => <AnniversaryRow key={a.kind + a.track_id} a={a} />)}</div>
     </div>

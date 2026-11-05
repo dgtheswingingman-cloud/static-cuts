@@ -21,6 +21,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; on?: (p: string) =>
   { href: "/search", label: "Search", icon: I(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>), on: (p) => ["/search", "/genre", "/producer", "/collabs", "/lists", "/list/"].some((x) => p.startsWith(x)) },
   { href: "/library", label: "My Library", icon: I(<><path d="M5 4v16M10 4v16" /><path d="m14.5 4.5 5 15" /></>), on: (p) => p.startsWith("/library") || p.startsWith("/local") || p.startsWith("/listening") || p.startsWith("/collection") },
   { href: "/submit", label: "Suggest", icon: I(<><path d="M12 15V4M7 9l5-5 5 5" /><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></>), on: (p) => p.startsWith("/submit") || p.startsWith("/my-submissions") },
+  { href: "/contributors", label: "Contributors", icon: I(<><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" /></>) },
   { href: "/help", label: "Help wanted", icon: I(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" /></>) },
 ];
 

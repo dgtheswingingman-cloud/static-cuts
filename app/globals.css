@@ -3621,3 +3621,29 @@ body:has(.ms-chat-page) .site-credit { display: none; }
   .cb-row-total { font-size: 1.25rem; }
   .cb-cta-btn { width: 100%; text-align: center; box-sizing: border-box; }
 }
+
+/* Home: On this day and the leaderboard side by side on computers. */
+.home-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+@media (min-width: 1024px) {
+  .home-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .home-wide .home-pair .otd-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.hl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hl-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); min-width: 0; }
+.hl-label { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--smoke); }
+.hl-who { position: relative; display: flex; align-items: center; gap: 12px; color: var(--bone); text-decoration: none; min-width: 0; }
+.hl-who:hover strong { color: var(--accent); }
+.hl-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hl-text strong { display: flex; align-items: center; gap: 6px; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-text span { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); }
+.hl-text b { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.25rem; color: var(--bone); }
+.hl-crown { position: absolute; top: -4px; left: 38px; padding: 0 5px; border-radius: 3px; background: var(--accent); color: var(--on-accent, #070707); font-family: var(--font-anton), sans-serif; font-size: 0.8rem; }
+.hl-empty { font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--smoke); }
+.rd-otd { margin: 8px 0 4px; }
+.rd-otd .otd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.rd-otd .otd-list .review-row { border: 1.5px solid var(--hair); background: var(--surface); padding: 12px 14px; border-radius: 8px; align-items: start; }
+@media (max-width: 700px) {
+  .hl-cards { grid-template-columns: minmax(0, 1fr); }
+  .rd-otd .otd-list { display: flex; overflow-x: auto; }
+  .rd-otd .otd-list .review-row { flex: 0 0 240px; }
+}
