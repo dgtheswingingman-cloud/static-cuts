@@ -63,7 +63,7 @@ function YearInner() {
           ▶ Play your {year} Wrapped
         </button>
       )}
-      {r && playing && <Wrapped review={r} onClose={() => setPlaying(false)} />}
+      {r && playing && user && <Wrapped review={r} userId={user.id} onClose={() => setPlaying(false)} />}
       {!r && <div className="empty-state">loading…</div>}
       {r && (
         <div className="year-card">

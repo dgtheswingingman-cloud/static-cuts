@@ -15,6 +15,7 @@ import { usePersonalUser } from "../../useIsAdmin";
 import Contributions from "./Contributions";
 import ProfileLists from "./ProfileLists";
 import ShareButton from "../../components/ShareButton";
+import { profileCard } from "../../components/cards";
 import Supporter from "../../components/Supporter";
 import HeroCollage from "../../components/HeroCollage";
 import { useProfileStyle, Showcase, EditProfile } from "./PremiumProfile";
@@ -236,6 +237,20 @@ export default function ProfilePage() {
         )}
         {viewer && !isOwnProfile && isFriend && <Link href={`/messages/${userId}`} className="tab sp-icon-btn" aria-label="Message">✉</Link>}
         <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} path={`/profile/${userId}`} className="tab sp-icon-btn" ariaLabel="Share"
+          storyKey={`${userId}:${favourites.length}:${contribTotal ?? ""}:${social?.followers ?? ""}`}
+          fileName={`static-cuts-${(profile.display_name ?? "profile").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`}
+          image={() => profileCard({
+            name: profile.display_name ?? "A collector",
+            tagline: profile.about ? profile.about.replace(/\s*\n\s*/g, " ").trim().slice(0, 80) : null,
+            avatar: profile.avatar_url, accent,
+            stats: [
+              ...(contribTotal !== null ? [[n(contribTotal), "contributions"] as [string, string]] : []),
+              ...(showCollection ? [[`${pct}%`, "collected"] as [string, string]] : []),
+              ...(social ? [[n(social.followers), "followers"] as [string, string]] : []),
+            ],
+            favourites: (favourites.length ? favourites : followedArtists.slice(0, 6)).map((f) => ({ name: f.artists?.name ?? "", image: f.artists?.image_url ?? null })),
+            url: `static-cuts.com/profile/${userId}`,
+          })}
           label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>} />
         {isOwnProfile && (
           <button className={`tab sp-icon-btn ${more ? "active" : ""}`} aria-label="More" aria-expanded={more} onClick={() => setMore(!more)}>•••</button>

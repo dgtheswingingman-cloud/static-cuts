@@ -1,10 +1,14 @@
 "use client";
+import "../styles/wrapped.css";
 
-// Static Cuts Wrapped: your year as full-screen slides. Tap (or press →) to
-// go on, ← to go back; every slide can be shared as a story picture.
+// Your year as full-screen story slides: intro with your top artists, your
+// rarest finds, your biggest find, your numbers and an outro. Each slide is
+// the actual share picture, so what you see is what you share. Tap (or press
+// →) to go on, ← to go back.
 
-import { useEffect, useMemo, useState } from "react";
-import { shareStory, type Story } from "../components/story";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { shareBlob, yearBiggest, yearFinds, yearIntro, yearNumbers, yearOutro, type YearData } from "../components/cards";
 
 type Review = {
   year: number; collected: number; unreleased_collected: number; artists: number;
@@ -15,92 +19,107 @@ type Review = {
   follows: number; approved_suggestions: number; comments: number;
 };
 
-type Slide = { kicker: string; big?: string; title: string; lines?: string[]; note?: string };
-
 const n = (x: number) => Number(x).toLocaleString("en-GB");
 
-function slidesFor(r: Review): Slide[] {
-  const out: Slide[] = [];
-  out.push({ kicker: `your ${r.year}`, title: "Static Cuts Wrapped", note: "Tap to start" });
-  out.push({ kicker: "you collected", big: n(r.collected), title: r.collected === 1 ? "song" : "songs",
-    lines: [`from ${n(r.artists)} artist${r.artists === 1 ? "" : "s"}`] });
-  if (r.unreleased_collected > 0) {
-    const pct = r.collected ? Math.round((r.unreleased_collected * 100) / r.collected) : 0;
-    out.push({ kicker: "deep in the vault", big: `${pct}%`, title: "never officially out",
-      lines: [`${n(r.unreleased_collected)} unreleased, leaked or snippet songs`] });
-  }
-  if (r.top_artists[0]) {
-    out.push({ kicker: "your number one", title: r.top_artists[0].artist, lines: [`${n(r.top_artists[0].n)} songs collected`] });
-  }
-  if (r.top_artists.length > 1) {
-    out.push({ kicker: "your top artists", title: "On repeat", lines: r.top_artists.slice(0, 5).map((a, i) => `${i + 1}. ${a.artist}`) });
-  }
-  if (r.rarest[0]) {
-    const x = r.rarest[0];
-    out.push({ kicker: "rarest find", title: x.title, lines: [x.artist, x.holders === 1 ? "only you have it" : `only ${x.holders} collectors have it`] });
-  }
-  if (r.top_rated[0]) {
-    out.push({ kicker: "you rated it highest", title: r.top_rated[0].title, lines: [r.top_rated[0].artist, `${r.top_rated[0].value}/10`] });
-  }
-  const helped = r.approved_suggestions + r.comments;
-  if (helped > 0 || r.follows > 0) {
-    out.push({ kicker: "you helped build it", title: "The archive",
-      lines: [
-        ...(r.approved_suggestions ? [`${n(r.approved_suggestions)} suggestion${r.approved_suggestions === 1 ? "" : "s"} approved`] : []),
-        ...(r.comments ? [`${n(r.comments)} comment${r.comments === 1 ? "" : "s"}`] : []),
-        ...(r.follows ? [`${n(r.follows)} artist${r.follows === 1 ? "" : "s"} followed`] : []),
-        ...(r.ratings ? [`${n(r.ratings)} song${r.ratings === 1 ? "" : "s"} rated`] : []),
-      ] });
-  }
-  out.push({ kicker: `that was ${r.year}`, title: "See you next year",
-    lines: [`${n(r.collected)} songs`, ...(r.top_artists[0] ? [`#1 ${r.top_artists[0].artist}`] : []), ...(r.rarest[0] ? [`rarest: ${r.rarest[0].title}`] : [])] });
-  return out;
-}
-
-export default function Wrapped({ review, onClose }: { review: Review; onClose: () => void }) {
-  const slides = useMemo(() => slidesFor(review), [review]);
+export default function Wrapped({ review, userId, onClose }: { review: Review; userId: string; onClose: () => void }) {
+  const [slides, setSlides] = useState<{ name: string; url: string; blob: Blob }[] | null>(null);
   const [i, setI] = useState(0);
   const [busy, setBusy] = useState(false);
-  const s = slides[i];
 
+  // Gather the pictures and draw every slide.
+  useEffect(() => {
+    let gone = false;
+    const made: string[] = [];
+    (async () => {
+      const artistIds = review.top_artists.map((a) => a.artist_id);
+      const trackIds = review.rarest.map((r) => r.track_id);
+      const [{ data: me }, { data: style }, { data: arts }, { data: tracks }, { count: lists }] = await Promise.all([
+        supabase.from("profiles").select("display_name, avatar_url").eq("id", userId).maybeSingle(),
+        supabase.rpc("rpc_profile_style", { p_user: userId }),
+        artistIds.length ? supabase.from("artists").select("id, image_url").in("id", artistIds) : Promise.resolve({ data: [] }),
+        trackIds.length ? supabase.from("tracks").select("id, cover_url, release_status, release_date, leak_date").in("id", trackIds) : Promise.resolve({ data: [] }),
+        supabase.from("song_lists").select("id", { count: "exact", head: true }).eq("owner_id", userId)
+          .gte("created_at", `${review.year}-01-01`).lt("created_at", `${review.year + 1}-01-01`),
+      ]);
+      const img = new Map(((arts ?? []) as { id: string; image_url: string | null }[]).map((a) => [a.id, a.image_url]));
+      const tr = new Map(((tracks ?? []) as { id: string; cover_url: string | null; release_status: string | null; release_date: string | null; leak_date: string | null }[]).map((t) => [t.id, t]));
+      const st = style as { premium?: boolean; accent?: string | null } | null;
+      const p = me as { display_name: string | null; avatar_url: string | null } | null;
+      const d: YearData = {
+        year: review.year, name: p?.display_name ?? "You", avatar: p?.avatar_url ?? null,
+        accent: st?.premium ? st.accent ?? null : null, url: `static-cuts.com/profile/${userId}`,
+        topArtists: review.top_artists.map((a) => ({ name: a.artist, image: img.get(a.artist_id) ?? null, n: a.n })),
+        finds: review.rarest.map((r) => {
+          const t = tr.get(r.track_id);
+          return { title: r.title, artist: r.artist, status: t?.release_status ?? null, cover: t?.cover_url ?? null,
+            year: (t?.release_date ?? t?.leak_date ?? "").slice(0, 4) || null, holders: r.holders };
+        }),
+        numbers: [
+          ["Collected", n(review.collected), `songs from ${n(review.artists)} artist${review.artists === 1 ? "" : "s"}`],
+          ...(review.unreleased_collected ? [["Never officially out", n(review.unreleased_collected), "leaks, snippets and unreleased"] as [string, string, string]] : []),
+          ["Contributions", n(review.approved_suggestions), "suggestions approved"],
+          ["Lists made", n(lists ?? 0), "playlists, collections and lists"],
+        ],
+      };
+      const plan: [string, () => Promise<Blob | null>][] = [
+        ["intro", () => yearIntro(d)],
+        ...(d.finds.length ? [["finds", () => yearFinds(d)] as [string, () => Promise<Blob | null>], ["biggest", () => yearBiggest(d)] as [string, () => Promise<Blob | null>]] : []),
+        ["numbers", () => yearNumbers(d)],
+        ["outro", () => yearOutro(d)],
+      ];
+      const out: { name: string; url: string; blob: Blob }[] = [];
+      for (const [name, draw] of plan) {
+        const blob = await draw();
+        if (gone) return;
+        if (!blob) continue;
+        const url = URL.createObjectURL(blob);
+        made.push(url);
+        out.push({ name, url, blob });
+        setSlides([...out]);
+      }
+    })();
+    return () => { gone = true; made.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [review, userId]);
+
+  const total = slides?.length ?? 0;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") setI((x) => Math.min(x + 1, slides.length - 1));
+      if (e.key === "ArrowRight") setI((x) => Math.min(x + 1, Math.max(0, total - 1)));
       if (e.key === "ArrowLeft") setI((x) => Math.max(x - 1, 0));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [slides.length, onClose]);
+  }, [total, onClose]);
 
+  const s = slides?.[i];
   async function share() {
+    if (!s) return;
     setBusy(true);
-    const story: Story = { kicker: `${review.year} wrapped · ${s.kicker}`, title: s.title, bigNumber: s.big, lines: s.lines };
-    await shareStory(story, `static-cuts-wrapped-${review.year}-${i + 1}`);
+    await shareBlob(s.blob, `static-cuts-${review.year}-${s.name}`, `My ${review.year} on Static Cuts//`);
     setBusy(false);
   }
 
   return (
-    <div className="wrapped" role="dialog" aria-label={`Your ${review.year} Wrapped`}>
+    <div className="wrapped" role="dialog" aria-label={`Your ${review.year}`}>
       <div className="wrapped-bars">
-        {slides.map((_, k) => <span key={k} className={k <= i ? "on" : ""} />)}
+        {(slides ?? [null]).map((_, k) => <span key={k} className={k <= i ? "on" : ""} />)}
       </div>
       <button className="wrapped-close" aria-label="Close" onClick={onClose}>×</button>
-      <div className="wrapped-slide" key={i}
+      <div className="wrapped-slide wrapped-pic"
         onClick={(e) => {
           const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
           if (e.clientX - r.left < r.width / 3) setI((x) => Math.max(x - 1, 0));
-          else setI((x) => Math.min(x + 1, slides.length - 1));
+          else setI((x) => Math.min(x + 1, Math.max(0, total - 1)));
         }}>
-        <div className="wrapped-kicker">{s.kicker}</div>
-        {s.big && <div className="wrapped-big">{s.big}</div>}
-        <div className="wrapped-title">{s.title}</div>
-        {s.lines?.map((l) => <div key={l} className="wrapped-line">{l}</div>)}
-        {s.note && <div className="wrapped-note">{s.note}</div>}
+        {s
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={s.url} alt={`Your ${review.year}: ${s.name}`} />
+          : <div className="wrapped-note">Making your year…</div>}
       </div>
       <div className="wrapped-foot">
-        <button className="tab" disabled={busy} onClick={share}>{busy ? "making…" : "share this slide"}</button>
-        <span className="comment-meta">{i + 1} / {slides.length}</span>
+        <button className="tab" disabled={busy || !s} onClick={share}>{busy ? "…" : "Share this slide//"}</button>
+        <span className="comment-meta">{total ? `${i + 1} / ${total}` : ""}</span>
       </div>
     </div>
   );
