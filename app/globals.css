@@ -3880,3 +3880,7 @@ body:has(.ms-shell) .site-credit { display: none; }
 .cr-tools { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
 .cr-page .review-row { border-bottom-color: var(--hair-strong); }
 .cr-page .health-columns { gap: 18px; }
+
+/* Welcome: keep the big number in the "picked" count inside the bar. */
+.wl-bar > span { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+.wl-bar b { line-height: 1; display: inline-block; }
