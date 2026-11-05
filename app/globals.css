@@ -3549,3 +3549,19 @@ body:has(.ms-chat-page) .site-credit { display: none; }
   .sb-two { column-gap: 10px; }
   .sb-form { padding: 14px; }
 }
+
+/* Computers: the side menu ends with Settings and Log out; the home banner
+   is just the logo in the middle (no account links under it). */
+@media (min-width: 1024px) {
+  .dnav-inner { min-height: 100%; box-sizing: border-box; }
+  .dnav-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--hair-strong); }
+  .dnav-btn { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+  .home-wide .hero .auth-bar { display: none !important; }
+  .home-wide .hero .wordmark-img { display: flex !important; justify-content: center; margin: 0 auto; }
+  .home-wide .hero .wordmark-img .logo-img { margin: 0 auto; }
+  .home-wide .hero .tagline { text-align: center; }
+}
+@media (min-width: 1024px) {
+  .dnav-links .dnav-btn { padding: 10px 12px; font-family: var(--font-mono), monospace; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--smoke); }
+  .dnav-links .dnav-btn:hover { color: var(--bone); background: var(--surface); }
+}
