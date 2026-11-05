@@ -422,7 +422,7 @@ export default function SettingsPage() {
 
       {user && <ChatGPTRoutine userId={user.id} />}
 
-      <div className="section-label">Notifications</div>
+      <div className="section-label" id="notifications" style={{ scrollMarginTop: 20 }}>Notifications</div>
       <div className="detail-meta" style={{ marginBottom: 8 }}>
         These show under &ldquo;notifications&rdquo; at the top of the homepage. &ldquo;Remind me&rdquo; on the release radar always
         notifies you.
