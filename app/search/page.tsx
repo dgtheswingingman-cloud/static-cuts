@@ -322,7 +322,23 @@ function SearchInner() {
       )}
 
       {error && <div className="empty-state">Search failed: {error}</div>}
-      {!hasAnything && <div className="empty-state">Type an artist, a song, an album, a producer or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>}
+      {!hasAnything && (
+        <>
+          <div className="empty-state">Type an artist, a song, an album, a producer or someone&apos;s name, or pick a filter (try “leaked” and “no link”).</div>
+          <div className="sp-head sr-head"><h2><span className="sr-icon" aria-hidden="true">✦</span>Browse</h2></div>
+          <div className="sr-browse">
+            {([
+              ["/genres", "Genres", "every style in the archive"],
+              ["/producers", "Producers", "who made the beats"],
+              ["/collabs", "Collab map", "who's worked with who"],
+              ["/lists", "Lists", "collections people made"],
+              ["/local", "Local Cuts", "your own files"],
+            ] as const).map(([href, label, sub]) => (
+              <Link key={href} href={href} className="sr-browse-tile"><strong>{label}<em>//</em></strong><span>{sub}</span></Link>
+            ))}
+          </div>
+        </>
+      )}
       {hasAnything && !error && !results && <div className="empty-state">searching…</div>}
 
       {words && results && type === "all" && (

@@ -3165,3 +3165,28 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .pr-bar { gap: 16px; }
 .pr-bar .gn-modes { margin: 0; }
 .pr-pfp-blank { display: inline-flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--bone); font-family: var(--font-anton), sans-serif; font-size: 2rem; border: 2px solid var(--accent); }
+
+/* ===================== Home on phones + search browse ===================== */
+.sr-browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 10px; }
+.sr-browse-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px; min-height: 84px; justify-content: flex-end; border: 1.5px solid var(--hair-strong); border-radius: 8px; background: var(--surface); color: var(--bone); text-decoration: none; }
+.sr-browse-tile:hover { border-color: var(--accent); }
+.sr-browse-tile strong { font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.5rem; line-height: 1; text-transform: uppercase; }
+.sr-browse-tile em { font-style: normal; color: var(--accent); }
+.sr-browse-tile span { font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); }
+
+/* Album of the week on phones: the cover runs full width with the title
+   over its bottom edge, then the blurb and two full-width buttons. */
+@media (max-width: 700px) {
+  .aotw-hero { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0; }
+  .aotw-hero::before { display: none; }
+  .aotw-hero-cover { display: block; position: relative; }
+  .aotw-hero-cover img, .aotw-hero-cover .era-card-blank { aspect-ratio: 1; border: 0; border-radius: 0; }
+  .aotw-hero-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, color-mix(in srgb, var(--void) 70%, transparent) 70%, var(--void)); pointer-events: none; }
+  .aotw-hero-body { margin-top: -132px; padding: 0 14px 14px; z-index: 1; }
+  .aotw-hero-title { font-size: clamp(2.2rem, 11vw, 3rem); }
+  .aotw-hero-artist { font-size: 0.85rem; }
+  .aotw-hero-blurb { -webkit-line-clamp: 3; font-size: 0.74rem; margin: 10px 0 12px; }
+  .aotw-hero-actions { width: 100%; display: grid; grid-template-columns: 1.4fr 1fr; }
+  .aotw-hero-actions .tab { justify-content: center; font-size: 0.7rem; min-height: 48px; }
+  .aotw-hero-more { display: flex !important; }
+}
