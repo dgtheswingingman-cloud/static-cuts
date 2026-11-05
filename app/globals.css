@@ -3151,3 +3151,12 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 @media (min-width: 1024px) {
   .home-wide .aotw-hero { margin-left: -36px; margin-right: -36px; border-radius: 0; border-left: 0; border-right: 0; padding-left: 36px; padding-right: 36px; }
 }
+
+/* One genre */
+.gn-hero.has-collage { min-height: 300px; }
+.gn-hero .ls-crumb { margin-bottom: 10px; }
+.gn-tag { background: var(--red); color: #070707; display: inline-block; }
+.gn-one { margin-top: 6px; text-transform: uppercase; overflow-wrap: anywhere; font-size: clamp(2.6rem, 11vw, 5.4rem); }
+.gn-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-family: var(--font-mono), monospace; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--smoke); }
+.gn-stats strong { color: var(--bone); font-size: 1.1rem; letter-spacing: 0; margin-right: 4px; }
+.gn-related { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
