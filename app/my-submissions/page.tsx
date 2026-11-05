@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
@@ -30,6 +31,8 @@ export default function MySubmissionsPage() {
   const [trackTitles, setTrackTitles] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [trust, setTrust] = useState<{ approved: number; rejected: number; trusted: boolean } | null>(null);
+  const [pics, setPics] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
   useEffect(() => {
     supabase.rpc("rpc_my_trust").then(({ data }) => setTrust(data ?? null));
@@ -55,10 +58,12 @@ export default function MySubmissionsPage() {
 
     const artistIds = Array.from(new Set((data ?? []).map((s) => s.artist_id).filter(Boolean)));
     if (artistIds.length > 0) {
-      const { data: artists } = await supabase.from("artists").select("id, name").in("id", artistIds as string[]);
+      const { data: artists } = await supabase.from("artists").select("id, name, image_url").in("id", artistIds as string[]);
       const map: Record<string, string> = {};
-      (artists ?? []).forEach((a: any) => { map[a.id] = a.name; });
+      const img: Record<string, string> = {};
+      (artists ?? []).forEach((a: any) => { map[a.id] = a.name; if (a.image_url) img[`a:${a.id}`] = a.image_url; });
       setArtistNames(map);
+      setPics((p) => ({ ...p, ...img }));
     }
 
     // Referenced track ids -- for corrections/flags/new_versions, so we can
@@ -71,10 +76,12 @@ export default function MySubmissionsPage() {
       )
     );
     if (trackIds.length > 0) {
-      const { data: tracks } = await supabase.from("tracks").select("id, title").in("id", trackIds);
+      const { data: tracks } = await supabase.from("tracks").select("id, title, cover_url").in("id", trackIds);
       const map: Record<string, string> = {};
-      (tracks ?? []).forEach((t: any) => { map[t.id] = t.title; });
+      const img: Record<string, string> = {};
+      (tracks ?? []).forEach((t: any) => { map[t.id] = t.title; if (t.cover_url) img[`t:${t.id}`] = t.cover_url; });
       setTrackTitles(map);
+      setPics((p) => ({ ...p, ...img }));
     }
   }
 
@@ -128,7 +135,7 @@ export default function MySubmissionsPage() {
     if (!trackId || !s.artist_id) return;
     const { data } = await supabase.from("tracks").select("id").eq("id", trackId).maybeSingle();
     if (data) {
-      router.push(`/artist/${s.artist_id}?highlight=${trackId}`);
+      router.push(`/song/${trackId}`);
     } else {
       if (window.confirm("This track has since been removed. Remove this entry from your history?")) {
         await removeEntry(s.id, false);
@@ -160,48 +167,83 @@ export default function MySubmissionsPage() {
 
   if (isAdmin) return <AdminModePage title="My submissions" />;
 
-  return (
-    <div className="wrap">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-        <h1 className="detail-name page-title">My submissions</h1>
-        {submissions && submissions.length > 0 && (
-          <button className="tab" onClick={clearAll}>clear all</button>
-        )}
-      </div>
+  const counts = {
+    all: submissions?.length ?? 0,
+    pending: (submissions ?? []).filter((x) => x.status === "pending").length,
+    approved: (submissions ?? []).filter((x) => x.status === "approved").length,
+    rejected: (submissions ?? []).filter((x) => x.status === "rejected").length,
+  };
+  const shown = (submissions ?? []).filter((x) => filter === "all" || x.status === filter);
+  const pic = (x: Submission) => {
+    const t = referencedTrackId(x);
+    return (t && pics[`t:${t}`]) || (x.artist_id && pics[`a:${x.artist_id}`]) || null;
+  };
 
+  return (
+    <div className="wrap sb-page">
+      <header className="sb-head">
+        <div>
+          <h1 className="ls-title sb-title">MY SUBMISSIONS<span>//</span></h1>
+          <p className="sb-lead">Everything you&apos;ve suggested, and where it&apos;s got to.</p>
+        </div>
+        <Link href="/submit" className="sb-mine">+ Suggest something</Link>
+      </header>
       {trust && (
-        <div className="comment-meta" style={{ marginBottom: 14 }}>
-          {trust.trusted
-            ? "You're a trusted contributor: your suggestions go live straight away (deleting songs still waits for a moderator)."
-            : `${trust.approved} of your suggestions approved. At 25 you become a trusted contributor and your suggestions go live straight away.`}
+        <div className="sb-trust">
+          <span className="sb-trust-icon" aria-hidden="true"><i /><i /><i /></span>
+          <span>{trust.trusted
+            ? <><b>Trusted contributor.</b> Your suggestions go live straight away (removing songs still waits for a moderator).</>
+            : <><b>{trust.approved} of 25 approved:</b> at 25 your suggestions go live straight away.</>}</span>
+          {trust.trusted ? <span className="sb-trusted">Trusted ✓</span>
+            : <span className="sb-trust-bar"><span style={{ width: `${Math.min(100, (trust.approved / 25) * 100)}%` }} /></span>}
         </div>
       )}
+
+      <nav className="rd-chips nt-chips" aria-label="Show">
+        {(["all", "pending", "approved", "rejected"] as const).map((k) => (
+          <button key={k} className={filter === k ? "on" : undefined} aria-pressed={filter === k} onClick={() => setFilter(k)}>
+            {k[0].toUpperCase() + k.slice(1)} ({counts[k]})
+          </button>
+        ))}
+      </nav>
+
       {submissions === null && <div className="empty-state">loading…</div>}
       {submissions && submissions.length === 0 && (
-        <div className="empty-state">
-          You haven&apos;t submitted anything yet. Find an artist and hit &quot;suggest a track,&quot;
-          or suggest a whole new artist from the search bar.
-        </div>
+        <div className="empty-state">Nothing yet. <Link href="/submit" className="text-link">Suggest a song or an artist</Link>.</div>
       )}
+      {submissions && submissions.length > 0 && shown.length === 0 && <div className="empty-state">None here.</div>}
 
-      {submissions && submissions.map((s) => (
-        <div key={s.id} className="track-row" style={{ cursor: "default", flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <div className="track-title">{describe(s)}</div>
-            <div className="comment-meta">{new Date(s.created_at).toLocaleDateString()}</div>
-            {s.reviewer_note && (
-              <div className="comment-meta" style={{ marginTop: 2 }}>note: {s.reviewer_note}</div>
-            )}
-          </div>
-          <span className="feature-tag">{s.status}</span>
-          {canView(s) && (
-            <button className="listen-link" onClick={() => viewEntry(s)}>view</button>
-          )}
-          <button className="listen-link" disabled={busyId === s.id} onClick={() => removeEntry(s.id)}>
-            remove
-          </button>
-        </div>
-      ))}
+      <ul className="nt-list ms-subs">
+        {shown.map((x) => {
+          const st = x.status === "approved" ? "released" : x.status === "rejected" ? "leaked" : "";
+          const p = pic(x);
+          return (
+            <li key={x.id} className="nt-row">
+              <button className="nt-main" onClick={() => canView(x) && viewEntry(x)} disabled={!canView(x)}>
+                <span className={`nt-pic ${x.type === "new_artist" ? "round" : ""}`}>
+                  {p
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={p} alt="" width={56} height={56} loading="lazy" />
+                    : <span className="nw-blank">SC//</span>}
+                </span>
+                <span className="nt-text">
+                  <span className="nt-what">{describe(x)}</span>
+                  {x.reviewer_note && <span className="nt-body">Moderator: {x.reviewer_note}</span>}
+                </span>
+              </button>
+              <span className="nt-meta">
+                <span className={`feature-tag st ${st ? `st-${st}` : ""} nt-tag sb-st-${x.status}`}>{x.status}</span>
+                <span className="nt-when">{new Date(x.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+              </span>
+              <span className="nt-dot" />
+              <button className="nt-x" aria-label="Remove from history" disabled={busyId === x.id} onClick={() => removeEntry(x.id)}>✕</button>
+            </li>
+          );
+        })}
+      </ul>
+      {submissions && submissions.length > 0 && (
+        <div style={{ textAlign: "center", marginTop: 20 }}><button className="st-btn" onClick={clearAll}>Clear history</button></div>
+      )}
     </div>
   );
 }
