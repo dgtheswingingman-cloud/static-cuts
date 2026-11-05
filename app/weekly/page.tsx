@@ -36,9 +36,12 @@ const nice = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en
 
 // Songs as rows: cover, title, artist and day, coloured by status.
 function SongList({ songs, showDay, status, covers }: { songs: Song[]; showDay?: boolean; status?: string; covers: Record<string, string> }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? songs : songs.slice(0, 12);
   return (
-    <div className="sp-versions">
-      {songs.map((s) => {
+    <>
+    <div className="sp-versions pg-songgrid">
+      {shown.map((s) => {
         const st = status ?? s.kind ?? "";
         return (
           <Link key={`${s.id}-${s.kind ?? ""}`} href={`/song/${s.id}`} className="sp-version rd-row" data-st={st}>
@@ -55,6 +58,10 @@ function SongList({ songs, showDay, status, covers }: { songs: Song[]; showDay?:
         );
       })}
     </div>
+    {songs.length > 12 && (
+      <button className="pg-more" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${songs.length}`}</button>
+    )}
+    </>
   );
 }
 
@@ -94,7 +101,7 @@ function WeeklyInner() {
     ["Songs added", Number(data.added_total), "added"],
   ] : [];
   return (
-    <div className="wrap pg-page pg-wide">
+    <div className="wrap pg-page pg-wide pg-weekly">
       <RadarTabs active="week" />
       <div className="pg-head">
         <h1 className="detail-name page-title pg-title">{week === thisWeek ? "This Week" : `Week of ${nice(week)}`}</h1>
@@ -132,7 +139,7 @@ function WeeklyInner() {
       {empty && <div className="empty-state">A quiet week. Nothing leaked, came out or changed.</div>}
 
       {data && !empty && (
-        <div className="pg-two">
+        <div className="pg-stack">
           {data.leaked.length > 0 && (
             <section className="pg-box"><div className="pg-box-head"><h2>Leaked this week</h2><span className="pg-num">{data.leaked.length}</span></div>
               <SongList songs={data.leaked} showDay status="leaked" covers={covers} /></section>
