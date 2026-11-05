@@ -3164,3 +3164,4 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 /* ===================== Producers ===================== */
 .pr-bar { gap: 16px; }
 .pr-bar .gn-modes { margin: 0; }
+.pr-pfp-blank { display: inline-flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--bone); font-family: var(--font-anton), sans-serif; font-size: 2rem; border: 2px solid var(--accent); }

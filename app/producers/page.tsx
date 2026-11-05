@@ -1,7 +1,8 @@
 "use client";
 
 // Producers: everyone credited with producing songs in the archive. The top
-// ten get cards with a photo of the artist they've made the most songs for.
+// ten get cards with their photo (if they're an artist here too) or the
+// artist they've made the most songs for.
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
@@ -39,6 +40,9 @@ export default function ProducersPage() {
   useEffect(() => {
     const top = all.slice(0, 10);
     if (!top.length) return;
+    // Producers who are artists too get their own photo; the rest get the
+    // artist they've produced most for.
+    const own = supabase.rpc("rpc_producer_photos", { p_names: top.map((p) => p.name) }).then(({ data }) => (data as Record<string, string>) ?? {});
     Promise.all(top.map((p) => supabase.rpc("rpc_producer", { p_name: p.name }).then(({ data }) => {
       const counts = new Map<string, number>();
       for (const s of (data as { artist_id: string }[]) ?? []) counts.set(s.artist_id, (counts.get(s.artist_id) ?? 0) + 1);
@@ -49,7 +53,7 @@ export default function ProducersPage() {
       const img = new Map(((data ?? []) as { id: string; image_url: string | null }[]).map((a) => [a.id, a.image_url]));
       const m: Record<string, string> = {};
       for (const [name, id] of pairs) { const u = id ? img.get(id) : null; if (u) m[name] = u; }
-      setPhotos(m);
+      setPhotos({ ...m, ...(await own) });
     });
   }, [all]);
 

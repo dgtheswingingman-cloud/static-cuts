@@ -2,8 +2,9 @@
 
 // One producer, laid out like an artist page: the artists they've worked with
 // sliding behind the name, the numbers, then tabs for an overview, every song
-// they're credited on and every artist they've produced for. The page's colour
-// comes from the artist they've made the most songs for.
+// they're credited on and every artist they've produced for. If they're an
+// artist in the archive too, their own photo, colour and a link to that page;
+// otherwise the colour comes from the artist they've made the most songs for.
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
@@ -27,6 +28,8 @@ export default function ProducerPage() {
   const [songs, setSongs] = useState<Song[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [rgb, setRgb] = useState<Rgb | null>(null);
+  // If they're an artist in the archive too (a self-producing rapper), their own photo and page.
+  const [self, setSelf] = useState<{ id: string; name: string; image_url: string | null } | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [artistFilter, setArtistFilter] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -36,7 +39,12 @@ export default function ProducerPage() {
 
   useEffect(() => {
     let alive = true;
-    setSongs(null); setPhotos({}); setRgb(null);
+    setSongs(null); setPhotos({}); setRgb(null); setSelf(null);
+    const selfP = supabase.rpc("rpc_producer_artist", { p_name: name }).then(({ data }) => {
+      const me = ((data as { id: string; name: string; image_url: string | null }[]) ?? [])[0] ?? null;
+      if (alive) setSelf(me);
+      return me;
+    });
     supabase.rpc("rpc_producer", { p_name: name }).then(({ data }) => {
       if (!alive) return;
       const s = (data as Song[]) ?? [];
@@ -52,7 +60,7 @@ export default function ProducerPage() {
         for (const r of (a ?? []) as { id: string; image_url: string | null }[]) if (r.image_url) m[r.id] = r.image_url;
         setPhotos(m);
         const topPhoto = ids.map((id) => m[id]).find(Boolean);
-        swatch(topPhoto).then((c) => { if (alive) setRgb(c); });
+        selfP.then((me) => swatch(me?.image_url ?? topPhoto).then((c) => { if (alive) setRgb(c); }));
       });
     });
     return () => { alive = false; };
@@ -92,7 +100,7 @@ export default function ProducerPage() {
     return l;
   }, [songs, artistFilter, filter, sort, q]);
 
-  const banner = artists.map((a) => photos[a.id]).filter(Boolean).slice(0, 30) as string[];
+  const banner = [...new Set([...(self?.image_url ? [self.image_url] : []), ...artists.map((a) => photos[a.id]).filter(Boolean) as string[]])].slice(0, 30);
   const picked = artists.find((a) => a.id === artistFilter);
   const light = typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light";
   const pageStyle = (rgb ? { "--accent": accentCss(rgb, light) } : {}) as CSSProperties;
@@ -143,6 +151,10 @@ export default function ProducerPage() {
         <div className="artist-hero-inner ah2-inner">
           <span className="ah2-tag"><Link href="/producers" style={{ color: "inherit", textDecoration: "none" }}>Producer</Link></span>
           <div className="ah2-id">
+            {self?.image_url
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={self.image_url} alt="" className="ah2-pfp" width={96} height={96} />
+              : <span className="ah2-pfp pr-pfp-blank" aria-hidden="true">{name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "SC"}</span>}
             <h1 className="detail-name artist-hero-name">{name}</h1>
           </div>
           {artists.length > 0 && <div className="ah2-genres">for {artists.slice(0, 3).map((a) => a.name).join(" / ")}</div>}
@@ -154,6 +166,12 @@ export default function ProducerPage() {
           </div>
         </div>
       </header>
+
+      {self && (
+        <div className="artist-actions ah2-actions">
+          <Link href={`/artist/${self.id}`} className="tab">Artist page →</Link>
+        </div>
+      )}
 
       <nav className="ap-tabs" aria-label="Producer sections">
         {([["overview", "Overview"], ["songs", "Songs"], ["artists", "Artists"]] as [Tab, string][]).map(([k, label]) => (
