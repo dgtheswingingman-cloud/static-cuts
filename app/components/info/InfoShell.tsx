@@ -1,3 +1,4 @@
+import "../../styles/info.css";
 // The shared layout for the info pages (FAQ, How to listen, Sources, Privacy
 // & terms, Request a takedown): a title with //, a line about the page, a
 // contents list (down the side on computers, a "Jump to" menu on phones),
