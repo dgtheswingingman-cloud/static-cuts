@@ -5,7 +5,8 @@
 //   admin mode   -> admin jobs only (no ratings, comments, follows...), with
 //                   the admin shortcuts: moderation, health, alerts, undo
 //   your account -> the site exactly as a regular user sees it
-// Nobody else sees this bar.
+// Nobody else sees this bar, and it only shows once "Dev options" is turned
+// on in Settings (per device).
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -15,6 +16,7 @@ import { useAuth } from "./AuthProvider";
 import { useAdminView } from "./AdminViewContext";
 import { useIsRealAdmin } from "./useIsAdmin";
 import { startVisitorPreview } from "./components/visitorPreview";
+import { DEV_BAR_EVENT, devBarOn } from "@/lib/devBar";
 
 const SHORTCUTS: [string, string][] = [
   ["/control", "control room"],
@@ -29,13 +31,21 @@ export default function ModeBar() {
   const path = usePathname();
   const adminMode = isRealAdmin && !viewAsNonAdmin;
   const [alerts, setAlerts] = useState(0);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const read = () => setShow(devBarOn());
+    read();
+    window.addEventListener(DEV_BAR_EVENT, read);
+    return () => window.removeEventListener(DEV_BAR_EVENT, read);
+  }, []);
 
   useEffect(() => {
     if (!adminMode) return;
     supabase.rpc("rpc_unread_notifications", { p_admin: true }).then(({ data }) => setAlerts(typeof data === "number" ? data : 0));
   }, [adminMode, path]);
 
-  if (loading || !isRealAdmin) return null;
+  if (loading || !isRealAdmin || !show) return null;
   return (
     <div className={`mode-bar ${adminMode ? "is-admin" : "is-user"}`} role="status">
       <span className="mode-bar-label">{adminMode ? "Admin mode" : "Your account"}</span>
