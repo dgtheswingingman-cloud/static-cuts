@@ -1,4 +1,5 @@
 "use client";
+import "../styles/pages.css";
 
 // This week on Static Cuts: what leaked and what came out (by date), what
 // the archive newly marked, how much was added.
@@ -86,45 +87,76 @@ function WeeklyInner() {
   const go = (w: string) => router.push(w === thisWeek ? "/weekly" : `/weekly?week=${w}`);
   const empty = data && !data.leaked.length && !data.released.length && !data.marked.length && !data.added_total;
 
+  const counts: [string, number, string][] = data ? [
+    ["Leaked", data.leaked.length, "leaked"],
+    ["Came out", data.released.length, "released"],
+    ["Newly marked", data.marked.length, "teased"],
+    ["Songs added", Number(data.added_total), "added"],
+  ] : [];
   return (
-    <div className="wrap">
+    <div className="wrap pg-page pg-wide">
       <RadarTabs active="week" />
-      <h1 className="detail-name page-title">{week === thisWeek ? "This Week" : `Week of ${nice(week)}`}</h1>
-      <div className="detail-meta" style={{ marginBottom: 12 }}>
-        {nice(week)} to {nice(shift(week, 6))}: what leaked, what came out, and what changed in the archive.
+      <div className="pg-head">
+        <h1 className="detail-name page-title pg-title">{week === thisWeek ? "This Week" : `Week of ${nice(week)}`}</h1>
+        <div className="pg-arrows">
+          <button onClick={() => go(shift(week, -7))}>← Earlier</button>
+          {week < thisWeek && <button onClick={() => go(shift(week, 7))}>Later →</button>}
+          {week !== thisWeek && <button onClick={() => go(thisWeek)}>This week</button>}
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <button className="tab" onClick={() => go(shift(week, -7))}>← earlier week</button>
-        {week < thisWeek && <button className="tab" onClick={() => go(shift(week, 7))}>later week →</button>}
+      <p className="pg-lead">
+        {nice(week)} to {nice(shift(week, 6))}: what leaked, what came out, and what changed in the archive.
         {isAdmin && (
-          <span className="comment-meta" style={{ alignSelf: "center" }}>
-            slides:{" "}
+          <span className="pg-admin">
+            {" "}Slides:{" "}
             {[1, 2, 3].map((n) => (
               <a key={n} className="text-link" style={{ marginRight: 6 }} href={`/weekly/slide?n=${n}&week=${week}`} target="_blank" rel="noopener noreferrer">{n}</a>
             ))}
           </span>
         )}
-      </div>
+      </p>
+
+      {data && !empty && (
+        <div className="pg-tiles">
+          {counts.map(([label, v, st]) => (
+            <div key={label} className="pg-tile" data-st={st}>
+              <div className="pg-tile-label">{label}</div>
+              <div className="pg-tile-n">{v.toLocaleString("en-GB")}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <AlbumOfWeek week={week} hero />
       {!data && <div className="empty-state">loading…</div>}
       {empty && <div className="empty-state">A quiet week. Nothing leaked, came out or changed.</div>}
 
-      {data && data.leaked.length > 0 && (<><div className="section-label">Leaked this week ({data.leaked.length})</div><SongList songs={data.leaked} showDay status="leaked" covers={covers} /></>)}
-      {data && data.released.length > 0 && (<><div className="section-label">Out this week ({data.released.length})</div><SongList songs={data.released} showDay status="released" covers={covers} /></>)}
-      {data && data.marked.length > 0 && (<><div className="section-label">Newly marked in the archive</div><SongList songs={data.marked} covers={covers} /></>)}
-      {data && data.added_total > 0 && (
-        <>
-          <div className="section-label">Added to the archive</div>
-          <div className="comment-meta" style={{ marginBottom: 6 }}>{Number(data.added_total).toLocaleString("en-GB")} songs added this week, most for:</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {data.added_top.map((a) => (
-              <Link key={a.artist_id} href={`/artist/${a.artist_id}`} className="feature-tag st st-added" style={{ textDecoration: "none" }}>
-                {a.artist} +{a.n}
-              </Link>
-            ))}
-          </div>
-        </>
+      {data && !empty && (
+        <div className="pg-two">
+          {data.leaked.length > 0 && (
+            <section className="pg-box"><div className="pg-box-head"><h2>Leaked this week</h2><span className="pg-num">{data.leaked.length}</span></div>
+              <SongList songs={data.leaked} showDay status="leaked" covers={covers} /></section>
+          )}
+          {data.released.length > 0 && (
+            <section className="pg-box"><div className="pg-box-head"><h2>Out this week</h2><span className="pg-num">{data.released.length}</span></div>
+              <SongList songs={data.released} showDay status="released" covers={covers} /></section>
+          )}
+          {data.marked.length > 0 && (
+            <section className="pg-box"><div className="pg-box-head"><h2>Newly marked</h2><span className="pg-num">{data.marked.length}</span></div>
+              <SongList songs={data.marked} covers={covers} /></section>
+          )}
+          {data.added_total > 0 && (
+            <section className="pg-box">
+              <div className="pg-box-head"><h2>Added to the archive</h2><span className="pg-num">{Number(data.added_total).toLocaleString("en-GB")} songs</span></div>
+              <div className="comment-meta pg-note">Most added for:</div>
+              <div className="pg-chips">
+                {data.added_top.map((a) => (
+                  <Link key={a.artist_id} href={`/artist/${a.artist_id}`} className="pg-chip">{a.artist}<span>+{a.n}</span></Link>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       )}
     </div>
   );

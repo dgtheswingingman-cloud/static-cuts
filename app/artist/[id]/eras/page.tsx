@@ -1,4 +1,5 @@
 "use client";
+import "../../../styles/pages.css";
 
 // /artist/[id]/eras: the Eras view on its own page (old links and shares).
 // The artist page has the same thing as its Eras tab.
@@ -26,9 +27,11 @@ export default function ErasPage() {
   }, [id]);
 
   return (
-    <div className="wrap">
+    <div className="wrap pg-page pg-wide">
       <button className="back-btn" onClick={() => router.push(`/artist/${id}`)}>← {artist?.name ?? "artist"}</button>
-      <h1 className="detail-name page-title">{artist ? `${artist.name}: eras` : "Eras"}</h1>
+      <div className="pg-kicker">Eras</div>
+      <h1 className="detail-name page-title pg-title">{artist?.name ?? "Eras"}</h1>
+      <p className="pg-lead">Every song grouped by era: each album or project, with the leaks and snippets from that time.</p>
       <ArtistEras songs={songs} focus={focus} />
     </div>
   );

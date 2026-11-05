@@ -1,4 +1,5 @@
 "use client";
+import "../styles/pages.css";
 
 // Set a new password, after following the link in a "forgot your password?"
 // email (the link signs you in for this one job).
@@ -29,29 +30,44 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="wrap" style={{ maxWidth: 520 }}>
-      <h1 className="detail-name page-title">Set a new password</h1>
-      {loading ? (
-        <div className="empty-state">loading…</div>
-      ) : done ? (
-        <div className="empty-state">Done. Your new password works from now on. <Link href="/" className="text-link">Go to the home page →</Link></div>
-      ) : !session ? (
-        <div className="empty-state">
-          This page works from the link in a &ldquo;forgot your password?&rdquo; email. The link may have run out:
-          ask for a new one on the <Link href="/login" className="text-link">log in page</Link>.
-        </div>
-      ) : (
-        <form onSubmit={save}>
-          <input className="search-input" type="password" placeholder="New password (6+ characters)" value={password}
-            onChange={(e) => setPassword(e.target.value)} required minLength={6} style={{ marginBottom: 10, width: "100%" }} />
-          <input className="search-input" type="password" placeholder="Same again" value={again}
-            onChange={(e) => setAgain(e.target.value)} required minLength={6} style={{ width: "100%" }} />
-          <button type="submit" className="tab active" disabled={busy} style={{ marginTop: 14, width: "100%", padding: 12 }}>
-            {busy ? "…" : "save new password"}
-          </button>
-          {error && <div className="empty-state error" style={{ marginTop: 14 }}>{error}</div>}
-        </form>
-      )}
+    <div className="wrap pg-page pg-narrow">
+      <section className="pg-box pg-auth">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="Static Cuts//" className="pg-auth-logo" />
+        <h1 className="detail-name page-title pg-title pg-auth-title">New password</h1>
+        {loading ? (
+          <div className="comment-meta">loading…</div>
+        ) : done ? (
+          <>
+            <p className="pg-lead">Done. Your new password works from now on.</p>
+            <Link href="/" className="st-btn pg-full">Go to the home page →</Link>
+          </>
+        ) : !session ? (
+          <>
+            <p className="pg-lead">
+              This page works from the link in a &ldquo;forgot your password?&rdquo; email. The link may have run out,
+              so ask for a new one on the log in page.
+            </p>
+            <Link href="/login" className="st-btn pg-full">Log in page →</Link>
+          </>
+        ) : (
+          <form onSubmit={save} className="pg-form">
+            <p className="pg-lead">Pick a new password for your account.</p>
+            <label className="pg-field">
+              <span>New password</span>
+              <input className="search-input" type="password" placeholder="6+ characters" value={password} autoComplete="new-password"
+                onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            </label>
+            <label className="pg-field">
+              <span>Same again</span>
+              <input className="search-input" type="password" placeholder="Type it again" value={again} autoComplete="new-password"
+                onChange={(e) => setAgain(e.target.value)} required minLength={6} />
+            </label>
+            {error && <div className="pg-error">{error}</div>}
+            <button type="submit" className="st-btn pg-full pg-primary" disabled={busy}>{busy ? "…" : "Save new password"}</button>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import "../styles/year.css";
 
 // Your year on Static Cuts: what you collected, your top artists, your
 // rarest finds and what you helped with. Shareable as a picture-ready card.
@@ -32,6 +33,8 @@ function YearInner() {
   const year = Number(params.get("y")) || now;
   const [r, setR] = useState<Review | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [pics, setPics] = useState<Record<string, string | null>>({});
+  const [covers, setCovers] = useState<Record<string, { cover: string | null }>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -39,81 +42,134 @@ function YearInner() {
     supabase.rpc("rpc_year_review", { p_year: year }).then(({ data }) => setR(data as Review));
   }, [user?.id, year]);
 
+  // Artist photos and song covers for the lists.
+  useEffect(() => {
+    if (!r) return;
+    const aIds = r.top_artists.map((a) => a.artist_id);
+    const tIds = [...r.rarest.map((x) => x.track_id), ...r.top_rated.map((x) => x.track_id)];
+    if (aIds.length) supabase.from("artists").select("id, image_url").in("id", aIds)
+      .then(({ data }) => setPics(Object.fromEntries((data ?? []).map((a) => [a.id, a.image_url]))));
+    if (tIds.length) supabase.from("tracks").select("id, cover_url").in("id", tIds)
+      .then(({ data }) => setCovers(Object.fromEntries((data ?? []).map((t) => [t.id, { cover: t.cover_url }]))));
+  }, [r]);
+
   if (isAdmin) return <AdminModePage title="Your year" />;
   if (!loading && !user) {
     return (
-      <div className="wrap">
-        <h1 className="detail-name page-title">Your Year</h1>
+      <div className="wrap yr-page">
+        <h1 className="detail-name page-title yr-title">Your Year</h1>
         <div className="empty-state"><Link href="/login" className="text-link">Log in</Link> to see your year on Static Cuts.</div>
       </div>
     );
   }
 
   const n = (x: number) => Number(x).toLocaleString("en-GB");
+  const tiles: [string, number, string?][] = r ? [
+    ["Collected", r.collected, `from ${n(r.artists)} artist${r.artists === 1 ? "" : "s"}`],
+    ...(r.unreleased_collected ? [["Never officially out", r.unreleased_collected, "leaks, snippets, unreleased"] as [string, number, string]] : []),
+    ["Artists followed", r.follows],
+    ["Songs rated", r.ratings],
+    ["Suggestions approved", r.approved_suggestions],
+    ["Comments", r.comments],
+  ] : [];
+  const empty = r && r.collected + r.ratings + r.follows === 0;
   return (
-    <div className="wrap" style={{ maxWidth: 640 }}>
+    <div className="wrap yr-page">
       <button className="back-btn" onClick={() => router.push(user ? `/profile/${user.id}` : "/")}>← profile</button>
-      <h1 className="detail-name page-title">Your {year}</h1>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button className="tab" onClick={() => router.push(`/year?y=${year - 1}`)}>← {year - 1}</button>
-        {year < now && <button className="tab" onClick={() => router.push(`/year?y=${year + 1}`)}>{year + 1} →</button>}
+      <div className="yr-head">
+        <h1 className="detail-name page-title yr-title">Your {year}</h1>
+        <div className="yr-years">
+          <button onClick={() => router.push(`/year?y=${year - 1}`)} aria-label={`${year - 1}`}>← {year - 1}</button>
+          {year < now && <button onClick={() => router.push(`/year?y=${year + 1}`)} aria-label={`${year + 1}`}>{year + 1} →</button>}
+        </div>
       </div>
-      {r && r.collected + r.ratings + r.follows > 0 && (
-        <button className="wrapped-play" onClick={() => setPlaying(true)}>
-          ▶ Play your {year} Wrapped
-        </button>
-      )}
-      {r && playing && user && <Wrapped review={r} userId={user.id} onClose={() => setPlaying(false)} />}
-      {!r && <div className="empty-state">loading…</div>}
-      {r && (
-        <div className="year-card">
-          <div className="year-big">{n(r.collected)}</div>
-          <div className="year-label">songs collected, from {n(r.artists)} artist{r.artists === 1 ? "" : "s"}</div>
-          {r.unreleased_collected > 0 && <div className="year-label">{n(r.unreleased_collected)} of them not officially out</div>}
+      <p className="yr-lead">What you collected, found and helped with on Static Cuts// this year.</p>
 
-          {r.top_artists.length > 0 && (
-            <>
-              <div className="section-label">Top artists</div>
-              {r.top_artists.map((a, i) => (
-                <div key={a.artist_id} className="year-row">
-                  <span>{i + 1}. <Link href={`/artist/${a.artist_id}`} className="text-link">{a.artist}</Link></span>
-                  <span className="comment-meta">{n(a.n)} songs</span>
-                </div>
-              ))}
-            </>
-          )}
-          {r.rarest.length > 0 && (
-            <>
-              <div className="section-label">Rarest finds</div>
-              {r.rarest.map((s) => (
-                <div key={s.track_id} className="year-row">
-                  <span><Link href={`/song/${s.track_id}`} className="text-link">{s.title}</Link> <span className="comment-meta">· {s.artist}</span></span>
-                  <span className="comment-meta">{s.holders === 1 ? "only you" : `${s.holders} collectors`}</span>
-                </div>
-              ))}
-            </>
-          )}
-          {r.top_rated.length > 0 && (
-            <>
-              <div className="section-label">Highest rated</div>
-              {r.top_rated.map((s) => (
-                <div key={s.track_id} className="year-row">
-                  <span><Link href={`/song/${s.track_id}`} className="text-link">{s.title}</Link> <span className="comment-meta">· {s.artist}</span></span>
-                  <span className="comment-meta">{s.value}/10</span>
-                </div>
-              ))}
-            </>
-          )}
-          <div className="section-label">Also</div>
-          <div className="year-row"><span>Artists followed</span><span>{n(r.follows)}</span></div>
-          <div className="year-row"><span>Songs rated</span><span>{n(r.ratings)}</span></div>
-          <div className="year-row"><span>Suggestions approved</span><span>{n(r.approved_suggestions)}</span></div>
-          <div className="year-row"><span>Comments</span><span>{n(r.comments)}</span></div>
-          <div className="comment-meta" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            static-cuts.com · screenshot it to share, or
+      {!r && <div className="empty-state">loading…</div>}
+      {r && playing && user && <Wrapped review={r} userId={user.id} onClose={() => setPlaying(false)} />}
+      {empty && <div className="empty-state">Nothing yet for {year}. Collect, rate or follow something and it&apos;ll show up here.</div>}
+
+      {r && !empty && (
+        <>
+          <button className="yr-play" onClick={() => setPlaying(true)}>
+            <span className="yr-play-pics" aria-hidden>
+              {r.top_artists.slice(0, 5).map((a) => pics[a.artist_id]
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img key={a.artist_id} src={pics[a.artist_id]!} alt="" />
+                : <span key={a.artist_id} />)}
+            </span>
+            <span className="yr-play-text">
+              <span className="yr-play-kicker">Your year in pictures</span>
+              <span className="yr-play-big">Play your {year}//</span>
+              <span className="yr-play-sub">Five slides, each one ready to share</span>
+            </span>
+            <span className="yr-play-btn" aria-hidden>▶</span>
+          </button>
+
+          <div className="yr-tiles">
+            {tiles.map(([label, v, sub]) => (
+              <div key={label} className="yr-tile">
+                <div className="yr-tile-label">{label}</div>
+                <div className="yr-tile-n">{n(v)}</div>
+                {sub && <div className="yr-tile-sub">{sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          <div className="yr-grid">
+            {r.top_artists.length > 0 && (
+              <section className="yr-box">
+                <h2>Top artists</h2>
+                {r.top_artists.map((a, i) => (
+                  <Link key={a.artist_id} href={`/artist/${a.artist_id}`} className="yr-row">
+                    <span className="yr-rank">{i + 1}</span>
+                    {pics[a.artist_id]
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img className="yr-pic round" src={pics[a.artist_id]!} alt="" />
+                      : <span className="yr-pic round" />}
+                    <span className="yr-row-main"><b>{a.artist}</b></span>
+                    <span className="yr-num">{n(a.n)} songs</span>
+                  </Link>
+                ))}
+              </section>
+            )}
+            {r.rarest.length > 0 && (
+              <section className="yr-box">
+                <h2>Rarest finds</h2>
+                {r.rarest.map((s) => (
+                  <Link key={s.track_id} href={`/song/${s.track_id}`} className="yr-row">
+                    {covers[s.track_id]?.cover
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img className="yr-pic" src={covers[s.track_id]!.cover!} alt="" />
+                      : <span className="yr-pic" />}
+                    <span className="yr-row-main"><b>{s.title}</b><span>{s.artist}</span></span>
+                    <span className={`yr-tag ${s.holders === 1 ? "hot" : ""}`}>{s.holders === 1 ? "only you" : `${s.holders} collectors`}</span>
+                  </Link>
+                ))}
+              </section>
+            )}
+            {r.top_rated.length > 0 && (
+              <section className="yr-box">
+                <h2>Highest rated</h2>
+                {r.top_rated.map((s) => (
+                  <Link key={s.track_id} href={`/song/${s.track_id}`} className="yr-row">
+                    {covers[s.track_id]?.cover
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img className="yr-pic" src={covers[s.track_id]!.cover!} alt="" />
+                      : <span className="yr-pic" />}
+                    <span className="yr-row-main"><b>{s.title}</b><span>{s.artist}</span></span>
+                    <span className="yr-score">{s.value}<small>/10</small></span>
+                  </Link>
+                ))}
+              </section>
+            )}
+          </div>
+
+          <div className="yr-foot">
+            <span>Share a slide from Play, or</span>
             <ShareButton title={`My ${year} on Static Cuts//`} label="share my profile" path={user ? `/profile/${user.id}` : "/"} />
           </div>
-        </div>
+        </>
       )}
     </div>
   );
