@@ -6,7 +6,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
@@ -44,7 +43,8 @@ export default function CollectionImportPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
   const isAdmin = useIsAdmin();
-  const router = useRouter();
+  const [src, setSrc] = useState<"spotify" | "apple" | "file">("spotify");
+  const [owned, setOwned] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [titleCol, setTitleCol] = useState(-1);
   const [artistCol, setArtistCol] = useState(-1);
@@ -74,6 +74,18 @@ export default function CollectionImportPage() {
     }, 250);
     return () => clearTimeout(t);
   }, [artistQuery]);
+
+  useEffect(() => {
+    try {
+      const h = window.location.hash.slice(1);
+      if (h === "apple" || h === "file") setSrc(h);
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("track_ownership").select("track_id", { count: "exact", head: true }).eq("user_id", user.id)
+      .then(({ count }) => setOwned(count ?? 0));
+  }, [user, matches]);
 
   async function readFile(f: File | undefined) {
     if (!f) return;
@@ -168,54 +180,89 @@ export default function CollectionImportPage() {
   const ready = rows.length > 1 && titleCol >= 0 && (artistCol >= 0 || artist);
 
   return (
-    <div className="wrap" style={{ maxWidth: 760 }}>
-      <button className="back-btn" onClick={() => router.push("/settings")}>← settings</button>
-      <h1 className="detail-name page-title">Import Your Music</h1>
-      <div className="detail-meta" style={{ marginBottom: 16 }}>
-        Tick the songs you already have in your collection, so you don&apos;t start from zero. Only your collection
-        changes; nothing is added to the archive (except from Spotify, below).
+    <div className="wrap im-page">
+      <div className="ls-crumb"><Link href="/library">My Library</Link> / <span>Import</span></div>
+      <h1 className="ls-title im-title">IMPORT YOUR MUSIC<span>//</span></h1>
+      <p className="sb-lead">Bring your music into Static Cuts. The songs you already have get ticked in your collection, so you don&apos;t start from zero.</p>
+
+      <div className="im-stats">
+        <span className="im-stat">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5z" /><path d="m3 13 9 5 9-5" /></svg>
+          Your collection: <b>{owned === null ? "…" : owned.toLocaleString("en-GB")}</b> songs
+        </span>
+        <Link href="/library#export" className="im-export">Export it instead →</Link>
       </div>
 
-      <div className="section-label">From Spotify</div>
-      <div className="detail-meta" style={{ marginBottom: 10 }}>
-        Your Liked Songs and playlists: songs already here are collected, and official songs by artists in the archive that
-        are missing get added too.
-      </div>
-      <div className="mod-notice info" style={{ marginBottom: 12 }}>
-        <div>
-          <b>Most people: use Exportify (works for everyone, about a minute).</b>
-          <ol style={{ margin: "6px 0 0 18px", padding: 0 }}>
-            <li>Open <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a> and log in with Spotify there.</li>
-            <li>Press <b>Export All</b> (or export just the playlists you want). It downloads a file.</li>
-            <li>Come back here and pick that file with the button below.</li>
-          </ol>
-          <div style={{ marginTop: 6 }}>
-            The direct &ldquo;import from Spotify&rdquo; button only works for invited testers: Spotify only lets new sites connect a
-            handful of accounts. If it says you&apos;re not allowed, that&apos;s why. Use Exportify instead.
+      <nav className="im-sources" aria-label="Where from">
+        <button className={src === "spotify" ? "on" : undefined} aria-pressed={src === "spotify"} onClick={() => setSrc("spotify")}>
+          <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1DB954" /><path d="M6.5 9.3c3.6-1.1 7.8-.8 11 1M7.2 12.3c3-.9 6.4-.6 9 .9M7.8 15.1c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.6" strokeLinecap="round" fill="none" /></svg>
+          <span><strong>Spotify//</strong><small>Your Liked Songs and playlists.</small></span>
+        </button>
+        <button className={src === "apple" ? "on" : undefined} aria-pressed={src === "apple"} onClick={() => setSrc("apple")}>
+          <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#FA2D48" /><path d="M10 17.5V8l8-1.6v9.4" stroke="#fff" strokeWidth="1.6" fill="none" /><circle cx="8.6" cy="17.5" r="1.8" fill="#fff" /><circle cx="16.6" cy="15.8" r="1.8" fill="#fff" /></svg>
+          <span><strong>Apple Music//</strong><small>A playlist or your library, exported from the Music app.</small></span>
+        </button>
+        <button className={src === "file" ? "on" : undefined} aria-pressed={src === "file"} onClick={() => setSrc("file")}>
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></svg>
+          <span><strong>File / CSV//</strong><small>A Google Sheet, CSV or a pasted list.</small></span>
+        </button>
+      </nav>
+
+      {src === "spotify" && (
+        <section className="nw-panel im-panel">
+          <h2 className="nw-h im-h">From Spotify<span>//</span></h2>
+          <p className="im-sub">Songs already here are collected, and official songs by artists in the archive that are missing get added too.</p>
+          <div className="im-cols">
+            <div>
+              <h3 className="im-h3">With Exportify <small>(works for everyone, about a minute)</small></h3>
+              <ol className="im-steps">
+                <li>Open <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-link">exportify.net</a> and log in with Spotify there.</li>
+                <li>Press <b>Export All</b> (or export just the playlists you want). It downloads a file.</li>
+                <li>Pick that file here.</li>
+              </ol>
+              <ExportifyImport />
+            </div>
+            <div className="im-side">
+              <h3 className="im-h3">Straight from Spotify <small>(invited testers)</small></h3>
+              <p className="im-small">Spotify only lets new sites connect a handful of accounts. If it says you&apos;re not allowed, use Exportify.</p>
+              <SpotifyImport />
+              <div className="im-what">
+                <strong>What happens//</strong>
+                <ul>
+                  <li>Your songs are matched to the archive and the ones here are collected.</li>
+                  <li>Songs by artists not in the archive are suggested for a moderator to add.</li>
+                  <li>Big imports can take a few minutes.</li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <ExportifyImport />
-      <div className="section-label">Straight from Spotify (invited testers)</div>
-      <SpotifyImport />
-      <div style={{ marginBottom: 18 }} />
+        </section>
+      )}
 
-      <div className="section-label">From a spreadsheet</div>
-      <div className="detail-meta" style={{ marginBottom: 12 }}>
-        Paste a Google Sheets link, pick a CSV file, or paste the rows.
-      </div>
-      <div className="comment-meta" style={{ marginBottom: 12 }}>
-        Apple Music: in the Music app on a Mac or iTunes on Windows, select a playlist (or Songs for your whole library), then
-        File › Library › Export Playlist… and pick the .txt file here. On iPhone only, a free converter such as TuneMyMusic can save a playlist as a CSV.
-      </div>
+      {src !== "spotify" && (
+      <section className="nw-panel im-panel">
+      <h2 className="nw-h im-h">{src === "apple" ? "From Apple Music" : "From a file"}<span>//</span></h2>
+      {src === "apple" ? (
+        <ol className="im-steps">
+          <li>In the Music app on a Mac (or iTunes on Windows), select a playlist, or <b>Songs</b> for your whole library.</li>
+          <li><b>File › Library › Export Playlist…</b> and save the .txt file.</li>
+          <li>Pick that file below. On iPhone only, a free converter such as TuneMyMusic can save a playlist as a CSV.</li>
+        </ol>
+      ) : (
+        <p className="im-sub">Paste a Google Sheets link, pick a CSV file, or paste the rows (with a header row like Artist, Song).</p>
+      )}
 
+      {src === "file" && (
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
         <input className="search-input" style={{ flex: "1 1 260px" }} placeholder="Google Sheets link (shared as anyone with the link can view)"
           value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
         <button className="tab active" disabled={!sheetUrl.trim() || !!busy} onClick={readSheet}>{busy === "sheet" ? "reading…" : "read sheet"}</button>
       </div>
-      <div className="comment-meta" style={{ marginBottom: 6 }}>or pick a CSV file:</div>
-      <input type="file" accept=".csv,.tsv,.txt" onChange={(e) => readFile(e.target.files?.[0])} style={{ marginBottom: 10 }} />
+      )}
+      <label className="st-btn im-file">
+        {src === "apple" ? "Pick the .txt file" : "Pick a CSV file"}
+        <input type="file" accept=".csv,.tsv,.txt" hidden onChange={(e) => readFile(e.target.files?.[0])} />
+      </label>
       <textarea className="search-input" style={{ width: "100%", minHeight: 110, fontFamily: "inherit" }}
         placeholder={"or paste here, with a header row:\nArtist,Song\nPlayboi Carti,Magnolia"}
         value={text} onChange={(e) => { setText(e.target.value); setMatches(null); }} />
@@ -315,6 +362,8 @@ export default function CollectionImportPage() {
             </>
           )}
         </>
+      )}
+      </section>
       )}
     </div>
   );
