@@ -550,6 +550,8 @@ export default function ReviewHub() {
 
   return (
     <div>
+      <div className="cr-work">
+      <section className="cr-box">
       <div className="section-label" style={{ marginTop: 0 }}>Lists to work through</div>
       <div className="mod-grid">
         {[
@@ -566,9 +568,11 @@ export default function ReviewHub() {
           .sort((a, b) => rank(a.n) - rank(b.n))
           .map((c) => <JobCard key={c.href} {...c} />)}
       </div>
+      </section>
 
+      <section className="cr-box">
       <div className="section-label">Tools</div>
-      <div className="mod-grid">
+      <div className="mod-grid cr-tools">
         <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
           blurb="Import a community tracker, re-check one, or handle ones people have sent in." />
         {isAdmin && <JobCard href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />}
@@ -577,6 +581,8 @@ export default function ReviewHub() {
         <JobCard href="/review/trusted" title="Trusted contributors"
           blurb="People whose suggestions go live straight away." />
         {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
+      </div>
+      </section>
       </div>
 
       {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}

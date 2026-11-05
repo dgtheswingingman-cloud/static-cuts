@@ -248,7 +248,8 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
 
       {h && r && (
         <>
-          {part === "health" && (<>
+          {part === "health" && (<div className="cr-grid">
+          <section className="cr-box cr-problems">
           <div className="section-label" style={{ marginTop: 20 }}>Problems (last 7 days)</div>
           {h.problems.length === 0 ? (
             <div className="comment-meta" style={{ marginBottom: 16 }}>Nothing has gone wrong.</div>
@@ -268,6 +269,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
               ))}
             </div>
           )}
+          </section>
 
           {progress && (() => {
             const sp = progress.spotify;
@@ -275,7 +277,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
             const total = sp.left + sp.searched;
             const guestsDone = (progress.guests.created ?? 0) + (progress.guests.linked ?? 0);
             return (
-              <>
+              <section className="cr-box cr-wide">
                 <div className="section-label" style={{ marginTop: 20 }}>Background progress</div>
                 <div className="health-tiles">
                   <Tile
@@ -296,12 +298,12 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                     alert={(progress.guests.review ?? 0) > 0}
                   />
                 </div>
-              </>
+              </section>
             );
           })()}
 
           {budget && (
-            <>
+            <section className="cr-box cr-wide">
               <div className="section-label" style={{ marginTop: 20 }}>Outside services (calls today, shared by every job)</div>
               <div className="health-tiles">
                 {Object.entries(budget).map(([svc, b]) => {
@@ -316,14 +318,14 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                   );
                 })}
               </div>
-            </>
+            </section>
           )}
 
-          </>)}
+          </div>)}
 
-          {part === "people" && (<>
+          {part === "people" && (<div className="cr-grid">
           {stats && (
-            <>
+            <section className="cr-box cr-wide">
               <div className="section-label" style={{ marginTop: 20 }}>People</div>
               <div className="health-tiles">
                 <Tile label={`accounts · ${n(stats.new_7d)} new this week, ${n(stats.new_30d)} this month`} value={n(stats.accounts)} />
@@ -336,11 +338,11 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
               <div className="comment-meta" style={{ marginBottom: 8 }}>
                 &ldquo;Active&rdquo; means they followed, collected, rated, commented, suggested or voted.
               </div>
-            </>
+            </section>
           )}
 
           {checked.length > 0 && (
-            <>
+            <section className="cr-box">
               <div className="section-label" style={{ marginTop: 20 }}>How much is checked (most followed first)</div>
               <div className="comment-meta" style={{ marginBottom: 8 }}>
                 Main songs with a real status (not &ldquo;unconfirmed&rdquo;). Good for picking launch artists, and for seeing
@@ -361,11 +363,11 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                   </span>
                 </div>
               ))}
-            </>
+            </section>
           )}
 
           {misses.length > 0 && (
-            <>
+            <section className="cr-box">
               <div className="section-label" style={{ marginTop: 20 }}>Searches that found nothing (30 days)</div>
               <div className="comment-meta" style={{ marginBottom: 8 }}>
                 What people looked for and didn&apos;t find: songs or artists to add, or spellings to add as nicknames.
@@ -384,14 +386,14 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                   <span className="comment-meta">{ago(m.last_at)}</span>
                 </div>
               ))}
-            </>
+            </section>
           )}
 
-          </>)}
+          </div>)}
 
-          {part === "health" && (<>
+          {part === "health" && (<div className="cr-grid">
           {trackers.length > 0 && (
-            <>
+            <section className="cr-box">
               <div className="section-label" style={{ marginTop: 20 }}>Community trackers</div>
               {trackers.map((t) => (
                 <div key={t.id} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
@@ -413,11 +415,11 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                   <span className="comment-meta">{t.last_synced_at ? `checked ${ago(t.last_synced_at)}` : "not checked yet"}</span>
                 </div>
               ))}
-            </>
+            </section>
           )}
 
           {dead && (
-            <>
+            <section className="cr-box">
               <div className="section-label" style={{ marginTop: 20 }}>Dead links</div>
               <div className="comment-meta" style={{ marginBottom: 8 }}>
                 {n(dead.checked)} YouTube and SoundCloud links checked, {n(dead.dead)} taken down. Possible links that were taken
@@ -434,9 +436,10 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                   </div>
                 </div>
               ))}
-            </>
+            </section>
           )}
 
+          <section className="cr-box">
           <div className="section-label" style={{ marginTop: 20 }}>Timers</div>
           {bg && bg.failed_6h > 0 && (
             <div className="comments-panel" style={{ marginBottom: 10 }}>
@@ -484,7 +487,9 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                 </div>
               );
             })}
+          </section>
 
+          <section className="cr-box">
           <div className="section-label" style={{ marginTop: 20 }}>Automatic jobs</div>
           <div className="health-tiles">
             <Tile label="artists due a check" value={n(h.queue.due)} href="/admin/queue" />
@@ -505,7 +510,9 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
               ))}
             </div>
           )}
+          </section>
 
+          <section className="cr-box">
           <div className="health-columns">
             <div style={{ minWidth: 0 }}>
               <div className="section-label">ChatGPT runs</div>
@@ -547,7 +554,9 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
               ))}
             </div>
           </div>
+          </section>
 
+          <section className="cr-box">
           <div className="section-label" style={{ marginTop: 20 }}>Recent bulk changes</div>
           {h.batches.map((b, i) => (
             <div key={i} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
@@ -564,7 +573,9 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
           <div className="comment-meta" style={{ marginTop: 8 }}>
             <Link href="/admin/batches" className="text-link">Full undo history</Link>
           </div>
+          </section>
 
+          <section className="cr-box">
           <div className="section-label" style={{ marginTop: 24 }}>Catalogue</div>
           <div className="health-tiles">
             <Tile label="artists" value={n(h.catalogue.artists)} />
@@ -576,7 +587,8 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
             <Tile label="status unknown" value={n(h.catalogue.unconfirmed)} />
             <Tile label="added this week" value={n(h.catalogue.added_last_7_days)} />
           </div>
-          </>)}
+          </section>
+          </div>)}
         </>
       )}
     </div>
