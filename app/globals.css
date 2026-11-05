@@ -3213,3 +3213,45 @@ a.hf-sub-head { display: block; color: var(--bone); text-decoration: none; }
 .home-wide .wordmark-img .logo-img { width: min(680px, 60vw); }
 /* The logo is bone-coloured; on the light theme it goes dark. */
 [data-theme="light"] .logo-img { filter: invert(1) brightness(0.15); }
+
+/* ===================== Notifications ===================== */
+.nt-head { margin: 6px 0 12px; }
+.nt-title { font-size: clamp(2.4rem, 11vw, 5rem); overflow-wrap: anywhere; }
+.nt-title span { color: var(--accent); }
+.nt-chips { margin-bottom: 6px; }
+.nt-group { margin-top: 18px; }
+.nt-day { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.3rem; text-transform: uppercase; color: var(--bone); }
+.nt-day span { color: var(--accent); margin-left: -10px; }
+.nt-day::after { content: ""; flex: 1; height: 1px; background: var(--hair-strong); }
+.nt-list { list-style: none; margin: 0; padding: 0; }
+.nt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 10px 36px; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--hair-strong); }
+.nt-meta { display: flex; align-items: center; gap: 14px; }
+.nt-main { display: flex; align-items: center; gap: 14px; min-width: 0; text-decoration: none; color: var(--bone); background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+.nt-main:hover .nt-what { color: var(--accent); }
+.nt-pic { flex: none; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hair-strong); border-radius: 4px; background: var(--surface); color: var(--bone); overflow: hidden; }
+.nt-pic.round { border-radius: 50%; }
+.nt-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nt-pic.round img { filter: grayscale(0.2); }
+.nt-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.nt-what { font-family: var(--font-mono), monospace; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+.nt-body { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-tag { justify-self: end; white-space: nowrap; }
+.nt-tag::after { content: "//"; }
+.nt-when { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); white-space: nowrap; min-width: 58px; text-align: right; }
+.nt-dot { width: 10px; height: 10px; border-radius: 50%; }
+.nt-dot.on { background: var(--accent); }
+.nt-x { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: none; border: 0; color: var(--bone); font-size: 1.1rem; cursor: pointer; }
+.nt-x:hover { color: var(--accent); }
+.nt-digest { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding: 6px 0 4px 70px; font-family: var(--font-mono), monospace; font-size: 0.74rem; }
+.nt-settings { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 32px auto 8px; color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 700px) {
+  /* Phones: tag and time sit under the text; the dot and ✕ stay on the right. */
+  .nt-row { grid-template-columns: minmax(0, 1fr) 10px 36px; grid-template-areas: "main dot x" "meta meta meta"; row-gap: 4px; }
+  .nt-main { grid-area: main; }
+  .nt-dot { grid-area: dot; }
+  .nt-x { grid-area: x; }
+  .nt-meta { grid-area: meta; padding-left: 62px; gap: 10px; }
+  .nt-when { min-width: 0; text-align: left; }
+  .nt-pic { width: 48px; height: 48px; }
+  .nt-digest { padding-left: 62px; }
+}
