@@ -13,6 +13,7 @@ import { useAuth } from "../../AuthProvider";
 import TrackComments from "../../artist/[id]/TrackComments";
 import FanCovers from "./FanCovers";
 import SongTimeline, { type AutoEvent } from "./SongTimeline";
+import SongCredits from "./SongCredits";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
@@ -488,6 +489,8 @@ export default function SongView({ id }: { id: string }) {
         {song.comments > 1 && <button onClick={() => setAllComments(!allComments)}>{allComments ? "Show less" : "View all →"}</button>}
       </div>
       <TrackComments trackId={t.id} limit={allComments ? undefined : 1} />
+
+      <SongCredits trackId={t.id} />
 
       <details className="sp-info">
         <summary>Info</summary>

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Event = {
-  kind: "song" | "version" | "status" | "correction" | "find" | "confirmation";
+  kind: "song" | "version" | "status" | "correction" | "find" | "confirmation" | "import_song" | "import_version" | "detail";
   at: string;
   track_id: string | null;
   title: string | null;
@@ -26,6 +26,9 @@ export const KIND_LABELS: Record<Event["kind"], [string, string]> = {
   correction: ["correction", "corrections"],
   find: ["find", "finds"],
   confirmation: ["confirmation", "confirmations"],
+  import_song: ["song imported", "songs imported"],
+  import_version: ["version imported", "versions imported"],
+  detail: ["song detail filled", "song details filled"],
 };
 const VERB: Record<Event["kind"], string> = {
   song: "added",
@@ -34,10 +37,13 @@ const VERB: Record<Event["kind"], string> = {
   correction: "corrected",
   find: "found",
   confirmation: "confirmed",
+  import_song: "imported",
+  import_version: "imported a version of",
+  detail: "filled in details for",
 };
 
-const ICON: Record<Event["kind"], string> = { song: "⊕", version: "⧉", status: "↻", correction: "✎", find: "✦", confirmation: "✓" };
-const TITLE: Record<Event["kind"], string> = { song: "Added a song", version: "Added a version", status: "Updated a status", correction: "Edited song details", find: "New find", confirmation: "Confirmed a find" };
+const ICON: Record<Event["kind"], string> = { song: "⊕", version: "⧉", status: "↻", correction: "✎", find: "✦", confirmation: "✓", import_song: "⊕", import_version: "⧉", detail: "✎" };
+const TITLE: Record<Event["kind"], string> = { song: "Added a song", version: "Added a version", status: "Updated a status", correction: "Edited song details", find: "New find", confirmation: "Confirmed a find", import_song: "Imported a song", import_version: "Imported a version", detail: "Filled in details" };
 function ago(at: string) {
   const m = Math.max(1, Math.round((Date.now() - Date.parse(at)) / 60000));
   if (m < 60) return `${m}m ago`;
