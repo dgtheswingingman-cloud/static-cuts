@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   const priv = keys?.find((k) => k.key === "vapid_private")?.value;
   // Phone alerts not switched on yet: nothing to do (not a failure).
   if (!pub || !priv) return json({ ok: true, skipped: "push keys aren't set up" });
-  webpush.setVapidDetails("mailto:dg.theswingingman@gmail.com", pub, priv);
+  webpush.setVapidDetails("mailto:hello@static-cuts.com", pub, priv);
 
   const { data: items, error } = await db.rpc("sc_push_next", { p_secret: secret, p_limit: 50 });
   if (error) return json({ error: error.message }, 403);

@@ -290,7 +290,7 @@ const SECTIONS: Section[] = [
 
 export default function FaqPage() {
   return (
-    <InfoShell title="FAQ" here="/faq" intro="Answers to common questions about Static Cuts//: how the archive works, and how to help build it."
+    <InfoShell title="FAQ" here="/faq" intro={<>Answers to common questions about Static Cuts//: how the archive works, and how to help build it. Anything else: <a href="mailto:hello@static-cuts.com" className="text-link">hello@static-cuts.com</a>.</>}
       sections={SECTIONS.map((x) => [x.id, x.title] as [string, string])}>
       {SECTIONS.map((x) => (
         <InfoSection key={x.id} id={x.id} title={x.title} className="if-faq">

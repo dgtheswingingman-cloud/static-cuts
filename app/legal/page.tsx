@@ -110,10 +110,21 @@ export default function LegalPage() {
         <p>
           Static Cuts// doesn&apos;t host audio, but we respect artists and rights holders. If you own the rights to
           something listed here (or represent someone who does) and want it taken down, use the{" "}
-          <Link href="/takedown" className="text-link">takedown form</Link>. Tell us which song or page and why.
+          <Link href="/takedown" className="text-link">takedown form</Link> or email{" "}
+          <a href="mailto:takedown@static-cuts.com" className="text-link">takedown@static-cuts.com</a>. Tell us which song or page and why.
           We aim to act within a few days. When we agree, the song is marked removed and any links we suggested
           for it are deleted; we&apos;ll reply by email either way. Please only send requests about music you have
           rights to.
+        </p>
+            </div>
+          </details>
+          <details className="if-q" id="contact">
+            <summary>Contact</summary>
+            <div className="if-a">
+        <p>
+          Questions, problems or anything else: <a href="mailto:hello@static-cuts.com" className="text-link">hello@static-cuts.com</a>.
+          Rights holders: <a href="mailto:takedown@static-cuts.com" className="text-link">takedown@static-cuts.com</a>{" "}
+          or the <Link href="/takedown" className="text-link">takedown form</Link>.
         </p>
             </div>
           </details>
