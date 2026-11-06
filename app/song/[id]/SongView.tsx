@@ -110,6 +110,10 @@ function trustOf(t: Track): { level: "confirmed" | "sourced" | "reported" | "unv
   return { level: "reported", label: "community-reported", title: "Added or approved by the community; no outside source recorded." };
 }
 
+function compactNum(n: number) {
+  return new Intl.NumberFormat("en-GB", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}
+
 function formatDate(d: string, withYear = true) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) });
 }
@@ -126,6 +130,13 @@ export default function SongView({ id }: { id: string }) {
   useEffect(() => {
     setOnAlbums([]);
     supabase.rpc("rpc_track_albums", { p_track: id }).then(({ data }) => setOnAlbums((data as typeof onAlbums | null) ?? []));
+  }, [id]);
+  // How much this song is played, from ListenBrainz (main songs only).
+  const [plays, setPlays] = useState<{ listens: number; listeners: number } | null>(null);
+  useEffect(() => {
+    setPlays(null);
+    supabase.from("track_popularity").select("listens, listeners").eq("track_id", id).maybeSingle()
+      .then(({ data }) => setPlays((data as typeof plays) ?? null));
   }, [id]);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -339,6 +350,11 @@ export default function SongView({ id }: { id: string }) {
                 : t.album}
               {(t.album || onAlbums.length > 0) && main && main.id !== t.id && " · "}
               {main && main.id !== t.id && <>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></>}
+            </div>
+          )}
+          {plays && plays.listens > 0 && (
+            <div className="sp-sub sp-plays" title="Plays tracked by ListenBrainz users">
+              {compactNum(plays.listens)} plays · {compactNum(plays.listeners)} listeners <span className="sp-plays-src">via ListenBrainz</span>
             </div>
           )}
           </div>

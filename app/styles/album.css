@@ -86,3 +86,7 @@ a.sc-person:hover { color: var(--accent); }
 .sc-dim { color: var(--smoke); font-size: 0.8rem; }
 .sc-note { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); margin: 10px 0 0; }
 @media (max-width: 640px) { .sc-credits .sc-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* Song page: ListenBrainz play count */
+.sp-plays { font-family: var(--font-mono), monospace; font-size: 0.74rem; letter-spacing: 0.02em; margin-top: 6px; }
+.sp-plays-src { color: var(--smoke); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; }
