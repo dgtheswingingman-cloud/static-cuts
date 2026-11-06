@@ -90,3 +90,10 @@ a.sc-person:hover { color: var(--accent); }
 /* Song page: ListenBrainz play count */
 .sp-plays { font-family: var(--font-mono), monospace; font-size: 0.74rem; letter-spacing: 0.02em; margin-top: 6px; }
 .sp-plays-src { color: var(--smoke); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; }
+
+/* Album page: physical formats from Discogs */
+.al-press { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 10px 0 2px; font-family: var(--font-mono), monospace; font-size: 0.7rem; }
+.al-press-k { color: var(--smoke); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.62rem; }
+.al-press-f { border: 1px solid var(--hair-strong); border-radius: 3px; padding: 2px 8px; color: var(--bone); text-transform: uppercase; letter-spacing: 0.05em; }
+.al-press-link { color: var(--smoke); text-decoration: none; margin-left: 2px; }
+.al-press-link:hover { color: var(--bone); text-decoration: underline; }

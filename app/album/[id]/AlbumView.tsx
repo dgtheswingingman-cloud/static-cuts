@@ -49,6 +49,13 @@ export default function AlbumView({ id }: { id: string }) {
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
 
+  // Which physical formats it came out on, from Discogs.
+  const [press, setPress] = useState<{ formats: string[]; versions: number | null; url: string } | null>(null);
+  useEffect(() => {
+    setPress(null);
+    supabase.rpc("rpc_album_discogs", { p_album: id }).then(({ data }) => setPress((data as typeof press) ?? null));
+  }, [id]);
+
   const ids = useMemo(() => (a?.tracks ?? []).map((t) => t.track_id).filter(Boolean) as string[], [a]);
   useEffect(() => {
     if (!user || !ids.length) return;
@@ -99,6 +106,15 @@ export default function AlbumView({ id }: { id: string }) {
             {long(a.length) && <span>{long(a.length)}</span>}
             {a.label && <span>{a.label}</span>}
           </div>
+          {press && press.formats.length > 0 && (
+            <div className="al-press">
+              <span className="al-press-k">Pressed on</span>
+              {press.formats.map((f) => <span key={f} className="al-press-f">{f}</span>)}
+              <a href={press.url} target="_blank" rel="noopener noreferrer" className="al-press-link">
+                {press.versions ? `${press.versions} version${press.versions === 1 ? "" : "s"} on Discogs` : "Discogs"} ↗
+              </a>
+            </div>
+          )}
 
           <div className={`al-score ${showScore ? "" : "empty"}`}>
             <div className="al-score-n">{showScore ? a.score!.toFixed(1) : "–"}<small>/10</small></div>
