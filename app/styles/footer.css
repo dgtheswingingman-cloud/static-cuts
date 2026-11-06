@@ -1,0 +1,6 @@
+/* Footer: the site's socials */
+.site-social { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 10px; margin: 2px 0 10px; }
+.site-credit .site-social a { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--hair-strong); border-radius: 999px;
+  color: var(--bone); text-decoration: none; font-family: var(--font-mono), monospace; font-size: 0.66rem; letter-spacing: 0.02em; }
+.site-credit .site-social a:hover { border-color: var(--accent); color: var(--bone); }
+.site-social svg { flex: none; }
