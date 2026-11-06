@@ -16,3 +16,9 @@ begin
     execute d;
   end if;
 end $do$;
+
+-- Clearing old undo history removes batches, which removes their credits:
+-- index the link so that stays quick. The ai_todo index above duplicated an
+-- existing one (version_suggestions_ai_todo), so it's dropped again.
+create index if not exists track_credits_batch_idx on track_credits (batch_id);
+drop index if exists version_suggestions_ai_todo_idx;
