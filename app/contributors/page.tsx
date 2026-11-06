@@ -68,7 +68,7 @@ export default function ContributorsPage() {
       <h1 className="ls-title cb-title">CONTRIBUTORS<span>//</span></h1>
       <p className="sb-lead">Who&apos;s been building the archive.</p>
 
-      <nav className="rd-chips nt-chips cb-chips" aria-label="Period">
+      <nav className="st-seg cb-seg" aria-label="Period">
         <button className={period === "30" ? "on" : undefined} aria-pressed={period === "30"} onClick={() => setPeriod("30")}>Last 30 days</button>
         <button className={period === "all" ? "on" : undefined} aria-pressed={period === "all"} onClick={() => setPeriod("all")}>All time</button>
       </nav>
@@ -83,9 +83,9 @@ export default function ContributorsPage() {
             return (
               <Link key={r.user_id} href={`/profile/${r.user_id}`} className={`cb-pod r${rank}`}>
                 <span className="cb-rank">#{rank}</span>
-                {me?.id === r.user_id && trusted && <span className="sb-trusted cb-trusted">Trusted ✓</span>}
                 <Face url={r.avatar_url} size={rank === 1 ? 96 : 80} />
                 <strong className="cb-name">{r.display_name || "unnamed"}<Supporter id={r.user_id} /></strong>
+                {me?.id === r.user_id && trusted && <span className="sb-trusted cb-trusted">Trusted ✓</span>}
                 <span className="cb-total">{n0(r.total)}</span>
                 <span className="cb-total-label">approved contributions</span>
                 <span className="cb-break">{breakdown(r)}</span>

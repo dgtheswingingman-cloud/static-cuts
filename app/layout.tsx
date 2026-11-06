@@ -3,6 +3,7 @@ import { Anton, Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
 import "./styles/phone.css";
 import "./styles/footer.css";
+import "./styles/fixes.css";
 import Link from "next/link";
 import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
