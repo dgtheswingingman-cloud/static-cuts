@@ -73,3 +73,16 @@ a.al-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* Song page: link to the album */
 .sp-album-link { color: var(--bone); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; font-weight: 600; }
 .sp-album-link:hover { color: var(--accent); }
+
+/* Song page: credits */
+.sc-credits .sc-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 16px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.sc-k { font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); padding-top: 4px; }
+.sc-v { font-size: 0.88rem; line-height: 1.6; min-width: 0; }
+.sc-eds { display: flex; flex-direction: column; gap: 6px; }
+.sc-person { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--bone); text-decoration: none; vertical-align: middle; }
+a.sc-person:hover { color: var(--accent); }
+.sc-face { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--hair-strong); flex: none; }
+.sc-face-blank { display: inline-grid; place-items: center; background: var(--surface2); font-size: 0.66rem; font-family: var(--font-mono), monospace; }
+.sc-dim { color: var(--smoke); font-size: 0.8rem; }
+.sc-note { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); margin: 10px 0 0; }
+@media (max-width: 640px) { .sc-credits .sc-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
