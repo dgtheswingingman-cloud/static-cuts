@@ -1,0 +1,12 @@
+/* Contributors: period switch and the Trusted tag sit in the flow. */
+.cb-seg { margin: 6px 0 18px; }
+.cb-seg button { padding: 9px 18px; }
+.cb-pod .cb-trusted { position: static; margin-top: -2px; }
+.cb-name { flex-wrap: wrap; justify-content: center; row-gap: 4px; }
+
+/* On this day cards on phones: the listen link goes under the song instead of
+   being squeezed off the edge of the card. */
+@media (max-width: 720px) {
+  .otd-list .review-row { grid-template-columns: minmax(0, 1fr) !important; gap: 8px; }
+  .otd-list .review-row .listen-link { justify-self: start; }
+}

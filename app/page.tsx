@@ -328,6 +328,7 @@ export default function HomePage() {
           />
         </div>
       </div>
+      {!user && !isAdmin && !q && picks.length === 0 && <Landing />}
       {!q && <HomeFeed photos={photos} followed={[...followedIds]} afterAlbum={<div className="home-pair"><OnThisDay limit={4} /><HomeLeaders /></div>} />}
       <div className={`home-cols ${q ? "searching" : ""}`}>
       <div className="home-main">
@@ -335,7 +336,7 @@ export default function HomePage() {
       {!user && !isAdmin && !q && (
         <div className={picks.length === 0 ? "" : "comments-panel first-visit"}>
           {picks.length === 0 ? (
-            <Landing artists={artists?.length ?? 0} songs={artists ? artists.reduce((t: number, a: Artist) => t + (a.trackCount ?? 0), 0) : null} />
+            null
           ) : (
             <>
               {showAll ? "Showing everyone. " : "Showing your picks. "}
