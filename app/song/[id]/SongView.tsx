@@ -138,13 +138,6 @@ export default function SongView({ id }: { id: string }) {
     supabase.from("track_popularity").select("listens, listeners").eq("track_id", id).maybeSingle()
       .then(({ data }) => setPlays((data as typeof plays) ?? null));
   }, [id]);
-  // The same song on other services, from Odesli.
-  const [platformLinks, setPlatformLinks] = useState<{ platform: string; url: string }[]>([]);
-  useEffect(() => {
-    setPlatformLinks([]);
-    supabase.from("track_platform_links").select("platform, url").eq("track_id", id)
-      .then(({ data }) => setPlatformLinks((data as { platform: string; url: string }[] | null) ?? []));
-  }, [id]);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
@@ -319,15 +312,6 @@ export default function SongView({ id }: { id: string }) {
     t.deezer_url ? { name: "Deezer", url: t.deezer_url } : null,
     t.apple_url ? { name: "Apple Music", url: t.apple_url } : null,
   ].filter(Boolean) as { name: string; url: string }[];
-  const PLATFORM: Record<string, string> = {
-    youtubeMusic: "YouTube Music", youtube: "YouTube", tidal: "Tidal", amazonMusic: "Amazon Music",
-    soundcloud: "SoundCloud", bandcamp: "Bandcamp", audiomack: "Audiomack", pandora: "Pandora",
-    appleMusic: "Apple Music", deezer: "Deezer",
-  };
-  for (const key of Object.keys(PLATFORM)) {
-    const m = platformLinks.find((x) => x.platform === key);
-    if (m && !listen.some((l) => l.name === PLATFORM[key])) listen.push({ name: PLATFORM[key], url: m.url });
-  }
   const themeStyle = (rgb ? { "--accent": accentCss(rgb, typeof document !== "undefined" && document.documentElement.dataset.theme === "light"), "--sp-deep": deepCss(rgb, 0.85) } : {}) as CSSProperties;
   const Dots = () => <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
 
