@@ -78,7 +78,7 @@ export default function SettingsPage() {
   }
 
   async function logOut() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     window.location.assign("/");
   }
 

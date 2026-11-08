@@ -51,7 +51,7 @@ export const TOOLS: Tool[] = [
     name: "get_research_plan",
     title: "Get artists to research",
     description:
-      "Returns the user's CURRENT followed artists on Static Cuts in priority order (shared queue). Research " +
+      "Returns the next batch (default 8) of the user's CURRENT followed artists on Static Cuts in priority order (shared queue). Research " +
       "the ones with due = true; due = false means checked recently or quiet lately, so skip unless you have time. " +
       "why says what put the artist in the queue. " +
       "Research is shared by everyone using Static Cuts, so each artist says what's already covered: " +
@@ -64,12 +64,12 @@ export const TOOLS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        limit: { type: "integer", minimum: 1, maximum: 50, description: "Max artists to return (default 15)." },
+        limit: { type: "integer", minimum: 1, maximum: 25, description: "Max artists to return (default 8). After finish_run, call again for the next batch." },
       },
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
-    run: (db, args) => rpc(db, "rpc_research_plan", { p_limit: args.limit ?? 15 }),
+    run: (db, args) => rpc(db, "rpc_research_plan", { p_limit: args.limit ?? 8 }),
   },
   {
     name: "check_candidate",
