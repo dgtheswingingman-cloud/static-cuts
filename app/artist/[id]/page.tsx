@@ -1,5 +1,6 @@
 "use client";
 import "../../styles/album.css";
+import "../../styles/editions.css";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -35,7 +36,7 @@ import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
 import { thumb } from "@/lib/thumb";
 
-type Project = { id: string; title: string; kind: string; date: string | null; cover: string | null; songs: number | null; score: number | null; rated: number };
+type Project = { id: string; title: string; kind: string; date: string | null; cover: string | null; songs: number | null; score: number | null; rated: number; editions?: { id: string; title: string; label: string }[] };
 const genreSlug = (t: string) => t.toLowerCase().replace(/&/g, "n").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Track = {
@@ -1653,7 +1654,8 @@ export default function ArtistPage() {
   const IconDots = <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
   const IconShare = <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>;
   const projectTile = (e: Project) => (
-    <Link key={e.id} href={`/album/${e.id}`} className="ap-project">
+    <div key={e.id} className="ap-project-cell">
+    <Link href={`/album/${e.id}`} className="ap-project">
       <span className="ap-project-art">
         {e.cover
           // eslint-disable-next-line @next/next/no-img-element
@@ -1664,6 +1666,15 @@ export default function ArtistPage() {
       <span className="ap-project-name">{e.title}</span>
       <span className="ap-project-meta">{[e.kind === "ep" ? "EP" : "Album", e.date?.slice(0, 4), e.songs ? `${e.songs} songs` : null].filter(Boolean).join(" · ")}</span>
     </Link>
+    {/* Deluxe / anniversary editions of this album. */}
+    {(e.editions ?? []).length > 0 && (
+      <span className="ap-editions">
+        {(e.editions ?? []).map((x) => (
+          <Link key={x.id} href={`/album/${x.id}`} className="ap-edition" title={x.title}>+ {x.label}</Link>
+        ))}
+      </span>
+    )}
+    </div>
   );
 
 

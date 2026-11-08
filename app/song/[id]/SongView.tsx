@@ -126,7 +126,7 @@ export default function SongView({ id }: { id: string }) {
   const [artistPhotos, setArtistPhotos] = useState<string[]>([]);
   const [song, setSong] = useState<Song | null>(null);
   // The official albums / EPs this song is on, for links to their album pages.
-  const [onAlbums, setOnAlbums] = useState<{ id: string; title: string; kind: string; position: number; disk: number }[]>([]);
+  const [onAlbums, setOnAlbums] = useState<{ id: string; title: string; kind: string; position: number; disk: number; edition?: boolean }[]>([]);
   useEffect(() => {
     setOnAlbums([]);
     supabase.rpc("rpc_track_albums", { p_track: id }).then(({ data }) => setOnAlbums((data as typeof onAlbums | null) ?? []));
@@ -233,16 +233,28 @@ export default function SongView({ id }: { id: string }) {
   const artistId = song.artist?.id ?? t.artist_id;
   const main = song.family.find((v) => v.is_main);
 
+  // Original albums first; deluxe / anniversary editions go under "Also on"
+  // (only editions: they are the albums).
+  const originals = onAlbums.filter((a) => !a.edition);
+  const mainAlbums = originals.length ? originals : onAlbums;
+  const alsoOn = originals.length ? onAlbums.filter((a) => a.edition) : [];
   const info: [string, ReactNode][] = [];
   if (t.aliases) info.push(["Also known as", t.aliases]);
-  if (onAlbums.length) info.push([onAlbums.length > 1 ? "On" : onAlbums[0].kind === "ep" ? "EP" : "Album", (
+  if (mainAlbums.length) info.push([mainAlbums.length > 1 ? "On" : mainAlbums[0].kind === "ep" ? "EP" : "Album", (
     <span>
-      {onAlbums.map((a, i) => (
+      {mainAlbums.map((a, i) => (
         <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link>{a.position ? <span className="sp-sub"> (track {a.position})</span> : null}</span>
       ))}
     </span>
   )]);
   else if (t.album) info.push(["Album", t.album]);
+  if (alsoOn.length) info.push(["Also on", (
+    <span>
+      {alsoOn.map((a, i) => (
+        <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link></span>
+      ))}
+    </span>
+  )]);
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
@@ -346,7 +358,7 @@ export default function SongView({ id }: { id: string }) {
           {(t.album || onAlbums.length > 0 || (main && main.id !== t.id)) && (
             <div className="sp-sub">
               {onAlbums.length > 0
-                ? <Link href={`/album/${onAlbums[0].id}`} className="sp-album-link">{onAlbums[0].title} →</Link>
+                ? <Link href={`/album/${mainAlbums[0].id}`} className="sp-album-link">{mainAlbums[0].title} →</Link>
                 : t.album}
               {(t.album || onAlbums.length > 0) && main && main.id !== t.id && " · "}
               {main && main.id !== t.id && <>version of <Link href={`/song/${main.id}`} className="text-link">{main.title}</Link></>}
