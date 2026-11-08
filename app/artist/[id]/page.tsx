@@ -17,6 +17,7 @@ import MergeArtist from "./MergeArtist";
 import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
 import MostPlayed from "./MostPlayed";
+import Physical from "./Physical";
 import { dateOf, UNRELEASED, type Song as EraSong } from "@/lib/eras";
 import { accentCss, type Rgb } from "@/lib/swatch";
 import SimilarArtists from "./SimilarArtists";
@@ -2028,6 +2029,7 @@ export default function ArtistPage() {
               {!projectList && <div className="empty-state">loading…</div>}
               {projectList && projects.length === 0 && <div className="empty-state">No official albums or EPs found yet.</div>}
               <div className="ap-projects">{projects.map(projectTile)}</div>
+              <Physical artistId={id} />
               <div className="comment-meta" style={{ marginTop: 12 }}>
                 Unreleased tapes and song eras are on <button className="text-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }} onClick={() => { setEraFocus(null); setArtistTab("eras"); }}>Eras →</button>
               </div>
