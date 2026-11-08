@@ -38,6 +38,8 @@ function SearchInner() {
   const [results, setResults] = useState<Song[] | null>(null);
   const [total, setTotal] = useState(0);
   const [fuzzy, setFuzzy] = useState(false);
+  // Very common or very short searches return the best matches only.
+  const [capped, setCapped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   // People whose name matches, so you can find friends.
@@ -80,7 +82,7 @@ function SearchInner() {
       p_offset: offset,
     });
     if (err) { setError(err.message); return null; }
-    return data as { total: number; items: Song[]; fuzzy?: boolean };
+    return data as { total: number; items: Song[]; fuzzy?: boolean; capped?: boolean };
   }
 
   const key = params.toString();
@@ -158,6 +160,7 @@ function SearchInner() {
       setResults(d.items);
       setTotal(d.total);
       setFuzzy(!!d.fuzzy);
+      setCapped(!!d.capped);
       // Nothing at all for plain words: counted (just the words) so missing
       // songs can be added.
       const words = (params.get("q") ?? "").trim();
@@ -363,7 +366,7 @@ function SearchInner() {
       {/* Songs */}
       {results && (type === "all" || type === "songs") && (
         <>
-          <Sec icon="♫" title={fuzzy ? "Close matches" : "Songs"} n={total} to="songs" />
+          <Sec icon="♫" title={fuzzy ? "Close matches" : capped ? "Top matches" : "Songs"} n={total} to="songs" />
           {results.length === 0 && <div className="empty-state">Nothing matches. Try fewer filters.</div>}
           {results.length > 0 && <div className="sp-versions">{(type === "all" ? results.slice(0, 5) : results).map(songRow)}</div>}
           {type === "songs" && results.length < total && (
