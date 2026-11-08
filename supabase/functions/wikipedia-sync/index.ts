@@ -43,15 +43,23 @@ async function getJson(service: string, url: string): Promise<any | null | undef
   return await res.json().catch(() => undefined);
 }
 
-async function one(a: { artist_id: string; mbid: string }) {
-  const mb = await getJson("musicbrainz", `https://musicbrainz.org/ws/2/artist/${a.mbid}?inc=url-rels&fmt=json`);
-  if (mb === undefined) return "failed";
+type Url = { type: string; url: string };
+
+async function one(a: { artist_id: string; mbid: string; mb_urls: Url[] | null }) {
+  // MusicBrainz links another job saved in the last 30 days are reused.
+  let rels: Url[] | null = a.mb_urls ?? null;
+  if (!rels) {
+    const mb = await getJson("musicbrainz", `https://musicbrainz.org/ws/2/artist/${a.mbid}?inc=url-rels&fmt=json`);
+    if (mb === undefined) return "failed";
+    rels = ((mb?.relations ?? []) as any[]).filter((r) => !r.ended && typeof r.url?.resource === "string")
+      .map((r) => ({ type: r.type, url: r.url.resource }));
+    if (mb) await db.rpc("sc_mb_urls_save", { p_secret: secret, p_artist: a.artist_id, p_urls: rels });
+  }
   let title: string | null = null;
-  const rels = ((mb?.relations ?? []) as any[]).filter((r) => !r.ended && typeof r.url?.resource === "string");
-  const enwiki = rels.find((r) => r.type === "wikipedia" && /^https?:\/\/en\.wikipedia\.org\/wiki\//.test(r.url.resource));
-  if (enwiki) title = decodeURIComponent(enwiki.url.resource.split("/wiki/")[1]);
+  const enwiki = rels.find((r) => r.type === "wikipedia" && /^https?:\/\/en\.wikipedia\.org\/wiki\//.test(r.url));
+  if (enwiki) title = decodeURIComponent(enwiki.url.split("/wiki/")[1]);
   if (!title) {
-    const q = rels.map((r) => r.type === "wikidata" ? (r.url.resource.match(/(Q\d+)$/) ?? [])[1] : null).filter(Boolean);
+    const q = rels.map((r) => r.type === "wikidata" ? (r.url.match(/(Q\d+)$/) ?? [])[1] : null).filter(Boolean);
     if (q.length === 1) {
       const wd = await getJson("wikimedia", `https://www.wikidata.org/wiki/Special:EntityData/${q[0]}.json`);
       if (wd === undefined) return "failed";
@@ -80,7 +88,7 @@ Deno.serve(async (req) => {
       const { data: next, error } = await db.rpc("sc_wiki_next", { p_secret: secret });
       if (error) return json({ error: error.message }, 403);
       if (!next) break;
-      const a = next as { artist_id: string; mbid: string };
+      const a = next as { artist_id: string; mbid: string; mb_urls: Url[] | null };
       const r = await one(a);
       if (r === "failed") {
         await db.rpc("sc_wiki_save", { p_secret: secret, p_artist: a.artist_id, p_summary: null, p_url: null, p_failed: true });

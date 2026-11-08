@@ -2,7 +2,8 @@
 //
 // Physical releases from Discogs (https://www.discogs.com). For up to 45
 // seconds, one piece of work at a time (sc_discogs_next):
-//   - an artist: find their Discogs id through MusicBrainz's links (once),
+//   - an artist: find their Discogs id through MusicBrainz's links (once;
+//     links another job saved in the last 30 days are reused),
 //     then read their main releases (sc_discogs_save_artist)
 //   - an album ("master"): read its versions and keep which formats it came
 //     out on, e.g. vinyl, CD, cassette (sc_discogs_save_master)
@@ -50,8 +51,13 @@ async function discogs(path: string): Promise<any | null> {
   return await res.json().catch(() => undefined);
 }
 
-// The artist's Discogs id from their MusicBrainz links.
-async function discogsIdFromMb(mbid: string): Promise<number | null | undefined> {
+type Url = { type: string; url: string };
+
+// The artist's MusicBrainz links: saved ones when another job fetched them
+// in the last 30 days, else fetched once and saved for the others.
+// undefined = MusicBrainz hiccup, null = not on MusicBrainz.
+async function mbUrls(artistId: string, mbid: string, saved: Url[] | null): Promise<Url[] | null | undefined> {
+  if (saved) return saved;
   if (await paused("musicbrainz")) throw new Stop();
   const { data: ticket } = await db.rpc("sc_api_allow", { p_service: "musicbrainz", p_want: 1 });
   if (ticket !== 1) throw new Stop();
@@ -62,18 +68,28 @@ async function discogsIdFromMb(mbid: string): Promise<number | null | undefined>
   if (res.status === 404) return null;
   if (!res.ok) return undefined;
   const d = await res.json().catch(() => null);
+  const urls: Url[] = ((d?.relations ?? []) as any[])
+    .filter((r) => !r.ended && typeof r.url?.resource === "string").map((r) => ({ type: r.type, url: r.url.resource }));
+  await db.rpc("sc_mb_urls_save", { p_secret: secret, p_artist: artistId, p_urls: urls });
+  return urls;
+}
+
+// The artist's Discogs id from their MusicBrainz links.
+async function discogsIdFromMb(artistId: string, mbid: string, saved: Url[] | null): Promise<number | null | undefined> {
+  const urls = await mbUrls(artistId, mbid, saved);
+  if (urls === undefined) return undefined;
   const ids = new Set<number>();
-  for (const r of (d?.relations ?? []) as any[]) {
-    const m = r.type === "discogs" && typeof r.url?.resource === "string" ? r.url.resource.match(/discogs\.com\/(?:[a-z]{2}\/)?artist\/(\d+)/) : null;
+  for (const r of urls ?? []) {
+    const m = r.type === "discogs" ? r.url.match(/discogs\.com\/(?:[a-z]{2}\/)?artist\/(\d+)/) : null;
     if (m) ids.add(Number(m[1]));
   }
   return ids.size === 1 ? [...ids][0] : null;
 }
 
-async function doArtist(t: { artist_id: string; mbid: string; discogs_id: number | null }) {
+async function doArtist(t: { artist_id: string; mbid: string; discogs_id: number | null; mb_urls: Url[] | null }) {
   let id: number | null | undefined = t.discogs_id;
   if (!id) {
-    id = await discogsIdFromMb(t.mbid);
+    id = await discogsIdFromMb(t.artist_id, t.mbid, t.mb_urls ?? null);
     if (id === undefined) return { saved: 0, retry: true }; // MusicBrainz hiccup: claim runs out, tried again later
     if (id === null) {
       await db.rpc("sc_discogs_save_artist", { p_secret: secret, p_artist: t.artist_id, p_discogs: null, p_items: [] });
