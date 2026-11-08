@@ -1,0 +1,16 @@
+/* ===================== Welcome step 4: rate a few (FirstRatings.tsx) ===================== */
+.fr-count { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke); margin: 4px 0 12px; }
+.fr-count.done { color: var(--accent); }
+.fr-list { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.fr-row { border: 1px solid var(--hair); border-radius: 6px; padding: 10px 12px; background: color-mix(in srgb, var(--void) 75%, transparent); transition: border-color .12s; }
+.fr-row.rated { border-color: var(--accent); }
+.fr-song { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.fr-cover { width: 44px; height: 44px; border-radius: 3px; object-fit: cover; flex: none; }
+.fr-cover-empty { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--hair-strong); color: var(--smoke); font-size: 0.6rem; font-family: var(--font-mono), monospace; }
+.fr-text { display: flex; flex-direction: column; min-width: 0; }
+.fr-text strong { font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-text span { font-size: 0.75rem; color: var(--smoke); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-scores { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 10px; }
+.fr-scores button { min-height: 34px; border: 1px solid var(--hair-strong); border-radius: 4px; background: transparent; color: var(--bone); font-family: var(--font-mono), monospace; font-size: 0.8rem; cursor: pointer; padding: 0; }
+.fr-scores button:hover:not(:disabled) { border-color: var(--bone); }
+.fr-scores button.on { background: var(--accent); border-color: var(--accent); color: var(--void); font-weight: 700; }

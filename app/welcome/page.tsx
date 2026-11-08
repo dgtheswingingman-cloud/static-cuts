@@ -1,9 +1,10 @@
 "use client";
 
-// Welcome for new accounts, three short steps (each can be skipped):
+// Welcome for new accounts, four short steps (each can be skipped):
 //   1. pick at least 5 artists to follow (the /start page)
 //   2. your profile: name, picture, a line about you
 //   3. bring your music in: Spotify (via Exportify) or Apple Music
+//   4. rate a few songs from the artists just followed (FirstRatings)
 // Finishing or skipping marks the account as welcomed (profiles.onboarded_at),
 // so it's only shown once.
 
@@ -15,13 +16,14 @@ import { supabase } from "@/lib/supabase";
 import { usePersonalUser } from "../useIsAdmin";
 import { useAuth } from "../AuthProvider";
 import { finishWelcome } from "../components/OnboardingGate";
+import FirstRatings from "./FirstRatings";
 
 function Steps({ step, skip }: { step: number; skip?: string }) {
   return (
     <div className="wl-steps">
-      <span>Step {step} of 3</span>
+      <span>Step {step} of 4</span>
       {skip && <Link href={skip} className="wl-skip">Skip</Link>}
-      <span className="wl-progress"><span style={{ width: `${(step / 3) * 100}%` }} /></span>
+      <span className="wl-progress"><span style={{ width: `${(step / 4) * 100}%` }} /></span>
     </div>
   );
 }
@@ -31,7 +33,7 @@ function Welcome() {
   const user = usePersonalUser();
   const router = useRouter();
   const params = useSearchParams();
-  const step = Math.min(3, Math.max(1, Number(params.get("step")) || 1));
+  const step = Math.min(4, Math.max(1, Number(params.get("step")) || 1));
   // Admin preview ("preview welcome" in the admin bar): the same steps, nothing saved.
   const preview = params.get("preview") === "1";
   const pq = preview ? "&preview=1" : "";
@@ -125,6 +127,22 @@ function Welcome() {
     );
   }
 
+  if (step === 4) {
+    return (
+      <div className="wrap wl-page wl-narrow">
+        <h1 className="ls-title wl-title">RATE A FEW<span>//</span></h1>
+        {preview && <div className="comments-panel" style={{ marginBottom: 14 }}>Preview of what new accounts see. Nothing here is saved.</div>}
+        <Steps step={4} />
+        <p className="wl-lead">Songs from the artists you just followed. Give a few a score out of 10: your ratings build each album&apos;s score and the charts.</p>
+        <FirstRatings preview={preview} />
+        <div className="wl-buttons">
+          <Link href={`/welcome?step=3${pq}`} className="st-btn wl-skip-btn">Back</Link>
+          <button className="sb-submit wl-next" disabled={busy} onClick={() => finish("/")}>Finish//</button>
+        </div>
+      </div>
+    );
+  }
+
   const card = (key: string, icon: ReactNode, title: string, text: string) => (
     <button key={key} className="wl-service" disabled={busy} onClick={() => finish("/collection/import")}>
       <span className="wl-service-icon">{icon}</span>
@@ -147,7 +165,7 @@ function Welcome() {
         "File / CSV", "A list of songs from anywhere else (CSV or text).")}
       <div className="wl-buttons">
         <Link href={`/welcome?step=2${pq}`} className="st-btn wl-skip-btn">Back</Link>
-        <button className="sb-submit wl-next" disabled={busy} onClick={() => finish("/")}>Finish//</button>
+        <Link href={`/welcome?step=4${pq}`} className="sb-submit wl-next">Next//</Link>
       </div>
     </div>
   );
