@@ -142,6 +142,12 @@ async function one(a: Next) {
   // From the same reply: official links, country, real name, active years.
   // (Saved only if the match above was kept.)
   await db.rpc("sc_mb_info", { p_secret: secret, p_artist: a.artist_id, p_info: { ...artistInfo(d), mbid } });
+  // All its links, saved for the Discogs and Wikipedia jobs to reuse.
+  await db.rpc("sc_mb_urls_save", {
+    p_secret: secret, p_artist: a.artist_id,
+    p_urls: ((d.relations ?? []) as any[]).filter((r) => !r.ended && typeof r.url?.resource === "string")
+      .map((r) => ({ type: r.type, url: r.url.resource })),
+  });
   return { found: true, links: (n as number) ?? 0 };
 }
 
