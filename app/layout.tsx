@@ -5,6 +5,7 @@ import "./styles/phone.css";
 import "./styles/footer.css";
 import "./styles/fixes.css";
 import Link from "next/link";
+import Script from "next/script";
 import StaticOverlay from "./StaticOverlay";
 import { AuthProvider } from "./AuthProvider";
 import { AdminViewProvider } from "./AdminViewContext";
@@ -104,14 +105,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div>
                   Some song data from{" "}
                   <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer">Spotify</a>,{" "}
-                  <a href="https://genius.com" target="_blank" rel="noopener noreferrer">Genius</a> and{" "}
-                  <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>.
+                  <a href="https://genius.com" target="_blank" rel="noopener noreferrer">Genius</a>,{" "}
+                  <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">Last.fm</a>,{" "}
+                  <a href="https://listenbrainz.org" target="_blank" rel="noopener noreferrer">ListenBrainz</a> and{" "}
+                  <a href="https://www.discogs.com" target="_blank" rel="noopener noreferrer">Discogs</a>.
                 </div>
               </footer>
               <MobileTabBar />
             </AdminViewProvider>
           </ThemeProvider>
         </AuthProvider>
+        {/* Vercel Web Analytics: page views, where visitors came from, country
+            and device. No cookies, nothing personal. Only counts on the live site. */}
+        <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
       </body>
     </html>
   );
