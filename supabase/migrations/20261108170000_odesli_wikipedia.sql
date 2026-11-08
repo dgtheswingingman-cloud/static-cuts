@@ -96,7 +96,7 @@ begin
     return;
   end if;
   update artists set
-    bio = case when length(coalesce(p_summary, '')) >= 60 and coalesce(bio_source, '') <> 'Static Cuts' then left(p_summary, 4000) else bio end,
+    bio = case when length(coalesce(p_summary, '')) >= 60 and coalesce(bio_source, '') <> 'Static Cuts' then left(btrim(p_summary), 4000) else bio end,
     bio_source = case when length(coalesce(p_summary, '')) >= 60 and coalesce(bio_source, '') <> 'Static Cuts' then 'Wikipedia' else bio_source end,
     bio_source_url = case when length(coalesce(p_summary, '')) >= 60 and coalesce(bio_source, '') <> 'Static Cuts' then p_url else bio_source_url end,
     links = case when p_url is not null and not coalesce(links, '[]'::jsonb) @> '[{"type":"Wikipedia"}]'
