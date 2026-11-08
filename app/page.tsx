@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { readPicks, savePicks } from "./components/picks";
 import Landing from "./components/Landing";
 import AuthBar from "./AuthBar";
-import { useAuth } from "./AuthProvider";
 import { useIsAdmin, usePersonalUser } from "./useIsAdmin";
 import OnThisDay from "./OnThisDay";
 import HomeLeaders from "./components/HomeLeaders";

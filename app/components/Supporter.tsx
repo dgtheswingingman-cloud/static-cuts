@@ -50,10 +50,6 @@ export function useBadges(id: string | null | undefined): Badges | null {
   return id ? known.get(id) ?? null : null;
 }
 
-export function useSupporter(id: string | null | undefined) {
-  return !!useBadges(id)?.supporter;
-}
-
 // Same rule as the database's sc_artist_tag (for previews).
 export function artistTag(name: string) {
   const w = name.toUpperCase().replace(/[^A-Z0-9 ]/g, "").split(/\s+/).filter(Boolean);

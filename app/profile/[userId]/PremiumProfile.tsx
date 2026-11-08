@@ -44,18 +44,6 @@ export function Showcase({ songs, accent, bare = false }: { songs: ShowSong[]; a
   );
 }
 
-export function PremiumTeaser() {
-  return (
-    <div className="pf-teaser">
-      <div className="section-label" style={{ marginTop: 0 }}>Premium profile</div>
-      <div className="comment-meta" style={{ lineHeight: 1.6 }}>
-        ◆ supporter badge next to your name · your own profile colour · a GIF avatar · up to 3 fan badges · a showcase of
-        6 pinned songs. Plus Local Cuts. £3 a month or £30 a year, coming soon.
-      </div>
-    </div>
-  );
-}
-
 type Found = { id: string; title: string; artist: string; status: string };
 export type EditableProfile = { display_name: string | null; about: string | null; avatar_url: string | null; fan_artists?: string[] };
 type Followed = { artist_id: string; name: string; tag: string | null };

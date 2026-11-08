@@ -147,19 +147,3 @@ export async function drawStory(s: Story): Promise<Blob | null> {
   return new Promise((resolve) => c.toBlob((b) => resolve(b), "image/png"));
 }
 
-// Share the picture (phones) or download it (computers).
-export async function shareStory(s: Story, fileName: string) {
-  const blob = await drawStory(s);
-  if (!blob) return false;
-  const file = new File([blob], `${fileName}.png`, { type: "image/png" });
-  const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
-  if (nav.canShare?.({ files: [file] })) {
-    try { await nav.share({ files: [file], title: s.title }); return true; } catch { /* closed the sheet */ return false; }
-  }
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${fileName}.png`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  return true;
-}
