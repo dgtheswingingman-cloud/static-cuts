@@ -179,3 +179,15 @@ down. Profiles found by name are saved automatically if none is set; check
 them under "profiles". Imported songs record `source` / `source_url`, shown
 as "Source" in the song info. Secrets: SPOTIFY_CLIENT_ID,
 SPOTIFY_CLIENT_SECRET, GENIUS_ACCESS_TOKEN, LASTFM_API_KEY.
+
+## Troubleshooting (Nov 2026)
+
+- **ChatGPT keeps getting signed out.** Logging out of Static Cuts used to sign the
+  user out everywhere (supabase-js `signOut()` defaults to `scope: "global"`), which
+  also deleted ChatGPT's OAuth session ("Invalid Refresh Token" in the auth logs).
+  Logouts now use `scope: "local"`. `/settings` shows when ChatGPT has been signed out.
+- **ChatGPT says a tool isn't available** (mark_checked, duplicates…). ChatGPT keeps
+  the tool list it saw when the connector was added. Open the connector in ChatGPT
+  and press Refresh after the server changes.
+- **Research plan size.** `get_research_plan` returns 8 artists by default (max 25);
+  the routine calls it again after `finish_run` for the next batch.
