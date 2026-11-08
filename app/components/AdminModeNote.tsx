@@ -5,7 +5,6 @@
 // mode those controls are hidden and these say where they went, with a
 // button to switch straight over.
 
-import Link from "next/link";
 import { useAdminView } from "../AdminViewContext";
 
 export function SwitchToAccountButton({ label = "switch to my account" }: { label?: string }) {

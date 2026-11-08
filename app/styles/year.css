@@ -44,7 +44,6 @@
 .yr-tag.hot { color: #FF3355; border-color: color-mix(in srgb, #FF3355 60%, transparent); }
 .yr-score { font-family: var(--font-anton), sans-serif; font-size: 1.3rem; }
 .yr-score small { font-family: var(--font-mono), monospace; font-size: 0.65rem; color: var(--smoke); }
-.yr-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--smoke); }
 
 @media (max-width: 720px) {
   .yr-play { padding: 16px; gap: 12px; flex-wrap: wrap; }

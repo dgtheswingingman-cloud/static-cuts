@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "../../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import type { ListRow } from "../../lists/ListRow";
 

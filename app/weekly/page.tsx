@@ -19,7 +19,6 @@ type Week = {
   week_start: string;
   leaked: Song[]; released: Song[]; marked: Song[];
   added_total: number; added_top: { artist_id: string; artist: string; n: number }[];
-  wanted_top: { track_id: string; title: string; artist: string; votes: number }[];
 };
 
 function monday(d: Date) {
