@@ -1,0 +1,10 @@
+/* ===================== Artist page extras =====================
+   "Most played" (MostPlayed.tsx) and "Physical releases" (Physical.tsx). */
+
+/* Most played */
+.mp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mp-row { align-items: center; }
+.mp-rank { font-family: var(--font-anton), sans-serif; font-size: 1.2rem; width: 22px; text-align: right; color: var(--smoke); flex: none; font-variant-numeric: tabular-nums; }
+.mp-plays { margin-left: auto; font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--bone); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mp-plays small { font-size: 0.62rem; color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; }
+.mp-src { margin: 6px 0 18px; }

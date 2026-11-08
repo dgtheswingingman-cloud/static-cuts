@@ -16,6 +16,7 @@ import ArtistProfiles from "./ArtistProfiles";
 import MergeArtist from "./MergeArtist";
 import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
+import MostPlayed from "./MostPlayed";
 import { dateOf, UNRELEASED, type Song as EraSong } from "@/lib/eras";
 import { accentCss, type Rgb } from "@/lib/swatch";
 import SimilarArtists from "./SimilarArtists";
@@ -2001,6 +2002,8 @@ export default function ArtistPage() {
                   ))}
                 </div>
               )}
+
+              <MostPlayed artistId={id} />
 
               {projects.length > 0 && (
                 <>
