@@ -10,7 +10,8 @@ import "../../styles/editions.css";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { usePersonalUser } from "../../useIsAdmin";
+import { usePersonalUser, useIsModerator } from "../../useIsAdmin";
+import AlbumEdit from "./AlbumEdit";
 import ShareButton from "../../components/ShareButton";
 import { thumb } from "@/lib/thumb";
 
@@ -18,6 +19,7 @@ type Row = {
   disk: number | null; position: number | null; title: string; artist: string | null; duration: number | null; explicit: boolean | null;
   track_id: string | null; site_title: string | null; status: string | null; artist_id: string | null;
   avg_rating: number | null; rating_count: number; versions: number; edition: string | null;
+  src_album?: string | null; src_position?: number | null; src_disk?: number | null;
 };
 type Album = {
   id: string; title: string; kind: string; date: string | null; cover: string | null; label: string | null; link: string | null; songs: number | null;
@@ -41,6 +43,7 @@ const MIN_RATED = 3;
 
 export default function AlbumView({ id }: { id: string }) {
   const user = usePersonalUser();
+  const moderator = useIsModerator();
   const [a, setA] = useState<Album | null | undefined>(undefined);
   const [mine, setMine] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -145,6 +148,7 @@ export default function AlbumView({ id }: { id: string }) {
           <div className="al-actions">
             <ShareButton title={`${a.title} — ${a.artist.name}`} path={`/album/${a.id}`} label="Share" className="st-btn" />
             <Link href={`/artist/${a.artist.id}`} className="st-btn">Artist page →</Link>
+            <AlbumEdit a={a} signedIn={!!user} moderator={moderator} onDone={load} />
           </div>
         </div>
       </div>
