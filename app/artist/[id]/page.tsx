@@ -1666,12 +1666,10 @@ export default function ArtistPage() {
       <span className="ap-project-name">{e.title}</span>
       <span className="ap-project-meta">{[e.kind === "ep" ? "EP" : "Album", e.date?.slice(0, 4), e.songs ? `${e.songs} songs` : null].filter(Boolean).join(" · ")}</span>
     </Link>
-    {/* Deluxe / anniversary editions of this album. */}
+    {/* Deluxe / anniversary editions are combined into this album. */}
     {(e.editions ?? []).length > 0 && (
-      <span className="ap-editions">
-        {(e.editions ?? []).map((x) => (
-          <Link key={x.id} href={`/album/${x.id}`} className="ap-edition" title={x.title}>+ {x.label}</Link>
-        ))}
+      <span className="ap-editions" title={(e.editions ?? []).map((x) => x.title).join(", ")}>
+        incl. {(e.editions ?? []).length === 1 ? e.editions![0].label : `${e.editions!.length} editions`}
       </span>
     )}
     </div>

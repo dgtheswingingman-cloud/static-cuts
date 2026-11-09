@@ -126,7 +126,7 @@ export default function SongView({ id }: { id: string }) {
   const [artistPhotos, setArtistPhotos] = useState<string[]>([]);
   const [song, setSong] = useState<Song | null>(null);
   // The official albums / EPs this song is on, for links to their album pages.
-  const [onAlbums, setOnAlbums] = useState<{ id: string; title: string; kind: string; position: number; disk: number; edition?: boolean }[]>([]);
+  const [onAlbums, setOnAlbums] = useState<{ id: string; title: string; kind: string; position: number; disk: number; edition?: string | null }[]>([]);
   useEffect(() => {
     setOnAlbums([]);
     supabase.rpc("rpc_track_albums", { p_track: id }).then(({ data }) => setOnAlbums((data as typeof onAlbums | null) ?? []));
@@ -233,28 +233,20 @@ export default function SongView({ id }: { id: string }) {
   const artistId = song.artist?.id ?? t.artist_id;
   const main = song.family.find((v) => v.is_main);
 
-  // Original albums first; deluxe / anniversary editions go under "Also on"
-  // (only editions: they are the albums).
-  const originals = onAlbums.filter((a) => !a.edition);
-  const mainAlbums = originals.length ? originals : onAlbums;
-  const alsoOn = originals.length ? onAlbums.filter((a) => a.edition) : [];
+  // Editions are combined into one album; edition is set when the song is
+  // only on a deluxe / anniversary edition.
+  const mainAlbums = onAlbums;
   const info: [string, ReactNode][] = [];
   if (t.aliases) info.push(["Also known as", t.aliases]);
   if (mainAlbums.length) info.push([mainAlbums.length > 1 ? "On" : mainAlbums[0].kind === "ep" ? "EP" : "Album", (
     <span>
       {mainAlbums.map((a, i) => (
-        <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link>{a.position ? <span className="sp-sub"> (track {a.position})</span> : null}</span>
+        <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link>{a.position ? <span className="sp-sub"> (track {a.position})</span> : null}{a.edition ? <span className="sp-sub"> ({a.edition})</span> : null}</span>
       ))}
     </span>
   )]);
   else if (t.album) info.push(["Album", t.album]);
-  if (alsoOn.length) info.push(["Also on", (
-    <span>
-      {alsoOn.map((a, i) => (
-        <span key={a.id}>{i > 0 && ", "}<Link href={`/album/${a.id}`} className="text-link">{a.title}</Link></span>
-      ))}
-    </span>
-  )]);
+
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
   if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
