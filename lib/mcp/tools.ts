@@ -258,7 +258,8 @@ export const TOOLS: Tool[] = [
       "songs that still need something, never-checked first. needs says what: status (unknown: find out and " +
       "submit_discovery what you can prove), link (suggest_link), details (album, release date or producers " +
       "missing: suggest_details). Songs checked in the last 30 days are skipped. After each page call mark_checked " +
-      "with every track_id you looked at, then call again (same filters) for the next songs.",
+      "with every track_id you looked at, then call again (same filters) for the next songs. recheck lists finds " +
+      "dismissed 90+ days ago: look for new evidence, resubmit only if you find some, then mark_checked their discovery_ids.",
     inputSchema: {
       type: "object",
       properties: {
@@ -316,11 +317,14 @@ export const TOOLS: Tool[] = [
     title: "Mark songs as checked",
     description:
       "Records that you looked at these songs (for links or status), found something or not, so the next run moves " +
-      "on to others. Up to 100 track_ids.",
+      "on to others. Up to 100 track_ids. Also pass discovery_ids for the recheck items from get_catalogue_backlog " +
+      "you looked at, so they aren't offered again for 90 days.",
     inputSchema: {
       type: "object",
-      properties: { track_ids: { type: "array", items: { type: "string" }, maxItems: 100 } },
-      required: ["track_ids"],
+      properties: {
+        track_ids: { type: "array", items: { type: "string" }, maxItems: 100 },
+        discovery_ids: { type: "array", items: { type: "string" }, maxItems: 100, description: "recheck items looked at." },
+      },
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
