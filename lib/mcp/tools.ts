@@ -225,10 +225,11 @@ export const TOOLS: Tool[] = [
     title: "Fill in a song's missing details",
     description:
       "For a song already on Static Cuts: suggests details it's missing (album, release date, producers, featured " +
-      "artists, track number). Only empty fields are used; it goes to the review list as a suggested edit. Give the " +
-      "page that shows the details as source_url. Use it while researching (get_songs_needing_links and the " +
-      "research plan's needs_status give track_ids). Album art comes automatically from the Spotify link, so " +
-      "finding a song's Spotify link fills its artwork too.",
+      "artists, track number). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
+      "set replace = true and say in notes what is wrong and why; corrections always wait for a person to review. " +
+      "Give the page that shows the details as source_url. track_ids come from get_catalogue_backlog, " +
+      "get_artist_songs, get_songs_needing_links and the research plan. Album art comes automatically from the " +
+      "Spotify link, so finding a song's Spotify link fills its artwork too.",
     inputSchema: {
       type: "object",
       properties: {
@@ -239,13 +240,76 @@ export const TOOLS: Tool[] = [
         featured_artists: { type: "string", description: "Comma-separated, not the main artist." },
         track_number: { type: "integer", minimum: 1, maximum: 200 },
         source_url: { type: "string", description: "The page that shows these details (required, http/https)." },
-        notes: { type: "string", description: "One sentence for the reviewer (max 1000 chars)." },
+        replace: { type: "boolean", description: "true = correct fields that are already filled in (needs notes). Default false: only fill gaps." },
+        notes: { type: "string", description: "One sentence for the reviewer (max 1000 chars). Required with replace." },
       },
       required: ["track_id", "source_url"],
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     run: (db, args) => rpc(db, "rpc_suggest_details", { p: args }),
+  },
+  {
+    name: "get_catalogue_backlog",
+    title: "List songs that need fixing",
+    description:
+      "Catalogue maintenance, separate from news research (works even when get_research_plan has nothing due). " +
+      "Returns counts per followed artist (needs_status, needs_link, needs_details, checked_recently) and a page of " +
+      "songs that still need something, never-checked first. needs says what: status (unknown: find out and " +
+      "submit_discovery what you can prove), link (suggest_link), details (album, release date or producers " +
+      "missing: suggest_details). Songs checked in the last 30 days are skipped. After each page call mark_checked " +
+      "with every track_id you looked at, then call again (same filters) for the next songs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        artist_id: { type: "string", description: "One artist only. Leave out for all of the user's followed artists." },
+        kind: { type: "string", enum: ["status", "link", "details"], description: "Only songs needing this. Leave out for all." },
+        limit: { type: "integer", minimum: 1, maximum: 100, description: "Default 50." },
+        offset: { type: "integer", minimum: 0, description: "Skip this many (use next_offset to page without marking checked)." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    run: (db, args) =>
+      rpc(db, "rpc_catalogue_backlog", {
+        p_artist_id: args.artist_id ?? null, p_kind: args.kind ?? null, p_limit: args.limit ?? 50, p_offset: args.offset ?? 0,
+      }),
+  },
+  {
+    name: "get_artist_songs",
+    title: "List an artist's whole catalogue",
+    description:
+      "Every song and version on an artist's Static Cuts page, 100 at a time (up to 200), with status, album, " +
+      "release date, track number, producers, features, whether it has a Spotify link and what it still needs. " +
+      "Versions follow their main song (version_of_track_id). Use next_offset for the next page (null = done). " +
+      "Use it to spot wrong details (fix with suggest_details replace = true) and duplicates.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        artist_id: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 200, description: "Default 100." },
+        offset: { type: "integer", minimum: 0 },
+      },
+      required: ["artist_id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    run: (db, args) => rpc(db, "rpc_artist_songs", { p_artist_id: args.artist_id, p_limit: args.limit ?? 100, p_offset: args.offset ?? 0 }),
+  },
+  {
+    name: "get_review_status",
+    title: "See what happened to your submissions",
+    description:
+      "What became of this user's finds and suggestions: discoveries (waiting / added / dismissed), suggested edits " +
+      "(waiting / approved / rejected) with reviewer notes, links suggested and duplicate reports, for the last N days. " +
+      "Don't resend anything dismissed or rejected without new evidence.",
+    inputSchema: {
+      type: "object",
+      properties: { days: { type: "integer", minimum: 1, maximum: 365, description: "Default 30." } },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    run: (db, args) => rpc(db, "rpc_my_review_status", { p_days: args.days ?? 30 }),
   },
   {
     name: "mark_checked",
@@ -349,6 +413,12 @@ export const SERVER_INSTRUCTIONS = [
   "   Details: when you see a song's album, exact release date, producers, features or track number and the",
   "   song is already on Static Cuts, call suggest_details (only gaps are used).",
   "5. Clean-up: for each researched artist call get_possible_duplicates(artist_id) and report_duplicate on up to 5 groups.",
+  "Catalogue maintenance (separate from news research): get_research_plan's catalogue_backlog shows how much is left.",
+  "   When no artist is due, or after research, work through get_catalogue_backlog: find each song's status, link",
+  "   or details, submit with submit_discovery / suggest_link / suggest_details, then mark_checked the page and call",
+  "   again. An empty news queue never means the catalogue is complete. Fix wrong filled-in details with",
+  "   suggest_details replace = true (always reviewed). get_artist_songs pages through a whole catalogue;",
+  "   get_review_status shows what was approved or turned down.",
   "Link requests: when asked to find links, use get_songs_needing_links, suggest_link and mark_checked.",
   "6. finish_run with the artist_ids you researched, even if you found nothing, so other users' routines",
   "   know they're covered.",
