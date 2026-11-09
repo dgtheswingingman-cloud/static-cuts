@@ -1,10 +1,20 @@
-/* Artist Projects: deluxe / anniversary editions under the original album. */
+/* Album editions (deluxe / anniversary / remastered) combined into one album. */
+
+/* Artist Projects tile. */
 .ap-project-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.ap-editions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 100%; }
-.ap-edition {
+.ap-editions {
   font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2;
-  padding: 2px 6px; border: 1px solid var(--hair-strong); border-radius: 3px;
-  color: var(--smoke); text-decoration: none; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--smoke); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ap-edition:hover { color: var(--bone); border-color: var(--accent); }
+
+/* Album page: the editions line and per-song tags. */
+.al-editions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.al-edition {
+  font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border: 1px solid var(--hair-strong); border-radius: 3px; color: var(--bone);
+}
+.al-edition small { color: var(--smoke); font-size: 0.68rem; }
+.al-ed-tag {
+  font-size: 0.64rem; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 1px 5px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent);
+}

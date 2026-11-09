@@ -1,5 +1,6 @@
 "use client";
 import "../../styles/album.css";
+import "../../styles/editions.css";
 
 // Album / EP page: cover, title, artist, date, length, label and the album's
 // score (the average of its songs' average ratings), then the full tracklist
@@ -16,7 +17,7 @@ import { thumb } from "@/lib/thumb";
 type Row = {
   disk: number | null; position: number | null; title: string; artist: string | null; duration: number | null; explicit: boolean | null;
   track_id: string | null; site_title: string | null; status: string | null; artist_id: string | null;
-  avg_rating: number | null; rating_count: number; versions: number;
+  avg_rating: number | null; rating_count: number; versions: number; edition: string | null;
 };
 type Album = {
   id: string; title: string; kind: string; date: string | null; cover: string | null; label: string | null; link: string | null; songs: number | null;
@@ -24,6 +25,7 @@ type Album = {
   complete: boolean; length: number | null; score: number | null; rated: number; votes: number;
   tracks: Row[];
   more: { id: string; title: string; cover: string | null; date: string | null; kind: string }[];
+  editions: { id: string; title: string; label: string; date: string | null; songs: number | null; extra: number }[];
 };
 
 const mmss = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
@@ -106,6 +108,16 @@ export default function AlbumView({ id }: { id: string }) {
             {long(a.length) && <span>{long(a.length)}</span>}
             {a.label && <span>{a.label}</span>}
           </div>
+          {a.editions.length > 1 && (
+            <div className="al-editions">
+              <span className="al-press-k">Editions</span>
+              {a.editions.map((e) => (
+                <span key={e.id} className="al-edition" title={e.title}>
+                  {e.label}{e.extra > 0 && <small> +{e.extra}</small>}
+                </span>
+              ))}
+            </div>
+          )}
           {press && press.formats.length > 0 && (
             <div className="al-press">
               <span className="al-press-k">Pressed on</span>
@@ -160,6 +172,7 @@ export default function AlbumView({ id }: { id: string }) {
                         ? <Link href={`/song/${t.track_id}`} className="al-name">{name}</Link>
                         : <span className="al-name">{name}</span>}
                       <span className="al-sub">
+                        {t.edition && <span className="al-ed-tag" title={`Only on the ${t.edition}`}>{t.edition}</span>}
                         {t.explicit && <span className="al-e" title="Explicit">E</span>}
                         {guest && <span>{guest}</span>}
                         {t.status && t.status !== "released" && <span className={`al-st st-${t.status}`}>{t.status}</span>}
