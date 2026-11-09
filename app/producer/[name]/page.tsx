@@ -1,8 +1,9 @@
 "use client";
 
-// One producer, laid out like an artist page: the artists they've worked with
-// sliding behind the name, the numbers, then tabs for an overview, every song
-// they're credited on and every artist they've produced for. If they're an
+// One person's credits, laid out like an artist page: the artists they've
+// worked with sliding behind the name, the numbers, then tabs for an
+// overview, every song they produced, the artists they produced for, and
+// (when there are any) songs they're featured on and remixes they made. If they're an
 // artist in the archive too, their own photo, colour and a link to that page;
 // otherwise the colour comes from the artist they've made the most songs for.
 
@@ -19,7 +20,7 @@ type Song = {
   album: string | null; spotify_url: string | null; cover_url: string | null; co_producers: string | null;
 };
 type Filter = "all" | "released" | "leaked" | "unreleased";
-type Tab = "overview" | "songs" | "artists";
+type Tab = "overview" | "songs" | "artists" | "features" | "remixes";
 const UNRELEASED = ["unreleased", "snippet", "teased", "announced", "rumored", "unconfirmed"];
 const n0 = (x: number) => x.toLocaleString("en-GB");
 
@@ -37,6 +38,7 @@ export default function ProducerPage() {
   const [sort, setSort] = useState<"recent" | "title" | "artist">("recent");
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(80);
+  const [other, setOther] = useState<{ features: Song[]; remixes: Song[] }>({ features: [], remixes: [] });
 
   useEffect(() => {
     let alive = true;
@@ -45,6 +47,10 @@ export default function ProducerPage() {
       const me = ((data as { id: string; name: string; image_url: string | null }[]) ?? [])[0] ?? null;
       if (alive) setSelf(me);
       return me;
+    });
+    setOther({ features: [], remixes: [] });
+    supabase.rpc("rpc_person_credits", { p_name: name }).then(({ data }) => {
+      if (alive && data) setOther(data as { features: Song[]; remixes: Song[] });
     });
     supabase.rpc("rpc_producer", { p_name: name }).then(({ data }) => {
       if (!alive) return;
@@ -150,7 +156,11 @@ export default function ProducerPage() {
           <img src={banner[0]} alt="" className="ah2-img" />
         )}
         <div className="artist-hero-inner ah2-inner">
-          <span className="ah2-tag"><Link href="/producers" style={{ color: "inherit", textDecoration: "none" }}>Producer</Link></span>
+          <span className="ah2-tag">
+            {songs && songs.length === 0 && (other.features.length || other.remixes.length)
+              ? (other.remixes.length >= other.features.length ? "Remixer" : "Featured artist")
+              : <Link href="/producers" style={{ color: "inherit", textDecoration: "none" }}>Producer</Link>}
+          </span>
           <div className="ah2-id">
             {self?.image_url
               // eslint-disable-next-line @next/next/no-img-element
@@ -175,14 +185,35 @@ export default function ProducerPage() {
       )}
 
       <nav className="ap-tabs" aria-label="Producer sections">
-        {([["overview", "Overview"], ["songs", "Songs"], ["artists", "Artists"]] as [Tab, string][]).map(([k, label]) => (
+        {([["overview", "Overview"], ["songs", "Produced"], ["artists", "Artists"],
+           ...(other.features.length ? [["features", `Features (${n0(other.features.length)})`]] : []),
+           ...(other.remixes.length ? [["remixes", `Remixes (${n0(other.remixes.length)})`]] : [])] as [Tab, string][]).map(([k, label]) => (
           <button key={k} className={tab === k ? "on" : undefined} aria-pressed={tab === k}
             onClick={() => { if (k === "songs") showSongs("all"); else setTab(k); }}>{label}</button>
         ))}
       </nav>
 
       {!songs && <div className="empty-state">loading…</div>}
-      {songs && songs.length === 0 && <div className="empty-state">No songs credited to {name} yet.</div>}
+      {songs && songs.length === 0 && !other.features.length && !other.remixes.length && <div className="empty-state">No songs credited to {name} yet.</div>}
+      {songs && songs.length === 0 && (other.features.length > 0 || other.remixes.length > 0) && tab !== "features" && tab !== "remixes" && (
+        <div className="empty-state">
+          No production credits.{" "}
+          <button className="text-link" onClick={() => setTab(other.features.length ? "features" : "remixes")}>See their {other.features.length ? "features" : "remixes"} →</button>
+        </div>
+      )}
+
+      {tab === "features" && (
+        <>
+          <div className="sp-head"><h2>Featured on ({n0(other.features.length)})</h2></div>
+          <div className="sp-versions">{other.features.map(row)}</div>
+        </>
+      )}
+      {tab === "remixes" && (
+        <>
+          <div className="sp-head"><h2>Remixes ({n0(other.remixes.length)})</h2></div>
+          <div className="sp-versions">{other.remixes.map(row)}</div>
+        </>
+      )}
 
       {songs && songs.length > 0 && tab === "overview" && (
         <>
