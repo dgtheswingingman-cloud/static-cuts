@@ -131,6 +131,12 @@ export default function SongView({ id }: { id: string }) {
     setOnAlbums([]);
     supabase.rpc("rpc_track_albums", { p_track: id }).then(({ data }) => setOnAlbums((data as typeof onAlbums | null) ?? []));
   }, [id]);
+  // Everyone credited (producers, features, remixers), with artist pages.
+  const [people, setPeople] = useState<{ role: string; name: string; artist_id: string | null }[]>([]);
+  useEffect(() => {
+    setPeople([]);
+    supabase.rpc("rpc_track_people", { p_track: id }).then(({ data }) => setPeople((data as typeof people | null) ?? []));
+  }, [id]);
   // How much this song is played, from ListenBrainz (main songs only).
   const [plays, setPlays] = useState<{ listens: number; listeners: number } | null>(null);
   useEffect(() => {
@@ -272,10 +278,29 @@ export default function SongView({ id }: { id: string }) {
   if (t.writers) info.push(["Written by", t.writers]);
   if (t.label) info.push(["Label", t.label]);
   if (t.isrc) info.push(["ISRC", <span title="The recording's official code" style={{ fontFamily: "var(--font-mono, monospace)" }}>{t.isrc}</span>]);
-  if (song.appears_on.length > 0) {
+  // Features: linked artists, plus credited names that aren't artists here
+  // (those open their credits page).
+  const nameKey = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const linkedKeys = new Set(song.appears_on.map((a) => nameKey(a.name)));
+  const linkedIds = new Set(song.appears_on.map((a) => a.id));
+  const extraFeatures = people.filter((p) => p.role === "feature" && !linkedKeys.has(nameKey(p.name)) && !(p.artist_id && linkedIds.has(p.artist_id)));
+  if (song.appears_on.length > 0 || extraFeatures.length > 0) {
     info.push(["Featuring", (
       <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {song.appears_on.map((a) => <Link key={a.id} href={`/artist/${a.id}`} className="feature-tag" style={{ textDecoration: "none" }}>{a.name}</Link>)}
+        {extraFeatures.map((p) => (
+          <Link key={p.name} href={p.artist_id ? `/artist/${p.artist_id}` : `/producer/${encodeURIComponent(p.name)}`} className="feature-tag" style={{ textDecoration: "none" }}>{p.name}</Link>
+        ))}
+      </span>
+    )]);
+  }
+  const remixers = people.filter((p) => p.role === "remixer");
+  if (remixers.length > 0) {
+    info.push(["Remixed by", (
+      <span>
+        {remixers.map((p, i) => (
+          <span key={p.name}>{i > 0 && ", "}<Link href={p.artist_id ? `/artist/${p.artist_id}` : `/producer/${encodeURIComponent(p.name)}`} className="text-link">{p.name}</Link></span>
+        ))}
       </span>
     )]);
   }
