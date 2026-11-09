@@ -6,8 +6,11 @@
 // eligible for the regular matcher to find a replacement.
 //
 // Released songs rarely disappear, so each link is checked at most once
-// every 90 days. Links match-spotify has just seen (on a search or on one of
-// the artist's releases) count as checked, so most never need a call here.
+// every 90 days. 50 songs per Spotify call. Links whose title AND artist
+// don't match what Spotify says are listed for a moderator (Clean-up →
+// Wrong links) rather than changed (sc_spotify_verify_save). Links
+// match-spotify has just seen (on a search or on one of the artist's
+// releases) count as checked, so most never need a call here.
 //
 // Required secrets (same as match-spotify):
 //   SPOTIFY_CLIENT_ID
@@ -120,7 +123,9 @@ Deno.serve(async (req) => {
       });
     }
     const url = new URL(req.url);
-    const limit = Number(url.searchParams.get("limit") || "30");
+    // 50 songs per Spotify call; one ticket per call.
+    const limit = Math.min(Number(url.searchParams.get("limit") || "150"), 500);
+    const secret = req.headers.get("x-cron-secret") ?? "";
 
     const paused = await spotifyPausedFor();
     if (paused > 0) {
@@ -145,44 +150,48 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Not a Spotify track link (an album, or another site): leave it alone but
+    // mark it checked, so it doesn't sit at the front of the queue forever.
+    const odd = tracks.filter((t) => !extractSpotifyTrackId(t.spotify_url)).map((t) => t.id);
+    if (odd.length) await supabase.from("tracks").update({ spotify_link_verified_at: new Date().toISOString() }).in("id", odd);
+    const todo = tracks.filter((t) => extractSpotifyTrackId(t.spotify_url));
+    const batches: (typeof todo)[] = [];
+    for (let i = 0; i < todo.length; i += 50) batches.push(todo.slice(i, i + 50));
+    if (!batches.length) {
+      return new Response(JSON.stringify({ done: false, checked: odd.length, deadFound: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const token = await cachedSpotifyToken();
     if (!token) {
       return new Response(
-        JSON.stringify({ done: false, checked: 0, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
+        JSON.stringify({ done: false, checked: odd.length, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // One ticket per song.
-    const tickets = await spotifyTickets(tracks.length);
+    const tickets = await spotifyTickets(batches.length);
     if (tickets < 1) {
       return new Response(
-        JSON.stringify({ done: false, checked: 0, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
+        JSON.stringify({ done: false, checked: odd.length, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    tracks.splice(tickets);
+    batches.splice(tickets);
 
-    let checked = 0;
+    let checked = odd.length;
     let deadFound = 0;
+    let wrongFound = 0;
     let rateLimited = false;
     let retryAfterSeconds = 0;
+    let lastStatus = 0;
 
-    for (const track of tracks) {
-      const spotifyId = extractSpotifyTrackId(track.spotify_url);
-      if (!spotifyId) {
-        // Not a Spotify track link (an album, or another site): leave the link
-        // alone but mark it checked, so it doesn't sit at the front of the
-        // queue forever.
-        await supabase.from("tracks").update({ spotify_link_verified_at: new Date().toISOString() }).eq("id", track.id);
-        checked++;
-        continue;
-      }
-
-      if (checked > 0) await breather();
-      const res = await fetch(`https://api.spotify.com/v1/tracks/${spotifyId}`, {
+    for (const [bi, batch] of batches.entries()) {
+      if (bi > 0) await breather();
+      const ids = batch.map((t) => extractSpotifyTrackId(t.spotify_url)!);
+      const res = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.status === 429) {
         rateLimited = true;
         const header = res.headers.get("Retry-After");
@@ -191,25 +200,29 @@ Deno.serve(async (req) => {
         break;
       }
       if (res.status === 401) { await dropSpotifyToken(); break; }
-
-      checked++;
-
-      if (res.status === 200) {
-        await supabase.from("tracks").update({ spotify_link_verified_at: new Date().toISOString() }).eq("id", track.id);
-      } else if (res.status === 404) {
-        // Dead -- clear the link and let the matcher find a replacement.
-        await supabase
-          .from("tracks")
-          .update({ spotify_url: null, spotify_search_attempted_at: null, spotify_link_verified_at: null })
-          .eq("id", track.id);
-        deadFound++;
-      } else {
-        // Unexpected status (5xx, etc) -- don't touch it, try again next run.
-      }
+      if (!res.ok) { lastStatus = res.status; break; } // unexpected: try again next run
+      const body = await res.json().catch(() => null);
+      const found: any[] = Array.isArray(body?.tracks) ? body.tracks : [];
+      if (found.length !== batch.length) break;
+      // Spotify answers in the same order; null = no such track (dead link).
+      // A track Spotify moved answers with a different id but is still fine.
+      const items = batch.map((t, i) => {
+        const x = found[i];
+        return {
+          track_id: t.id, url: t.spotify_url, found: !!x,
+          title: x?.name ?? null,
+          artists: x ? (x.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") : null,
+        };
+      });
+      const { data: saved, error: saveErr } = await supabase.rpc("sc_spotify_verify_save", { p_secret: secret, p_items: items });
+      if (saveErr) throw saveErr;
+      checked += batch.length;
+      deadFound += (saved as { dead?: number })?.dead ?? 0;
+      wrongFound += (saved as { wrong?: number })?.wrong ?? 0;
     }
 
     return new Response(
-      JSON.stringify({ done: false, checked, deadFound, rateLimited, retryAfterSeconds }),
+      JSON.stringify({ done: false, checked, deadFound, wrongFound, rateLimited, retryAfterSeconds, ...(lastStatus ? { last_status: lastStatus } : {}) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

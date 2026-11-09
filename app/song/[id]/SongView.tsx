@@ -34,6 +34,7 @@ type Track = {
   title: string;
   artist_id: string;
   spotify_url: string | null;
+  link_issue?: string | null;
   deezer_url?: string | null;
   apple_url?: string | null;
   // Released under another name of the artist's (e.g. "Archy Marshall").
@@ -470,6 +471,12 @@ export default function SongView({ id }: { id: string }) {
             </span>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="sp-chev"><path d="m9 6 6 6-6 6" /></svg>
           </button>
+          {t.link_issue && t.spotify_url && (
+            <div className="comment-meta sp-link-issue">
+              The Spotify link may be the wrong song.{" "}
+              <Link href={`/submit?type=correction&track_id=${t.id}&artist_id=${t.artist_id}`} className="text-link">Fix it</Link>
+            </div>
+          )}
           {listenOpen && (
             <div className="sp-listen-list">
               {listen.map((l) => <a key={l.name} className="tab" href={l.url} target="_blank" rel="noopener noreferrer">{l.name} ↗</a>)}
