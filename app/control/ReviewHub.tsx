@@ -564,6 +564,7 @@ export default function ReviewHub() {
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
           { href: "/review/duplicates", title: "Duplicates", n: undefined, blurb: "The same song entered twice: pick one to keep and merge." },
           { href: "/review/cleanup", title: "Clean-up", n: undefined, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists) and empty placeholders." },
+          { href: "/review/albums", title: "Albums", n: undefined, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
           { href: "/review/announcements", title: "Shows & merch", n: undefined, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
         ]
           // Lists with something waiting first, then ones without a count, then the clear ones.

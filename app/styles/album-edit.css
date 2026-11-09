@@ -1,0 +1,16 @@
+/* ===================== Album edits (album page, AlbumEdit.tsx) ===================== */
+.ae-panel { flex-basis: 100%; margin-top: 12px; border: 1px solid var(--hair-strong); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.ae-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.ae-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ae-field > span { font-family: var(--font-mono), monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--smoke); }
+.ae-field input, .ae-field select { font: inherit; font-size: 16px; color: var(--bone); background: var(--void); border: 1px solid var(--hair-strong); border-radius: 4px; padding: 8px 10px; min-width: 0; }
+.ae-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--bone); }
+.ae-hits { list-style: none; margin: 4px 0 0; padding: 0; border: 1px solid var(--hair); border-radius: 4px; max-height: 220px; overflow-y: auto; }
+.ae-hits button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--hair); color: var(--bone); padding: 7px 10px; font: inherit; font-size: 0.88rem; cursor: pointer; }
+.ae-hits button small { color: var(--smoke); font-size: 0.7rem; margin-left: 6px; }
+.ae-hits button:hover, .ae-hits button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.ae-note { margin: 0; font-size: 0.85rem; color: var(--smoke); }
+.ae-msg { margin: 0; font-size: 0.85rem; }
+.ae-msg.ok { color: var(--bone); }
+.ae-msg.err { color: #ff6b6b; }
+.ae-actions { display: flex; align-items: center; gap: 12px; }
