@@ -176,6 +176,35 @@ export const TOOLS: Tool[] = [
     run: (db, args) => rpc(db, "rpc_submit_discovery", { p: args }),
   },
   {
+    name: "submit_announcement",
+    title: "Report a show, tour or merch drop",
+    description:
+      "For the artist page's Coming up section: a show, tour, festival appearance or merch drop for an artist on " +
+      "Static Cuts. Only report what an official or reliable page shows (the artist's or venue's site or socials, a " +
+      "ticketing or festival page, the merch store's drop post), with that page as source_url. Tours: one entry for " +
+      "the tour with its first and last dates, not one per show. Only upcoming dates (merch: dropped in the last 30 " +
+      "days or upcoming). Duplicates are ignored.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        artist_id: { type: "string" },
+        kind: { type: "string", enum: ["show", "tour", "festival", "merch"] },
+        title: { type: "string", description: "e.g. \"Antagonist Tour\", \"Rolling Loud Europe\", \"Winter capsule drop\"." },
+        starts_on: { type: "string", description: "YYYY-MM-DD (show date, first tour date, or drop date)." },
+        ends_on: { type: "string", description: "YYYY-MM-DD, tours and festivals only." },
+        venue: { type: "string" },
+        city: { type: "string" },
+        country: { type: "string" },
+        source_url: { type: "string", description: "The page that shows it (required, http/https)." },
+        notes: { type: "string", description: "One sentence for the reviewer (max 1000 chars)." },
+      },
+      required: ["artist_id", "kind", "title", "source_url"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    run: (db, args) => rpc(db, "rpc_submit_announcement", { p: args }),
+  },
+  {
     name: "get_songs_needing_links",
     title: "List songs that need a listen link",
     description:
@@ -416,6 +445,8 @@ export const SERVER_INSTRUCTIONS = [
   "   (released, leaked, snippet...), submit_discovery for what you can prove, then mark_checked those track_ids.",
   "   Details: when you see a song's album, exact release date, producers, features or track number and the",
   "   song is already on Static Cuts, call suggest_details (only gaps are used).",
+  "   Shows and merch: when you see an upcoming show, tour, festival slot or merch drop for a researched artist,",
+  "   call submit_announcement with the official or ticketing page as source_url.",
   "5. Clean-up: for each researched artist call get_possible_duplicates(artist_id) and report_duplicate on up to 5 groups.",
   "Catalogue maintenance (separate from news research): get_research_plan's catalogue_backlog shows how much is left.",
   "   When no artist is due, or after research, work through get_catalogue_backlog: find each song's status, link",

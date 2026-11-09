@@ -19,6 +19,7 @@ import ArtistHero from "./ArtistHero";
 import ArtistIntro from "./ArtistIntro";
 import MostPlayed from "./MostPlayed";
 import Physical from "./Physical";
+import ComingUp from "./ComingUp";
 import { dateOf, UNRELEASED, type Song as EraSong } from "@/lib/eras";
 import { accentCss, type Rgb } from "@/lib/swatch";
 import SimilarArtists from "./SimilarArtists";
@@ -2012,6 +2013,8 @@ export default function ArtistPage() {
                   ))}
                 </div>
               )}
+
+              <ComingUp artistId={id} />
 
               <MostPlayed artistId={id} />
 
