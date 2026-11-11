@@ -157,7 +157,7 @@ export default function ArtistAbout({ artistId, artistName, isAdmin, canModerate
           <div className="artist-bio">
             {short}{" "}
             {bio.length > 280 && <button className="inline-link-btn" onClick={() => setMore(!more)}>{more ? "less" : "more"}</button>}
-            {info?.bio_source && info.bio_source !== "Static Cuts" && (
+            {info?.bio_source && info.bio_source !== "Static-Cuts" && (
               <span className="comment-meta">
                 {" "}· from {info.bio_source_url ? <a href={info.bio_source_url} target="_blank" rel="noopener noreferrer" className="text-link">{info.bio_source}</a> : info.bio_source}
               </span>
