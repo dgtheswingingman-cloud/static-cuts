@@ -1,0 +1,24 @@
+/* Social posts queue (control room). */
+.soc-day { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); margin: 28px 0 10px; }
+.soc-post { border: 1.5px solid var(--hair-strong); border-radius: 8px; padding: 14px 16px 16px; margin-bottom: 14px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.soc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.soc-title { font-family: var(--font-anton), sans-serif; font-size: 1.25rem; line-height: 1.1; color: var(--bone); }
+.soc-title a { color: inherit; text-decoration: none; }
+.soc-plats { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.soc-plat { font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.04em; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--hair-strong); background: transparent; color: var(--smoke); cursor: pointer; }
+.soc-plat.on { color: var(--bone); border-color: var(--accent); }
+.soc-plat .done { color: #2BD67B; margin-left: 6px; }
+.soc-body { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .soc-body { grid-template-columns: 1fr; } }
+.soc-pics { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.soc-pic { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.soc-pic img { display: block; border-radius: 6px; border: 1px solid var(--hair-strong); background: #070707; }
+.soc-pic.ig img { width: 176px; height: 220px; }
+.soc-pic.story img { width: 135px; height: 240px; }
+.soc-pic.x img { width: 320px; height: 180px; }
+.soc-pic a { font-family: var(--font-mono), monospace; font-size: 0.7rem; }
+.soc-cap textarea { width: 100%; min-height: 170px; resize: vertical; font: inherit; font-size: 0.85rem; line-height: 1.45; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--hair-strong); background: color-mix(in srgb, var(--void) 92%, transparent); color: var(--bone); }
+.soc-cap-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.soc-count { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); margin-right: auto; }
+.soc-count.over { color: #FF3355; }
