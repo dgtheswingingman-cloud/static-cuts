@@ -2,8 +2,8 @@
 
 // Account links under the wordmark on the home page. In admin mode it shows
 // admin jobs only; your own account (profile, notifications, settings,
-// submissions) is in the regular view. The admin/account switch itself is
-// in the bar at the top of every page (ModeBar).
+// submissions) is in the regular view. The admin mode switch itself is in
+// the side menu (computers) and Settings (phones).
 
 import { useEffect, useState } from "react";
 import Link from "next/link";

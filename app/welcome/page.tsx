@@ -34,7 +34,7 @@ function Welcome() {
   const router = useRouter();
   const params = useSearchParams();
   const step = Math.min(4, Math.max(1, Number(params.get("step")) || 1));
-  // Admin preview ("preview welcome" in the admin bar): the same steps, nothing saved.
+  // Admin preview ("Preview first visit" in the control room tools): the same steps, nothing saved.
   const preview = params.get("preview") === "1";
   const pq = preview ? "&preview=1" : "";
   const [name, setName] = useState("");

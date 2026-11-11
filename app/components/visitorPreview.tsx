@@ -25,7 +25,7 @@ export function exitVisitorPreview() {
   window.location.reload();
 }
 
-// The bar shown while previewing (the admin bar is hidden then, as for any visitor).
+// The bar shown while previewing ("Preview as a new visitor" in the control room tools).
 export function VisitorPreviewBar() {
   const [on, setOn] = useState(false);
   useEffect(() => setOn(isVisitorPreview()), []);
