@@ -76,7 +76,7 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
   );
   if (f === "x") {
     return (
-      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.55} w={w} h={h}>
+      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgWidth={h + 200} bgHeight={h} w={w} h={h}>
         <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
           {cover(620)}
           <div style={{ display: "flex", marginLeft: 52 }}>{words(w - 128 - 620 - 52, 104)}</div>
@@ -86,10 +86,13 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
   }
   const tt = f === "tt";
   return (
-    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.55} w={w} h={h}>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 100 : 24 }}>{cover(tt ? 840 : 600)}</div>
-      <div style={{ display: "flex", marginTop: tt ? 56 : 32 }}>{words(w - 128, tt ? 120 : 96)}</div>
+    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={w} w={w} h={h}>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 90 : 30 }}>{cover(tt ? 760 : 560)}</div>
       <Spacer />
+      {words(w - 128, tt ? 140 : 110)}
+      <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: tt ? 200 : 26 }}>
+        EVERY VERSION &gt;&gt; STATIC-CUTS.COM
+      </div>
     </Frame>
   );
 }
