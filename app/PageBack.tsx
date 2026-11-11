@@ -15,7 +15,7 @@ import { RADAR_PATHS } from "./components/RadarTabs";
 // Main sections and pages that are a flow of their own.
 const TOP = new Set([
   "/", "/radar", "/search", "/library", "/submit", "/contributors", "/help", "/login", "/start", "/welcome",
-  "/messages", "/control", "/reset-password", "/spotify-callback", "/oauth/consent", ...RADAR_PATHS,
+  "/messages", "/control", "/links", "/reset-password", "/spotify-callback", "/oauth/consent", ...RADAR_PATHS,
 ]);
 // Pages that already have their own back link or crumb.
 const OWN = [/^\/song\//, /^\/list\//, /^\/lists(\/|$)/, /^\/review(\/|$)/, /^\/admin(\/|$)/, /^\/genre\//, /^\/collection\/import/,

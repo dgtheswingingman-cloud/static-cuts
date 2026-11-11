@@ -1,0 +1,25 @@
+/* static-cuts.com/links: the link in bio. One narrow column, big tap targets. */
+.lk-page { max-width: 520px; margin: 0 auto; padding: 36px 16px 90px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 2; }
+.lk-mark { width: 88px; height: 88px; border-radius: 50%; border: 2px solid var(--hair-strong); }
+.lk-title { font-family: var(--font-anton), sans-serif; font-size: 2.2rem; letter-spacing: 0.02em; margin: 14px 0 2px; color: var(--bone); }
+.lk-title span { color: var(--accent); }
+.lk-lead { font-family: var(--font-mono), monospace; font-size: 0.78rem; color: var(--smoke); margin: 0 0 22px; text-align: center; }
+.lk-today, .lk-list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.lk-list { margin-top: 18px; }
+.lk-card { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border: 1.5px solid var(--hair-strong); border-radius: 10px;
+  background: color-mix(in srgb, var(--void) 82%, transparent); text-decoration: none; color: var(--bone); }
+.lk-card:hover { border-color: var(--accent); }
+.lk-card img, .lk-blank { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; color: var(--smoke); }
+.lk-card span { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.lk-card small { font-family: var(--font-mono), monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.lk-card b { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.15rem; line-height: 1.1; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-card em { font-style: normal; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lk-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 16px; border: 1.5px solid var(--hair-strong); border-radius: 10px; text-align: center;
+  text-decoration: none; color: var(--bone); background: var(--surface); }
+.lk-btn:hover { border-color: var(--bone); }
+.lk-btn b { font-family: var(--font-mono), monospace; font-size: 0.86rem; letter-spacing: 0.04em; }
+.lk-btn small { font-size: 0.74rem; color: var(--smoke); }
+.lk-join { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #070707); }
+.lk-join small { color: inherit; opacity: 0.8; }
+.lk-social { display: flex; gap: 18px; margin-top: 26px; font-family: var(--font-mono), monospace; font-size: 0.76rem; }
+.lk-social a { color: var(--smoke); }
