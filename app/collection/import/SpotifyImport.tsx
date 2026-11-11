@@ -182,6 +182,11 @@ export default function SpotifyImport() {
                 release_date: t.album?.release_date ?? null,
                 release_precision: t.album?.release_date_precision ?? null,
                 track_number: t.track_number ?? null,
+                // Kept too: length, ISRC, explicit, album cover.
+                duration_ms: typeof t.duration_ms === "number" ? String(t.duration_ms) : null,
+                explicit: typeof t.explicit === "boolean" ? String(t.explicit) : null,
+                isrc: t.external_ids?.isrc ?? null,
+                cover: t.album?.images?.[0]?.url ?? null,
                 artists: (t.artists ?? []).map((a: any) => ({ id: a.id, name: a.name })),
               });
             }
