@@ -321,7 +321,7 @@ async function writeWav(file: Blob, t: NewTags, codeOnly: boolean): Promise<Blob
     tag = id3v23(t);
   }
   const id3 = concat([enc.encode("id3 "), le32(tag.length), tag, tag.length % 2 ? u8(0) : new Uint8Array(0)]);
-  const parts: (Blob | Uint8Array)[] = [...keep, ...(codeOnly ? [] : [infoChunk(t)]), id3];
+  const parts: (Blob | Uint8Array<ArrayBuffer>)[] = [...keep, ...(codeOnly ? [] : [infoChunk(t)]), id3];
   let size = 4;
   for (const x of parts) size += x instanceof Blob ? x.size : x.length;
   return new Blob([enc.encode("RIFF"), le32(size), enc.encode("WAVE"), ...parts], { type: "audio/wav" });
@@ -411,7 +411,7 @@ async function writeOgg(file: Blob, t: NewTags, codeOnly: boolean): Promise<Blob
   const comment = concat([magic, le32(vendor.length), vendor, le32(all.length), ...all.flatMap((x) => [le32(x.length), x]), opus ? new Uint8Array(0) : u8(1)]);
   // New header pages: the id packet alone, then comments (+ setup) laced over as many pages as needed.
   const zero = new Uint8Array(8);
-  const out: Uint8Array[] = [b.subarray(pages[0].start, pages[0].end)];
+  const out: Uint8Array<ArrayBuffer>[] = [b.subarray(pages[0].start, pages[0].end)];
   let seq = 1;
   const rest = [comment, ...packets.slice(2)];
   let segs: number[] = [], data: Uint8Array[] = [], cont = false;
