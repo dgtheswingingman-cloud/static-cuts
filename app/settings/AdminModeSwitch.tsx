@@ -1,6 +1,6 @@
 "use client";
 
-// Admin mode (admin accounts only), in Settings for phones; computers have the
+// Admin mode (admin accounts only), in Settings on phones only; computers have the
 // same switch at the bottom of the side menu.
 
 import { useIsRealAdmin } from "../useIsAdmin";
@@ -12,7 +12,7 @@ export default function AdminModeSwitch() {
   const { adminMode, setAdminMode } = useAdminView();
   if (!isRealAdmin) return null;
   return (
-    <section className="nw-panel st-box st-full">
+    <section className="nw-panel st-box st-full st-admin-phone">
       <h2 className="nw-h st-h">Admin<span>//</span></h2>
       <div className="st-row">
         <span className="st-row-text">
