@@ -8,6 +8,10 @@
 //   /leaks [artist]   latest real leaks (site-wide or one artist)
 //   /alerts add|remove|list   new leaks/snippets/releases for an artist,
 //                     posted in this channel (needs Manage Channels)
+//   /daily on|off|status   the site's daily posts in this channel: song of
+//                     the day, album of the week (Mondays), the monthly
+//                     roundup (the 1st), and on this day if asked (from 10am)
+// GET ?invite: sends people to Discord's "add this bot to a server" page.
 // Timer calls (x-cron-secret):
 //   {mode: "post"}      posts waiting alerts (grouped per channel)
 //   {mode: "register"}  sets up the slash commands with Discord
@@ -165,9 +169,96 @@ async function register() {
         { type: 1, name: "list", description: "Which artists this channel gets alerts for" },
       ],
     },
+    {
+      name: "daily", description: "Song of the day, album of the week and the monthly roundup in this channel", default_member_permissions: String(1 << 4), dm_permission: false,
+      options: [
+        { type: 1, name: "on", description: "Post them here (from 10am UK time)", options: [{ type: 5, name: "on_this_day", description: "Also post on this day (3 songs from this date in past years)", required: false }] },
+        { type: 1, name: "off", description: "Stop posting them here" },
+        { type: 1, name: "status", description: "What this channel gets" },
+      ],
+    },
   ];
   const res = await discord(`/applications/${APP_ID}/commands`, { method: "PUT", body: JSON.stringify(commands) });
   return json({ ok: res.ok, status: res.status, registered: res.ok ? commands.map((c) => c.name) : await res.text() }, res.ok ? 200 : 502);
+}
+
+async function dailyCmd(i: any) {
+  const sub: Opt | undefined = i.data.options?.[0];
+  if (!i.guild_id) return oops("Daily posts work in servers, not DMs.");
+  const perms = BigInt(i.member?.permissions ?? "0");
+  if (!(perms & MANAGE)) return oops("You need Manage Channels to set up daily posts here.");
+  const otdOpt = (sub?.options ?? []).find((o) => o.name === "on_this_day");
+  const on = sub?.name === "on" ? true : sub?.name === "off" ? false : null;
+  const { data, error } = await db.rpc("sc_discord_daily", {
+    p_secret: await secret(), p_guild: i.guild_id, p_channel: i.channel_id, p_on: on,
+    p_otd: otdOpt ? Boolean(otdOpt.value) : null, p_user: i.member?.user?.id ?? null,
+  });
+  if (error) return oops("Something went wrong. Try again in a minute.");
+  const r = data as { active: boolean; on_this_day?: boolean };
+  if (on === false) return reply({ content: "🔕 No more daily posts here." });
+  if (!r.active) return oops("This channel doesn't get daily posts. Try `/daily on`.");
+  const what = `song of the day${r.on_this_day ? ", on this day" : ""}, album of the week on Mondays and the monthly roundup on the 1st`;
+  return on ? reply({ content: `📅 Daily posts are on: ${what}, here from 10am (UK time).` }) : oops(`This channel gets ${what}.`);
+}
+
+// Pictures for the daily posts (the same ones as on Instagram/X). Keep the
+// version in step with SOCIAL_SLIDE_VERSION in lib/social.ts.
+const SLIDE_V = "5";
+const slide = (id: string) => `${SITE}/social/slide?id=${id}&f=x&v=${SLIDE_V}`;
+type Daily = { channel_id: string; post_id: string; kind: string; post_date: string; ref: any };
+function dailyEmbed(d: Daily) {
+  const r = d.ref ?? {};
+  const foot = { text: "Static Cuts// · every song, leak and version" };
+  if (d.kind === "song_of_day") {
+    const on = r.status === "released" ? r.release_date : r.leak_date;
+    return {
+      title: String(r.title ?? "").slice(0, 250), url: `${SITE}/song/${r.id}`, color: colourOf(r.status),
+      author: { name: `🎵 Song of the day · ${r.artist}`, url: `${SITE}/artist/${r.artist_id}` },
+      description: [`**${NICE[r.status] ?? r.status}**`, on ? (String(on).slice(5) === "01-01" ? String(on).slice(0, 4) : day(on)) : null, r.album ? `from ${r.album}` : null,
+        r.versions > 0 ? `${r.versions} other version${r.versions === 1 ? "" : "s"}` : null].filter(Boolean).join(" · "),
+      image: { url: slide(d.post_id) }, footer: foot,
+    };
+  }
+  if (d.kind === "on_this_day") {
+    const songs = (r.songs ?? []) as any[];
+    return {
+      title: `📅 On this day · ${new Date(`${d.post_date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}`,
+      url: `${SITE}/on-this-day`, color: 0x22d3ee,
+      description: songs.map((x) => `• [${x.title}](${SITE}/song/${x.id}) · ${x.artist} · ${x.status === "released" ? "released" : "leaked"} ${String((x.status === "released" ? x.release_date : x.leak_date) ?? "").slice(0, 4)}`).join("\n")
+        + (r.total > songs.length ? `\n…and ${n0(r.total - songs.length)} more on Static Cuts` : ""),
+      image: { url: slide(d.post_id) }, footer: foot,
+    };
+  }
+  if (d.kind === "album_of_week") {
+    return {
+      title: `💿 Album of the week: ${r.title}`.slice(0, 250), url: `${SITE}/weekly`, color: 0x8b7cf6,
+      author: { name: `${r.artist}${r.year ? ` · ${r.year}` : ""}`, url: `${SITE}/artist/${r.artist_id}` },
+      description: [r.blurb, r.unreleased ? `**${n0(r.unreleased)} unreleased** songs from the era on Static Cuts.` : null].filter(Boolean).join("\n\n").slice(0, 4000),
+      image: { url: slide(d.post_id) }, footer: foot,
+    };
+  }
+  const month = new Date(`${r.month}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  const people = ((r.contributors ?? []) as any[]).map((p, k) => `#${k + 1} ${p.name} (${n0(p.n)})`).join(" · ");
+  const leaks = ((r.leaked ?? []) as any[]).slice(0, 3).map((x) => `• [${x.title}](${SITE}/song/${x.id}) · ${x.artist}`).join("\n");
+  return {
+    title: `📊 ${month} on Static Cuts`, url: `${SITE}/weekly`, color: 0x8b7cf6,
+    description: [`**${n0(r.added)}** songs added · **${n0(r.leaked_n)}** leaks · **${n0(r.released_n)}** releases`,
+      leaks ? `**Biggest leaks**\n${leaks}` : null, people ? `**Top contributors** ${people}. Thank you!` : null].filter(Boolean).join("\n\n").slice(0, 4000),
+    image: { url: slide(d.post_id) }, footer: foot,
+  };
+}
+
+async function postDaily(done: { channels: number; messages: number; failed: number }) {
+  const { data, error } = await db.rpc("sc_discord_daily_take", { p_secret: await secret(), p_limit: 40 });
+  if (error) return { error: error.message };
+  for (const d of (data ?? []) as Daily[]) {
+    const { data: t } = await db.rpc("sc_api_allow", { p_service: "discord", p_want: 1 });
+    if (t !== 1) return { waiting: "no ticket" };
+    const res = await discord(`/channels/${d.channel_id}/messages`, { method: "POST", body: JSON.stringify({ embeds: [dailyEmbed(d)], allowed_mentions: { parse: [] } }) }).catch(() => null);
+    if (res && (res.status === 403 || res.status === 404)) { await db.rpc("sc_discord_daily_off", { p_secret: await secret(), p_channel: d.channel_id }); done.failed++; continue; }
+    if (res?.ok) done.messages++; else done.failed++;
+  }
+  return {};
 }
 
 const LABEL: Record<string, string> = { leaked: "🔴 New leak", snippet: "🟡 New snippet", released: "🟢 Out now" };
@@ -199,7 +290,8 @@ async function post() {
     }
     done.channels++;
   }
-  return json({ ok: true, ...done });
+  const daily = await postDaily(done);
+  return json({ ok: true, ...done, ...daily });
 }
 
 Deno.serve(async (req) => {
@@ -210,6 +302,13 @@ Deno.serve(async (req) => {
     if (!BOT_TOKEN || !APP_ID) return json({ ok: true, skipped: "Discord isn't set up" });
     const body = await req.json().catch(() => ({}));
     return body?.mode === "register" ? await register() : await post();
+  }
+
+  // "Add to Discord": view channels, send messages, embed links; slash commands.
+  if (req.method === "GET") {
+    if (!APP_ID) return json({ error: "Discord isn't set up" }, 503);
+    const url = `https://discord.com/oauth2/authorize?client_id=${APP_ID}&permissions=19456&scope=bot%20applications.commands`;
+    return new Response(null, { status: 302, headers: { Location: url } });
   }
 
   // Discord.
@@ -224,6 +323,7 @@ Deno.serve(async (req) => {
       case "artist": return await artistCmd(opt(i.data.options, "name"));
       case "leaks": return await leaksCmd(opt(i.data.options, "artist"));
       case "alerts": return await alertsCmd(i);
+      case "daily": return await dailyCmd(i);
       default: return oops("I don't know that one.");
     }
   } catch {

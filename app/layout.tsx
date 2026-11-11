@@ -82,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <nav className="site-credit-links">
                   <Link href="/faq">FAQ</Link>
                   <Link href="/listen">How to listen</Link>
+                  <Link href="/discord">Discord bot</Link>
                   <Link href="/contributors">Contributors</Link>
                   <Link href="/sources">Sources</Link>
                   <Link href="/legal">Privacy &amp; terms</Link>

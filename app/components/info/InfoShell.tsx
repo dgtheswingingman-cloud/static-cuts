@@ -11,6 +11,7 @@ import JumpTo from "./JumpTo";
 export const INFO_PAGES: [string, string][] = [
   ["/faq", "FAQ"],
   ["/listen", "How to listen"],
+  ["/discord", "Discord bot"],
   ["/sources", "Sources"],
   ["/legal", "Privacy & terms"],
   ["/takedown", "Request a takedown"],
