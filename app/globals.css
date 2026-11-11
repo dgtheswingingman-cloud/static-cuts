@@ -3534,3 +3534,21 @@ body:has(.ms-shell) .site-credit { display: none; }
   .home-wide .home-features .sotd { grid-template-columns: minmax(0, 1fr); border: 0; border-left: 1px solid var(--hair-strong); border-radius: 0; background: transparent; padding: 16px 36px 16px 24px; }
   .home-wide .home-features .sotd-cover img { max-width: 220px; }
 }
+
+/* Leaderboard: #2 and #3 under the leader, smaller. */
+.hl-who-sm { gap: 10px; padding-top: 8px; border-top: 1px solid var(--hair); }
+.hl-who-sm .hl-text strong { font-size: 0.9rem; }
+.hl-who-sm .hl-text b { font-size: 1rem; }
+.hl-who-sm .hl-crown { top: 4px; left: 22px; font-size: 0.66rem; background: var(--surface2); color: var(--bone); }
+
+/* Home (computers): album of the week and song of the day, without the gaps.
+   Song of the day: cover beside the words; album: buttons straight after the blurb. */
+@media (min-width: 1024px) {
+  .home-wide .home-features { align-items: stretch; }
+  .home-wide .home-features .aotw-hero { grid-template-columns: 220px minmax(0, 1fr); align-items: start; }
+  .home-wide .home-features .aotw-hero-actions { margin-top: 12px; }
+  .home-wide .home-features .aotw-hero-blurb { margin-bottom: 0; }
+  .home-wide .home-features .sotd { grid-template-columns: 150px minmax(0, 1fr); align-items: start; gap: 16px; }
+  .home-wide .home-features .sotd-cover img { max-width: none; }
+  .home-wide .home-features .sotd-title { font-size: clamp(1.4rem, 2.2vw, 2rem); }
+}
