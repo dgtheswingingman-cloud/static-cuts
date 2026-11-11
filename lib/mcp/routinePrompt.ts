@@ -1,19 +1,22 @@
 // The scheduled-task prompt users paste into ChatGPT. Kept short: the
-// detailed workflow lives in the MCP server's instructions and tool
-// descriptions, so it stays in sync with the code.
+// detailed rules live in the MCP server's instructions and tool
+// descriptions, so they stay in sync with the code.
 
-export const ROUTINE_PROMPT = `Use the Static Cuts connector to help keep my followed artists up to date.
+export const ROUTINE_PROMPT = `Use the Static Cuts connector to keep my followed artists up to date. Work in two parts, A then B, and stop when you run out of time.
 
-1. Call get_research_plan to get the next batch of my followed artists (8 at a time). Research is shared with everyone using Static Cuts, so don't redo it: for each artist only look for news dated on or after search_since (if it's empty, do a full sweep), and skip anything listed in recently_added, already_handled or open_discoveries without checking it. Skip artists marked researched_recently if you're short on time.
-2. For each artist, search for new music developments since search_since: official releases, features, collaborations, leaks, snippets, teasers, live previews, tracklists, cover art, pre-orders and pre-saves, release-date changes, reissues, archival releases, credible rumors, deleted posts and takedowns. Search official sources first (artist and label accounts, Spotify, Apple Music, YouTube, Bandcamp, stores), then release databases and music press, then community sources (artist subreddits, leak and unreleased trackers, fan archives).
-3. Pay special attention to songs in each artist's watch_list: report it when one moves to a new status (rumor, teaser, snippet, leak, announcement, official release, or removed after a takedown).
-3b. Each artist also has needs_status: songs whose status is unknown. For each one, find out whether it's released, leaked, a snippet etc., and submit_discovery (with the matching development_type and observed status) for anything you can prove. Then call mark_checked with all of those track_ids, found or not.
-4. Features and versions: when an artist guests on someone else's song, pass that song's main artist as main_artist_name (to both check_candidate and submit_discovery) and list any other guests in featured_artists. For demos, alternate versions, remixes, live versions and instrumentals, give the original song title as title and the version as version_hint.
-5. Links: for every released song, find its Spotify track link (open.spotify.com/track/...) and pass it as spotify_url. Pass leak or snippet uploads as unofficial_listening_url.
-6. Collect each artist's findings and check them together with check_candidates (up to 100 titles per call; use check_candidate only for a single one). Only call submit_discovery when the verdict is new or known_status_changed, or open_discovery and you have a different source. Never submit previously_dismissed ones. Never invent sources; one submission per finding with the best source URL. Don't hold back underground finds just because streaming services haven't indexed them yet: submit them as unofficial or unconfirmed with an honest confidence.
-6b. Details and links for songs already on Static Cuts: call get_songs_needing_links (limit 100) for each artist, find each song's listen link (Spotify track link first; for unreleased songs a YouTube or SoundCloud upload) and call suggest_link. Whenever a page shows a song's album, exact release date, producers, featured artists or track number, call suggest_details with that page as source_url. Then mark_checked with every track_id you looked at.
-6c. Shows and merch: while researching each artist, note any upcoming shows, tours, festival appearances or merch drops (from the artist's or venue's site or socials, ticketing or festival pages, or the merch store) and call submit_announcement for each, with that page as source_url. One entry per tour, not per date.
-7. Clean-up: for each artist you researched, call get_possible_duplicates with its artist_id and look at up to 5 groups. Call report_duplicate with verdict same (only the track_ids that really are one song, e.g. a leak and its official release, or one collab listed on each artist's page) or different (songs that just share a title).
-7b. Catalogue maintenance: if no artist is due (or you have time left), call get_catalogue_backlog and work through its songs: find each one's status, listen link or missing details and submit them (submit_discovery, suggest_link, suggest_details). If a filled-in detail is wrong, use suggest_details with replace = true and say why in notes. Call mark_checked with every track_id from the page, then call get_catalogue_backlog again for the next page. Don't resend anything get_review_status shows as rejected or dismissed.
-8. Finish with finish_run, listing the artist_ids you researched, even if you found nothing new. If you still have time, call get_research_plan again for the next batch and repeat.
-9. Reply with a short summary: what you submitted and which duplicates you reported, grouped by artist.`;
+A. NEWS (only artists that are due)
+1. Call get_review_status once: never resend anything it shows as rejected or dismissed.
+2. Call get_research_plan. For each artist with due = true, search for news dated on or after search_since (empty = full sweep): releases, features, leaks, snippets, teasers, tracklists, release-date changes, takedowns, credible rumours. Official sources first, then release databases and press, then community sources (subreddits, trackers). Skip anything already in recently_added, already_handled or open_discoveries.
+3. Watch-list songs: report when one changes status. needs_status songs: find out what they are.
+4. Check all of an artist's finds in one check_candidates call, then submit_discovery only for verdict new or known_status_changed (or open_discovery with a different source). Versions: original title as title, the version as version_hint. Features on someone else's song: their name as main_artist_name. Released songs: include the Spotify track link.
+5. Shows, tours, festival slots and merch drops you come across: submit_announcement (one per tour).
+6. finish_run with every artist_id you researched, even with nothing new.
+
+B. CATALOGUE (whenever A has nothing due, or you have time left)
+7. Call get_catalogue_backlog. For each song: needs status -> submit_discovery what you can prove; needs link -> suggest_link; needs details -> suggest_details with the page that shows them. Wrong filled-in detail -> suggest_details with replace = true and why in notes. recheck items -> only resubmit with new evidence.
+8. mark_checked with every track_id (and recheck discovery_id) you looked at, found or not, then call get_catalogue_backlog again for the next page.
+9. For artists you worked on, look at up to 5 groups from get_possible_duplicates and report_duplicate same or different.
+
+Rules: never invent sources; one submission per finding with its best source page; never download or link audio files. Underground finds are welcome as unofficial or unconfirmed with an honest confidence.
+
+Reply with a short summary grouped by artist: what you submitted, links and details suggested, shows found, duplicates reported.`;

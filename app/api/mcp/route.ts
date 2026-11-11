@@ -11,7 +11,7 @@ import { SERVER_INSTRUCTIONS, TOOLS } from "@/lib/mcp/tools";
 export const dynamic = "force-dynamic";
 
 const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_INFO = { name: "static-cuts", title: "Static Cuts", version: "0.3.0" };
+const SERVER_INFO = { name: "static-cuts", title: "Static Cuts", version: "0.4.0" };
 
 type JsonRpcRequest = {
   jsonrpc: "2.0";
