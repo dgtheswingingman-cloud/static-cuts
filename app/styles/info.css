@@ -58,3 +58,21 @@
 .if-links a:hover { color: var(--accent); }
 @media (max-width: 700px) { .if-cards { grid-template-columns: minmax(0, 1fr); } }
 
+
+/* Premium page */
+.pm-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 4px 0 14px; }
+.pm-plan { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1.5px solid var(--hair-strong); border-radius: 6px; background: var(--surface); }
+.pm-plan.best { border-color: var(--accent); }
+.pm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 1rem; }
+.pm-tag { font-family: var(--font-mono), monospace; font-size: 0.65rem; letter-spacing: 0.08em; padding: 2px 6px; background: var(--accent); color: var(--void); font-weight: 700; }
+.pm-price { font-size: 2rem; font-weight: 800; line-height: 1; }
+.pm-price small { font-family: var(--font-mono), monospace; font-size: 0.75rem; font-weight: 400; color: var(--smoke); }
+.pm-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; text-decoration: none; font-size: 0.8rem; }
+.pm-btn:disabled { opacity: 0.6; cursor: default; }
+.pm-status { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; margin: 4px 0 14px; border: 1.5px solid #2BD67B; border-radius: 6px; background: var(--surface); }
+.pm-status small { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.pm-status .pm-btn { align-self: flex-start; margin-top: 4px; padding: 0 18px; }
+.pm-test { padding: 8px 12px; border: 1.5px dashed #F5B841; border-radius: 6px; color: #F5B841; }
+.pm-ok span { color: #2BD67B; font-weight: 700; }
+.pm-err { color: #FF3355; }
+@media (max-width: 700px) { .pm-plans { grid-template-columns: minmax(0, 1fr); } }

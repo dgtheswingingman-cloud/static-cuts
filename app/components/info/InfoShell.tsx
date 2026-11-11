@@ -12,6 +12,7 @@ export const INFO_PAGES: [string, string][] = [
   ["/faq", "FAQ"],
   ["/listen", "How to listen"],
   ["/discord", "Discord bot"],
+  ["/premium", "Premium"],
   ["/sources", "Sources"],
   ["/legal", "Privacy & terms"],
   ["/takedown", "Request a takedown"],
