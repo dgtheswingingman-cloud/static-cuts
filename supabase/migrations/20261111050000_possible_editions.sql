@@ -29,7 +29,7 @@ create table if not exists album_edition_dismissed (
 alter table album_edition_dismissed enable row level security;
 
 create or replace function sc_find_possible_editions()
-returns int language plpgsql security definer set search_path to 'public' set work_mem to '64MB' as $function$
+returns int language plpgsql security definer set search_path to 'public' set work_mem to '64MB' set statement_timeout to '120s' as $function$
 declare n int;
 begin
   delete from album_edition_candidates;
@@ -39,11 +39,11 @@ begin
     where d.kind in ('album', 'ep') and coalesce(d.review, '') <> 'remove' and d.release_date is not null
     order by d.album_id
   ),
-  k as (select distinct at.album_id, sc_title_key(regexp_replace(at.title, '\s*[\(\[].*$', '')) key
+  k as (select distinct al.artist_id, at.album_id, sc_title_key(regexp_replace(at.title, '\s*[\(\[].*$', '')) key
         from album_tracks at join al on al.album_id = at.album_id),
   sz as (select album_id, count(*) n from k group by 1 having count(*) >= 6),
   common as (select ka.album_id a_id, kb.album_id b_id, count(*) c
-             from k ka join k kb on kb.key = ka.key and kb.album_id <> ka.album_id group by 1, 2)
+             from k ka join k kb on kb.artist_id = ka.artist_id and kb.key = ka.key and kb.album_id <> ka.album_id group by 1, 2)
   insert into album_edition_candidates (album_id, original_id, artist_id, common, original_songs, songs)
   select distinct on (b.album_id) b.album_id, a.album_id, a.artist_id, c.c, sa.n, sb.n
   from common c join al a on a.album_id = c.a_id join al b on b.album_id = c.b_id
