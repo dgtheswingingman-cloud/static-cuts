@@ -1,8 +1,8 @@
 -- The name everywhere people see it: "Static-Cuts" / "STATIC-CUTS//" (with
 -- the hyphen), not "Static Cuts". Applied to the functions whose text shows
 -- (announcement replies, the ChatGPT research plan, post captions, Discord
--- replies) and the posts not posted yet. The internal bio_source marker
--- 'Static Cuts' (bios written here) is left as it is: it never shows.
+-- replies) and the posts not posted yet. (The bio_source marker for bios
+-- written here is changed in 20261111290000_brand_marker.sql.)
 do $d$
 declare r record; src text; n text;
 begin
