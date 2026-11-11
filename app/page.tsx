@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +14,7 @@ import { local as safeLocal } from "@/lib/safeStorage";
 import type { CSSProperties } from "react";
 import HeroCollage from "./components/HeroCollage";
 import HomeFeed from "./components/HomeFeed";
+import { thumb } from "@/lib/thumb";
 
 type Artist = {
   id: string;
@@ -25,6 +26,8 @@ type Artist = {
   ratingCount: number;
   aliases: string[];
   genres: { slug: string; tag: string }[];
+  image: string | null;
+  featured: number;
 };
 
 type TrackResult = {
@@ -35,7 +38,7 @@ type TrackResult = {
   artists: { name: string } | null;
 };
 
-type ArtistSortKey = "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc" | "rating-desc" | "rating-asc";
+type ArtistSortKey = "featured" | "name-asc" | "name-desc" | "count-desc" | "count-asc" | "pct-desc" | "pct-asc" | "rating-desc" | "rating-asc";
 
 export default function HomePage() {
   const user = usePersonalUser();
@@ -49,7 +52,7 @@ export default function HomePage() {
   const [trackResults, setTrackResults] = useState<TrackResult[]>([]);
   const [trackSearchLoading, setTrackSearchLoading] = useState(false);
   const [trackSearchError, setTrackSearchError] = useState<string | null>(null);
-  const [artistSort, setArtistSort] = useState<ArtistSortKey>("name-asc");
+  const [artistSort, setArtistSort] = useState<ArtistSortKey>("featured");
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
@@ -63,22 +66,23 @@ export default function HomePage() {
 
   const SORT_STORAGE_KEY = "static_cuts_artist_sort";
 
-  // Artist photos for the cards and the Live rows.
-  const [photos, setPhotos] = useState<Record<string, string>>({});
+  // Artist photos for the cards and the Live rows (from the same call).
+  const photos: Record<string, string> = {};
+  for (const a of artists ?? []) if (a.image) photos[a.id] = a.image;
+
+  // Cards are drawn 60 at a time as you scroll (drawing 1,800 at once was slow).
+  const PAGE = 60;
+  const [shown, setShown] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    // In pages of 1000 (the most one request returns): with over 1000
-    // artists, the ones past the first page had no photo on their card.
-    (async () => {
-      const all: Record<string, string> = {};
-      for (let from = 0; from < 20000; from += 1000) {
-        const { data } = await supabase.from("artists").select("id, image_url").not("image_url", "is", null).order("id").range(from, from + 999);
-        const rows = (data ?? []) as { id: string; image_url: string }[];
-        for (const r of rows) all[r.id] = r.image_url;
-        if (rows.length < 1000) break;
-      }
-      setPhotos(all);
-    })();
-  }, []);
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setShown((n) => n + PAGE);
+    }, { rootMargin: "800px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  });
 
   useEffect(() => {
     const stored = safeLocal.get(SORT_STORAGE_KEY) as ArtistSortKey | null;
@@ -100,18 +104,20 @@ export default function HomePage() {
         type Row = {
           id: string; name: string; status: string | null; track_count: number; collected: number;
           avg_rating: number | null; rating_count: number; aliases: string[] | null;
-          genres: { slug: string; tag: string }[] | null;
+          genres: { slug: string; tag: string }[] | null; image: string | null; featured: number | null;
         };
         setArtists(((data as Row[]) ?? []).map((a) => ({
           id: a.id,
           name: a.name,
           status: a.status,
           trackCount: a.track_count,
-          collectedCount: a.collected,
+          collectedCount: a.collected ?? 0,
           avgRating: a.avg_rating === null ? null : Number(a.avg_rating),
           ratingCount: a.rating_count,
           aliases: a.aliases ?? [],
           genres: a.genres ?? [],
+          image: a.image ?? null,
+          featured: a.featured ?? 999999,
         })));
       } catch (e: any) {
         setError(e?.message ?? String(e));
@@ -258,6 +264,7 @@ export default function HomePage() {
     const sorted = genreFilter ? baseList.filter((a) => a.genres.some((g) => g.slug === genreFilter)) : [...baseList];
     const pct = (a: Artist) => (a.trackCount > 0 ? a.collectedCount / a.trackCount : 0);
     switch (artistSort) {
+      case "featured": sorted.sort((a, b) => a.featured - b.featured); break;
       case "name-asc": sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
       case "name-desc": sorted.sort((a, b) => b.name.localeCompare(a.name)); break;
       case "count-desc": sorted.sort((a, b) => b.trackCount - a.trackCount); break;
@@ -287,6 +294,9 @@ export default function HomePage() {
     sorted.sort((a, b) => Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id)));
     return sorted;
   })();
+
+  // Back to the first page when the sort, filter or search changes.
+  useEffect(() => { setShown(PAGE); }, [artistSort, genreFilter, q, showAll]);
 
   const sectionLabel = q ? "Search results" : "The archive";
 
@@ -409,6 +419,7 @@ export default function HomePage() {
             </button>
           )}
           <select className="sort-select" value={artistSort} onChange={(e) => updateArtistSort(e.target.value as ArtistSortKey)} aria-label="Sort artists">
+            <option value="featured">Featured (a mix, new every day)</option>
             <option value="name-asc">Name (A–Z)</option>
             <option value="name-desc">Name (Z–A)</option>
             <option value="count-desc">Most tracks logged</option>
@@ -445,13 +456,13 @@ export default function HomePage() {
       {!error && artists !== null && (
         <div className="grid">
           {matchedArtists && matchedArtists.length > 0 ? (
-            matchedArtists.map((a) => {
+            matchedArtists.slice(0, shown).map((a) => {
               const pct = a.trackCount > 0 ? Math.round((a.collectedCount / a.trackCount) * 100) : 0;
               const following = followedIds.has(a.id);
               return (
                 <Link key={a.id} href={`/artist/${a.id}`}
                   className={`card ${pinnedIds.has(a.id) ? "pinned" : ""} ${photos[a.id] ? "has-photo" : ""}`}
-                  style={photos[a.id] ? ({ "--card-img": `url("${photos[a.id]}")` } as CSSProperties) : undefined}>
+                  style={photos[a.id] ? ({ "--card-img": `url("${thumb(photos[a.id], 400)}")` } as CSSProperties) : undefined}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
                     <div className="count">{String(a.trackCount).padStart(4, "0")} TRACKS LOGGED</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -516,6 +527,10 @@ export default function HomePage() {
             <div className="empty-state">Nothing in the archive yet.</div>
           )}
         </div>
+      )}
+      {/* More cards load as this comes into view. */}
+      {matchedArtists && matchedArtists.length > shown && (
+        <div ref={sentinel} className="empty-state" aria-hidden="true">loading more artists…</div>
       )}
 
       <div className="note">
