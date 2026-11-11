@@ -514,7 +514,7 @@ export default function LocalCutsPage() {
             ))}
           </div>
           {premium === false && user && (
-            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Not premium? You can still run a folder, see how it matches and help fill gaps in the archive. Saving the tidy copy is premium.</p>
+            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Not premium? You can still run a folder, see how it matches and help fill gaps in the archive. Saving the tidy copy is premium. <Link href="/premium" className="text-link">Get premium</Link></p>
           )}
         </>
       )}
@@ -607,7 +607,7 @@ export default function LocalCutsPage() {
             </label>
           </div>
           {premium === false && (
-            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Saving the tidy copy is premium.{unsorted.length > 0 ? " With premium, Claude also looks at the files that couldn't be identified." : ""}</p>
+            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Saving the tidy copy is premium.{unsorted.length > 0 ? " With premium, Claude also looks at the files that couldn't be identified." : ""} <Link href="/premium" className="text-link">Get premium</Link></p>
           )}
           {collected && <p className="lc-small">{collected}</p>}
 
