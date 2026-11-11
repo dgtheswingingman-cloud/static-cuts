@@ -18,6 +18,9 @@
 .cr-page .mod-card.waiting { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .cr-page .mod-card-count { background: var(--bone); color: #070707; border-radius: 3px; padding: 1px 7px; font-weight: 700; }
 .cr-page .mod-card.clear .mod-card-count { background: none; color: var(--smoke); }
+/* Nothing waiting: greyed out (still clickable). */
+.cr-page .mod-card.clear { opacity: 0.4; filter: grayscale(1); border-style: dashed; transition: opacity 0.15s; }
+.cr-page .mod-card.clear:hover, .cr-page .mod-card.clear:focus-visible { opacity: 0.8; }
 .cr-tools { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
 .cr-page .review-row { border-bottom-color: var(--hair-strong); }
 .cr-page .health-columns { gap: 18px; }
