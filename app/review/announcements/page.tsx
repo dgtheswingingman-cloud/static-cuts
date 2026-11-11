@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
-import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
+import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModBulkBar, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type State = "open" | "approved" | "dismissed";
 type Item = {
@@ -27,10 +27,12 @@ export default function AnnouncementsPage() {
   const [counts, setCounts] = useState<Partial<Record<State, number>>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!canModerate) return;
     setItems(null);
+    setSelected(new Set());
     supabase.rpc("admin_announcements", { p_state: state }).then(({ data, error: err }) => {
       if (err) { setError(err.message); setItems([]); return; }
       const d = data as { counts: Partial<Record<State, number>> | null; items: Item[] };
@@ -39,18 +41,24 @@ export default function AnnouncementsPage() {
     });
   }, [canModerate, state]);
 
-  async function act(i: Item, action: "approve" | "dismiss") {
-    setBusy(i.id);
-    const { error: err } = await supabase.rpc("admin_announcement_action", { p_ids: [i.id], p_action: action });
+  async function act(ids: string[], action: "approve" | "dismiss") {
+    if (ids.length === 0) return;
+    setBusy(ids.length === 1 ? ids[0] : "bulk");
+    const { error: err } = await supabase.rpc("admin_announcement_action", { p_ids: ids, p_action: action });
     setBusy(null);
     if (err) { setError(err.message); return; }
-    setItems((prev) => (prev ?? []).filter((x) => x.id !== i.id));
+    const gone = new Set(ids);
+    setItems((prev) => (prev ?? []).filter((x) => !gone.has(x.id)));
+    setSelected((prev) => new Set([...prev].filter((id) => !gone.has(id))));
+    setCounts((c) => ({ ...c, [state]: Math.max(0, (c[state] ?? 0) - ids.length) }));
   }
+  const toggle = (id: string, on: boolean) => setSelected((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n; });
+  const ticked = (items ?? []).filter((i) => selected.has(i.id)).map((i) => i.id);
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   return (
     <ModPage title="Shows & merch" intro="Shows, tours, festivals and merch drops for artist pages. Approved ones show under Coming up until they've passed.">
-      <ModToolbar>
+      <ModToolbar right={items && items.length > 1 ? <ModButton onClick={() => setSelected(new Set(items.map((i) => i.id)))}>tick all ({items.length.toLocaleString()})</ModButton> : undefined}>
         <ModTabs<State>
           value={state}
           onChange={setState}
@@ -61,12 +69,17 @@ export default function AnnouncementsPage() {
           ]}
         />
       </ModToolbar>
+      <ModBulkBar count={ticked.length} onClear={() => setSelected(new Set())}>
+        {state !== "approved" && <ModButton kind="approve" busy={busy === "bulk"} onClick={() => act(ticked, "approve")}>approve</ModButton>}
+        {state !== "dismissed" && <ModButton kind="danger" busy={busy === "bulk"} onClick={() => act(ticked, "dismiss")}>dismiss</ModButton>}
+      </ModBulkBar>
       {error && <ModNotice kind="error" onClose={() => setError(null)}>{error}</ModNotice>}
       {!items && <ModLoading />}
       {items && items.length === 0 && <ModEmpty>Nothing here.</ModEmpty>}
       {items?.map((i) => (
         <ModRow
           key={i.id}
+          check={{ checked: selected.has(i.id), onChange: (on) => toggle(i.id, on) }}
           title={<>{i.title} <ModTag>{i.kind}</ModTag></>}
           meta={<>
             <Link href={`/artist/${i.artist_id}`}>{i.artist}</Link>
@@ -77,8 +90,8 @@ export default function AnnouncementsPage() {
             {i.notes && <span>{i.notes}</span>}
           </>}
           actions={<>
-            {state !== "approved" && <ModButton kind="approve" busy={busy === i.id} onClick={() => act(i, "approve")}>approve</ModButton>}
-            {state !== "dismissed" && <ModButton kind="danger" busy={busy === i.id} onClick={() => act(i, "dismiss")}>dismiss</ModButton>}
+            {state !== "approved" && <ModButton kind="approve" busy={busy === i.id} onClick={() => act([i.id], "approve")}>approve</ModButton>}
+            {state !== "dismissed" && <ModButton kind="danger" busy={busy === i.id} onClick={() => act([i.id], "dismiss")}>dismiss</ModButton>}
           </>}
         />
       ))}
