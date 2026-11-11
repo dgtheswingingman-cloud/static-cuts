@@ -78,6 +78,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 type Counts = {
   suggestions: number; finds: number; sub_versions: number; imported_songs: number; guest_artists: number;
   reported_comments: number; sheet_requests: number; tracker_disagreements?: number; takedowns: number | null;
+  album_fixes?: number; announcements?: number; wrong_links?: number;
 };
 
 const rank = (n: number | null | undefined) => (typeof n === "number" ? (n > 0 ? 0 : 2) : 1);
@@ -563,9 +564,9 @@ export default function ReviewHub() {
           ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: undefined, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
           { href: "/review/duplicates", title: "Duplicates", n: undefined, blurb: "The same song entered twice: pick one to keep and merge." },
-          { href: "/review/cleanup", title: "Clean-up", n: undefined, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists) and empty placeholders." },
-          { href: "/review/albums", title: "Albums", n: undefined, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
-          { href: "/review/announcements", title: "Shows & merch", n: undefined, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
+          { href: "/review/cleanup", title: "Clean-up", n: undefined, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
+          { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
+          { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
         ]
           // Lists with something waiting first, then ones without a count, then the clear ones.
           .sort((a, b) => rank(a.n) - rank(b.n))
