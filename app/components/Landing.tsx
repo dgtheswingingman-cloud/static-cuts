@@ -1,7 +1,7 @@
 "use client";
 import "../styles/landing.css";
 
-// The front page for someone who's never been here: what Static Cuts is, the
+// The front page for someone who's never been here: what Static-Cuts is, the
 // numbers, what you can do, the launch artists, and how to start. Shown at the
 // top of the home page to signed-out visitors who haven't picked artists;
 // "skip" remembers.
@@ -40,7 +40,7 @@ export default function Landing() {
   return (
     <section className="lp">
       <div className="lp-hero">
-        <div className="lp-kicker">Static Cuts<span>//</span> the fan archive</div>
+        <div className="lp-kicker">Static-Cuts<span>//</span> the fan archive</div>
         <h2 className="lp-title">Every song.<br />Every version.<br /><em>Released or not.</em></h2>
         <p className="lp-lead">
           The complete catalogue for the artists you love: official releases, features, leaks, snippets,

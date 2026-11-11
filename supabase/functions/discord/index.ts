@@ -1,6 +1,6 @@
 // Supabase Edge Function: discord
 //
-// The Static Cuts Discord bot, through Discord's interactions endpoint (no
+// The Static-Cuts Discord bot, through Discord's interactions endpoint (no
 // always-on server). Discord sends each slash command here, signed; we
 // check the signature and answer.
 //   /song <name>      best match: status, artist, era, cover, link
@@ -72,7 +72,7 @@ async function songCmd(q: string) {
   const { data } = await db.rpc("rpc_search_songs", { p_q: q, p_versions: true, p_sort: "best", p_offset: 0 });
   type S = { id: string; title: string; artist: string; artist_id: string; status: string; album: string | null; release_date: string | null; parent_track_id: string | null };
   const items = (((data as { items?: S[] } | null)?.items) ?? []).slice(0, 5);
-  if (!items.length) return oops(`Nothing on Static Cuts matches “${q}”.`);
+  if (!items.length) return oops(`Nothing on Static-Cuts matches “${q}”.`);
   const top = items[0];
   const { data: covers } = await db.rpc("rpc_track_covers", { p_ids: [top.id] });
   const cover = ((covers as { url: string | null }[] | null) ?? [])[0]?.url ?? null;
@@ -86,7 +86,7 @@ async function songCmd(q: string) {
       description: [`**${NICE[top.status] ?? top.status}**`, top.album ? `Era: ${top.album}` : null, top.release_date ? `Out ${day(top.release_date)}` : null]
         .filter(Boolean).join(" · ") + (others ? `\n\n**Also matches**\n${others}` : ""),
       ...(cover ? { thumbnail: { url: cover } } : {}),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "Static-Cuts// · every song, leak and version" },
     }],
   });
 }
@@ -95,7 +95,7 @@ async function artistCmd(q: string) {
   if (!q) return oops("Which artist?");
   const { data } = await db.rpc("sc_discord_artist", { p_secret: await secret(), p_q: q });
   const a = data as { id: string; name: string; photo: string | null; songs: number; unreleased: number; leaked: number; latest: { id: string; title: string; status: string; on: string | null }[] } | null;
-  if (!a) return oops(`No artist called “${q}” on Static Cuts yet.`);
+  if (!a) return oops(`No artist called “${q}” on Static-Cuts yet.`);
   const latest = a.latest.map((s) => `• [${s.title}](${SITE}/song/${s.id}) · ${NICE[s.status] ?? s.status}${s.on ? ` · ${day(s.on)}` : ""}`).join("\n");
   return reply({
     embeds: [{
@@ -109,7 +109,7 @@ async function artistCmd(q: string) {
         ...(latest ? [{ name: "Latest leaks & snippets", value: latest.slice(0, 1000) }] : []),
       ],
       ...(a.photo ? { thumbnail: { url: a.photo } } : {}),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "Static-Cuts// · every song, leak and version" },
     }],
   });
 }
@@ -117,7 +117,7 @@ async function artistCmd(q: string) {
 async function leaksCmd(q: string) {
   const { data } = await db.rpc("sc_discord_leaks", { p_secret: await secret(), p_artist_q: q });
   const r = data as { artist: string | null; items: { id: string; title: string; artist: string; on: string }[] } | null;
-  if (!r) return oops(`No artist called “${q}” on Static Cuts yet.`);
+  if (!r) return oops(`No artist called “${q}” on Static-Cuts yet.`);
   if (!r.items.length) return reply({ content: r.artist ? `No new ${r.artist} leaks in the last 60 days.` : "No new leaks in the last 60 days." });
   return reply({
     embeds: [{
@@ -125,7 +125,7 @@ async function leaksCmd(q: string) {
       url: `${SITE}/weekly`,
       color: 0xff3355,
       description: r.items.map((s) => `• [${s.title}](${SITE}/song/${s.id})${r.artist ? "" : ` · ${s.artist}`} · ${day(s.on)}`).join("\n").slice(0, 4000),
-      footer: { text: "Static Cuts// · every song, leak and version" },
+      footer: { text: "Static-Cuts// · every song, leak and version" },
     }],
   });
 }
@@ -158,7 +158,7 @@ async function discord(path: string, init: RequestInit = {}) {
 
 async function register() {
   const commands = [
-    { name: "song", description: "Look up a song on Static Cuts", options: [{ type: 3, name: "name", description: "Song title (and artist, if you like)", required: true }] },
+    { name: "song", description: "Look up a song on Static-Cuts", options: [{ type: 3, name: "name", description: "Song title (and artist, if you like)", required: true }] },
     { name: "artist", description: "An artist's page: songs, unreleased, latest leaks", options: [{ type: 3, name: "name", description: "Artist name", required: true }] },
     { name: "leaks", description: "The latest leaks", options: [{ type: 3, name: "artist", description: "Only this artist", required: false }] },
     {
@@ -208,7 +208,7 @@ const slide = (id: string) => `${SITE}/social/slide?id=${id}&f=x&v=${SLIDE_V}`;
 type Daily = { channel_id: string; post_id: string; kind: string; post_date: string; ref: any };
 function dailyEmbed(d: Daily) {
   const r = d.ref ?? {};
-  const foot = { text: "Static Cuts// · every song, leak and version" };
+  const foot = { text: "Static-Cuts// · every song, leak and version" };
   if (d.kind === "song_of_day") {
     const on = r.status === "released" ? r.release_date : r.leak_date;
     return {
@@ -225,7 +225,7 @@ function dailyEmbed(d: Daily) {
       title: `📅 On this day · ${new Date(`${d.post_date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}`,
       url: `${SITE}/on-this-day`, color: 0x22d3ee,
       description: songs.map((x) => `• [${x.title}](${SITE}/song/${x.id}) · ${x.artist} · ${x.status === "released" ? "released" : "leaked"} ${String((x.status === "released" ? x.release_date : x.leak_date) ?? "").slice(0, 4)}`).join("\n")
-        + (r.total > songs.length ? `\n…and ${n0(r.total - songs.length)} more on Static Cuts` : ""),
+        + (r.total > songs.length ? `\n…and ${n0(r.total - songs.length)} more on Static-Cuts` : ""),
       image: { url: slide(d.post_id) }, footer: foot,
     };
   }
@@ -233,7 +233,7 @@ function dailyEmbed(d: Daily) {
     return {
       title: `💿 Album of the week: ${r.title}`.slice(0, 250), url: `${SITE}/weekly`, color: 0x8b7cf6,
       author: { name: `${r.artist}${r.year ? ` · ${r.year}` : ""}`, url: `${SITE}/artist/${r.artist_id}` },
-      description: [r.blurb, r.unreleased ? `**${n0(r.unreleased)} unreleased** songs from the era on Static Cuts.` : null].filter(Boolean).join("\n\n").slice(0, 4000),
+      description: [r.blurb, r.unreleased ? `**${n0(r.unreleased)} unreleased** songs from the era on Static-Cuts.` : null].filter(Boolean).join("\n\n").slice(0, 4000),
       image: { url: slide(d.post_id) }, footer: foot,
     };
   }
@@ -241,7 +241,7 @@ function dailyEmbed(d: Daily) {
   const people = ((r.contributors ?? []) as any[]).map((p, k) => `#${k + 1} ${p.name} (${n0(p.n)})`).join(" · ");
   const leaks = ((r.leaked ?? []) as any[]).slice(0, 3).map((x) => `• [${x.title}](${SITE}/song/${x.id}) · ${x.artist}`).join("\n");
   return {
-    title: `📊 ${month} on Static Cuts`, url: `${SITE}/weekly`, color: 0x8b7cf6,
+    title: `📊 ${month} on Static-Cuts`, url: `${SITE}/weekly`, color: 0x8b7cf6,
     description: [`**${n0(r.added)}** songs added · **${n0(r.leaked_n)}** leaks · **${n0(r.released_n)}** releases`,
       leaks ? `**Biggest leaks**\n${leaks}` : null, people ? `**Top contributors** ${people}. Thank you!` : null].filter(Boolean).join("\n\n").slice(0, 4000),
     image: { url: slide(d.post_id) }, footer: foot,

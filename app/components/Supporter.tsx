@@ -81,7 +81,7 @@ export default function Supporter({ id, full = false }: { id: string | null | un
     <span className={`user-badges${full ? " full" : ""}`}>
       {b.fans.map((f) => <FanTag key={f.artist_id} fan={f} big={full} />)}
       {b.supporter && (
-        <span className={`supporter-badge${full ? " full" : ""}`} title="Static Cuts supporter">
+        <span className={`supporter-badge${full ? " full" : ""}`} title="Static-Cuts supporter">
           ◆{full && <span> supporter</span>}
         </span>
       )}

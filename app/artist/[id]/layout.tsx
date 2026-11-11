@@ -14,8 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     supabase.from("tracks").select("id", { count: "exact", head: true }).eq("artist_id", id),
     supabase.from("tracks").select("id", { count: "exact", head: true }).eq("artist_id", id).neq("release_status", "released"),
   ]);
-  if (!artist) return { title: "Artist not found · Static Cuts//" };
-  const title = `${artist.name} — every song, leak and unreleased track · Static Cuts//`;
+  if (!artist) return { title: "Artist not found · Static-Cuts//" };
+  const title = `${artist.name} — every song, leak and unreleased track · Static-Cuts//`;
   const n = (x: number | null) => (x ?? 0).toLocaleString("en-GB");
   const description = `${n(count)} ${artist.name} songs logged${unreleased ? `, ${n(unreleased)} of them unreleased, leaked or snippets` : ""}: releases, features and every version, kept up to date by fans.`;
   // The link picture comes from opengraph-image.tsx next to this file.

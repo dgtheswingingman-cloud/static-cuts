@@ -2,7 +2,7 @@
 
 // OAuth consent screen. Supabase Auth sends the browser here (the
 // "Authorization Path" setting) when an app such as ChatGPT asks to connect
-// to a user's Static Cuts account.
+// to a user's Static-Cuts account.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +81,7 @@ export default function OAuthConsentPage() {
       {details && (
         <div style={{ marginTop: 16 }}>
           <p style={{ lineHeight: 1.6 }}>
-            <b>{details.client.name || "An app"}</b> wants to connect to your Static Cuts account
+            <b>{details.client.name || "An app"}</b> wants to connect to your Static-Cuts account
             {user?.email ? <> (<span className="comment-meta">{user.email}</span>)</> : null}.
           </p>
           <div className="section-label" style={{ marginTop: 18 }}>It will be able to</div>

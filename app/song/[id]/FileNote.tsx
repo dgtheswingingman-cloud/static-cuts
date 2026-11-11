@@ -25,7 +25,7 @@ export default function FileNote({ trackId }: { trackId: string }) {
   if (!hasFile) return null;
   return (
     <div className="comment-meta" style={{ marginTop: 6 }}>
-      A file of this song is known to exist. Static Cuts doesn&apos;t link to leaked files.
+      A file of this song is known to exist. Static-Cuts doesn&apos;t link to leaked files.
       {file && (
         <div style={{ marginTop: 4 }}>
           <span className="feature-tag">only you see this</span>{" "}

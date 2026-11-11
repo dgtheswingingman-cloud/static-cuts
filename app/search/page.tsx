@@ -62,7 +62,7 @@ function SearchInner() {
     router.replace(`/search?${next.toString()}`, { scroll: false });
   }
 
-  // A Static Cuts code (SC-KANY-489521, sc489521...) goes straight to its song.
+  // A Static-Cuts code (SC-KANY-489521, sc489521...) goes straight to its song.
   useEffect(() => {
     const code = q.trim();
     if (!/^sc[-\s]*([a-z0-9]{4}[-\s]*)?\d{1,9}$/i.test(code)) return;

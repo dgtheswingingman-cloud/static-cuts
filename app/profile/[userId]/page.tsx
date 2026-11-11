@@ -237,7 +237,7 @@ export default function ProfilePage() {
           <button className={`tab ah2-follow ${editing ? "" : "on"}`} onClick={() => setEditing(!editing)}>✎ {editing ? "Close editor" : "Edit profile"}</button>
         )}
         {viewer && !isOwnProfile && isFriend && <Link href={`/messages/${userId}`} className="tab sp-icon-btn" aria-label="Message">✉</Link>}
-        <ShareButton title={`${profile.display_name ?? "A collector"} on Static Cuts//`} path={`/profile/${userId}`} className="tab sp-icon-btn" ariaLabel="Share"
+        <ShareButton title={`${profile.display_name ?? "A collector"} on Static-Cuts//`} path={`/profile/${userId}`} className="tab sp-icon-btn" ariaLabel="Share"
           storyKey={`${userId}:${favourites.length}:${contribTotal ?? ""}:${social?.followers ?? ""}`}
           fileName={`static-cuts-${(profile.display_name ?? "profile").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`}
           image={() => profileCard({

@@ -112,7 +112,7 @@ export default function ListeningPage() {
                   <div key={a.name} className={`pg-row${a.artist_id ? "" : " off"}`}>
                     <span className="pg-rank">{i + 1}</span>
                     <span className="pg-row-main">
-                      {a.artist_id ? <Link href={`/artist/${a.artist_id}`}><b>{a.name}</b></Link> : <b title="Not on Static Cuts yet">{a.name}</b>}
+                      {a.artist_id ? <Link href={`/artist/${a.artist_id}`}><b>{a.name}</b></Link> : <b title="Not on Static-Cuts yet">{a.name}</b>}
                       <span>{n(a.plays)} plays{!a.artist_id ? " · not on the site yet" : ""}</span>
                     </span>
                     {a.artist_id && (a.following

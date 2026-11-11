@@ -6,8 +6,8 @@ import Link from "next/link";
 import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
 export const metadata: Metadata = {
-  title: "FAQ · Static Cuts//",
-  description: "How Static Cuts// works: what's in the archive, how songs get added, and how to help.",
+  title: "FAQ · Static-Cuts//",
+  description: "How Static-Cuts// works: what's in the archive, how songs get added, and how to help.",
 };
 
 type QA = { id?: string; q: string; a: React.ReactNode };
@@ -19,7 +19,7 @@ const SECTIONS: Section[] = [
     title: "The basics",
     items: [
       {
-        q: "What is Static Cuts//?",
+        q: "What is Static-Cuts//?",
         a: (
           <p>
             A community-built discography archive. Every artist page lists everything we know they&apos;ve made:
@@ -290,7 +290,7 @@ const SECTIONS: Section[] = [
 
 export default function FaqPage() {
   return (
-    <InfoShell title="FAQ" here="/faq" intro={<>Answers to common questions about Static Cuts//: how the archive works, and how to help build it. Anything else: <a href="mailto:hello@static-cuts.com" className="text-link">hello@static-cuts.com</a>.</>}
+    <InfoShell title="FAQ" here="/faq" intro={<>Answers to common questions about Static-Cuts//: how the archive works, and how to help build it. Anything else: <a href="mailto:hello@static-cuts.com" className="text-link">hello@static-cuts.com</a>.</>}
       sections={SECTIONS.map((x) => [x.id, x.title] as [string, string])}>
       {SECTIONS.map((x) => (
         <InfoSection key={x.id} id={x.id} title={x.title} className="if-faq">

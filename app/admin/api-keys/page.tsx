@@ -58,7 +58,7 @@ export default function ApiKeysPage() {
     <ModPage
       title="API keys"
       back="/control?tab=owner"
-      intro="Read-only access to the archive for other fan sites and bots. Make one key per person or project. Each key has its own limit, and answers always ask them to credit Static Cuts."
+      intro="Read-only access to the archive for other fan sites and bots. Make one key per person or project. Each key has its own limit, and answers always ask them to credit Static-Cuts."
     >
       {message && <ModNotice onClose={() => setMessage(null)}>{message}</ModNotice>}
 
@@ -103,7 +103,7 @@ ${BASE}?path=/artists/<id>       an artist and all their songs
 ${BASE}?path=/songs/<id>         a song and its versions
 ${BASE}?path=/search&q=<words>   search songs
 
-Please credit and link Static Cuts (static-cuts.com) wherever the data shows.`}</pre>
+Please credit and link Static-Cuts (static-cuts.com) wherever the data shows.`}</pre>
     </ModPage>
   );
 }

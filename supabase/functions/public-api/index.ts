@@ -2,7 +2,7 @@
 //
 // Read-only access to the archive for other fan sites and bots, with a key
 // the admin hands out (Admin → API keys). Every key has its own limits
-// (default 60 calls a minute, 5,000 a day). Answers credit Static Cuts.
+// (default 60 calls a minute, 5,000 a day). Answers credit Static-Cuts.
 //
 //   GET ?path=/artists                         every artist
 //   GET ?path=/artists/<id>                    one artist with all its songs
@@ -30,7 +30,7 @@ const cors = {
   "Access-Control-Allow-Headers": "x-api-key, content-type",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
-const CREDIT = { source: "Static Cuts// (static-cuts.com)", note: "Please credit and link Static Cuts when you use this data." };
+const CREDIT = { source: "Static-Cuts// (static-cuts.com)", note: "Please credit and link Static-Cuts when you use this data." };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(status < 400 ? { ...CREDIT, ...(body as object) } : body), {
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   if (req.method !== "GET") return json({ error: "Read-only: use GET." }, 405);
 
   const { data: check } = await db.rpc("sc_api_key_check", { p_key: req.headers.get("x-api-key") ?? "" });
-  if (!check || check.error === "bad_key") return json({ error: "Missing or unknown API key. Ask the Static Cuts admin for one." }, 401);
+  if (!check || check.error === "bad_key") return json({ error: "Missing or unknown API key. Ask the Static-Cuts admin for one." }, 401);
   if (check.error === "rate_limited") return json({ error: "Too many calls. Slow down and try again in a minute." }, 429);
 
   const url = new URL(req.url);

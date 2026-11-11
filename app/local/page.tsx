@@ -11,7 +11,7 @@ import "../styles/local.css";
 //      sent to the archive as suggestions (reviewed before anything changes)
 //   4. the rest get their details rewritten from the archive: title with
 //      features, artist, album (or "Unreleased <year>"), year, track number,
-//      cover art, the song's Static Cuts code (hidden; next time the file
+//      cover art, the song's Static-Cuts code (hidden; next time the file
 //      matches exactly, straight away), and a clean name
 //   5. one zip (Artist / Album folders), written straight to disk
 // Files kept as they are still get the song's code added (nothing else
@@ -43,7 +43,7 @@ type Song = {
   formatted: boolean;           // title, artist and cover in the file already
   track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
   clean: Clean | null;          // Claude's tidy version, when it looked
-  code: string | null;          // Static Cuts code already in the file (from an earlier run)
+  code: string | null;          // Static-Cuts code already in the file (from an earlier run)
 };
 type Site = {
   id: string; title: string; artist: string; album: string | null; release_date: string | null; leak_date: string | null;
@@ -51,7 +51,7 @@ type Site = {
   cover_url: string | null; status: string | null; parent_album: string | null; parent_cover: string | null;
   credited_as?: string | null;  // released under another name of theirs
   display_cover?: string | null; // own art, else fans' pick, else a photo of the artist
-  code?: string | null;          // its Static Cuts code, written into the tidied file
+  code?: string | null;          // its Static-Cuts code, written into the tidied file
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
 type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted";
@@ -146,7 +146,7 @@ export default function LocalCutsPage() {
     });
 
     // 2. Match to the archive. Files Local Cuts tidied before carry the
-    // song's Static Cuts code: those match exactly, straight away.
+    // song's Static-Cuts code: those match exactly, straight away.
     step("matching", read.length);
     const withCode = read.filter((s) => s.code);
     for (let i = 0; i < withCode.length; i += 200) {
@@ -394,7 +394,7 @@ export default function LocalCutsPage() {
   async function saveZip() {
     if (!premium || plan.length === 0) return;
     const date = new Date().toISOString().slice(0, 10);
-    const out = await pickZipFile(`Static Cuts ${date}.zip`);
+    const out = await pickZipFile(`Static-Cuts ${date}.zip`);
     if (out === null) return; // cancelled
     step("saving", plan.length);
     const cache = new Map<string, NewTags["cover"]>();
@@ -404,24 +404,24 @@ export default function LocalCutsPage() {
         // Browsers that can't save straight to disk: built in memory.
         const entries: { path: string; blob: Blob }[] = [];
         for (let i = 0; i < plan.length; i++) {
-          try { entries.push({ path: `Static Cuts/${plan[i].path}`, blob: await blobFor(plan[i], cache) }); } catch { failed++; }
+          try { entries.push({ path: `Static-Cuts/${plan[i].path}`, blob: await blobFor(plan[i], cache) }); } catch { failed++; }
           setDone(i + 1);
         }
-        entries.push({ path: "Static Cuts/Static Cuts changes.csv", blob: changesCsv() });
+        entries.push({ path: "Static-Cuts/Static-Cuts changes.csv", blob: changesCsv() });
         const zip = await makeZip(entries);
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(zip); a.download = `Static Cuts ${date}.zip`; a.click();
+        a.href = URL.createObjectURL(zip); a.download = `Static-Cuts ${date}.zip`; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
       } else {
         const zip = new ZipToDisk(out);
         for (let i = 0; i < plan.length; i++) {
-          try { await zip.add(`Static Cuts/${plan[i].path}`, await blobFor(plan[i], cache)); } catch { failed++; }
+          try { await zip.add(`Static-Cuts/${plan[i].path}`, await blobFor(plan[i], cache)); } catch { failed++; }
           setDone(i + 1);
         }
-        await zip.add("Static Cuts/Static Cuts changes.csv", changesCsv());
+        await zip.add("Static-Cuts/Static-Cuts changes.csv", changesCsv());
         await zip.finish();
       }
-      setSaved(`Saved ${plan.length - failed} songs${failed ? ` (${failed} couldn't be read and were left out)` : ""}. Unzip it, then add the "Static Cuts" folder in Spotify: Settings → Your Library → Show Local Files → Add a source.`);
+      setSaved(`Saved ${plan.length - failed} songs${failed ? ` (${failed} couldn't be read and were left out)` : ""}. Unzip it, then add the "Static-Cuts" folder in Spotify: Settings → Your Library → Show Local Files → Add a source.`);
     } catch (e) {
       setSaved(`Saving stopped: ${String((e as Error)?.message ?? e)}. Your original files are fine; try again.`);
     }
@@ -452,7 +452,7 @@ export default function LocalCutsPage() {
   const ORDER: Stage[] = ["reading", "matching", "claude", "archive"];
   const STEPS: [Stage, string, string, string][] = [
     ["reading", "Read", "Reading files", "Each file's title, artist, album and art, read on your computer."],
-    ["matching", "Match", "Matching to the archive", "Finding each file's song on Static Cuts."],
+    ["matching", "Match", "Matching to the archive", "Finding each file's song on Static-Cuts."],
     ["claude", "Check", "Claude checking the unsure ones", "A closer look at files that didn't match cleanly."],
     ["archive", "Share", "Helping the archive", "What your well-tagged files know, sent for review."],
   ];
@@ -504,7 +504,7 @@ export default function LocalCutsPage() {
           <h2 className="lc-h">How it works</h2>
           <div className="lc-how">
             {[["Read", "#22C55E", "Reads each file's details (title, artist, album, art) on your computer."],
-              ["Match", "#8B7CF6", "Finds each song in the Static Cuts archive and fills in what's missing."],
+              ["Match", "#8B7CF6", "Finds each song in the Static-Cuts archive and fills in what's missing."],
               ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album or “Unreleased <year>”, year, track number and cover art."],
               ["Save", "#F5B841", "Gives you a clean copy in Artist / Album folders, ready for Local Files."]].map(([t, c, d], i) => (
               <div key={t} className="lc-how-card">

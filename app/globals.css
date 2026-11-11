@@ -1215,7 +1215,7 @@ a.listen-link {
 .artist-group-songs { flex: 1 0 100%; }
 @media (max-width: 600px) { .artist-photo { width: 84px; height: 84px; } }
 
-/* Static Cuts Wrapped */
+/* Static-Cuts Wrapped */
 
 .wrapped { position: fixed; inset: 0; z-index: 200; background: #0b0b0c; color: #ededed; display: flex; flex-direction: column; overflow: hidden; }
 .wrapped::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.10), transparent 60%), repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 6px); }

@@ -38,7 +38,7 @@ export default function SitePause({ children }: { children: React.ReactNode }) {
     <div className="wrap site-pause">
       <h1 className="detail-name page-title">Back soon</h1>
       <div className="detail-meta">
-        Static Cuts// is filling in thousands of songs right now, so the site is paused for a little while.
+        Static-Cuts// is filling in thousands of songs right now, so the site is paused for a little while.
         {until ? ` It'll be back by ${until.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} at the latest.` : " It'll be back shortly."}
       </div>
     </div>

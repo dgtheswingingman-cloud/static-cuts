@@ -169,7 +169,7 @@ export function Frame({ children, file, page, bg, backdrop, bgHeight, fade = 1, 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 2 }}>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A" }}>
             <div style={{ display: "flex", width: 14, height: 14, borderRadius: 7, background: RED, marginRight: 12 }} />
-            <span style={{ fontWeight: 700 }}>STATIC CUTS//</span>
+            <span style={{ fontWeight: 700 }}>STATIC-CUTS//</span>
             <span style={{ color: "#8A8A8A", marginLeft: 12 }}>{file}</span>
           </div>
           <div style={{ display: "flex", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A", color: "#BDBDBD" }}>{page}</div>

@@ -1,11 +1,11 @@
-// The Static Cuts Discord bot: what it does, and the button to add it to a server.
+// The Static-Cuts Discord bot: what it does, and the button to add it to a server.
 
 import type { Metadata } from "next";
 import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
 export const metadata: Metadata = {
-  title: "Discord bot · Static Cuts//",
-  description: "Add Static Cuts// to your Discord server: song of the day, album of the week, and new leaks, snippets and releases from the artists you care about.",
+  title: "Discord bot · Static-Cuts//",
+  description: "Add Static-Cuts// to your Discord server: song of the day, album of the week, and new leaks, snippets and releases from the artists you care about.",
 };
 
 // Discord's "add this bot to a server" page (view channels, send messages, embed links; slash commands).
@@ -21,7 +21,7 @@ const COMMANDS: [string, string][] = [
 
 export default function DiscordPage() {
   return (
-    <InfoShell title="DISCORD BOT" here="/discord" intro="Put Static Cuts// in your Discord server: the daily picks, and updates from the artists your server cares about."
+    <InfoShell title="DISCORD BOT" here="/discord" intro="Put Static-Cuts// in your Discord server: the daily picks, and updates from the artists your server cares about."
       sections={[["add", "Add it"], ["commands", "Commands"]]}>
       <InfoSection id="add" title="Add it to your server">
         <p className="if-p">You need to be able to manage the server. Pick the server, keep the permissions as they are (read and send messages, show links), and it&apos;s in.</p>
@@ -40,7 +40,7 @@ export default function DiscordPage() {
             </div>
           ))}
         </div>
-        <p className="if-p if-dim">Links only ever go to pages on Static Cuts//, never to files.</p>
+        <p className="if-p if-dim">Links only ever go to pages on Static-Cuts//, never to files.</p>
       </InfoSection>
     </InfoShell>
   );

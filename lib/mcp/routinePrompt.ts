@@ -2,7 +2,7 @@
 // detailed rules live in the MCP server's instructions and tool
 // descriptions, so they stay in sync with the code.
 
-export const ROUTINE_PROMPT = `Use the Static Cuts connector to keep my followed artists up to date. Work in two parts, A then B, and stop when you run out of time.
+export const ROUTINE_PROMPT = `Use the Static-Cuts connector to keep my followed artists up to date. Work in two parts, A then B, and stop when you run out of time.
 
 A. NEWS (only artists that are due)
 1. Call get_review_status once: never resend anything it shows as rejected or dismissed.

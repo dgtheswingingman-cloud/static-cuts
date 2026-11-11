@@ -92,7 +92,7 @@ export default function SongTimeline({ trackId, auto }: { trackId: string; auto:
       at: when(e.at), sort: e.at.slice(0, 10), kind: (e.site ? "site" : e.kind ?? "other") as Kind | "site", key: `auto-${i}`,
       node: (
         <>
-          {e.site ? <span className="tl-kind k-site">on static cuts</span> : <span className={`tl-kind k-${e.kind ?? "other"}`}>{LABEL[e.kind ?? "other"]}</span>}
+          {e.site ? <span className="tl-kind k-site">on static-cuts</span> : <span className={`tl-kind k-${e.kind ?? "other"}`}>{LABEL[e.kind ?? "other"]}</span>}
           <span className={e.site ? "tl-site" : "tl-title"}>{e.text}</span>
           {e.note && <span className="tl-meta">{e.note}</span>}
         </>

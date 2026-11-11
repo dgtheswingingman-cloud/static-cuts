@@ -11,9 +11,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { data } = await supabase.rpc("rpc_album", { p_album: id });
   const a = data as { title: string; kind: string; date: string | null; artist: { name: string }; songs: number | null; cover: string | null } | null;
-  if (!a) return { title: "Album not found · Static Cuts//" };
-  const title = `${a.title} — ${a.artist.name} (${a.kind === "ep" ? "EP" : "album"}) · Static Cuts//`;
-  const description = `${a.title} by ${a.artist.name}${a.date ? `, ${a.date.slice(0, 4)}` : ""}${a.songs ? `, ${a.songs} songs` : ""}. Full tracklist, ratings and every version, on Static Cuts//.`;
+  if (!a) return { title: "Album not found · Static-Cuts//" };
+  const title = `${a.title} — ${a.artist.name} (${a.kind === "ep" ? "EP" : "album"}) · Static-Cuts//`;
+  const description = `${a.title} by ${a.artist.name}${a.date ? `, ${a.date.slice(0, 4)}` : ""}${a.songs ? `, ${a.songs} songs` : ""}. Full tracklist, ratings and every version, on Static-Cuts//.`;
   return {
     title, description,
     alternates: { canonical: `/album/${id}` },

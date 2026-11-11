@@ -19,7 +19,7 @@ function prompt(list: Item[]) {
   const lines = list.map((a, i) =>
     `${i + 1}. "${a.title}" by ${a.artist}${a.year ? ` (${a.year})` : ""} | unreleased songs from this era in the archive: ${a.unreleased}` +
     (a.highlights.length ? ` | some of them: ${a.highlights.slice(0, 4).join(", ")}` : ""));
-  return `You write "Album of the week" blurbs for Static Cuts//, a fan archive of unreleased and released music (underground rap, Opium, Drain Gang and similar scenes).
+  return `You write "Album of the week" blurbs for Static-Cuts//, a fan archive of unreleased and released music (underground rap, Opium, Drain Gang and similar scenes).
 
 For each album write 2 short sentences, 45 words at most: why it's worth a listen (sound, mood, place in the artist's story), then a nod to the unreleased songs from that era on the site if there are any.
 Voice: a fan talking to fans. Casual, confident, British spelling. No hashtags, no emojis, no quotes from anyone, no "dive in" or "masterpiece".

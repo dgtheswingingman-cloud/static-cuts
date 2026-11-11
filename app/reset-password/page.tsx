@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
     <div className="wrap pg-page pg-narrow">
       <section className="pg-box pg-auth">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.webp" alt="Static Cuts//" className="pg-auth-logo" />
+        <img src="/logo.webp" alt="Static-Cuts//" className="pg-auth-logo" />
         <h1 className="detail-name page-title pg-title pg-auth-title">New password</h1>
         {loading ? (
           <div className="comment-meta">loading…</div>

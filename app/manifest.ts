@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 // screen, no app store).
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Static Cuts//",
-    short_name: "Static Cuts",
+    name: "Static-Cuts//",
+    short_name: "Static-Cuts",
     description: "Cut through the noise. A community archive of every song, leak and release.",
     start_url: "/",
     scope: "/",

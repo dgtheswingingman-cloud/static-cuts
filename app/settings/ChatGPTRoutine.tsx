@@ -63,7 +63,7 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
               <span>In ChatGPT, add a custom connector with: <code>{connectorUrl}</code></span>
               <button className="st-btn" onClick={() => copy("url", connectorUrl)}>{copied === "url" ? "Copied" : "Copy"}</button>
             </li>
-            <li><span>Sign in with your Static Cuts account and ask it to run <code>test_connection</code>.</span></li>
+            <li><span>Sign in with your Static-Cuts account and ask it to run <code>test_connection</code>.</span></li>
             <li><span>Already connected before? In ChatGPT open the connector and press <strong>Refresh</strong> so it picks up all 12 tools (finding links, marking songs checked, duplicates).</span></li>
             <li>
               <span>Create a scheduled task (daily is plenty) with these instructions to check your followed artists for new songs, leaks and status changes.</span>
@@ -72,7 +72,7 @@ export default function ChatGPTRoutine({ userId }: { userId: string }) {
           </ol>
           <small>
             What it finds goes to the moderators; nothing goes live until it&apos;s approved. Needs a paid ChatGPT plan. How often it
-            runs is set in ChatGPT. Logging out of Static Cuts no longer signs ChatGPT out. Other assistants that support custom connectors (MCP) and scheduled tasks should work too.
+            runs is set in ChatGPT. Logging out of Static-Cuts no longer signs ChatGPT out. Other assistants that support custom connectors (MCP) and scheduled tasks should work too.
           </small>
         </div>
       )}

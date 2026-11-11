@@ -41,7 +41,7 @@ export default function LinksPage() {
     <div className="lk-page">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/icon-512.png" alt="" className="lk-mark" width={96} height={96} />
-      <h1 className="lk-title">STATIC CUTS<span>//</span></h1>
+      <h1 className="lk-title">STATIC-CUTS<span>//</span></h1>
       <p className="lk-lead">Every song, leak and version, kept by fans.</p>
 
       <div className="lk-today">
@@ -76,7 +76,7 @@ export default function LinksPage() {
         <Link href="/login?next=/" className="lk-btn lk-join"><b>Make an account</b><small>Follow artists, collect songs, get alerts. Free.</small></Link>
       </div>
 
-      <nav className="lk-social" aria-label="Static Cuts// elsewhere">
+      <nav className="lk-social" aria-label="Static-Cuts// elsewhere">
         <a href="https://instagram.com/static.cuts.archive" target="_blank" rel="noopener noreferrer">Instagram</a>
         <a href="https://www.tiktok.com/@static.cuts.archive" target="_blank" rel="noopener noreferrer">TikTok</a>
         <a href="https://x.com/StaticCuts" target="_blank" rel="noopener noreferrer">X</a>

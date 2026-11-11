@@ -317,7 +317,7 @@ export default function HomePage() {
         <Link href="/" onClick={() => setQuery("")} style={{ textDecoration: "none" }}>
           <h1 className="wordmark wordmark-img">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.webp" alt="Static Cuts//" className="logo-img" width={1200} height={200} />
+            <img src="/logo.webp" alt="Static-Cuts//" className="logo-img" width={1200} height={200} />
           </h1>
         </Link>
         <div className="tagline">cut through the noise</div>

@@ -1,7 +1,7 @@
 "use client";
 import "../styles/pages.css";
 
-// This week on Static Cuts: what leaked and what came out (by date), what
+// This week on Static-Cuts: what leaked and what came out (by date), what
 // the archive newly marked, how much was added.
 // Each week has its own link (?week=2026-10-19).
 

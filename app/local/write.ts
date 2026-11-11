@@ -1,6 +1,6 @@
 // Local Cuts: write tidied copies of music files, on the device.
 //   MP3:  new ID3v2.3 tag (title, artist, album, album artist, track, year,
-//         features in the artist, cover art, and the Static Cuts code in a
+//         features in the artist, cover art, and the Static-Cuts code in a
 //         TXXX:STATICCUTS frame players ignore); old tags removed.
 //   FLAC: new Vorbis comments (keeping any others, plus STATICCUTS=code) and
 //         cover picture.
@@ -18,7 +18,7 @@
 export type NewTags = {
   title: string; artist: string; album?: string | null; albumArtist?: string | null;
   track?: string | null; year?: string | null; cover?: { mime: string; data: Uint8Array } | null;
-  code?: string | null; // the song's Static Cuts code, so the next run matches the file exactly
+  code?: string | null; // the song's Static-Cuts code, so the next run matches the file exactly
 };
 
 const enc = new TextEncoder();
@@ -117,7 +117,7 @@ async function writeFlac(file: Blob, t: NewTags) {
     ...oldComments.filter((c) => !ours[c.split("=")[0].toUpperCase()]),
     ...Object.entries(ours).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`),
   ].map((c) => enc.encode(c));
-  const vendor = enc.encode("Static Cuts");
+  const vendor = enc.encode("Static-Cuts");
   const vorbis = concat([le32(vendor.length), vendor, le32(comments.length), ...comments.flatMap((c) => [le32(c.length), c])]);
   keep.push({ type: 4, data: vorbis });
   if (t.cover) {

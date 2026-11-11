@@ -145,7 +145,7 @@ export default function SongView({ id }: { id: string }) {
     supabase.from("track_popularity").select("listens, listeners").eq("track_id", id).maybeSingle()
       .then(({ data }) => setPlays((data as typeof plays) ?? null));
   }, [id]);
-  // The song's Static Cuts code (ours, not an ISRC), with a copy button.
+  // The song's Static-Cuts code (ours, not an ISRC), with a copy button.
   const [code, setCode] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   useEffect(() => {
@@ -278,9 +278,9 @@ export default function SongView({ id }: { id: string }) {
   if (t.writers) info.push(["Written by", t.writers]);
   if (t.label) info.push(["Label", t.label]);
   if (t.isrc) info.push(["ISRC", <span title="The recording's official code" style={{ fontFamily: "var(--font-mono, monospace)" }}>{t.isrc}</span>]);
-  if (code) info.push(["Static Cuts code", (
+  if (code) info.push(["Static-Cuts code", (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <span title="This song's code on Static Cuts. Search it to come straight back here." style={{ fontFamily: "var(--font-mono, monospace)" }}>{code}</span>
+      <span title="This song's code on Static-Cuts. Search it to come straight back here." style={{ fontFamily: "var(--font-mono, monospace)" }}>{code}</span>
       <button type="button" className="inline-link-btn" onClick={() => { navigator.clipboard?.writeText(code).then(() => setCodeCopied(true)).catch(() => {}); }}>
         {codeCopied ? "copied" : "copy"}
       </button>
@@ -413,7 +413,7 @@ export default function SongView({ id }: { id: string }) {
             {song.owned ? "✓ In your library" : "+ Add to library"}
           </button>
         )}
-        <ShareButton title={`${t.title} · Static Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
+        <ShareButton title={`${t.title} · Static-Cuts//`} path={`/song/${t.id}`} storyKey={t.id} className="tab sp-icon-btn" ariaLabel="Share"
           label={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 5l7 6-7 6v-3.5c-5 0-8.5 1.5-11 5 1-5 4-9.5 11-10.5z" /></svg>}
           fileName={`static-cuts-${t.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`}
           image={() => songCard({

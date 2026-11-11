@@ -30,7 +30,7 @@ function prompt(s: Song) {
   if (s.needs.includes("status")) want.push(`- status: is it released, leaked, a snippet, teased, announced, rumored or removed? Give the page that shows it.`);
   if (s.needs.includes("link")) want.push(`- link: a page to listen to this exact song: for a released song its Spotify track page (open.spotify.com/track/...), else Apple Music, YouTube (official), Bandcamp or SoundCloud; for an unreleased song a YouTube or SoundCloud upload or snippet page. Never a download link or an audio file.`);
   if (s.needs.includes("details")) want.push(`- details: the album it's on, its exact release date (YYYY-MM-DD) and its producers, from one page that shows them.`);
-  return `You help keep Static Cuts//, a fan archive of released and unreleased music, accurate.
+  return `You help keep Static-Cuts//, a fan archive of released and unreleased music, accurate.
 
 Song: "${s.title}" by ${s.artist}${s.version_of ? ` (a version of "${s.version_of}")` : ""}.
 What the archive has now: status ${s.status}${s.album ? `, album "${s.album}"` : ""}${s.release_date ? `, released ${s.release_date}` : ""}${s.producers ? `, producers ${s.producers}` : ""}.
