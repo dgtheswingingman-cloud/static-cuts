@@ -3552,3 +3552,12 @@ body:has(.ms-shell) .site-credit { display: none; }
   .home-wide .home-features .sotd-cover img { max-width: none; }
   .home-wide .home-features .sotd-title { font-size: clamp(1.4rem, 2.2vw, 2rem); }
 }
+
+/* Song of the day: same size cover and faded backdrop as album of the week. */
+.sotd { position: relative; overflow: hidden; }
+.sotd::before { content: ""; position: absolute; inset: 0; background: var(--aotw-img) center / cover no-repeat; filter: grayscale(0.5) blur(1px); opacity: 0.25;
+  -webkit-mask-image: linear-gradient(to right, transparent 30%, #000); mask-image: linear-gradient(to right, transparent 30%, #000); pointer-events: none; }
+.sotd > * { position: relative; }
+@media (min-width: 1024px) {
+  .home-wide .home-features .sotd { grid-template-columns: 220px minmax(0, 1fr); }
+}

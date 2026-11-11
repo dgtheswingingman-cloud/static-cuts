@@ -3,7 +3,7 @@
 // Song of the day: the day's pick (chosen in the control room from a
 // shortlist, or the site's own pick). On the home page next to album of the week.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { thumb } from "@/lib/thumb";
@@ -23,7 +23,7 @@ export default function SongOfDay() {
   const date = s.status === "released" ? s.release_date : s.leak_date;
   const cover = s.cover ?? s.photo;
   return (
-    <section className="sotd">
+    <section className="sotd" style={cover ? ({ "--aotw-img": `url("${cover}")` } as CSSProperties) : undefined}>
       <Link href={`/song/${s.id}`} className="sotd-cover" aria-label={`${s.title} by ${s.artist}`}>
         {cover
           // eslint-disable-next-line @next/next/no-img-element
