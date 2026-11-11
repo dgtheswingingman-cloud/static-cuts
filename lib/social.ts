@@ -10,3 +10,6 @@ export const SOCIAL_SLIDES: Record<string, Record<SocialFormat, number>> = {
   album_of_week: { ig: 2, tt: 2, x: 1 },
   monthly: { ig: 3, tt: 3, x: 1 },
 };
+
+// Bump when the pictures' design changes, so browsers and the CDN fetch the new ones.
+export const SOCIAL_SLIDE_VERSION = "4";

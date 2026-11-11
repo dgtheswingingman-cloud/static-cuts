@@ -11,7 +11,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { SOCIAL_SLIDES, type SocialFormat } from "@/lib/social";
+import { SOCIAL_SLIDES, SOCIAL_SLIDE_VERSION, type SocialFormat } from "@/lib/social";
 import { thumb } from "@/lib/thumb";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
@@ -70,7 +70,8 @@ function PostCard({ post, onChange, onError }: { post: Post; onChange: (p: Post)
   const p = PLATFORMS.find((x) => x.key === plat)!;
   const dirty = text !== (post.captions[plat] ?? "");
   const n = SOCIAL_SLIDES[post.kind]?.[p.f] ?? 1;
-  const v = encodeURIComponent(String(post.track_id ?? "") + (post.ref.title ?? ""));
+  // Changes when the post or the design changes, so the picture is never a stale copy.
+  const v = encodeURIComponent(`${SOCIAL_SLIDE_VERSION}-${post.track_id ?? ""}-${JSON.stringify(post.ref).length}`);
 
   async function save() {
     setBusy("save");
