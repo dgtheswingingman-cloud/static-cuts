@@ -62,6 +62,16 @@ function SearchInner() {
     router.replace(`/search?${next.toString()}`, { scroll: false });
   }
 
+  // A Static Cuts code (SC-KANY-489521, sc489521...) goes straight to its song.
+  useEffect(() => {
+    const code = q.trim();
+    if (!/^sc[-\s]*([a-z0-9]{4}[-\s]*)?\d{1,9}$/i.test(code)) return;
+    const t = setTimeout(() => {
+      supabase.rpc("rpc_track_by_code", { p_code: code }).then(({ data }) => { if (typeof data === "string" && data) router.push(`/song/${data}`); });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [q, router]);
+
   // Typing updates the address after a short pause.
   useEffect(() => {
     const t = setTimeout(() => {
