@@ -7,6 +7,10 @@
 //   neither     -> a Deezer search; only an exact artist + title match counts
 // No keys needed. Deezer calls share their own budget ("deezercover"), Apple
 // uses the iTunes budget. Called by a timer every 2 minutes through run-job.
+//
+// An exact Deezer search match for an "unconfirmed" song (and the length
+// within 8 seconds, when we know it) is good evidence it's out: the save marks
+// it released and fills the Deezer link, album and length where empty, quietly.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -37,7 +41,8 @@ async function deezer(path: string): Promise<any | null | "stop"> {
   return body?.error ? null : body;
 }
 
-type Item = { id: string; title: string; artist: string; deezer_url: string | null; apple_url: string | null };
+type Item = { id: string; title: string; artist: string; deezer_url: string | null; apple_url: string | null; release_status: string; length_sec: number | null };
+type Out = { track_id: string; cover_url: string | null; how: string; released?: boolean; deezer_id?: string; album?: string; length_sec?: number };
 
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
@@ -45,12 +50,13 @@ Deno.serve(async (req) => {
   const { data: todo, error } = await db.rpc("sc_cover_search_next", { p_secret: secret, p_limit: 30 });
   if (error) return json({ error: error.message }, 403);
 
-  const out: { track_id: string; cover_url: string | null; how: string }[] = [];
+  const out: Out[] = [];
   let stopped: string | null = null;
   const started = Date.now();
   for (const t of (todo ?? []) as Item[]) {
     if (Date.now() - started > 100_000) break;
     let cover: string | null = null, how = "none";
+    let extra: Partial<Out> = {};
     const dz = t.deezer_url?.match(/deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/)?.[1];
     const ap = t.apple_url?.match(/[?&]i=(\d+)/)?.[1] ?? t.apple_url?.match(/\/song\/[^/]+\/(\d+)/)?.[1];
     if (dz) {
@@ -71,11 +77,21 @@ Deno.serve(async (req) => {
       if (r === "stop") { stopped = "deezer allowance used up"; break; }
       const want = plain(t.title), who = plain(t.artist);
       const hit = ((r?.data ?? []) as any[]).find((x) => plain(String(x?.title ?? "")) === want && plain(String(x?.artist?.name ?? "")) === who && x?.album?.cover_xl);
-      if (hit) { cover = hit.album.cover_xl; how = "deezer-search"; }
+      if (hit) {
+        cover = hit.album.cover_xl; how = "deezer-search";
+        const len = Number(hit.duration) || null;
+        const sameLength = !t.length_sec || !len || Math.abs(t.length_sec - len) <= 8;
+        extra = {
+          released: t.release_status === "unconfirmed" && sameLength,
+          deezer_id: sameLength && hit.id ? String(hit.id) : undefined,
+          album: sameLength ? String(hit.album?.title ?? "") || undefined : undefined,
+          length_sec: sameLength && len && len <= 36000 ? len : undefined,
+        };
+      }
     }
-    out.push({ track_id: t.id, cover_url: cover, how });
+    out.push({ track_id: t.id, cover_url: cover, how, ...extra });
   }
   const { data: saved, error: e2 } = await db.rpc("sc_cover_search_save", { p_secret: secret, p_items: out });
   if (e2) return json({ error: e2.message }, 500);
-  return json({ ok: true, checked: out.length, saved, by: out.reduce((m: Record<string, number>, x) => ((m[x.how] = (m[x.how] ?? 0) + 1), m), {}), stopped });
+  return json({ ok: true, checked: out.length, saved, released: out.filter((x) => x.released).length, by: out.reduce((m: Record<string, number>, x) => ((m[x.how] = (m[x.how] ?? 0) + 1), m), {}), stopped });
 });

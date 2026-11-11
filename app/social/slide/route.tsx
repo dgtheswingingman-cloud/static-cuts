@@ -20,7 +20,7 @@ type Song = { id: string; title: string; artist: string; status: string; album: 
   release_date: string | null; cover: string | null; photo: string | null; versions: number; collectors: number; years_ago: number | null };
 type Aotw = { artist: string; title: string; year: number | null; cover: string | null; unreleased: number; highlights: string[] | null; blurb: string | null; week_start: string };
 type ListSong = { id: string; title: string; artist: string; day: string; cover: string | null; photo: string | null };
-type Monthly = { month: string; added: number; leaked_n: number; released_n: number; members: number; leaked: ListSong[]; released: ListSong[];
+type Monthly = { month: string; added: number; catalogue?: number; leaked_n: number; released_n: number; members: number; leaked: ListSong[]; released: ListSong[];
   top_artists: { artist: string; n: number; photo: string | null }[]; contributors?: Contributor[] };
 type Contributor = { user_id: string; name: string; avatar: string | null; n: number };
 type Post = { id: string; kind: string; post_date: string; ref: Record<string, unknown> };
@@ -302,7 +302,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
         <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", width: 640 }}>
             <div style={{ display: "flex" }}><Tag color={ACCENT}>{month} ROUNDUP</Tag></div>
-            <Stat n={m.added} label="SONGS ADDED" color="#EDEDED" size={110} />
+            <Stat n={m.added} label="UNRELEASED FILED" color="#EDEDED" size={110} />
             <div style={{ display: "flex" }}>
               <div style={{ display: "flex", marginRight: 48 }}><Stat n={m.leaked_n} label="LEAKS" color={RED} size={96} /></div>
               <Stat n={m.released_n} label="RELEASES" color={GREEN} size={96} />
@@ -323,7 +323,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
         <div style={{ display: "flex", flexDirection: "column", marginTop: f === "tt" ? 160 : 40 }}>
           <div style={{ display: "flex" }}><Tag color={ACCENT}>MONTHLY ROUNDUP</Tag></div>
           <div style={{ display: "flex", fontFamily: POSTER, fontSize: 150, lineHeight: 0.9, marginTop: 18, ...glitch(6) }}>{month}</div>
-          <Stat n={m.added} label="SONGS ADDED TO THE ARCHIVE" color="#EDEDED" size={f === "tt" ? 200 : 170} />
+          <Stat n={m.added} label="UNRELEASED SONGS FILED" color="#EDEDED" size={f === "tt" ? 200 : 170} />
           <div style={{ display: "flex" }}>
             <div style={{ display: "flex", marginRight: 64 }}><Stat n={m.leaked_n} label="LEAKS" color={RED} /></div>
             <Stat n={m.released_n} label="RELEASES" color={GREEN} />
