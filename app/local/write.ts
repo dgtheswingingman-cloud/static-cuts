@@ -108,7 +108,7 @@ async function writeFlac(file: Blob, t: NewTags) {
     TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year, STATICCUTS: t.code,
   };
   const comments = [
-    ...oldComments.filter((c) => !(c.split("=")[0].toUpperCase() in ours)),
+    ...oldComments.filter((c) => !ours[c.split("=")[0].toUpperCase()]),
     ...Object.entries(ours).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`),
   ].map((c) => enc.encode(c));
   const vendor = enc.encode("Static Cuts");
@@ -124,6 +124,57 @@ async function writeFlac(file: Blob, t: NewTags) {
     return concat([h, b.data]);
   });
   return new Blob([enc.encode("fLaC"), ...blocks, file.slice(p)], { type: "audio/flac" });
+}
+
+// ------------------------------------------------- code only (kept files)
+
+// Files kept as they are still get the song's code, with nothing else
+// changed: MP3s get the one TXXX frame added to their existing tag (or a new
+// tag with only that, if they had none); FLACs get one more comment.
+async function addCodeMp3(file: Blob, code: string): Promise<Blob> {
+  const head = new Uint8Array(await file.slice(0, 10).arrayBuffer());
+  const frame = txxxFrame("STATICCUTS", code);
+  if (latin1(head.subarray(0, 3)) !== "ID3") {
+    const n = frame.length + 1024;
+    const size = new Uint8Array([(n >> 21) & 127, (n >> 14) & 127, (n >> 7) & 127, n & 127]);
+    return new Blob([enc.encode("ID3"), new Uint8Array([3, 0, 0]), size, frame, new Uint8Array(1024), file], { type: "audio/mpeg" });
+  }
+  const ver = head[3], flags = head[5];
+  // Unsynchronised, extended-header or old (v2.2) tags: leave the file alone.
+  if ((ver !== 3 && ver !== 4) || (flags & 0xc0)) return file;
+  const size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9];
+  const tag = new Uint8Array(await file.slice(10, 10 + size).arrayBuffer());
+  const frames: Uint8Array[] = [];
+  let p = 0;
+  while (p + 10 <= tag.length) {
+    const id = latin1(tag.subarray(p, p + 4));
+    if (!/^[A-Z0-9]{4}$/.test(id)) break; // padding
+    const fsize = ver === 4
+      ? (tag[p + 4] << 21) | (tag[p + 5] << 14) | (tag[p + 6] << 7) | tag[p + 7]
+      : (tag[p + 4] << 24) | (tag[p + 5] << 16) | (tag[p + 6] << 8) | tag[p + 7];
+    if (fsize <= 0 || p + 10 + fsize > tag.length) break;
+    const whole = tag.subarray(p, p + 10 + fsize);
+    const isOurs = id === "TXXX" && latin1(tag.subarray(p + 11, p + 21)).toUpperCase() === "STATICCUTS";
+    if (!isOurs) frames.push(whole);
+    p += 10 + fsize;
+  }
+  // v2.4 frame sizes are "syncsafe"; v2.3 plain.
+  const ours = ver === 4
+    ? concat([frame.subarray(0, 4), new Uint8Array([(frame.length - 10 >> 21) & 127, (frame.length - 10 >> 14) & 127, (frame.length - 10 >> 7) & 127, (frame.length - 10) & 127]), frame.subarray(8)])
+    : frame;
+  const body = concat([...frames, ours, new Uint8Array(1024)]);
+  const n = body.length;
+  const sz = new Uint8Array([(n >> 21) & 127, (n >> 14) & 127, (n >> 7) & 127, n & 127]);
+  const footer = flags & 0x10 ? 10 : 0;
+  return new Blob([enc.encode("ID3"), new Uint8Array([ver, 0, 0]), sz, body, file.slice(10 + size + footer)], { type: "audio/mpeg" });
+}
+
+export async function withCode(file: File, code: string): Promise<Blob> {
+  try {
+    if (/\.mp3$/i.test(file.name)) return await addCodeMp3(file, code);
+    if (/\.flac$/i.test(file.name)) return await writeFlac(file, { title: "", artist: "", code });
+  } catch { /* odd file: keep it exactly as it was */ }
+  return file;
 }
 
 // What happens to a file of this type.

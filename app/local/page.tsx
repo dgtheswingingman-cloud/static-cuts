@@ -14,7 +14,8 @@ import "../styles/local.css";
 //      cover art, the song's Static Cuts code (hidden; next time the file
 //      matches exactly, straight away), and a clean name
 //   5. one zip (Artist / Album folders), written straight to disk
-// Originals are never touched. Saving the zip is premium; helping the
+// Files kept as they are still get the song's code added (nothing else
+// changes). Originals are never touched. Saving the zip is premium; helping the
 // archive is free.
 
 import type React from "react";
@@ -27,7 +28,7 @@ import { AdminModePage } from "../components/AdminModeNote";
 import { usePremium } from "../usePremium";
 import { readDuration, readTags } from "./tags";
 import { readCover, readDetails, type FileDetails } from "./details";
-import { canTag, makeZip, safeName, tidiedCopy, type NewTags } from "./write";
+import { canTag, makeZip, safeName, tidiedCopy, withCode, type NewTags } from "./write";
 import { pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
 import { thumb } from "@/lib/thumb";
@@ -53,7 +54,8 @@ type Site = {
   code?: string | null;          // its Static Cuts code, written into the tidied file
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
-type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted" };
+type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted";
+  code?: string | null }; // kept files: the code to add (nothing else changes)
 
 const plain = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
 const tidyKey = (s: string | null) => plain((s ?? "").replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/gi, ""));
@@ -332,7 +334,8 @@ export default function LocalCutsPage() {
         // Kept exactly as it is, just filed.
         const artist = t?.artist || firstArtist(s.artist) || "Unknown Artist";
         const album = s.album || t?.album || t?.parent_album || "Singles";
-        return { song: s, path: place(artist, album, s.title!, s.file), tags: null, coverUrl: null, kind: "kept" };
+        return { song: s, path: place(artist, album, s.title!, s.file), tags: null, coverUrl: null, kind: "kept",
+          code: t?.code && t.code !== s.code ? t.code : null };
       }
       if (t) {
         // "Title [Version] (Feat. X)": the version tag is already part of the
@@ -377,6 +380,7 @@ export default function LocalCutsPage() {
     } catch { cache.set(url, null); return null; }
   }
   async function blobFor(o: Out, cache: Map<string, NewTags["cover"]>): Promise<Blob> {
+    if (!o.tags && o.code && canTag(o.song.file.name)) return withCode(o.song.file, o.code);
     if (!o.tags || !canTag(o.song.file.name)) return o.song.file;
     return tidiedCopy(o.song.file, { ...o.tags, cover: await coverBytes(o.coverUrl, cache) });
   }
