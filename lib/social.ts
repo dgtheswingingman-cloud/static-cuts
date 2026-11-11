@@ -11,5 +11,6 @@ export const SOCIAL_SLIDES: Record<string, Record<SocialFormat, number>> = {
   monthly: { ig: 3, tt: 3, x: 1 },
 };
 
-// Bump when the pictures' design changes, so browsers and the CDN fetch the new ones.
+// Bump when the pictures' design changes, so browsers and the CDN fetch the new ones
+// (and SLIDE_V in supabase/functions/discord, which posts them in Discord).
 export const SOCIAL_SLIDE_VERSION = "4";

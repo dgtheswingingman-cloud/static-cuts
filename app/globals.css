@@ -3561,3 +3561,8 @@ body:has(.ms-shell) .site-credit { display: none; }
 @media (min-width: 1024px) {
   .home-wide .home-features .sotd { grid-template-columns: 220px minmax(0, 1fr); }
 }
+
+/* Discord bot page */
+.dc-add { display: inline-flex; align-items: center; gap: 10px; margin: 6px 0 14px; min-height: 48px; padding: 0 22px; border-radius: 6px;
+  background: #5865F2 !important; border-color: #5865F2 !important; color: #fff !important; text-decoration: none; font-weight: 700; }
+.dc-cmd { font-family: var(--font-mono), monospace; }
