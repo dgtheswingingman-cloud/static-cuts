@@ -19,7 +19,7 @@ import PhoneAlerts from "./PhoneAlerts";
 import YourData from "./YourData";
 import LastfmLink from "./LastfmLink";
 import Switch from "./Switch";
-import DevOptions from "./DevOptions";
+import AdminModeSwitch from "./AdminModeSwitch";
 
 type Prefs = {
   show_completion_pct: boolean;
@@ -82,7 +82,7 @@ export default function SettingsPage() {
     window.location.assign("/");
   }
 
-  if (isAdmin) return <><AdminModePage title="Settings" /><div className="wrap st-page"><DevOptions /></div></>;
+  if (isAdmin) return <><AdminModePage title="Settings" /><div className="wrap st-page"><AdminModeSwitch /></div></>;
 
   const since = me?.created_at ? new Date(me.created_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : null;
   const accent = style?.premium ? style.accent ?? null : null;
@@ -179,7 +179,7 @@ export default function SettingsPage() {
           <YourData />
         </section>
 
-        <DevOptions />
+        <AdminModeSwitch />
       </div>
     </div>
   );

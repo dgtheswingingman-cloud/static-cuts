@@ -65,3 +65,4 @@
   .cr-setting { grid-template-columns: minmax(0, 1fr) !important; }
   .cr-setting > div:last-child:not(:first-child), .cr-setting > button { justify-self: start; }
 }
+button.mod-card { font: inherit; text-align: left; cursor: pointer; width: 100%; }

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, useIsModerator, useIsOwner } from "../useIsAdmin";
+import { useAdminView } from "../AdminViewContext";
 import NoAccess from "../components/NoAccess";
 import ReviewHub from "./ReviewHub";
 import HealthPanel from "./HealthPanel";
@@ -35,6 +36,7 @@ function ControlInner() {
   const canModerate = useIsModerator();
   const isAdmin = useIsAdmin();
   const isOwner = useIsOwner();
+  const { setAdminMode } = useAdminView();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -51,7 +53,10 @@ function ControlInner() {
   return (
     <div className="wrap cr-page">
       <h1 className="ls-title cr-title">CONTROL ROOM<span>//</span></h1>
-      <p className="sb-lead">Manage the archive, queues, imports and automated jobs.</p>
+      <p className="sb-lead">
+        Manage the archive, queues, imports and automated jobs.
+        {isAdmin && <> <button className="inline-link-btn" onClick={() => setAdminMode(false)}>Leave admin mode</button>.</>}
+      </p>
       <div className="st-seg cr-tabs" role="tablist">
         {tabs.map(([t, label]) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : undefined}

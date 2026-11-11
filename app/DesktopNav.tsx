@@ -1,14 +1,17 @@
 "use client";
 
 // Computers only: a menu down the left side with the wordmark, a search box,
-// the main sections and messages. Phones use the top bar (SiteHome) and the
+// the main sections and messages. Admins get an "Admin mode" switch above
+// Settings; with it on, the control room shows under Help wanted. Phones use the top bar (SiteHome) and the
 // tab bar along the bottom (MobileTabBar) instead.
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { usePersonalUser } from "./useIsAdmin";
+import { useAuth } from "./AuthProvider";
+import { useAdminView } from "./AdminViewContext";
+import { useIsModerator, useIsRealAdmin, usePersonalUser } from "./useIsAdmin";
 import { RADAR_PATHS } from "./components/RadarTabs";
 
 const I = (d: ReactNode) => (
@@ -28,11 +31,21 @@ const LINKS: { href: string; label: string; icon: ReactNode; on?: (p: string) =>
 export default function DesktopNav() {
   const path = usePathname();
   const user = usePersonalUser();
+  const { user: account } = useAuth();
+  const isRealAdmin = useIsRealAdmin();
+  const canModerate = useIsModerator();
+  const { adminMode, setAdminMode } = useAdminView();
   const [unread, setUnread] = useState(0);
+  const [alerts, setAlerts] = useState(0);
   useEffect(() => {
     if (!user) { setUnread(0); return; }
     supabase.rpc("rpc_unread_messages").then(({ data }) => setUnread(typeof data === "number" ? data : 0));
   }, [user, path]);
+  useEffect(() => {
+    if (!isRealAdmin || !adminMode) { setAlerts(0); return; }
+    supabase.rpc("rpc_unread_notifications", { p_admin: true }).then(({ data }) => setAlerts(typeof data === "number" ? data : 0));
+  }, [isRealAdmin, adminMode, path]);
+  const controlOn = ["/control", "/review", "/admin", "/notifications"].some((x) => path.startsWith(x));
   return (
     <header className="dnav">
       <div className="dnav-inner">
@@ -49,6 +62,13 @@ export default function DesktopNav() {
               </Link>
             );
           })}
+          {canModerate && (
+            <Link href="/control" className={controlOn ? "on" : undefined} aria-current={controlOn ? "page" : undefined}
+              aria-label={`Control room${alerts ? `, ${alerts} alerts` : ""}`}>
+              {I(<><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4M7 12l3-3 2 2 4-4" /></>)}<span>Control room</span>
+              {alerts > 0 && <span className="dnav-count">{alerts > 99 ? "99+" : alerts}</span>}
+            </Link>
+          )}
           {user && (
             <Link href="/messages" className={path.startsWith("/messages") ? "on" : undefined} aria-label={`Messages${unread ? `, ${unread} unread` : ""}`}>
               {I(<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z" />)}<span>Messages</span>
@@ -63,7 +83,13 @@ export default function DesktopNav() {
         </nav>
         {/* Account, at the bottom of the side menu. */}
         <nav className="dnav-links dnav-foot" aria-label="Account">
-          {user ? (
+          {isRealAdmin && (
+            <button type="button" role="switch" aria-checked={adminMode} className={`dnav-btn dnav-admin${adminMode ? " on" : ""}`} onClick={() => setAdminMode(!adminMode)}>
+              {I(<><path d="M12 3 4 6v6c0 4.5 3.4 8.4 8 9 4.6-.6 8-4.5 8-9V6z" /><path d="m9 12 2 2 4-4" /></>)}<span>Admin mode</span>
+              <span className={`st-switch${adminMode ? " on" : ""}`} aria-hidden="true"><span /></span>
+            </button>
+          )}
+          {account ? (
             <>
               <Link href="/settings" className={path.startsWith("/settings") ? "on" : undefined}>
                 {I(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>)}<span>Settings</span>

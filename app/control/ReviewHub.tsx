@@ -8,6 +8,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsModerator, useIsAdmin } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import Discoveries from "../review/Discoveries";
+import { startVisitorPreview } from "../components/visitorPreview";
 
 type Submission = {
   id: string;
@@ -106,6 +107,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
   const canModerate = useIsModerator();
   const router = useRouter();
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [alerts, setAlerts] = useState<number | null>(null);
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
@@ -122,6 +124,11 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
       return { ...prev, [submissionId]: current };
     });
   }
+
+  useEffect(() => {
+    if (!isAdmin || mode !== "hub") return;
+    supabase.rpc("rpc_unread_notifications", { p_admin: true }).then(({ data }) => setAlerts(typeof data === "number" ? data : 0));
+  }, [isAdmin, mode]);
 
   useEffect(() => {
     load();
@@ -632,6 +639,14 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
         <JobCard href="/review/trusted" title="Trusted contributors"
           blurb="People whose suggestions go live straight away." />
         {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
+        {isAdmin && <JobCard href="/notifications" title="Alerts" n={alerts ?? undefined} blurb="Jobs that failed, timers that stopped, and other things the site flagged." />}
+        {isAdmin && (
+          <button type="button" className="mod-card" onClick={startVisitorPreview}>
+            <span className="mod-card-top"><span className="mod-card-title">Preview as a new visitor</span></span>
+            <span className="mod-card-blurb">See the site as someone who&apos;s never been here: signed out, welcome page showing. Exit from the bar at the top.</span>
+          </button>
+        )}
+        {isAdmin && <JobCard href="/welcome?preview=1" title="Preview first visit" blurb="Go through the welcome steps new accounts see. Nothing is saved." />}
       </div>
       </section>
       </div>
