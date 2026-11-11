@@ -183,6 +183,11 @@ export default function ExportifyImport() {
         const cArtistUris = col("artist uri(s)", "artist uris", "artist uri");
         const cDate = col("release date", "album release date");
         const cNumber = col("track number");
+        // Extra details, when the file has them (newer Exportify files do).
+        const cDuration = col("duration (ms)", "track duration (ms)", "duration_ms");
+        const cExplicit = col("explicit");
+        const cIsrc = col("isrc", "track isrc");
+        const cImage = col("album image url", "album image url (large)", "image url");
         if (cTrack < 0) continue; // not a song list (e.g. saved albums)
         if (cArtistUris < 0) noArtistIds = true;
         for (const r of rows.slice(1)) {
@@ -225,6 +230,10 @@ export default function ExportifyImport() {
             release_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
             release_precision: /^\d{4}-\d{2}-\d{2}$/.test(date) ? "day" : null,
             track_number: cNumber >= 0 ? Number(r[cNumber]) || null : null,
+            duration_ms: cDuration >= 0 && /^\d+$/.test((r[cDuration] ?? "").trim()) ? (r[cDuration] ?? "").trim() : null,
+            explicit: cExplicit >= 0 ? (/^true$/i.test((r[cExplicit] ?? "").trim()) ? "true" : /^false$/i.test((r[cExplicit] ?? "").trim()) ? "false" : null) : null,
+            isrc: cIsrc >= 0 ? (r[cIsrc] ?? "").trim() || null : null,
+            cover: cImage >= 0 ? (r[cImage] ?? "").trim() || null : null,
             artists: artists.filter((a) => a.name),
           });
         }
