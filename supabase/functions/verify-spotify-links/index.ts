@@ -170,14 +170,12 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const tickets = await spotifyTickets(batches.length);
-    if (tickets < 1) {
-      return new Response(
-        JSON.stringify({ done: false, checked: odd.length, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    batches.splice(tickets);
+
+    // Spotify may refuse the 50-at-a-time endpoint for apps in development
+    // mode (403). Then it's one song per call (as before) for a week, and the
+    // batch endpoint is tried again.
+    const { data: refused } = await supabase.from("sc_private_settings").select("value").eq("key", "spotify_batch_refused_until").maybeSingle();
+    let batchOk = !(refused?.value && Date.parse(refused.value) > Date.now());
 
     let checked = odd.length;
     let deadFound = 0;
@@ -185,44 +183,87 @@ Deno.serve(async (req) => {
     let rateLimited = false;
     let retryAfterSeconds = 0;
     let lastStatus = 0;
+    let mode = batchOk ? "batch" : "single";
 
-    for (const [bi, batch] of batches.entries()) {
-      if (bi > 0) await breather();
-      const ids = batch.map((t) => extractSpotifyTrackId(t.spotify_url)!);
-      const res = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 429) {
-        rateLimited = true;
-        const header = res.headers.get("Retry-After");
-        retryAfterSeconds = header ? parseInt(header, 10) : 30;
-        await pauseSpotify(retryAfterSeconds);
-        break;
-      }
-      if (res.status === 401) { await dropSpotifyToken(); break; }
-      if (!res.ok) { lastStatus = res.status; break; } // unexpected: try again next run
-      const body = await res.json().catch(() => null);
-      const found: any[] = Array.isArray(body?.tracks) ? body.tracks : [];
-      if (found.length !== batch.length) break;
-      // Spotify answers in the same order; null = no such track (dead link).
-      // A track Spotify moved answers with a different id but is still fine.
-      const items = batch.map((t, i) => {
-        const x = found[i];
-        return {
-          track_id: t.id, url: t.spotify_url, found: !!x,
-          title: x?.name ?? null,
-          artists: x ? (x.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") : null,
-        };
-      });
+    const save = async (items: { track_id: string; url: string; found: boolean; title: string | null; artists: string | null }[]) => {
       const { data: saved, error: saveErr } = await supabase.rpc("sc_spotify_verify_save", { p_secret: secret, p_items: items });
       if (saveErr) throw saveErr;
-      checked += batch.length;
+      checked += items.length;
       deadFound += (saved as { dead?: number })?.dead ?? 0;
       wrongFound += (saved as { wrong?: number })?.wrong ?? 0;
+    };
+    const describe = (x: any) => ({
+      title: x?.name ?? null,
+      artists: x ? (x.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") : null,
+    });
+
+    let left = todo;
+    if (batchOk) {
+      const tickets = await spotifyTickets(batches.length);
+      if (tickets < 1) {
+        return new Response(
+          JSON.stringify({ done: false, checked: odd.length, deadFound: 0, budget: "Spotify allowance used up for now; next run" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      batches.splice(tickets);
+      for (const [bi, batch] of batches.entries()) {
+        if (bi > 0) await breather();
+        const ids = batch.map((t) => extractSpotifyTrackId(t.spotify_url)!);
+        const res = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 429) {
+          rateLimited = true;
+          const header = res.headers.get("Retry-After");
+          retryAfterSeconds = header ? parseInt(header, 10) : 30;
+          await pauseSpotify(retryAfterSeconds);
+          break;
+        }
+        if (res.status === 401) { await dropSpotifyToken(); break; }
+        if (res.status === 403) {
+          await supabase.from("sc_private_settings").upsert(
+            { key: "spotify_batch_refused_until", value: new Date(Date.now() + 7 * 86400_000).toISOString() }, { onConflict: "key" });
+          batchOk = false;
+          mode = "single (batch refused)";
+          break;
+        }
+        if (!res.ok) { lastStatus = res.status; break; } // unexpected: try again next run
+        const body = await res.json().catch(() => null);
+        const found: any[] = Array.isArray(body?.tracks) ? body.tracks : [];
+        if (found.length !== batch.length) break;
+        // Spotify answers in the same order; null = no such track (dead link).
+        await save(batch.map((t, i) => ({ track_id: t.id, url: t.spotify_url, found: !!found[i], ...describe(found[i]) })));
+        left = left.filter((t) => !batch.includes(t));
+      }
+    }
+
+    if (!batchOk && !rateLimited) {
+      // One song per call, a few per run.
+      const tickets = await spotifyTickets(Math.min(left.length, 4));
+      for (const [i, t] of left.slice(0, tickets).entries()) {
+        if (i > 0) await breather();
+        const res = await fetch(`https://api.spotify.com/v1/tracks/${extractSpotifyTrackId(t.spotify_url)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 429) {
+          rateLimited = true;
+          const header = res.headers.get("Retry-After");
+          retryAfterSeconds = header ? parseInt(header, 10) : 30;
+          await pauseSpotify(retryAfterSeconds);
+          break;
+        }
+        if (res.status === 401) { await dropSpotifyToken(); break; }
+        if (res.status === 404 || res.status === 400) { await save([{ track_id: t.id, url: t.spotify_url, found: false, title: null, artists: null }]); continue; }
+        if (!res.ok) { lastStatus = res.status; break; }
+        const x = await res.json().catch(() => null);
+        if (!x) break;
+        await save([{ track_id: t.id, url: t.spotify_url, found: true, ...describe(x) }]);
+      }
     }
 
     return new Response(
-      JSON.stringify({ done: false, checked, deadFound, wrongFound, rateLimited, retryAfterSeconds, ...(lastStatus ? { last_status: lastStatus } : {}) }),
+      JSON.stringify({ done: false, mode, checked, deadFound, wrongFound, rateLimited, retryAfterSeconds, ...(lastStatus ? { last_status: lastStatus } : {}) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
