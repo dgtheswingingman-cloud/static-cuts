@@ -183,7 +183,7 @@ export default function CollectionImportPage() {
     <div className="wrap im-page">
       <div className="ls-crumb"><Link href="/library">My Library</Link> / <span>Import</span></div>
       <h1 className="ls-title im-title">IMPORT YOUR MUSIC<span>//</span></h1>
-      <p className="sb-lead">Bring your music into Static Cuts. The songs you already have get ticked in your collection, so you don&apos;t start from zero.</p>
+      <p className="sb-lead">Bring your music into Static-Cuts. The songs you already have get ticked in your collection, so you don&apos;t start from zero.</p>
 
       <div className="im-stats">
         <span className="im-stat">

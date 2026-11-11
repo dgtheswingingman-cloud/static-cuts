@@ -241,7 +241,7 @@ export default function ListView({ id }: { id: string }) {
       <div className="lv-actions">
         {d.items.length > 0 && (
           <ExportToSpotify name={d.list.title} back={`/list/${d.list.id}`} className="lv-btn lv-primary" label="▶ Export to Spotify//"
-            description={`From Static Cuts//: a list by ${d.owner?.name ?? "someone"}. static-cuts.com/list/${d.list.id}`}
+            description={`From Static-Cuts//: a list by ${d.owner?.name ?? "someone"}. static-cuts.com/list/${d.list.id}`}
             urls={d.items.map((i) => i.spotify_url)} />
         )}
         {!isAdmin && !d.is_owner && d.list.is_public && (

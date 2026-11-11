@@ -55,7 +55,7 @@ export default function ExportCard({ userId }: { userId: string }) {
   const file = () => {
     if (!rows?.length) return;
     save(`static-cuts-collection-${day}.csv`, csv([
-      ["Title", "Artist", "Album", "Status", "Release date", "Spotify", "Static Cuts"],
+      ["Title", "Artist", "Album", "Status", "Release date", "Spotify", "Static-Cuts"],
       ...rows.map((r) => [r.title, r.artist, r.album, r.release_status, r.release_date, r.spotify_url, `https://static-cuts.com/song/${r.id}`]),
     ]));
     setNote("Saved: every song you've collected, with its status and links.");
@@ -69,8 +69,8 @@ export default function ExportCard({ userId }: { userId: string }) {
       </span>
       {rows && rows.length > 0 && (
         <span className="lb-import-pills lb-export-btns">
-          <ExportToSpotify name="My Static Cuts collection" back="/library#export" className="lb-export-btn" label="Spotify"
-            description="Everything I've collected on Static Cuts// that's on Spotify." urls={rows.map((r) => r.spotify_url)} />
+          <ExportToSpotify name="My Static-Cuts collection" back="/library#export" className="lb-export-btn" label="Spotify"
+            description="Everything I've collected on Static-Cuts// that's on Spotify." urls={rows.map((r) => r.spotify_url)} />
           <button className="lb-export-btn" onClick={apple}>Apple Music</button>
           <button className="lb-export-btn" onClick={file}>File / CSV</button>
         </span>

@@ -30,7 +30,7 @@ const SOURCES: { key: Source; label: string; what: string }[] = [
 
 function chatGptBuildUrl(artistId: string, artistName: string) {
   const prompt =
-    `Use the Static Cuts connector to help fill in ${artistName}'s page on Static Cuts (artist_id "${artistId}"). ` +
+    `Use the Static-Cuts connector to help fill in ${artistName}'s page on Static-Cuts (artist_id "${artistId}"). ` +
     `Look for their unreleased songs, leaks, snippets, demos and alternate versions using leak and unreleased trackers, ` +
     `fan wikis and artist subreddits. Check what you find with check_candidates (artist_id "${artistId}", up to 50 ` +
     `titles per call) and call submit_discovery for each one marked new, with the best source URL. Put version info ` +
@@ -161,7 +161,7 @@ export default function ImportPanel({
           ChatGPT ↗
         </a>
         <span className="comment-meta" style={{ flex: "1 1 240px", minWidth: 0 }}>
-          looks for leaks, snippets and unreleased songs, sent for review. Needs the Static Cuts connector (see settings).
+          looks for leaks, snippets and unreleased songs, sent for review. Needs the Static-Cuts connector (see settings).
         </span>
       </div>
       <button className="rating-chip" style={{ marginTop: 10 }} onClick={onClose}>close</button>

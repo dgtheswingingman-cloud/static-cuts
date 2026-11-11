@@ -1,7 +1,7 @@
 "use client";
 import "../styles/year.css";
 
-// Your year on Static Cuts: what you collected, your top artists, your
+// Your year on Static-Cuts: what you collected, your top artists, your
 // rarest finds and what you helped with. Shareable as a picture-ready card.
 
 import { Suspense, useEffect, useState } from "react";
@@ -58,7 +58,7 @@ function YearInner() {
     return (
       <div className="wrap yr-page">
         <h1 className="detail-name page-title yr-title">Your Year</h1>
-        <div className="empty-state"><Link href="/login" className="text-link">Log in</Link> to see your year on Static Cuts.</div>
+        <div className="empty-state"><Link href="/login" className="text-link">Log in</Link> to see your year on Static-Cuts.</div>
       </div>
     );
   }
@@ -83,7 +83,7 @@ function YearInner() {
           {year < now && <button onClick={() => router.push(`/year?y=${year + 1}`)} aria-label={`${year + 1}`}>{year + 1} →</button>}
         </div>
       </div>
-      <p className="yr-lead">What you collected, found and helped with on Static Cuts// this year.</p>
+      <p className="yr-lead">What you collected, found and helped with on Static-Cuts// this year.</p>
 
       {!r && <div className="empty-state">loading…</div>}
       {r && playing && user && <Wrapped review={r} userId={user.id} onClose={() => setPlaying(false)} />}

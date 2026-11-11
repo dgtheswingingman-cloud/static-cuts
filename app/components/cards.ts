@@ -1,4 +1,4 @@
-// Share pictures (1080 x 1920 story size) in the Static Cuts style: black
+// Share pictures (1080 x 1920 story size) in the Static-Cuts style: black
 // static, the logo, Anton titles with //, mono text and status colours.
 //   songCard     a song: cover, title, artist, status, album, versions
 //   profileCard  a profile: picture, tagline, numbers, favourite artists
@@ -372,7 +372,7 @@ export async function yearBiggest(d: YearData): Promise<Blob | null> {
     ctx.fillStyle = "#070707"; ctx.fillText(label, 85, y + 42);
     y += 118;
     ctx.fillStyle = SMOKE; ctx.font = `34px ${f.mono}`;
-    for (const l of wrap(ctx, s.holders === 1 ? "Nobody else on Static Cuts has collected this one." : "One of the rarest songs in anyone's collection.", W - 140, 2)) { if (y > H - 190) break; ctx.fillText(l, 70, y); y += 46; }
+    for (const l of wrap(ctx, s.holders === 1 ? "Nobody else on Static-Cuts has collected this one." : "One of the rarest songs in anyone's collection.", W - 140, 2)) { if (y > H - 190) break; ctx.fillText(l, 70, y); y += 46; }
   }
   footer(ctx, logo, f, d.url);
   return toBlob(c);
@@ -422,7 +422,7 @@ export async function yearOutro(d: YearData): Promise<Blob | null> {
   ctx.restore();
   ctx.textAlign = "center"; ctx.fillStyle = BONE; ctx.font = `38px ${f.mono}`;
   ctx.fillText("Thanks for being part", W / 2, 1420);
-  ctx.fillText(`of Static Cuts in ${d.year}.`, W / 2, 1470);
+  ctx.fillText(`of Static-Cuts in ${d.year}.`, W / 2, 1470);
   if (logo) { const w = 640, h = (logo.height / logo.width) * w; ctx.drawImage(logo, (W - w) / 2, 1530, w, h); }
   ctx.font = `38px ${f.mono}`;
   ctx.fillText("Make yours at static-cuts.com", W / 2, 1760);

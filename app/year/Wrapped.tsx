@@ -96,7 +96,7 @@ export default function Wrapped({ review, userId, onClose }: { review: Review; u
   async function share() {
     if (!s) return;
     setBusy(true);
-    await shareBlob(s.blob, `static-cuts-${review.year}-${s.name}`, `My ${review.year} on Static Cuts//`);
+    await shareBlob(s.blob, `static-cuts-${review.year}-${s.name}`, `My ${review.year} on Static-Cuts//`);
     setBusy(false);
   }
 

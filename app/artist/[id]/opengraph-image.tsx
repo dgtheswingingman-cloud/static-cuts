@@ -5,7 +5,7 @@
 import { ImageResponse } from "next/og";
 import { supabase } from "@/lib/supabase";
 
-export const alt = "Artist on Static Cuts//";
+export const alt = "Artist on Static-Cuts//";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 3600;
@@ -45,7 +45,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             )}
           </div>
           <div style={{ fontSize: 28, color: "#A3A3A3", marginTop: 34 }}>Every song, leak and version</div>
-          <div style={{ fontSize: 30, color: "#EDEDED", marginTop: 14, fontWeight: 700 }}>STATIC CUTS//</div>
+          <div style={{ fontSize: 30, color: "#EDEDED", marginTop: 14, fontWeight: 700 }}>STATIC-CUTS//</div>
         </div>
       </div>
     ),

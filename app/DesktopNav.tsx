@@ -49,9 +49,9 @@ export default function DesktopNav() {
   return (
     <header className="dnav">
       <div className="dnav-inner">
-        <Link href="/" className="dnav-logo" aria-label="Static Cuts// home">
+        <Link href="/" className="dnav-logo" aria-label="Static-Cuts// home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="Static Cuts//" className="logo-img" width={1200} height={200} />
+          <img src="/logo.webp" alt="Static-Cuts//" className="logo-img" width={1200} height={200} />
         </Link>
         <nav className="dnav-links" aria-label="Main">
           {LINKS.map((l) => {

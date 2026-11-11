@@ -34,7 +34,7 @@ export default function SignupNudge() {
     // The artist's name from the page title ("Ken Carson — every song…").
     const t = setTimeout(() => {
       const name = path?.startsWith("/artist/") ? document.title.split(" — ")[0]?.trim() : null;
-      setArtist(name && name.length < 60 && !name.includes("Static Cuts") ? name : null);
+      setArtist(name && name.length < 60 && !name.includes("Static-Cuts") ? name : null);
     }, 300);
     return () => clearTimeout(t);
   }, [path, user, loading]);

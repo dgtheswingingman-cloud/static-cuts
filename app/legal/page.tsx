@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
-export const metadata: Metadata = { title: "Privacy & terms · Static Cuts//" };
+export const metadata: Metadata = { title: "Privacy & terms · Static-Cuts//" };
 
 export default function LegalPage() {
   return (
-    <InfoShell title="PRIVACY & TERMS" here="/legal" intro="How your data is used and the rules for using Static Cuts//. Last updated 18 October 2026."
+    <InfoShell title="PRIVACY & TERMS" here="/legal" intro="How your data is used and the rules for using Static-Cuts//. Last updated 18 October 2026."
       sections={[["plain", "In plain English"], ["privacy", "Privacy"], ["terms", "Terms"]]}>
       <InfoSection id="plain" title="In plain English" className="if-plain">
         <p className="if-p">
           We keep your account, library and preferences private. Your profile only shows what you choose to show.
           We don&apos;t sell your data, we don&apos;t show ads, and we only collect what&apos;s needed to run the site. The site
-          doesn&apos;t host audio. Static Cuts// is a small, non-commercial, community-run project, written plainly on
+          doesn&apos;t host audio. Static-Cuts// is a small, non-commercial, community-run project, written plainly on
           purpose; it isn&apos;t a substitute for legal advice.
         </p>
       </InfoSection>
@@ -108,7 +108,7 @@ export default function LegalPage() {
             <summary>Takedowns</summary>
             <div className="if-a">
         <p>
-          Static Cuts// doesn&apos;t host audio, but we respect artists and rights holders. If you own the rights to
+          Static-Cuts// doesn&apos;t host audio, but we respect artists and rights holders. If you own the rights to
           something listed here (or represent someone who does) and want it taken down, use the{" "}
           <Link href="/takedown" className="text-link">takedown form</Link> or email{" "}
           <a href="mailto:takedown@static-cuts.com" className="text-link">takedown@static-cuts.com</a>. Tell us which song or page and why.

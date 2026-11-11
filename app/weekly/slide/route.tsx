@@ -1,4 +1,4 @@
-// This week on Static Cuts as Instagram/TikTok slides (1080×1350, portrait).
+// This week on Static-Cuts as Instagram/TikTok slides (1080×1350, portrait).
 //   /weekly/slide?n=1   poster: the week's covers, counts
 //   /weekly/slide?n=2   leaked this week (top 5), tracker style
 //   /weekly/slide?n=3   out this week (top 5), tracker style

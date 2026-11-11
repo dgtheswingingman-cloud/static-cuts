@@ -1,11 +1,11 @@
 // Local Cuts: read a music file's details (title, artist, album, track
 // number, year) on the device. Nothing is uploaded. Handles MP3 (ID3v2 and
 // ID3v1), FLAC and OGG/Opus (Vorbis comments), M4A/MP4 and WAV (ID3 chunk,
-// LIST/INFO). Also the Static Cuts code Local Cuts writes. Anything else, or
+// LIST/INFO). Also the Static-Cuts code Local Cuts writes. Anything else, or
 // a file without tags, falls back to the file name ("Artist - Title (V2).mp3").
 
 export type Tags = { title: string | null; artist: string | null; album: string | null; track: string | null; year: string | null; from: "tags" | "name";
-  code?: string | null }; // the Static Cuts code Local Cuts wrote into the file (STATICCUTS)
+  code?: string | null }; // the Static-Cuts code Local Cuts wrote into the file (STATICCUTS)
 const CODE = /^SC-[A-Z0-9]{4}-\d{6,}$/;
 
 const HEAD = 1024 * 1024; // first 1 MB holds almost every tag block

@@ -46,7 +46,7 @@ function TakedownForm() {
 
   return (
     <InfoShell title="REQUEST A TAKEDOWN" here="/takedown"
-      intro={<>Report something you own the rights to and want removed. Static Cuts// lists information about music and links to where it can be found; it doesn&apos;t host audio. We aim to act within a few days and reply by email. You can also email <a href="mailto:takedown@static-cuts.com" className="text-link">takedown@static-cuts.com</a>. See the <Link href="/legal#takedowns" className="text-link">takedown policy</Link>.</>}>
+      intro={<>Report something you own the rights to and want removed. Static-Cuts// lists information about music and links to where it can be found; it doesn&apos;t host audio. We aim to act within a few days and reply by email. You can also email <a href="mailto:takedown@static-cuts.com" className="text-link">takedown@static-cuts.com</a>. See the <Link href="/legal#takedowns" className="text-link">takedown policy</Link>.</>}>
       {sent ? (
         <InfoSection title="Sent">
           <div className="if-sent">
@@ -69,7 +69,7 @@ function TakedownForm() {
                 {RELATIONSHIPS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </label>
-            <label className="wl-label" htmlFor="td-url">Link to the song or page on Static Cuts//
+            <label className="wl-label" htmlFor="td-url">Link to the song or page on Static-Cuts//
               <input id="td-url" className="sb-text" placeholder="https://static-cuts.com/song/…" value={pageUrl} onChange={(e) => setPageUrl(e.target.value)} />
             </label>
             <label className="wl-label" htmlFor="td-reason">What should be removed, and why <em className="if-req">*</em>

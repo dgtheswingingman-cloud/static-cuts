@@ -1,4 +1,4 @@
-// Static Cuts MCP server (Streamable HTTP, stateless, JSON responses).
+// Static-Cuts MCP server (Streamable HTTP, stateless, JSON responses).
 //
 // ChatGPT connects here as a custom connector. Sign-in is OAuth 2.1 through
 // Supabase Auth: unauthenticated requests get a 401 pointing at
@@ -11,7 +11,7 @@ import { SERVER_INSTRUCTIONS, TOOLS } from "@/lib/mcp/tools";
 export const dynamic = "force-dynamic";
 
 const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_INFO = { name: "static-cuts", title: "Static Cuts", version: "0.4.0" };
+const SERVER_INFO = { name: "static-cuts", title: "Static-Cuts", version: "0.4.0" };
 
 type JsonRpcRequest = {
   jsonrpc: "2.0";
@@ -36,7 +36,7 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
 
 function unauthorized(req: Request) {
   return json(
-    { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Sign in to Static Cuts to use this connector." } },
+    { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Sign in to Static-Cuts to use this connector." } },
     401,
     { "WWW-Authenticate": `Bearer resource_metadata="${protectedResourceMetadataUrl(req)}"` }
   );

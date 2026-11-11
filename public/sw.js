@@ -1,4 +1,4 @@
-// Static Cuts service worker: lets the site install as an app and shows a
+// Static-Cuts service worker: lets the site install as an app and shows a
 // simple page when there's no connection. Everything else goes straight to
 // the network (song data changes too often to cache).
 const OFFLINE = "/offline.html"; // v2: phone alerts
@@ -24,8 +24,8 @@ self.addEventListener("fetch", (event) => {
 // right page when it's tapped.
 self.addEventListener("push", (event) => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "Static Cuts", body: event.data ? event.data.text() : "" }; }
-  event.waitUntil(self.registration.showNotification(data.title || "Static Cuts", {
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "Static-Cuts", body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(self.registration.showNotification(data.title || "Static-Cuts", {
     body: data.body || "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",

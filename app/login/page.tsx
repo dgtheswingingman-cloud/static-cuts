@@ -86,7 +86,7 @@ export default function LoginPage() {
       <header className="wl-hero">
         {banner.length >= 3 && <HeroCollage images={banner} className="pf-collage ah2-collage wl-collage" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.webp" alt="Static Cuts//" className="logo-img wl-logo" width={1200} height={200} />
+        <img src="/logo.webp" alt="Static-Cuts//" className="logo-img wl-logo" width={1200} height={200} />
       </header>
 
       <div className="wl-card">

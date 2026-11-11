@@ -120,7 +120,7 @@ const RELEASE_STATUSES = ["unconfirmed", "rumored", "teased", "snippet", "leaked
 // tool returns the songs and the detailed instructions.
 function chatGptLinksUrl(artistId: string, artistName: string) {
   const prompt =
-    `Use the Static Cuts connector to find listen links for ${artistName}'s songs: ` +
+    `Use the Static-Cuts connector to find listen links for ${artistName}'s songs: ` +
     `call get_songs_needing_links with artist_id "${artistId}" and follow its instructions.`;
   return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
 }
@@ -1752,7 +1752,7 @@ export default function ArtistPage() {
                 Producer page →
               </Link>
             )}
-            <ShareButton title={`${artist.name} · Static Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
+            <ShareButton title={`${artist.name} · Static-Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
               fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {
               const { data: a } = await supabase.from("artists").select("image_url").eq("id", id).maybeSingle();
               const main = (tracks ?? []).filter((x) => !x.parent_track_id);
@@ -1799,7 +1799,7 @@ export default function ArtistPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="tab"
-                  title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static Cuts connector (see settings)."
+                  title="Opens ChatGPT to look for listen links for this artist's songs. Needs the Static-Cuts connector (see settings)."
                 >
                   find links ↗
                 </a>

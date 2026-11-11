@@ -1,7 +1,7 @@
 // Export songs to a new Spotify playlist in the listener's own Spotify
 // account. Uses Spotify's sign-in for browser apps (PKCE): no secret, the
 // token stays in this browser tab, and it's separate from signing in to
-// Static Cuts. Only songs with a Spotify track link can go in a playlist.
+// Static-Cuts. Only songs with a Spotify track link can go in a playlist.
 // While our Spotify app is in development mode, only Spotify accounts added
 // in its developer dashboard (a handful) can sign in here.
 //

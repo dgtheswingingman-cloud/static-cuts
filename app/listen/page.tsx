@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
 export const metadata: Metadata = {
-  title: "How to listen · Static Cuts//",
+  title: "How to listen · Static-Cuts//",
   description: "Where the listen links come from, why some songs have none, and how to play your own files in Spotify.",
 };
 
@@ -22,10 +22,10 @@ const SERVICES: { name: string; text: string; icon: React.ReactNode }[] = [
 
 export default function ListenPage() {
   return (
-    <InfoShell title="HOW TO LISTEN" here="/listen" intro="Where to listen to the songs on Static Cuts//, and how to play songs you already have as files."
+    <InfoShell title="HOW TO LISTEN" here="/listen" intro="Where to listen to the songs on Static-Cuts//, and how to play songs you already have as files."
       sections={[["where", "Where to listen"], ["files", "Songs you already have"], ["trouble", "If it doesn't work"]]}>
       <InfoSection id="where" title="Where to listen">
-        <p className="if-p">Static Cuts// is a list of every song an artist is known to have made. It doesn&apos;t host or play music. When a song is somewhere you can play it, its page has a <b>listen</b> button that takes you there.</p>
+        <p className="if-p">Static-Cuts// is a list of every song an artist is known to have made. It doesn&apos;t host or play music. When a song is somewhere you can play it, its page has a <b>listen</b> button that takes you there.</p>
         <div className="if-cards">
           {SERVICES.map((x) => (
             <div key={x.name} className="if-card">

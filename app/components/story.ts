@@ -1,5 +1,5 @@
 // Story pictures (1080 x 1920, Instagram / TikTok / Snapchat size), drawn in
-// the browser in the Static Cuts style: dark, grainy, big type. Shared with
+// the browser in the Static-Cuts style: dark, grainy, big type. Shared with
 // the phone's share sheet when it can take pictures, otherwise downloaded.
 
 export type Story = {
@@ -84,7 +84,7 @@ export async function drawStory(s: Story): Promise<Blob | null> {
   ctx.fillStyle = bone;
   ctx.font = `600 44px ${mono}`;
   ctx.textAlign = "left";
-  ctx.fillText("STATIC CUTS//", 80, 150);
+  ctx.fillText("STATIC-CUTS//", 80, 150);
   ctx.fillStyle = smoke;
   ctx.font = `32px ${mono}`;
   ctx.fillText(s.kicker.toUpperCase().slice(0, 48), 80, 205);

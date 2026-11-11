@@ -34,7 +34,7 @@ async function rpc(db: SupabaseClient, fn: string, params: Record<string, unknow
 export const TOOLS: Tool[] = [
   {
     name: "test_connection",
-    title: "Test the Static Cuts connection",
+    title: "Test the Static-Cuts connection",
     description:
       "Checks that the connection works and that this app can write on the user's behalf. " +
       "Records a harmless test run (no catalogue changes). Use once when setting up.",
@@ -51,10 +51,10 @@ export const TOOLS: Tool[] = [
     name: "get_research_plan",
     title: "Get artists to research",
     description:
-      "Returns the next batch (default 8) of the user's CURRENT followed artists on Static Cuts in priority order (shared queue). Research " +
+      "Returns the next batch (default 8) of the user's CURRENT followed artists on Static-Cuts in priority order (shared queue). Research " +
       "the ones with due = true; due = false means checked recently or quiet lately, so skip unless you have time. " +
       "why says what put the artist in the queue. " +
-      "Research is shared by everyone using Static Cuts, so each artist says what's already covered: " +
+      "Research is shared by everyone using Static-Cuts, so each artist says what's already covered: " +
       "search_since (only look for news on or after this date; null = never checked, do a full sweep), " +
       "recently_added (songs already added or updated lately: skip them), already_handled (finds already " +
       "approved or dismissed: skip, don't research again) and open_discoveries (waiting in review: skip unless " +
@@ -73,12 +73,12 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "check_candidate",
-    title: "Check whether Static Cuts already has a song",
+    title: "Check whether Static-Cuts already has a song",
     description:
       "Looks up a song title for an artist (title and aliases, ignoring case, punctuation and feat. tags), " +
       "including songs where the artist is only featured. If the followed artist is a FEATURE on someone else's " +
       "song, pass main_artist_name so that artist's catalogue is checked too. Pass observed_status to learn whether " +
-      "the status has moved on. Verdicts: new (not in Static Cuts), known_same_status (nothing to do), " +
+      "the status has moved on. Verdicts: new (not in Static-Cuts), known_same_status (nothing to do), " +
       "known_status_changed (submit it), open_discovery (already reported; only submit with a different source URL), " +
       "previously_dismissed (already reviewed and turned down: don't submit). " +
       "To check several finds for one artist, use check_candidates instead (one call for up to 100). " +
@@ -138,10 +138,10 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "submit_discovery",
-    title: "Report a finding to Static Cuts",
+    title: "Report a finding to Static-Cuts",
     description:
       "Files evidence of a missing song or a status change. It goes into a review queue; nothing changes on the " +
-      "site until the Static Cuts reviewer approves it. Only submit when check_candidate says new, " +
+      "site until the Static-Cuts reviewer approves it. Only submit when check_candidate says new, " +
       "known_status_changed, or open_discovery with a NEW source. Duplicates are merged automatically. " +
       "One call per finding, with the single best source URL. " +
       "Features: if the followed artist is featured on another artist's song, set main_artist_name to that artist " +
@@ -180,7 +180,7 @@ export const TOOLS: Tool[] = [
     title: "Report a show, tour or merch drop",
     description:
       "For the artist page's Coming up section: a show, tour, festival appearance or merch drop for an artist on " +
-      "Static Cuts. Only report what an official or reliable page shows (the artist's or venue's site or socials, a " +
+      "Static-Cuts. Only report what an official or reliable page shows (the artist's or venue's site or socials, a " +
       "ticketing or festival page, the merch store's drop post), with that page as source_url. Tours: one entry for " +
       "the tour with its first and last dates, not one per show. Only upcoming dates (merch: dropped in the last 30 " +
       "days or upcoming). Duplicates are ignored.",
@@ -208,7 +208,7 @@ export const TOOLS: Tool[] = [
     name: "get_songs_needing_links",
     title: "List songs that need a listen link",
     description:
-      "Returns up to 100 (default 25) of an artist's songs that have no listen link on Static Cuts, the ones nobody has checked " +
+      "Returns up to 100 (default 25) of an artist's songs that have no listen link on Static-Cuts, the ones nobody has checked " +
       "first, with any links already suggested. Follow the instructions it returns: find a link for each song, " +
       "call suggest_link for each one you find, then mark_checked with every track_id you looked at.",
     inputSchema: {
@@ -227,7 +227,7 @@ export const TOOLS: Tool[] = [
     name: "suggest_link",
     title: "Suggest a listen link for a song",
     description:
-      "Adds a link to the song's possible matches on Static Cuts, where people vote on it and the reviewer can " +
+      "Adds a link to the song's possible matches on Static-Cuts, where people vote on it and the reviewer can " +
       "approve it. Only suggest links you have checked are this exact song and version. Include the status the " +
       "link shows (released for official streaming pages, leaked or snippet for unofficial uploads) and the album " +
       "and release date when you know them.",
@@ -253,7 +253,7 @@ export const TOOLS: Tool[] = [
     name: "suggest_details",
     title: "Fill in a song's missing details",
     description:
-      "For a song already on Static Cuts: suggests details it's missing (album, release date, producers, featured " +
+      "For a song already on Static-Cuts: suggests details it's missing (album, release date, producers, featured " +
       "artists, track number). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
       "set replace = true and say in notes what is wrong and why; corrections always wait for a person to review. " +
       "Give the page that shows the details as source_url. track_ids come from get_catalogue_backlog, " +
@@ -309,7 +309,7 @@ export const TOOLS: Tool[] = [
     name: "get_artist_songs",
     title: "List an artist's whole catalogue",
     description:
-      "Every song and version on an artist's Static Cuts page, 100 at a time (up to 200), with status, album, " +
+      "Every song and version on an artist's Static-Cuts page, 100 at a time (up to 200), with status, album, " +
       "release date, track number, producers, features, whether it has a Spotify link and what it still needs. " +
       "Versions follow their main song (version_of_track_id). Use next_offset for the next page (null = done). " +
       "Use it to spot wrong details (fix with suggest_details replace = true) and duplicates.",
@@ -406,7 +406,7 @@ export const TOOLS: Tool[] = [
     name: "finish_run",
     title: "Finish a research run",
     description:
-      "Call once at the end of every run with the artist_ids you actually researched. This tells Static Cuts " +
+      "Call once at the end of every run with the artist_ids you actually researched. This tells Static-Cuts " +
       "the routine is alive and lets other users' routines skip those artists for a while.",
     inputSchema: {
       type: "object",
@@ -425,7 +425,7 @@ export const TOOLS: Tool[] = [
 ];
 
 export const SERVER_INSTRUCTIONS = [
-  "Static Cuts is a community music archive (official releases, unreleased songs, leaks, snippets).",
+  "Static-Cuts is a community music archive (official releases, unreleased songs, leaks, snippets).",
   "Workflow for a research run:",
   "1. get_research_plan to get the user's current followed artists.",
   "   Research is shared across all users. Don't redo it: only look for news on or after each artist's",
@@ -444,7 +444,7 @@ export const SERVER_INSTRUCTIONS = [
   "   Status checks: each artist's needs_status lists songs whose status is unknown. Find out what each is",
   "   (released, leaked, snippet...), submit_discovery for what you can prove, then mark_checked those track_ids.",
   "   Details: when you see a song's album, exact release date, producers, features or track number and the",
-  "   song is already on Static Cuts, call suggest_details (only gaps are used).",
+  "   song is already on Static-Cuts, call suggest_details (only gaps are used).",
   "   Shows and merch: when you see an upcoming show, tour, festival slot or merch drop for a researched artist,",
   "   call submit_announcement with the official or ticketing page as source_url.",
   "5. Clean-up: for each researched artist call get_possible_duplicates(artist_id) and report_duplicate on up to 5 groups.",
