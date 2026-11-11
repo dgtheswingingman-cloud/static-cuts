@@ -79,6 +79,7 @@ type Counts = {
   suggestions: number; finds: number; sub_versions: number; imported_songs: number; guest_artists: number;
   reported_comments: number; sheet_requests: number; tracker_disagreements?: number; takedowns: number | null;
   album_fixes?: number; announcements?: number; wrong_links?: number;
+  duplicates?: number; deezer_check?: number; cleanup?: number; // counted every 15 minutes
 };
 
 const rank = (n: number | null | undefined) => (typeof n === "number" ? (n > 0 ? 0 : 2) : 1);
@@ -561,10 +562,10 @@ export default function ReviewHub() {
           { href: "/review/versions", title: "Sub-versions", n: counts?.sub_versions, blurb: "Songs that look like a version of another song." },
           { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
           { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
-          ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: undefined, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
+          ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: counts?.deezer_check, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
-          { href: "/review/duplicates", title: "Duplicates", n: undefined, blurb: "The same song entered twice: pick one to keep and merge." },
-          { href: "/review/cleanup", title: "Clean-up", n: undefined, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
+          { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
+          { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
           { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
           { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
         ]
