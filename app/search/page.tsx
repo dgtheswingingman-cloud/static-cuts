@@ -47,7 +47,8 @@ function SearchInner() {
   // Artists whose name or nickname matches.
   const [artists, setArtists] = useState<{ id: string; name: string; image_url: string | null }[] | null>(null);
   // Albums and projects whose name matches, and producers.
-  const [albums, setAlbums] = useState<{ key: string; name: string; artist_id: string; artist: string; cover: string | null; year: string | null; songs: number; released: number }[]>([]);
+  // Official albums (open the album page) first, then tracker projects (open Eras).
+  const [albums, setAlbums] = useState<{ key: string; name: string; artist_id: string; artist: string; cover: string | null; year: string | null; songs: number; kind: string; href: string }[]>([]);
   const [producers, setProducers] = useState<{ name: string; songs: number }[]>([]);
   // The top artist's numbers, and artists like them.
   const [topStats, setTopStats] = useState<{ songs: number; unreleased: number; followers: number } | null>(null);
@@ -89,20 +90,19 @@ function SearchInner() {
   useEffect(() => {
     const words = (params.get("q") ?? "").trim().replace(/[%_,()\\]/g, " ").trim();
     if (words.length < 2) { setPeople([]); setArtists(null); setAlbums([]); setProducers([]); return; }
-    supabase.from("tracks").select("album, artist_id, cover_url, release_date, release_status, artists(name)").ilike("album", `%${words}%`).is("parent_track_id", null).limit(600)
-      .then(({ data }) => {
-        const m = new Map<string, { key: string; name: string; artist_id: string; artist: string; cover: string | null; year: string | null; songs: number; released: number }>();
-        for (const t of (data ?? []) as unknown as { album: string; artist_id: string; cover_url: string | null; release_date: string | null; release_status: string | null; artists: { name: string } | null }[]) {
-          const key = `${t.artist_id}|${t.album.toLowerCase()}`;
-          const a = m.get(key) ?? { key, name: t.album, artist_id: t.artist_id, artist: t.artists?.name ?? "", cover: null, year: null, songs: 0, released: 0 };
-          a.songs++;
-          if (t.release_status === "released") a.released++;
-          if (!a.cover && t.cover_url) a.cover = t.cover_url;
-          if (t.release_date && (!a.year || t.release_date.slice(0, 4) < a.year)) a.year = t.release_date.slice(0, 4);
-          m.set(key, a);
-        }
-        setAlbums([...m.values()].sort((a, b) => b.songs - a.songs).slice(0, 40));
-      });
+    supabase.rpc("rpc_search_albums", { p_q: words }).then(({ data }) => {
+      const d = (data ?? { albums: [], projects: [] }) as {
+        albums: { id: string; title: string; artist_id: string; artist: string; cover: string | null; year: string | null; kind: string; songs: number | null }[];
+        projects: { name: string; artist_id: string; artist: string; cover: string | null; year: string | null; songs: number; released: number }[];
+      };
+      setAlbums([
+        ...d.albums.map((a) => ({ key: `a:${a.id}`, name: a.title, artist_id: a.artist_id, artist: a.artist, cover: a.cover, year: a.year,
+          songs: a.songs ?? 0, kind: a.kind === "ep" ? "EP" : "album", href: `/album/${a.id}` })),
+        ...d.projects.map((p) => ({ key: `p:${p.artist_id}|${p.name.toLowerCase()}`, name: p.name, artist_id: p.artist_id, artist: p.artist,
+          cover: p.cover, year: p.year, songs: p.songs, kind: p.released >= p.songs / 2 ? "album" : "project",
+          href: `/artist/${p.artist_id}/eras#${encodeURIComponent(`album:${p.name.toLowerCase()}`)}` })),
+      ]);
+    });
     supabase.from("tracks").select("producers").ilike("producers", `%${words}%`).limit(500).then(({ data }) => {
       const w = words.toLowerCase();
       const c = new Map<string, { name: string; songs: number }>();
@@ -224,14 +224,14 @@ function SearchInner() {
     </Link>
   );
   const albumTile = (a: (typeof albums)[number]) => (
-    <Link key={a.key} href={`/artist/${a.artist_id}/eras#${encodeURIComponent(`album:${a.name.toLowerCase()}`)}`} className="hf-cover sr-album">
+    <Link key={a.key} href={a.href} className="hf-cover sr-album">
       {a.cover
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={thumb(a.cover)} alt="" loading="lazy" />
         : <span className="hf-cover-blank">SC//</span>}
       <span className="hf-cover-artist">{a.name}</span>
       <span className="hf-cover-title">{a.artist}</span>
-      <span className="hf-cover-meta">{[a.year, a.released >= a.songs / 2 ? "album" : "project", `${a.songs} songs`].filter(Boolean).join(" · ")}</span>
+      <span className="hf-cover-meta">{[a.year, a.kind, a.songs ? `${a.songs} songs` : null].filter(Boolean).join(" · ")}</span>
     </Link>
   );
   const Sec = ({ icon, title, n, to }: { icon: string; title: string; n: number; to?: typeof type }) => (
