@@ -82,3 +82,9 @@
   .mod-page .mod-bulk { top: 0; }
   .mod-page .mod-row-actions .mod-btn { flex: 1; }
 }
+
+/* Cover suggestions */
+.cv-row { display: inline-flex; align-items: center; gap: 12px; }
+.cv-new { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--hair-strong); background: var(--surface2); display: block; }
+.cv-now { display: inline-flex; align-items: center; gap: 6px; }
+.cv-now img { width: 28px; height: 28px; object-fit: cover; border-radius: 3px; }

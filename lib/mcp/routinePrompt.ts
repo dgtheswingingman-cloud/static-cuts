@@ -13,7 +13,7 @@ A. NEWS (only artists that are due)
 6. finish_run with every artist_id you researched, even with nothing new.
 
 B. CATALOGUE (whenever A has nothing due, or you have time left)
-7. Call get_catalogue_backlog. For each song: needs status -> submit_discovery what you can prove; needs link -> suggest_link; needs details -> suggest_details with the page that shows them. Wrong filled-in detail -> suggest_details with replace = true and why in notes. recheck items -> only resubmit with new evidence.
+7. Call get_catalogue_backlog. For each song: needs status -> submit_discovery what you can prove; needs link -> suggest_link; needs details -> suggest_details with the page that shows them; needs cover -> suggest_cover with the picture's direct link and the page it's on (only art really used for that song). Wrong filled-in detail -> suggest_details with replace = true and why in notes. recheck items -> only resubmit with new evidence.
 8. mark_checked with every track_id (and recheck discovery_id) you looked at, found or not, then call get_catalogue_backlog again for the next page.
 9. For artists you worked on, look at up to 5 groups from get_possible_duplicates and report_duplicate same or different.
 

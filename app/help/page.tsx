@@ -2,7 +2,7 @@
 
 // Help wanted: small jobs anyone can do, busiest artists first. Your impact
 // at the top, a quick yes/no question, then the jobs: check links, fill in
-// missing info, set a status, add songs to thin pages.
+// missing info, set a status, add art for leaks, add songs to thin pages.
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -14,13 +14,13 @@ import AdminModeNote from "../components/AdminModeNote";
 import VersionQuestions from "./VersionQuestions";
 import { thumb } from "@/lib/thumb";
 
-type Kind = "links" | "info" | "status" | "thin";
+type Kind = "links" | "info" | "status" | "covers" | "thin";
 type Counts = Record<Kind, number>;
 type LinkItem = {
   id: string; track_id: string; url: string; link_title: string | null; source_domain: string | null;
   title: string; artist_id: string; artist: string; score: number; votes: number;
 };
-type SongItem = { id: string; title: string; artist_id: string; artist: string; missing?: string[] };
+type SongItem = { id: string; title: string; artist_id: string; artist: string; missing?: string[]; status?: string };
 type ArtistItem = { artist_id: string; artist: string; songs: number };
 type Stats = { helped: number | null; week: number | null; link_votes: number | null; linked_pct: number };
 
@@ -33,6 +33,8 @@ const TABS: { kind: Kind; label: string; title: string; blurb: string; icon: Rea
     icon: I(<><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>) },
   { kind: "status", label: "Unknown status", title: "Unknown status", blurb: "Songs nobody has marked yet. Tap what it is now; a moderator checks it.",
     icon: I(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" /></>) },
+  { kind: "covers", label: "Missing covers", title: "Missing covers", blurb: "Leaks and snippets with no artwork. Know the art that went with one? Add it on the song's page.",
+    icon: I(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></>) },
   { kind: "thin", label: "Thin pages", title: "Thin pages", blurb: "Artists with 10 songs or fewer. Add the ones you know.",
     icon: I(<><path d="M12 3 3 8l9 5 9-5z" /><path d="m3 13 9 5 9-5" /></>) },
 ];
@@ -241,6 +243,18 @@ export default function HelpWantedPage() {
                 </span>
               )}
             </div>
+          </div>
+        ))}
+
+        {kind === "covers" && (items as SongItem[] | null)?.map((s) => (
+          <div key={s.id} className="hw-row">
+            <Cover id={s.id} />
+            <div className="hw-main">
+              <Link href={`/song/${s.id}`} className="hw-song">{s.title}</Link>
+              <Link href={`/artist/${s.artist_id}`} className="hw-artist">{s.artist}</Link>
+              {s.status && <span className="hw-missing"><span className={`feature-tag st st-${s.status}`}>{s.status}</span></span>}
+            </div>
+            {!isAdmin && <Link href={`/song/${s.id}#covers`} className="ms-say hw-act">Add a cover//</Link>}
           </div>
         ))}
 
