@@ -1,6 +1,7 @@
 // Local Cuts: read a music file's details (title, artist, album, track
 // number, year) on the device. Nothing is uploaded. Handles MP3 (ID3v2 and
-// ID3v1), FLAC and OGG/Opus (Vorbis comments), and M4A/MP4. Anything else, or
+// ID3v1), FLAC and OGG/Opus (Vorbis comments), M4A/MP4 and WAV (ID3 chunk,
+// LIST/INFO). Also the Static Cuts code Local Cuts writes. Anything else, or
 // a file without tags, falls back to the file name ("Artist - Title (V2).mp3").
 
 export type Tags = { title: string | null; artist: string | null; album: string | null; track: string | null; year: string | null; from: "tags" | "name";
@@ -123,6 +124,32 @@ function readFlac(b: Uint8Array): Partial<Tags> | null {
 
 function readOgg(b: Uint8Array): Partial<Tags> | null {
   if (latin1(b.subarray(0, 4)) !== "OggS") return null;
+  // Put the second packet (the comments) back together from its pages: a
+  // big cover can spread it over many.
+  try {
+    const parts: Uint8Array[] = [];
+    let p = 0, packet = 0;
+    while (p + 27 <= b.length && latin1(b.subarray(p, p + 4)) === "OggS") {
+      const n = b[p + 26];
+      let d = p + 27 + n;
+      for (let i = 0; i < n; i++) {
+        const s = b[p + 27 + i];
+        if (packet === 1) parts.push(b.subarray(d, d + s));
+        d += s;
+        if (s < 255) { packet++; if (packet === 2) break; }
+      }
+      if (packet >= 2) break;
+      p = d;
+    }
+    if (packet >= 2) {
+      const len = parts.reduce((x, y) => x + y.length, 0);
+      const c = new Uint8Array(len);
+      let o = 0;
+      for (const x of parts) { c.set(x, o); o += x.length; }
+      if (latin1(c.subarray(0, 7)) === "\x03vorbis") return readVorbis(c, 7);
+      if (latin1(c.subarray(0, 8)) === "OpusTags") return readVorbis(c, 8);
+    }
+  } catch { /* fall back to looking for the marker */ }
   // The comment header follows the first page; find its marker.
   const s = latin1(b.subarray(0, Math.min(b.length, 65536)));
   let i = s.indexOf("\x03vorbis");
@@ -130,6 +157,39 @@ function readOgg(b: Uint8Array): Partial<Tags> | null {
   i = s.indexOf("OpusTags");
   if (i >= 0) return readVorbis(b, i + 8);
   return {};
+}
+
+// ---------------------------------------------------------------- WAV
+
+// RIFF chunks: an "id3 " chunk (read as MP3) and LIST/INFO (INAM, IART...).
+async function readWav(file: Blob): Promise<Partial<Tags> | null> {
+  const head = await bytes(file, 0, 12);
+  if (latin1(head.subarray(0, 4)) !== "RIFF" || latin1(head.subarray(8, 12)) !== "WAVE") return null;
+  const out: Partial<Tags> = {};
+  let id3: Partial<Tags> | null = null;
+  let p = 12;
+  for (let n = 0; p + 8 <= file.size && n < 64; n++) {
+    const h = await bytes(file, p, p + 8);
+    const id = latin1(h.subarray(0, 4));
+    const len = h[4] | (h[5] << 8) | (h[6] << 16) | (h[7] * 16777216);
+    if ((id === "id3 " || id === "ID3 ") && len < 30 * 1024 * 1024) id3 = readId3v2(await bytes(file, p + 8, p + 8 + len));
+    else if (id === "LIST" && len < 1024 * 1024) {
+      const d = await bytes(file, p + 8, p + 8 + len);
+      if (latin1(d.subarray(0, 4)) === "INFO") {
+        let q = 4;
+        while (q + 8 <= d.length) {
+          const sid = latin1(d.subarray(q, q + 4)), sl = d[q + 4] | (d[q + 5] << 8) | (d[q + 6] << 16) | (d[q + 7] << 24);
+          const v = clean(utf8.decode(d.subarray(q + 8, q + 8 + sl)));
+          if (sid === "INAM") out.title = v; else if (sid === "IART") out.artist = v; else if (sid === "IPRD") out.album = v;
+          else if (sid === "ICRD") out.year = v?.slice(0, 4) ?? null; else if (sid === "ITRK") out.track = v;
+          q += 8 + sl + (sl % 2);
+        }
+      }
+    }
+    p += 8 + len + (len % 2);
+  }
+  // The ID3 chunk wins where both have something.
+  return { ...out, ...Object.fromEntries(Object.entries(id3 ?? {}).filter(([, v]) => v)) };
 }
 
 // ---------------------------------------------------------------- MP4
@@ -146,6 +206,18 @@ function readMp4(b: Uint8Array): Partial<Tags> | null {
       if (size === 1 || size < 8 || p + size > end) size = Math.min(size < 8 ? end - p : size, end - p);
       if (["moov", "udta", "ilst"].includes(type)) walk(p + 8, p + size, depth + 1);
       else if (type === "meta") walk(p + 12, p + size, depth + 1);
+      else if (depth >= 3 && type === "----") {
+        // freeform item: mean, name, data. Ours is name STATICCUTS.
+        let q = p + 8, name = "", value = "";
+        while (q + 8 <= p + size) {
+          const cs = dv.getUint32(q), ct = latin1(b.subarray(q + 4, q + 8));
+          if (cs < 8) break;
+          if (ct === "name") name = latin1(b.subarray(q + 12, q + cs));
+          else if (ct === "data") value = utf8.decode(b.subarray(q + 16, q + cs));
+          q += cs;
+        }
+        if (name === "STATICCUTS" && CODE.test(value.trim())) out.code = value.trim();
+      }
       else if (depth >= 3 && ["\xa9nam", "\xa9ART", "\xa9alb", "trkn", "\xa9day"].includes(type)) {
         // child "data" atom: 8 header + 8 (type, locale), then the value
         const d = p + 8;
@@ -185,7 +257,7 @@ export async function readTags(file: File): Promise<Tags> {
   let found: Partial<Tags> | null = null;
   try {
     const head = await bytes(file, 0, HEAD);
-    found = readId3v2(head) ?? readFlac(head) ?? readOgg(head) ?? readMp4(head);
+    found = readId3v2(head) ?? readFlac(head) ?? readOgg(head) ?? readMp4(head) ?? await readWav(file);
     // M4A files sometimes keep their tags at the end.
     if (found && latin1(head.subarray(4, 8)) === "ftyp" && !found.title && file.size > HEAD) {
       const all = await bytes(file, 0, Math.min(file.size, 40 * 1024 * 1024));

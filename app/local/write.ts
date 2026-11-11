@@ -4,7 +4,13 @@
 //         TXXX:STATICCUTS frame players ignore); old tags removed.
 //   FLAC: new Vorbis comments (keeping any others, plus STATICCUTS=code) and
 //         cover picture.
-//   Other formats (M4A, WAV, OGG...): copied as they are, just renamed.
+//   M4A:  iTunes-style tags in moov/udta/meta/ilst (title, artist, album,
+//         album artist, track, year, cover) plus a ----:com.apple.iTunes:
+//         STATICCUTS item; chunk offsets moved if the tags sit before the audio.
+//   WAV:  an "id3 " chunk (as MP3) and a LIST/INFO chunk (title, artist...).
+//   OGG/Opus: the comment header rewritten (as FLAC, cover as
+//         METADATA_BLOCK_PICTURE), pages renumbered and re-checksummed.
+//   Anything else (WebM, AIFF...): copied as it is, just renamed.
 // Audio data is never changed. Originals are never touched: these make new
 // files. Also a small "store only" zip writer for browsers that can't save
 // into a folder.
@@ -170,21 +176,280 @@ async function addCodeMp3(file: Blob, code: string): Promise<Blob> {
 }
 
 export async function withCode(file: File, code: string): Promise<Blob> {
+  const t: NewTags = { title: "", artist: "", code };
   try {
     if (/\.mp3$/i.test(file.name)) return await addCodeMp3(file, code);
-    if (/\.flac$/i.test(file.name)) return await writeFlac(file, { title: "", artist: "", code });
+    if (/\.flac$/i.test(file.name)) return await writeFlac(file, t);
+    if (/\.(m4a|mp4|aac|alac)$/i.test(file.name)) return await writeMp4(file, t, true);
+    if (/\.wav$/i.test(file.name)) return await writeWav(file, t, true);
+    if (/\.(ogg|oga|opus)$/i.test(file.name)) return await writeOgg(file, t, true);
   } catch { /* odd file: keep it exactly as it was */ }
   return file;
 }
 
+// ------------------------------------------------------------------- M4A
+
+const u8 = (...n: number[]) => new Uint8Array(n);
+function atom(type: string, ...parts: Uint8Array[]) {
+  const body = concat(parts);
+  return concat([be32(body.length + 8), enc.encode(type), body]);
+}
+// Atoms one after another: type, where the body starts and where the atom ends.
+function atoms(b: Uint8Array, start: number, end: number) {
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const out: { type: string; start: number; body: number; end: number }[] = [];
+  let p = start;
+  while (p + 8 <= end) {
+    let size = dv.getUint32(p), head = 8;
+    if (size === 1) { size = Number(dv.getBigUint64(p + 8)); head = 16; } else if (size === 0) size = end - p;
+    if (size < head || p + size > end) throw new Error("bad atom");
+    out.push({ type: latin1(b.subarray(p + 4, p + 8)), start: p, body: p + head, end: p + size });
+    p += size;
+  }
+  return out;
+}
+const MP4_OURS: Record<string, string> = { title: "\xa9nam", artist: "\xa9ART", album: "\xa9alb", albumArtist: "aART", year: "\xa9day" };
+const ltype = (t: string) => new Uint8Array([...t].map((c) => c.charCodeAt(0)));
+function ilstItems(t: NewTags, codeOnly: boolean) {
+  const data = (kind: number, v: Uint8Array) => atom("data", be32(kind), be32(0), v);
+  const items: Uint8Array[] = [];
+  if (!codeOnly) {
+    for (const [k, id] of Object.entries(MP4_OURS)) {
+      const v = t[k as keyof NewTags] as string | null | undefined;
+      if (v) items.push(atomL(id, data(1, enc.encode(v))));
+    }
+    const n = Number(t.track);
+    if (t.track && n > 0) items.push(atomL("trkn", data(0, u8(0, 0, (n >> 8) & 255, n & 255, 0, 0, 0, 0))));
+    if (t.cover) items.push(atomL("covr", data(t.cover.mime === "image/png" ? 14 : 13, t.cover.data)));
+  }
+  if (t.code) items.push(atomL("----", atom("mean", be32(0), enc.encode("com.apple.iTunes")), atom("name", be32(0), enc.encode("STATICCUTS")), data(1, enc.encode(t.code))));
+  return items;
+}
+// atom() for types with © (one byte each, not UTF-8).
+function atomL(type: string, ...parts: Uint8Array[]) {
+  const body = concat(parts);
+  return concat([be32(body.length + 8), ltype(type), body]);
+}
+function isOurFreeform(b: Uint8Array, a: { body: number; end: number }) {
+  try { return atoms(b, a.body, a.end).some((c) => c.type === "name" && latin1(b.subarray(c.body + 4, c.end)) === "STATICCUTS"); } catch { return false; }
+}
+async function writeMp4(file: Blob, t: NewTags, codeOnly: boolean): Promise<Blob> {
+  if (file.size > 400 * 1024 * 1024) return file;
+  const b = new Uint8Array(await file.arrayBuffer());
+  const top = atoms(b, 0, b.length);
+  const moov = top.find((a) => a.type === "moov");
+  if (!moov || top[0]?.type !== "ftyp") return file;
+  const replace = new Set(codeOnly ? [] : [...Object.values(MP4_OURS), "trkn", ...(t.cover ? ["covr"] : [])]);
+  // ilst: keep everything that isn't being replaced
+  const buildIlst = (old?: { body: number; end: number }) => {
+    const kept = old ? atoms(b, old.body, old.end).filter((a) => !replace.has(a.type) && !(a.type === "----" && isOurFreeform(b, a))).map((a) => b.subarray(a.start, a.end)) : [];
+    return atom("ilst", ...kept, ...ilstItems(t, codeOnly));
+  };
+  const hdlr = atom("hdlr", be32(0), be32(0), enc.encode("mdirappl"), be32(0), be32(0), u8(0));
+  const buildMeta = (old?: { body: number; end: number }) => {
+    if (!old) return atom("meta", be32(0), hdlr, buildIlst());
+    const kids = atoms(b, old.body + 4, old.end);
+    const il = kids.find((k) => k.type === "ilst");
+    const rest = kids.filter((k) => k.type !== "ilst" && k.type !== "free").map((k) => b.subarray(k.start, k.end));
+    return atom("meta", b.subarray(old.body, old.body + 4), ...(kids.some((k) => k.type === "hdlr") ? [] : [hdlr]), ...rest, buildIlst(il));
+  };
+  const buildUdta = (old?: { body: number; end: number }) => {
+    if (!old) return atom("udta", buildMeta());
+    const kids = atoms(b, old.body, old.end);
+    const me = kids.find((k) => k.type === "meta");
+    return atom("udta", ...kids.filter((k) => k.type !== "meta").map((k) => b.subarray(k.start, k.end)), buildMeta(me));
+  };
+  const mk = atoms(b, moov.body, moov.end);
+  const ud = mk.find((k) => k.type === "udta");
+  const newMoov = atom("moov", ...mk.filter((k) => k.type !== "udta").map((k) => b.subarray(k.start, k.end)), buildUdta(ud));
+  const delta = newMoov.length - (moov.end - moov.start);
+  // The audio's position is written in stco/co64 tables: if the tags grow
+  // before the audio, move every offset after the old moov by the same amount.
+  if (delta !== 0) {
+    const dv = new DataView(newMoov.buffer, newMoov.byteOffset, newMoov.byteLength);
+    const fix = (start: number, end: number) => {
+      for (const a of atoms(newMoov, start, end)) {
+        if (["trak", "mdia", "minf", "stbl"].includes(a.type)) fix(a.body, a.end);
+        else if (a.type === "stco") {
+          const n = dv.getUint32(a.body + 4);
+          for (let i = 0; i < n; i++) { const q = a.body + 8 + i * 4; const v = dv.getUint32(q); if (v > moov.start) dv.setUint32(q, v + delta); }
+        } else if (a.type === "co64") {
+          const n = dv.getUint32(a.body + 4);
+          for (let i = 0; i < n; i++) { const q = a.body + 8 + i * 8; const v = dv.getBigUint64(q); if (v > BigInt(moov.start)) dv.setBigUint64(q, v + BigInt(delta)); }
+        }
+      }
+    };
+    fix(8, newMoov.length);
+  }
+  return new Blob([b.subarray(0, moov.start), newMoov, b.subarray(moov.end)], { type: "audio/mp4" });
+}
+
+// ------------------------------------------------------------------- WAV
+
+function infoChunk(t: NewTags) {
+  const sub = (id: string, v: string | null | undefined) => {
+    if (!v) return new Uint8Array(0);
+    const d = concat([enc.encode(v), u8(0)]);
+    return concat([enc.encode(id), le32(d.length), d, d.length % 2 ? u8(0) : new Uint8Array(0)]);
+  };
+  const body = concat([enc.encode("INFO"), sub("INAM", t.title), sub("IART", t.artist), sub("IPRD", t.album), sub("ICRD", t.year), sub("ITRK", t.track)]);
+  return concat([enc.encode("LIST"), le32(body.length), body]);
+}
+async function writeWav(file: Blob, t: NewTags, codeOnly: boolean): Promise<Blob> {
+  if (file.size > 2 * 1024 * 1024 * 1024) return file;
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (latin1(head.subarray(0, 4)) !== "RIFF" || latin1(head.subarray(8, 12)) !== "WAVE") return file;
+  // Walk the chunks without reading the audio.
+  const keep: Blob[] = [];
+  let oldId3: Blob | null = null;
+  let p = 12;
+  while (p + 8 <= file.size) {
+    const h = new Uint8Array(await file.slice(p, p + 8).arrayBuffer());
+    const id = latin1(h.subarray(0, 4));
+    const len = h[4] | (h[5] << 8) | (h[6] << 16) | (h[7] * 16777216);
+    const end = Math.min(file.size, p + 8 + len + (len % 2));
+    const isInfo = id === "LIST" && latin1(new Uint8Array(await file.slice(p + 8, p + 12).arrayBuffer())) === "INFO";
+    if (id === "id3 " || id === "ID3 ") oldId3 = file.slice(p + 8, p + 8 + len);
+    else if (!(isInfo && !codeOnly)) keep.push(file.slice(p, end));
+    p = end;
+  }
+  let tag: Uint8Array;
+  if (codeOnly) {
+    if (!t.code) return file;
+    tag = new Uint8Array(await (oldId3 ? await addCodeMp3(oldId3, t.code) : await addCodeMp3(new Blob([]), t.code)).arrayBuffer());
+  } else {
+    tag = id3v23(t);
+  }
+  const id3 = concat([enc.encode("id3 "), le32(tag.length), tag, tag.length % 2 ? u8(0) : new Uint8Array(0)]);
+  const parts: (Blob | Uint8Array<ArrayBuffer>)[] = [...keep, ...(codeOnly ? [] : [infoChunk(t)]), id3];
+  let size = 4;
+  for (const x of parts) size += x instanceof Blob ? x.size : x.length;
+  return new Blob([enc.encode("RIFF"), le32(size), enc.encode("WAVE"), ...parts], { type: "audio/wav" });
+}
+
+// ------------------------------------------------------------- OGG/Opus
+
+const OGG_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let r = i << 24; for (let k = 0; k < 8; k++) r = r & 0x80000000 ? (r << 1) ^ 0x04c11db7 : r << 1; t[i] = r >>> 0; }
+  return t;
+})();
+function oggCrc(b: Uint8Array) {
+  let c = 0;
+  for (const x of b) c = ((c << 8) ^ OGG_CRC[((c >>> 24) ^ x) & 255]) >>> 0;
+  return c;
+}
+type OggPage = { type: number; granule: Uint8Array; serial: number; seq: number; segs: number[]; data: Uint8Array; start: number; end: number };
+function oggPages(b: Uint8Array) {
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const pages: OggPage[] = [];
+  let p = 0;
+  while (p + 27 <= b.length) {
+    if (latin1(b.subarray(p, p + 4)) !== "OggS") throw new Error("bad page");
+    const n = b[p + 26];
+    const segs = [...b.subarray(p + 27, p + 27 + n)];
+    const len = segs.reduce((x, y) => x + y, 0);
+    const d = p + 27 + n;
+    pages.push({ type: b[p + 5], granule: b.slice(p + 6, p + 14), serial: dv.getUint32(p + 14, true), seq: dv.getUint32(p + 18, true), segs, data: b.subarray(d, d + len), start: p, end: d + len });
+    p = d + len;
+  }
+  return pages;
+}
+function oggPage(type: number, granule: Uint8Array, serial: number, seq: number, segs: number[], data: Uint8Array) {
+  const page = concat([enc.encode("OggS"), u8(0, type), granule, le32(serial), le32(seq), le32(0), u8(segs.length), new Uint8Array(segs), data]);
+  new DataView(page.buffer).setUint32(22, oggCrc(page), true);
+  return page;
+}
+async function writeOgg(file: Blob, t: NewTags, codeOnly: boolean): Promise<Blob> {
+  if (file.size > 400 * 1024 * 1024) return file;
+  const b = new Uint8Array(await file.arrayBuffer());
+  const pages = oggPages(b);
+  if (!pages.length) return file;
+  const serial = pages[0].serial;
+  // Gather the header packets: Vorbis has 3 (id, comments, setup), Opus 2.
+  const packets: Uint8Array[] = [];
+  let cur: Uint8Array[] = [], used = 0, want = 0;
+  for (; used < pages.length; used++) {
+    const pg = pages[used];
+    if (pg.serial !== serial) return file; // several streams: leave alone
+    let q = 0;
+    for (const s of pg.segs) {
+      cur.push(pg.data.subarray(q, q + s)); q += s;
+      if (s < 255) { packets.push(concat(cur)); cur = []; }
+    }
+    if (!want && packets.length) want = latin1(packets[0].subarray(0, 8)) === "OpusHead" ? 2 : latin1(packets[0].subarray(1, 7)) === "vorbis" ? 3 : -1;
+    if (want < 0) return file;
+    if (want && packets.length >= want) { used++; break; }
+  }
+  if (!want || packets.length !== want || cur.length) return file; // headers share a page with audio: too unusual
+  const opus = want === 2;
+  const magic = opus ? enc.encode("OpusTags") : concat([u8(3), enc.encode("vorbis")]);
+  // Old comments.
+  const c = packets[1];
+  if (latin1(c.subarray(0, magic.length)) !== latin1(magic)) return file;
+  const cdv = new DataView(c.buffer, c.byteOffset, c.byteLength);
+  let q = magic.length;
+  const vlen = cdv.getUint32(q, true); const vendor = c.subarray(q + 4, q + 4 + vlen); q += 4 + vlen;
+  const count = cdv.getUint32(q, true); q += 4;
+  const old: string[] = [];
+  for (let i = 0; i < count; i++) { const l = cdv.getUint32(q, true); old.push(new TextDecoder().decode(c.subarray(q + 4, q + 4 + l))); q += 4 + l; }
+  const ours: Record<string, string | null | undefined> = codeOnly ? { STATICCUTS: t.code } : {
+    TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year, STATICCUTS: t.code,
+  };
+  const newOnes = Object.entries(ours).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`);
+  if (!codeOnly && t.cover) {
+    const mime = enc.encode(t.cover.mime);
+    const pic = concat([be32(3), be32(mime.length), mime, be32(0), be32(0), be32(0), be32(0), be32(0), be32(t.cover.data.length), t.cover.data]);
+    let bin = ""; for (let i = 0; i < pic.length; i += 0x8000) bin += String.fromCharCode(...pic.subarray(i, i + 0x8000));
+    newOnes.push(`METADATA_BLOCK_PICTURE=${btoa(bin)}`);
+  }
+  const drop = (k: string) => !!ours[k] || (!codeOnly && !!t.cover && (k === "METADATA_BLOCK_PICTURE" || k === "COVERART"));
+  // Pictures last, so the short tags (and the code) are near the start.
+  const isPic = (x: string) => /^(METADATA_BLOCK_PICTURE|COVERART)=/i.test(x);
+  const merged = [...old.filter((x) => !drop(x.split("=")[0].toUpperCase())), ...newOnes];
+  const all = [...merged.filter((x) => !isPic(x)), ...merged.filter(isPic)].map((x) => enc.encode(x));
+  const comment = concat([magic, le32(vendor.length), vendor, le32(all.length), ...all.flatMap((x) => [le32(x.length), x]), opus ? new Uint8Array(0) : u8(1)]);
+  // New header pages: the id packet alone, then comments (+ setup) laced over as many pages as needed.
+  const zero = new Uint8Array(8);
+  const out: Uint8Array<ArrayBuffer>[] = [b.subarray(pages[0].start, pages[0].end)];
+  let seq = 1;
+  const rest = [comment, ...packets.slice(2)];
+  let segs: number[] = [], data: Uint8Array[] = [], cont = false;
+  const flush = (more: boolean) => {
+    out.push(oggPage(cont ? 1 : 0, zero, serial, seq++, segs, concat(data)));
+    segs = []; data = []; cont = more;
+  };
+  for (const pk of rest) {
+    let left = pk.length, off = 0;
+    for (;;) {
+      if (segs.length === 255) flush(true);
+      const s = Math.min(255, left);
+      segs.push(s); data.push(pk.subarray(off, off + s)); off += s; left -= s;
+      if (s < 255) break;
+    }
+    cont = false;
+  }
+  if (segs.length) flush(false);
+  // The audio pages, renumbered after the new header pages.
+  const shift = seq - pages[used].seq;
+  if (shift === 0) out.push(b.subarray(pages[used].start));
+  else for (const pg of pages.slice(used)) out.push(oggPage(pg.type, pg.granule, pg.serial, pg.serial === serial ? pg.seq + shift : pg.seq, pg.segs, pg.data));
+  return new Blob(out, { type: opus ? "audio/ogg; codecs=opus" : "audio/ogg" });
+}
+
 // What happens to a file of this type.
 export function canTag(name: string) {
-  return /\.(mp3|flac)$/i.test(name);
+  return /\.(mp3|flac|m4a|mp4|aac|alac|wav|ogg|oga|opus)$/i.test(name);
 }
 
 export async function tidiedCopy(file: File, t: NewTags): Promise<Blob> {
-  if (/\.mp3$/i.test(file.name)) return writeMp3(file, t);
-  if (/\.flac$/i.test(file.name)) return writeFlac(file, t);
+  try {
+    if (/\.mp3$/i.test(file.name)) return await writeMp3(file, t);
+    if (/\.flac$/i.test(file.name)) return await writeFlac(file, t);
+    if (/\.(m4a|mp4|aac|alac)$/i.test(file.name)) return await writeMp4(file, t, false);
+    if (/\.wav$/i.test(file.name)) return await writeWav(file, t, false);
+    if (/\.(ogg|oga|opus)$/i.test(file.name)) return await writeOgg(file, t, false);
+  } catch { /* odd file: copy it as it is */ }
   return file; // renamed only
 }
 
