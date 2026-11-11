@@ -21,7 +21,8 @@ type Song = { id: string; title: string; artist: string; status: string; album: 
 type Aotw = { artist: string; title: string; year: number | null; cover: string | null; unreleased: number; highlights: string[] | null; blurb: string | null; week_start: string };
 type ListSong = { id: string; title: string; artist: string; day: string; cover: string | null; photo: string | null };
 type Monthly = { month: string; added: number; leaked_n: number; released_n: number; members: number; leaked: ListSong[]; released: ListSong[];
-  top_artists: { artist: string; n: number; photo: string | null }[] };
+  top_artists: { artist: string; n: number; photo: string | null }[]; contributors?: Contributor[] };
+type Contributor = { user_id: string; name: string; avatar: string | null; n: number };
 type Post = { id: string; kind: string; post_date: string; ref: Record<string, unknown> };
 
 const n0 = (x: number) => Number(x ?? 0).toLocaleString("en-GB");
@@ -43,47 +44,52 @@ function empty(msg: string, w: number, h: number) {
   return <div style={{ width: w, height: h, display: "flex", alignItems: "center", justifyContent: "center", background: "#070707", color: "#A3A3A3", fontSize: 40 }}>{msg}</div>;
 }
 
-// Song of the day: the album of the week look. The cover across the top,
-// fading into the static, with the title over the fade (on X: the cover on
-// the left, fading to the right).
+// Song of the day: the cover faded into the static behind everything, and
+// the cover again, clear, with a border (on X, on the left with the words beside it).
 function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number; day: string }) {
   const date = s.status === "released" ? s.release_date : s.leak_date;
   const title = clip(tidy(s.title), 40);
   const page = niceDate(day, false).toUpperCase();
   const sub = s.status === "released" ? (s.album ? clip(s.album.toUpperCase(), 34) : "") : "NEVER OFFICIALLY RELEASED";
-  const words = (width: number, big: number, tail: number) => (
+  const cover = (size: number) => (
+    s.cover
+      // eslint-disable-next-line @next/next/no-img-element
+      ? <img src={s.cover} width={size} height={size} alt="" style={{ width: size, height: size, objectFit: "cover", border: "3px solid #EDEDED", boxShadow: "0 18px 60px rgba(0,0,0,0.7)" }} />
+      : <div style={{ display: "flex", width: size, height: size, background: "#151515", border: "3px solid #EDEDED" }} />
+  );
+  const words = (width: number, big: number) => (
     <div style={{ display: "flex", flexDirection: "column", width }}>
       <div style={{ display: "flex", marginBottom: 14 }}>
         <Tag color={ACCENT}>SONG OF THE DAY</Tag>
         <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{page}</Tag></div>
       </div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 0.92, textTransform: "uppercase", ...glitch(6) }}>{title}</div>
-      <div style={{ display: "flex", fontWeight: 700, fontSize: 32, color: ACCENT, marginTop: 14, letterSpacing: 1 }}>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 0.95, textTransform: "uppercase", ...glitch(6) }}>{title}</div>
+      <div style={{ display: "flex", fontWeight: 700, fontSize: 30, color: ACCENT, marginTop: 12, letterSpacing: 1 }}>
         {clip(s.artist.toUpperCase(), 30)}{date ? ` // ${when(date)}` : ""}
       </div>
-      <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", marginTop: 14 }}>
         <Tag color={statusColor(s.status)}>{statusWord(s.status)}</Tag>
-        {sub && <div style={{ display: "flex", fontSize: 24, color: "#D6D6D6", marginLeft: 14 }}>{sub}</div>}
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: tail }}>
-        {s.versions > 0 ? `+ ${s.versions} VERSION${s.versions === 1 ? "" : "S"} ` : ""}&gt;&gt; STATIC-CUTS.COM
+        {sub && <div style={{ display: "flex", fontSize: 22, color: "#D6D6D6", marginLeft: 14 }}>{sub}</div>}
+        {s.versions > 0 && <div style={{ display: "flex", fontSize: 22, color: "#A3A3A3", marginLeft: 14 }}>{`+ ${s.versions} VERSION${s.versions === 1 ? "" : "S"}`}</div>}
       </div>
     </div>
   );
   if (f === "x") {
     return (
-      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgWidth={h} bgHeight={h} w={w} h={h}>
-        <div style={{ display: "flex", flex: 1, alignItems: "flex-end" }}>
-          <div style={{ display: "flex", width: h - 140 }} />
-          {words(w - 128 - (h - 140), 120, 6)}
+      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.55} w={w} h={h}>
+        <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
+          {cover(620)}
+          <div style={{ display: "flex", marginLeft: 52 }}>{words(w - 128 - 620 - 52, 104)}</div>
         </div>
       </Frame>
     );
   }
+  const tt = f === "tt";
   return (
-    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={w} w={w} h={h}>
+    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.55} w={w} h={h}>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 100 : 24 }}>{cover(tt ? 840 : 600)}</div>
+      <div style={{ display: "flex", marginTop: tt ? 56 : 32 }}>{words(w - 128, tt ? 120 : 96)}</div>
       <Spacer />
-      {words(w - 128, f === "tt" ? 176 : 150, f === "tt" ? 200 : 26)}
     </Frame>
   );
 }
@@ -249,10 +255,43 @@ async function withCovers(list: ListSong[], k: number) {
   return Promise.all(list.slice(0, k).map(async (s) => ({ ...s, cover: await safeImage(s.cover ?? s.photo) })));
 }
 
+// The month's top contributors, with their pictures: a thank-you and a nudge.
+function Contributors({ people, big }: { people: Contributor[]; big: boolean }) {
+  if (people.length === 0) return null;
+  const size = big ? 104 : 64;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", marginTop: big ? 36 : 22 }}>
+      <div style={{ display: "flex" }}><Tag color={CYAN} size={big ? 22 : 18}>TOP CONTRIBUTORS</Tag></div>
+      <div style={{ display: "flex", marginTop: big ? 18 : 12 }}>
+        {people.map((p, i) => (
+          <div key={p.user_id} style={{ display: "flex", alignItems: "center", marginRight: big ? 34 : 22 }}>
+            <div style={{ display: "flex", position: "relative" }}>
+              {p.avatar
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={p.avatar} width={size} height={size} alt="" style={{ width: size, height: size, borderRadius: size / 2, objectFit: "cover", border: `3px solid ${i === 0 ? ACCENT : "#3A3A3A"}` }} />
+                : <div style={{ display: "flex", width: size, height: size, borderRadius: size / 2, background: "#1A1A1A", border: "3px solid #3A3A3A" }} />}
+              <div style={{ display: "flex", position: "absolute", top: -6, left: -6, background: i === 0 ? ACCENT : "#EDEDED", color: "#070707",
+                fontFamily: POSTER, fontSize: big ? 24 : 18, padding: "0 7px" }}>#{i + 1}</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", marginLeft: 14 }}>
+              <div style={{ display: "flex", fontWeight: 700, fontSize: big ? 26 : 20 }}>{clip(p.name, 16)}</div>
+              <div style={{ display: "flex", fontSize: big ? 20 : 16, color: "#A3A3A3" }}>{n0(p.n)} added</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+async function withAvatars(people: Contributor[] | undefined) {
+  return Promise.all((people ?? []).slice(0, 3).map(async (p) => ({ ...p, avatar: await safeImage(p.avatar) })));
+}
+
 async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; w: number; h: number }): Promise<ReactNode> {
   const month = new Date(`${m.month}T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase();
   const file = `ROUNDUP/${month.replace(" ", "_")}`;
   const tail = f === "tt" ? 220 : 26;
+  const people = n === 1 ? await withAvatars(m.contributors) : [];
   if (f === "x") {
     const top = await withCovers(m.leaked ?? [], 3);
     return (
@@ -265,6 +304,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
               <div style={{ display: "flex", marginRight: 48 }}><Stat n={m.leaked_n} label="LEAKS" color={RED} size={96} /></div>
               <Stat n={m.released_n} label="RELEASES" color={GREEN} size={96} />
             </div>
+            <Contributors people={people} big={false} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
             <div style={{ display: "flex", fontWeight: 700, fontSize: 24, letterSpacing: 3, color: "#8A8A8A", marginBottom: 12 }}>BIGGEST LEAKS</div>
@@ -286,6 +326,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
             <Stat n={m.released_n} label="RELEASES" color={GREEN} />
           </div>
           {m.members > 0 && <Stat n={m.members} label="NEW MEMBERS" color={ACCENT} size={110} />}
+          <Contributors people={people} big />
         </div>
         <Spacer />
         <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginBottom: tail }}>THE BIGGEST LEAKS &gt;&gt;</div>
@@ -323,7 +364,7 @@ export async function GET(req: Request) {
     slideOptions(w, h),
   ]);
   const post = data as Post | null;
-  const opts = { ...options, headers: { "Cache-Control": "public, max-age=86400" } };
+  const opts = { ...options, headers: { "Cache-Control": "public, max-age=3600" } };
   if (!post) return new ImageResponse(empty("No post found", w, h), opts);
   const max = SLIDES[post.kind]?.[f] ?? 1;
   const n = Math.min(max, Math.max(1, Number(url.searchParams.get("n")) || 1));
