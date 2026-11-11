@@ -49,7 +49,7 @@ type Track = {
   leak_date?: string | null;
   cover_url?: string | null;
   // What to show: the song's own art, a fan cover or a photo of the artist.
-  display_cover?: { url: string; kind: "own" | "fan" | "artist" } | null;
+  display_cover?: { url: string; kind: "own" | "fan" | "era" | "artist" } | null;
   producers: string | null;
   writers?: string | null;
   label?: string | null;
@@ -374,12 +374,13 @@ export default function SongView({ id }: { id: string }) {
           {cover
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={cover} alt={`${t.title} cover`} className="sp-cover"
-                title={t.display_cover?.kind === "fan" ? "Cover picked by fans" : t.display_cover?.kind === "artist" ? "No cover yet: a photo of the artist" : undefined} />
+                title={t.display_cover?.kind === "fan" ? "Cover picked by fans" : t.display_cover?.kind === "era" ? "Era art: the cover of the album this song is from the era of, not the song's own" : t.display_cover?.kind === "artist" ? "No cover yet: a photo of the artist" : undefined} />
             : <span className="sp-cover sp-cover-blank">SC//</span>}
           <div className="sp-hero-text">
           <Link href={`/artist/${artistId}?highlight=${t.id}`} className="back-btn">← {song.artist?.name ?? "artist"}</Link>
           <div className="sp-tags">
             <span className={`feature-tag st st-${status}`}>{status}</span>
+            {t.display_cover?.kind === "era" && <span className="feature-tag" title="The cover of the album this song is from the era of, not the song's own">era art</span>}
             {t.explicit && <span className="feature-tag sp-tag-line" title="Explicit">E</span>}
             {t.is_featured && <span className="feature-tag sp-tag-line">featured</span>}
           </div>
