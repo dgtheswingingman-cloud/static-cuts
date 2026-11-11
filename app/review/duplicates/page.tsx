@@ -138,7 +138,7 @@ export default function DuplicatesPage() {
 
   return (
     <ModPage
-      title="Possible duplicates"
+      title="Duplicates"
       intro={<>
         The same song entered more than once: twice on one artist&apos;s page, or a collab copied onto each
         collaborator. Choose the copy to <b>keep</b> (the one on the main artist&apos;s page), untick anything that

@@ -98,7 +98,9 @@ function JobCard({ href, title, blurb, n }: { href: string; title: string; blurb
   );
 }
 
-export default function ReviewHub() {
+// mode "hub": the Work tab's cards. mode "suggestions": the ChatGPT finds and
+// people's suggestions, on their own page (/review/suggestions).
+export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestions" }) {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
   const canModerate = useIsModerator();
@@ -129,6 +131,7 @@ export default function ReviewHub() {
   async function load() {
     if (!user || !canModerate) return;
     supabase.rpc("rpc_moderation_counts").then(({ data }) => setCounts((data as Counts) ?? null));
+    if (mode === "hub") return;
     const { data, error: err } = await supabase
       .from("submissions")
       .select("id, type, artist_id, payload, submitted_by, status, created_at")
@@ -550,46 +553,8 @@ export default function ReviewHub() {
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
 
-  return (
+  if (mode === "suggestions") return (
     <div>
-      <div className="cr-work">
-      <section className="cr-box">
-      <div className="section-label" style={{ marginTop: 0 }}>Lists to work through</div>
-      <div className="mod-grid">
-        {[
-          { href: "/review/imports", title: "Imported songs", n: counts?.imported_songs, blurb: "Songs found by Genius, Last.fm and sheets, waiting for a yes or no." },
-          { href: "/review/tracker", title: "Tracker disagrees", n: counts?.tracker_disagreements, blurb: "A community tracker gives a different status from ours: pick one." },
-          { href: "/review/versions", title: "Sub-versions", n: counts?.sub_versions, blurb: "Songs that look like a version of another song." },
-          { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
-          { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
-          ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: counts?.deezer_check, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
-          ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
-          { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
-          { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
-          { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
-          { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
-        ]
-          // Lists with something waiting first, then ones without a count, then the clear ones.
-          .sort((a, b) => rank(a.n) - rank(b.n))
-          .map((c) => <JobCard key={c.href} {...c} />)}
-      </div>
-      </section>
-
-      <section className="cr-box">
-      <div className="section-label">Tools</div>
-      <div className="mod-grid cr-tools">
-        <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
-          blurb="Import a community tracker, re-check one, or handle ones people have sent in." />
-        {isAdmin && <JobCard href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />}
-        {isAdmin && <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />}
-        {isAdmin && <JobCard href="/review/album-of-the-week" title="Album of the week" blurb="Pick this week's album from the shortlist, and get the slides." />}
-        <JobCard href="/review/trusted" title="Trusted contributors"
-          blurb="People whose suggestions go live straight away." />
-        {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
-      </div>
-      </section>
-      </div>
-
       {error && <div className="empty-state error" style={{ marginTop: 16 }}>{error}</div>}
       {!error && user && <Discoveries onPromoted={load} />}
       {!error && submissions === null && <div className="empty-state">loading…</div>}
@@ -623,6 +588,53 @@ export default function ReviewHub() {
           </div>
         );
       })}
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="cr-work">
+      <section className="cr-box">
+      <div className="section-label" style={{ marginTop: 0 }}>Lists to work through</div>
+      <div className="mod-grid">
+        {[
+          { href: "/review/inbox", title: "Inbox", n: counts ? (counts.suggestions ?? 0) + (counts.finds ?? 0) + (counts.reported_comments ?? 0) + (counts.takedowns ?? 0)
+              + (counts.album_fixes ?? 0) + (counts.announcements ?? 0) + (counts.sheet_requests ?? 0) + (counts.tracker_disagreements ?? 0) : undefined,
+            blurb: "Everything waiting for a person on one page, most urgent first." },
+          { href: "/review/suggestions", title: "Suggestions", n: counts ? counts.suggestions + counts.finds : undefined, blurb: "What people suggest (new songs, edits, wrong links) and finds from ChatGPT routines." },
+          { href: "/review/imports", title: "Imported songs", n: counts?.imported_songs, blurb: "Songs found by Genius, Last.fm and sheets, waiting for a yes or no." },
+          { href: "/review/tracker", title: "Tracker disagrees", n: counts?.tracker_disagreements, blurb: "A community tracker gives a different status from ours: pick one." },
+          { href: "/review/versions", title: "Sub-versions", n: counts?.sub_versions, blurb: "Songs that look like a version of another song." },
+          { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
+          { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
+          ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: counts?.deezer_check, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
+          ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
+          { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
+          { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
+          { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
+          { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
+        ]
+          // Lists with something waiting first, then ones without a count, then the clear ones.
+          .sort((a, b) => rank(a.n) - rank(b.n))
+          .map((c) => <JobCard key={c.href} {...c} />)}
+      </div>
+      </section>
+
+      <section className="cr-box">
+      <div className="section-label">Tools</div>
+      <div className="mod-grid cr-tools">
+        <JobCard href="/admin/sheets" title="Spreadsheets" n={counts?.sheet_requests ? counts.sheet_requests : undefined}
+          blurb="Import a community tracker, re-check one, or handle ones people have sent in." />
+        {isAdmin && <JobCard href="/admin/tracklist" title="Paste a tracklist" blurb="Add a whole album's songs at once." />}
+        {isAdmin && <JobCard href="/admin/queue" title="Artist queue" blurb="Which artists get checked for new music next." />}
+        {isAdmin && <JobCard href="/review/album-of-the-week" title="Album of the week" blurb="Pick this week's album from the shortlist, and get the slides." />}
+        <JobCard href="/review/trusted" title="Trusted contributors"
+          blurb="People whose suggestions go live straight away." />
+        {isAdmin && <JobCard href="/admin/batches" title="Undo history" blurb="Every bulk change, and undo for each." />}
+      </div>
+      </section>
+      </div>
+
     </div>
   );
 }

@@ -298,7 +298,7 @@ export default function SheetsPage() {
 
   return (
     <ModPage
-      title="Import a spreadsheet"
+      title="Spreadsheets"
       intro={<>
         Paste a link to a community tracker (shared as &ldquo;anyone with the link can view&rdquo;).
         Songs go to the <Link href="/review/imports" className="text-link">imported songs</Link> list for review,

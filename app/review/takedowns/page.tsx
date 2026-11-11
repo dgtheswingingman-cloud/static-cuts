@@ -82,7 +82,7 @@ export default function TakedownsPage() {
 
   return (
     <ModPage
-      title="Takedown requests"
+      title="Takedowns"
       intro={<>
         Requests from the <Link href="/takedown" className="text-link">takedown form</Link>. &quot;Remove song&quot; marks the
         song removed and deletes its suggested links; it can be reversed from the <UndoHistoryLink />. Reply to the sender

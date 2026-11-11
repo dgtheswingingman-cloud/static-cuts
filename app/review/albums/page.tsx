@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
-import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
+import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModBulkBar, ModTag, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type Tab = "pending" | "possible" | "approved" | "rejected" | "edits";
 type Suggestion = {
@@ -50,9 +50,11 @@ export default function AlbumFixesPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   async function load(t = tab) {
     setItems(null);
+    setSelected(new Set());
     const { data, error: err } = await supabase.rpc("admin_album_suggestions", { p_status: t === "edits" || t === "possible" ? "pending" : t });
     if (err) { setError(err.message); setItems([]); return; }
     const d = data as { counts: Record<string, number>; items: Suggestion[]; edits: Edit[] };
@@ -93,6 +95,33 @@ export default function AlbumFixesPage() {
     setPossibleCount((n) => (n ?? 1) - 1);
   }
 
+  // Ticked rows: run the same action on each, one after another, and say how
+  // many failed (if any).
+  async function bulk(kind: "approve" | "reject" | "combine" | "different") {
+    setBusy("bulk");
+    let failed = 0;
+    if (kind === "approve" || kind === "reject") {
+      for (const s of (items ?? []).filter((x) => selected.has(x.id))) {
+        const { error: err } = await supabase.rpc("admin_album_suggestion_action", { p_id: s.id, p_action: kind, p_note: null });
+        if (err) failed++; else setItems((prev) => (prev ?? []).filter((x) => x.id !== s.id));
+      }
+    } else {
+      for (const p of possible.filter((x) => selected.has(x.album_id))) {
+        const { error: err } = kind === "combine"
+          ? await supabase.rpc("rpc_suggest_album_edit", { p: { album_id: p.album_id, artist_id: p.artist_id, kind: "same_as", payload: { other_album_id: p.original_id }, note: "Possible edition (tracklist check)" } })
+          : await supabase.rpc("admin_possible_edition_dismiss", { p_album: p.album_id, p_original: p.original_id });
+        if (err) failed++;
+        else { setPossible((prev) => prev.filter((x) => x.album_id !== p.album_id)); setPossibleCount((n) => (n ?? 1) - 1); }
+      }
+    }
+    setBusy(null);
+    setSelected(new Set());
+    if (failed) setError(`${failed} couldn't be done. They're still in the list.`);
+  }
+  const toggle = (id: string, on: boolean) => setSelected((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n; });
+  const tickable = tab === "possible" ? possible.map((p) => p.album_id) : tab === "pending" ? (items ?? []).map((s) => s.id) : [];
+  const ticked = tickable.filter((id) => selected.has(id));
+
   async function undo(e: Edit) {
     setBusy(e.id);
     const { error: err } = await supabase.rpc("admin_album_undo", { p_edit: e.id });
@@ -103,8 +132,8 @@ export default function AlbumFixesPage() {
 
   if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
   return (
-    <ModPage title="Album fixes" intro="Suggested album fixes, and every album edit made (undo any of them). Moderators and trusted contributors' fixes apply straight away.">
-      <ModToolbar>
+    <ModPage title="Albums" intro="Suggested album fixes, and every album edit made (undo any of them). Moderators and trusted contributors' fixes apply straight away.">
+      <ModToolbar right={tickable.length > 1 ? <ModButton onClick={() => setSelected(new Set(tickable))}>tick all ({tickable.length.toLocaleString()})</ModButton> : undefined}>
         <ModTabs<Tab>
           value={tab}
           onChange={setTab}
@@ -117,6 +146,16 @@ export default function AlbumFixesPage() {
           ]}
         />
       </ModToolbar>
+      <ModBulkBar count={ticked.length} onClear={() => setSelected(new Set())}>
+        {tab === "pending" && <>
+          <ModButton kind="approve" busy={busy === "bulk"} onClick={() => bulk("approve")}>approve</ModButton>
+          <ModButton kind="danger" busy={busy === "bulk"} onClick={() => bulk("reject")}>reject</ModButton>
+        </>}
+        {tab === "possible" && <>
+          <ModButton kind="approve" busy={busy === "bulk"} onClick={() => bulk("combine")}>combine</ModButton>
+          <ModButton kind="danger" busy={busy === "bulk"} onClick={() => bulk("different")}>different albums</ModButton>
+        </>}
+      </ModBulkBar>
       {error && <ModNotice kind="error" onClose={() => setError(null)}>{error}</ModNotice>}
       {!items && <ModLoading />}
 
@@ -124,6 +163,7 @@ export default function AlbumFixesPage() {
       {tab === "possible" && possible.map((p) => (
         <ModRow
           key={p.album_id}
+          check={{ checked: selected.has(p.album_id), onChange: (on) => toggle(p.album_id, on) }}
           title={<><Link href={`/album/${p.album_id}`}>{p.title}</Link> → <Link href={`/album/${p.original_id}`}>{p.original_title}</Link></>}
           meta={<>
             <Link href={`/artist/${p.artist_id}`}>{p.artist}</Link>
@@ -141,6 +181,7 @@ export default function AlbumFixesPage() {
       {tab !== "edits" && tab !== "possible" && items?.map((s) => (
         <ModRow
           key={s.id}
+          check={tab === "pending" ? { checked: selected.has(s.id), onChange: (on) => toggle(s.id, on) } : undefined}
           title={<><Link href={`/album/${s.album_id}`}>{s.album_title ?? s.album_id}</Link> <ModTag>{KIND[s.kind] ?? s.kind}</ModTag></>}
           meta={<>
             <span>{describe(s.kind, s.payload, s.other_title, s.track_title)}</span>
