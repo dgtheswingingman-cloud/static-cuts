@@ -43,49 +43,47 @@ function empty(msg: string, w: number, h: number) {
   return <div style={{ width: w, height: h, display: "flex", alignItems: "center", justifyContent: "center", background: "#070707", color: "#A3A3A3", fontSize: 40 }}>{msg}</div>;
 }
 
-// Song of the day: the cover as a square on its own (nothing drawn over it),
-// the words underneath (on X, beside it).
+// Song of the day: the album of the week look. The cover across the top,
+// fading into the static, with the title over the fade (on X: the cover on
+// the left, fading to the right).
 function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number; day: string }) {
   const date = s.status === "released" ? s.release_date : s.leak_date;
-  const title = clip(tidy(s.title), 44);
+  const title = clip(tidy(s.title), 40);
   const page = niceDate(day, false).toUpperCase();
-  const cover = (size: number) => (
-    s.cover
-      // eslint-disable-next-line @next/next/no-img-element
-      ? <img src={s.cover} width={size} height={size} alt="" style={{ width: size, height: size, objectFit: "cover", border: "2px solid #2A2A2A" }} />
-      : <div style={{ display: "flex", width: size, height: size, background: "#151515", border: "2px solid #2A2A2A" }} />
-  );
-  const words = (width: number, big: number) => (
+  const sub = s.status === "released" ? (s.album ? clip(s.album.toUpperCase(), 34) : "") : "NEVER OFFICIALLY RELEASED";
+  const words = (width: number, big: number, tail: number) => (
     <div style={{ display: "flex", flexDirection: "column", width }}>
-      <div style={{ display: "flex" }}><Tag color={ACCENT}>SONG OF THE DAY</Tag></div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 1, textTransform: "uppercase", marginTop: 16, ...glitch(3) }}>{title}</div>
-      <div style={{ display: "flex", fontWeight: 700, fontSize: 32, color: ACCENT, marginTop: 12, letterSpacing: 1 }}>{clip(s.artist.toUpperCase(), 34)}</div>
-      <div style={{ display: "flex", alignItems: "center", marginTop: 18 }}>
-        <Tag color={statusColor(s.status)}>{statusWord(s.status)}</Tag>
-        {date && <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{when(date)!}</Tag></div>}
+      <div style={{ display: "flex", marginBottom: 14 }}>
+        <Tag color={ACCENT}>SONG OF THE DAY</Tag>
+        <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{page}</Tag></div>
       </div>
-      <div style={{ display: "flex", fontSize: 24, color: "#A3A3A3", marginTop: 14 }}>
-        {s.status === "released" ? (s.album ? `from ${clip(s.album, 40)}` : "") : "never officially released"}
-        {s.versions > 0 ? `${s.status === "released" && !s.album ? "" : "  ·  "}${s.versions} other version${s.versions === 1 ? "" : "s"}` : ""}
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 0.92, textTransform: "uppercase", ...glitch(6) }}>{title}</div>
+      <div style={{ display: "flex", fontWeight: 700, fontSize: 32, color: ACCENT, marginTop: 14, letterSpacing: 1 }}>
+        {clip(s.artist.toUpperCase(), 30)}{date ? ` // ${when(date)}` : ""}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+        <Tag color={statusColor(s.status)}>{statusWord(s.status)}</Tag>
+        {sub && <div style={{ display: "flex", fontSize: 24, color: "#D6D6D6", marginLeft: 14 }}>{sub}</div>}
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: tail }}>
+        {s.versions > 0 ? `+ ${s.versions} VERSION${s.versions === 1 ? "" : "S"} ` : ""}&gt;&gt; STATIC-CUTS.COM
       </div>
     </div>
   );
   if (f === "x") {
     return (
-      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.16} w={w} h={h}>
-        <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
-          {cover(660)}
-          <div style={{ display: "flex", marginLeft: 48 }}>{words(w - 128 - 660 - 48, 96)}</div>
+      <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgWidth={h} bgHeight={h} w={w} h={h}>
+        <div style={{ display: "flex", flex: 1, alignItems: "flex-end" }}>
+          <div style={{ display: "flex", width: h - 140 }} />
+          {words(w - 128 - (h - 140), 120, 6)}
         </div>
       </Frame>
     );
   }
-  const size = f === "tt" ? 860 : 620;
   return (
-    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} fade={0.16} w={w} h={h}>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: f === "tt" ? 90 : 26 }}>{cover(size)}</div>
-      <div style={{ display: "flex", marginTop: f === "tt" ? 48 : 30 }}>{words(w - 128, f === "tt" ? 112 : 88)}</div>
+    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={w} w={w} h={h}>
       <Spacer />
+      {words(w - 128, f === "tt" ? 176 : 150, f === "tt" ? 200 : 26)}
     </Frame>
   );
 }
@@ -116,18 +114,21 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
     </div>
   );
   const foot = more > 0 && (
-    <div style={{ display: "flex", fontWeight: 700, fontSize: 24, color: ACCENT, letterSpacing: 3 }}>+ {n0(more)} MORE ON THIS DAY &gt; STATIC-CUTS.COM</div>
+    <div style={{ display: "flex", fontWeight: 700, background: ACCENT, color: "#070707", fontSize: 24, padding: "12px 20px", letterSpacing: 2 }}>
+      + {n0(more)} MORE ON THIS DAY &gt; STATIC-CUTS.COM
+    </div>
   );
   if (f === "x") {
     const col = Math.floor((w - 128 - 2 * 36) / 3);
     return (
       <Frame file="ON_THIS_DAY" page={date} w={w} h={h}>
-        <div style={{ display: "flex", marginTop: 18 }}>{head(84)}</div>
-        <div style={{ display: "flex", marginTop: 26 }}>
+        <div style={{ display: "flex", marginTop: 8 }}>{head(72)}</div>
+        <div style={{ display: "flex", marginTop: 18 }}>
           {songs.map((s, i) => (
-            <div key={s.id} style={{ display: "flex", flexDirection: "column", width: col, marginLeft: i ? 36 : 0 }}>
-              {art(s, 300)}
-              <div style={{ display: "flex", marginTop: 16 }}>{facts(s, col, 44)}</div>
+            <div key={s.id} style={{ display: "flex", flexDirection: "column", width: col, marginLeft: i ? 36 : 0, padding: 16,
+              background: "rgba(14,14,14,0.9)", border: "2px solid #3A3A3A", borderTop: `8px solid ${i % 2 ? ACCENT : CYAN}` }}>
+              {art(s, 260)}
+              <div style={{ display: "flex", marginTop: 14 }}>{facts(s, col - 36, 42)}</div>
             </div>
           ))}
         </div>
@@ -136,15 +137,16 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
     );
   }
   const tt = f === "tt";
-  const size = tt ? 300 : 250;
+  const size = tt ? 320 : 230;
   return (
     <Frame file="ON_THIS_DAY" page={date} w={w} h={h}>
       <div style={{ display: "flex", marginTop: tt ? 90 : 24 }}>{head(tt ? 150 : 120)}</div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: tt ? 56 : 34 }}>
         {songs.map((s, i) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 40 : 24) : 0 }}>
+          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 32 : 20) : 0, padding: tt ? 20 : 16,
+            background: "rgba(14,14,14,0.9)", border: "2px solid #3A3A3A", borderLeft: `8px solid ${i % 2 ? ACCENT : CYAN}` }}>
             {art(s, size)}
-            <div style={{ display: "flex", marginLeft: 30 }}>{facts(s, w - 128 - size - 30, tt ? 64 : 56)}</div>
+            <div style={{ display: "flex", marginLeft: 26 }}>{facts(s, w - 128 - size - 26 - (tt ? 40 : 32) - 10, tt ? 64 : 56)}</div>
           </div>
         ))}
       </div>
