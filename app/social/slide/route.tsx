@@ -63,7 +63,7 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
         <Tag color={ACCENT}>SONG OF THE DAY</Tag>
         <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{page}</Tag></div>
       </div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 0.95, textTransform: "uppercase", ...glitch(2) }}>{title}</div>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(title, big, width), lineHeight: 0.95, textTransform: "uppercase", ...glitch(6) }}>{title}</div>
       <div style={{ display: "flex", fontWeight: 700, fontSize: 30, color: ACCENT, marginTop: 12, letterSpacing: 1 }}>
         {clip(s.artist.toUpperCase(), 30)}{date ? ` // ${when(date)}` : ""}
       </div>
@@ -116,7 +116,7 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
   const head = (dateSize: number) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex" }}><Tag color={CYAN}>ON THIS DAY</Tag></div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: dateSize, lineHeight: 1, marginTop: 14, ...glitch(2) }}>{date}</div>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: dateSize, lineHeight: 1, marginTop: 14, ...glitch(4) }}>{date}</div>
     </div>
   );
   const foot = more > 0 && (
@@ -177,7 +177,7 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
             : <div style={{ display: "flex", width: 660, height: 660, background: "#151515" }} />}
           <div style={{ display: "flex", flexDirection: "column", width: tw, marginLeft: 48 }}>
             <div style={{ display: "flex" }}><Tag color={ACCENT}>ALBUM OF THE WEEK</Tag></div>
-            <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(clip(a.title, 40), 96, tw), lineHeight: 1, textTransform: "uppercase", marginTop: 16, ...glitch(2) }}>{clip(a.title, 40)}</div>
+            <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(clip(a.title, 40), 96, tw), lineHeight: 1, textTransform: "uppercase", marginTop: 16, ...glitch(3) }}>{clip(a.title, 40)}</div>
             <div style={{ display: "flex", fontWeight: 700, fontSize: 30, color: ACCENT, marginTop: 12 }}>{clip(a.artist.toUpperCase(), 30)}{a.year ? ` // ${a.year}` : ""}</div>
             <div style={{ display: "flex", alignItems: "baseline", marginTop: 24 }}>
               <div style={{ display: "flex", fontFamily: POSTER, fontSize: 88, lineHeight: 1, color: RED }}>{n0(a.unreleased)}</div>
@@ -200,7 +200,7 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
           <Tag color={ACCENT}>ALBUM OF THE WEEK</Tag>
           <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{wc}</Tag></div>
         </div>
-        <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(a.title, 176, w - 128), lineHeight: 0.92, textTransform: "uppercase", ...glitch(3) }}>{a.title}</div>
+        <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(a.title, 176, w - 128), lineHeight: 0.92, textTransform: "uppercase", ...glitch(6) }}>{a.title}</div>
         <div style={{ display: "flex", fontFamily: MONO, fontWeight: 700, fontSize: 32, color: ACCENT, marginTop: 14 }}>{a.artist.toUpperCase()}{a.year ? ` // ${a.year}` : ""}</div>
         {blurb && <div style={{ display: "flex", fontSize: blurb.length > 240 ? 22 : 24, lineHeight: 1.45, marginTop: 18, color: "#D6D6D6" }}>{blurb}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 18, marginBottom: tail }}>INSIDE THE VAULT &gt;&gt;</div>
@@ -211,8 +211,8 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
   return (
     <Frame file={`VAULT/${a.artist.toUpperCase().replace(/\s+/g, "_")}`} page="02/02" bg={a.cover} fade={0.5} w={w} h={h}>
       <div style={{ display: "flex", marginTop: f === "tt" ? 140 : 40 }}><Tag color={RED}>INSIDE THE VAULT</Tag></div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: 280, lineHeight: 0.86, color: ACCENT, marginTop: 18, ...glitch(4) }}>{n0(a.unreleased)}</div>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: 84, lineHeight: 0.95, ...glitch(2) }}>UNRELEASED SONGS</div>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: 280, lineHeight: 0.86, color: ACCENT, marginTop: 18, ...glitch(8) }}>{n0(a.unreleased)}</div>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: 84, lineHeight: 0.95, ...glitch(4) }}>UNRELEASED SONGS</div>
       <div style={{ display: "flex", fontSize: 26, color: "#BDBDBD", marginTop: 10 }}>from the {a.title} era</div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: 34 }}>
         {shown.map((s, i) => <Row key={i} i={i} title={s} color={RED} tag="UNRELEASED" />)}
@@ -245,7 +245,7 @@ function Row({ i, title, sub, color, tag, cover }: { i: number; title: string; s
 function Stat({ n, label, color, size = 150 }: { n: number; label: string; color: string; size?: number }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", marginTop: 18 }}>
-      <div style={{ display: "flex", fontFamily: POSTER, fontSize: size, lineHeight: 0.9, color, ...glitch(2) }}>{n0(n)}</div>
+      <div style={{ display: "flex", fontFamily: POSTER, fontSize: size, lineHeight: 0.9, color, ...glitch(5) }}>{n0(n)}</div>
       <div style={{ display: "flex", fontWeight: 700, fontSize: 26, letterSpacing: 3, color: "#BDBDBD" }}>{label}</div>
     </div>
   );
@@ -319,7 +319,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
       <Frame file={file} page="01/03" w={w} h={h}>
         <div style={{ display: "flex", flexDirection: "column", marginTop: f === "tt" ? 160 : 40 }}>
           <div style={{ display: "flex" }}><Tag color={ACCENT}>MONTHLY ROUNDUP</Tag></div>
-          <div style={{ display: "flex", fontFamily: POSTER, fontSize: 150, lineHeight: 0.9, marginTop: 18, ...glitch(3) }}>{month}</div>
+          <div style={{ display: "flex", fontFamily: POSTER, fontSize: 150, lineHeight: 0.9, marginTop: 18, ...glitch(6) }}>{month}</div>
           <Stat n={m.added} label="SONGS ADDED TO THE ARCHIVE" color="#EDEDED" size={f === "tt" ? 200 : 170} />
           <div style={{ display: "flex" }}>
             <div style={{ display: "flex", marginRight: 64 }}><Stat n={m.leaked_n} label="LEAKS" color={RED} /></div>
@@ -340,7 +340,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
     <Frame file={file} page={`0${n}/03`} w={w} h={h}>
       <div style={{ display: "flex", flexDirection: "column", marginTop: f === "tt" ? 160 : 40 }}>
         <div style={{ display: "flex" }}><Tag color={color}>{leaks ? "LEAKED" : "OUT"} IN {month}</Tag></div>
-        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 120, lineHeight: 0.9, marginTop: 18, marginBottom: 28, ...glitch(2) }}>{leaks ? "BIGGEST LEAKS" : "BIGGEST RELEASES"}</div>
+        <div style={{ display: "flex", fontFamily: POSTER, fontSize: 120, lineHeight: 0.9, marginTop: 18, marginBottom: 28, ...glitch(5) }}>{leaks ? "BIGGEST LEAKS" : "BIGGEST RELEASES"}</div>
         {list.length === 0 && <div style={{ display: "flex", fontSize: 30, color: "#8A8A8A" }}>Nothing this month.</div>}
         {list.map((s, i) => <Row key={s.id} i={i} title={s.title} sub={`${s.artist} · ${niceDate(s.day, false)}`} color={color} cover={s.cover} />)}
       </div>
