@@ -17,6 +17,7 @@ import { VisitorPreviewBar } from "./components/visitorPreview";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteHome from "./SiteHome";
 import DesktopNav from "./DesktopNav";
+import PageBack from "./PageBack";
 import MobileTabBar from "./MobileTabBar";
 import SpotifyImportResume from "./SpotifyImportResume";
 import SitePause from "./SitePause";
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <DesktopNav />
               <SiteHome />
               <AuthNotice />
+              <PageBack />
               <SitePause>{children}</SitePause>
               <OnboardingGate />
               <SignupNudge />

@@ -3507,3 +3507,12 @@ body:has(.ms-shell) .site-credit { display: none; }
   .dnav-links .dnav-admin .st-switch.on span { transform: translateX(14px); }
   .dnav-links .dnav-admin.on { color: var(--bone); }
 }
+
+/* "← back" on pages that aren't a main section (PageBack): computers only,
+   in the space above the page's own heading, so it doesn't push anything down. */
+.page-back { display: none; }
+@media (min-width: 1024px) {
+  .page-back { display: block; position: absolute; top: 22px; left: calc(var(--side) + 32px); z-index: 5; }
+  .page-back .back-btn { padding: 4px 8px; background: color-mix(in srgb, var(--void) 72%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; color: var(--smoke); }
+  .page-back .back-btn:hover { color: var(--bone); }
+}
