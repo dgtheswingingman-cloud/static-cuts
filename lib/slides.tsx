@@ -53,8 +53,8 @@ export function slideFonts(): Promise<Font[]> {
   }
   return fontsPromise;
 }
-export async function slideOptions() {
-  return { width: W, height: H, fonts: await slideFonts(), headers: { "Cache-Control": "public, max-age=600" } };
+export async function slideOptions(width = W, height = H) {
+  return { width, height, fonts: await slideFonts(), headers: { "Cache-Control": "public, max-age=600" } };
 }
 
 // ---- TV static + scanlines (made once, as a see-through PNG) --------------
@@ -136,18 +136,28 @@ export function Tag({ children, color, solid = true, size = 22 }: { children: Re
 
 // Every slide: optional picture behind (full-bleed or faded), static on top,
 // tracker-style top bar and footer with the slide number.
-export function Frame({ children, file, page, bg, backdrop, bgHeight = H, fade = 1 }: {
+// w/h default to the 1080×1350 post; stories are 1080×1920, X 1600×900.
+export function Frame({ children, file, page, bg, backdrop, bgHeight, fade = 1, w = W, h = H, bgWidth }: {
   children: ReactNode; file: string; page: string; bg?: string | null; backdrop?: ReactNode; bgHeight?: number; fade?: number;
+  w?: number; h?: number; bgWidth?: number;
 }) {
+  const W = w, H = h;
+  bgHeight = bgHeight ?? H;
+  const BW = bgWidth ?? W;
   const behind = !!(bg || backdrop);
   return (
     <div style={{ width: W, height: H, display: "flex", position: "relative", background: "#070707", color: "#EDEDED", fontFamily: MONO }}>
       {bg && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={bg} width={W} height={bgHeight} alt="" style={{ position: "absolute", top: 0, left: 0, width: W, height: bgHeight, objectFit: "cover", opacity: fade }} />
+        <img src={bg} width={BW} height={bgHeight} alt="" style={{ position: "absolute", top: 0, left: 0, width: BW, height: bgHeight, objectFit: "cover", opacity: fade }} />
       )}
-      {backdrop && <div style={{ position: "absolute", top: 0, left: 0, width: W, height: bgHeight, display: "flex", opacity: fade }}>{backdrop}</div>}
-      {behind && (
+      {backdrop && <div style={{ position: "absolute", top: 0, left: 0, width: BW, height: bgHeight, display: "flex", opacity: fade }}>{backdrop}</div>}
+      {behind && BW < W && (
+        // picture on the left (X): fade it into the dark on the right
+        <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex",
+          backgroundImage: `linear-gradient(to right, rgba(7,7,7,0.1) 0%, rgba(7,7,7,0.2) ${Math.round(BW / W * 60)}%, #070707 ${Math.round(BW / W * 100)}%)` }} />
+      )}
+      {behind && BW >= W && (
         <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex",
           backgroundImage: bgHeight < H
             ? `linear-gradient(to bottom, rgba(7,7,7,0.55) 0%, rgba(7,7,7,0) 14%, rgba(7,7,7,0) ${Math.round(bgHeight / H * 55)}%, #070707 ${Math.round(bgHeight / H * 100)}%)`
