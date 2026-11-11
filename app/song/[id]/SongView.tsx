@@ -145,6 +145,13 @@ export default function SongView({ id }: { id: string }) {
     supabase.from("track_popularity").select("listens, listeners").eq("track_id", id).maybeSingle()
       .then(({ data }) => setPlays((data as typeof plays) ?? null));
   }, [id]);
+  // The song's Static Cuts code (ours, not an ISRC), with a copy button.
+  const [code, setCode] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
+  useEffect(() => {
+    setCode(null); setCodeCopied(false);
+    supabase.from("track_codes").select("code").eq("track_id", id).maybeSingle().then(({ data }) => setCode((data as { code: string } | null)?.code ?? null));
+  }, [id]);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
@@ -271,6 +278,14 @@ export default function SongView({ id }: { id: string }) {
   if (t.writers) info.push(["Written by", t.writers]);
   if (t.label) info.push(["Label", t.label]);
   if (t.isrc) info.push(["ISRC", <span title="The recording's official code" style={{ fontFamily: "var(--font-mono, monospace)" }}>{t.isrc}</span>]);
+  if (code) info.push(["Static Cuts code", (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <span title="This song's code on Static Cuts. Search it to come straight back here." style={{ fontFamily: "var(--font-mono, monospace)" }}>{code}</span>
+      <button type="button" className="inline-link-btn" onClick={() => { navigator.clipboard?.writeText(code).then(() => setCodeCopied(true)).catch(() => {}); }}>
+        {codeCopied ? "copied" : "copy"}
+      </button>
+    </span>
+  )]);
   // Features: linked artists, plus credited names that aren't artists here
   // (those open their credits page).
   const nameKey = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
