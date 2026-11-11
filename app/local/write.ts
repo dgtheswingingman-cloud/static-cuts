@@ -1,7 +1,9 @@
 // Local Cuts: write tidied copies of music files, on the device.
 //   MP3:  new ID3v2.3 tag (title, artist, album, album artist, track, year,
-//         features in the artist, cover art); old tags removed.
-//   FLAC: new Vorbis comments (keeping any others) and cover picture.
+//         features in the artist, cover art, and the Static Cuts code in a
+//         TXXX:STATICCUTS frame players ignore); old tags removed.
+//   FLAC: new Vorbis comments (keeping any others, plus STATICCUTS=code) and
+//         cover picture.
 //   Other formats (M4A, WAV, OGG...): copied as they are, just renamed.
 // Audio data is never changed. Originals are never touched: these make new
 // files. Also a small "store only" zip writer for browsers that can't save
@@ -10,6 +12,7 @@
 export type NewTags = {
   title: string; artist: string; album?: string | null; albumArtist?: string | null;
   track?: string | null; year?: string | null; cover?: { mime: string; data: Uint8Array } | null;
+  code?: string | null; // the song's Static Cuts code, so the next run matches the file exactly
 };
 
 const enc = new TextEncoder();
@@ -34,6 +37,11 @@ function utf16Frame(id: string, text: string) {
   const data = new Uint8Array(body);
   return concat([enc.encode(id), be32(data.length), new Uint8Array([0, 0]), data]);
 }
+function txxxFrame(desc: string, value: string) {
+  // encoding 0 (Latin-1): description, a zero byte, then the value (all plain ASCII here)
+  const data = concat([new Uint8Array([0x00]), enc.encode(desc), new Uint8Array([0]), enc.encode(value)]);
+  return concat([enc.encode("TXXX"), be32(data.length), new Uint8Array([0, 0]), data]);
+}
 function apicFrame(cover: { mime: string; data: Uint8Array }) {
   const data = concat([new Uint8Array([0x00]), enc.encode(cover.mime), new Uint8Array([0, 0x03, 0]), cover.data]);
   return concat([enc.encode("APIC"), be32(data.length), new Uint8Array([0, 0]), data]);
@@ -44,6 +52,7 @@ function id3v23(t: NewTags) {
   if (t.albumArtist) frames.push(utf16Frame("TPE2", t.albumArtist));
   if (t.track) frames.push(utf16Frame("TRCK", t.track));
   if (t.year) frames.push(utf16Frame("TYER", t.year));
+  if (t.code) frames.push(txxxFrame("STATICCUTS", t.code));
   if (t.cover) frames.push(apicFrame(t.cover));
   const body = concat(frames);
   const padded = concat([body, new Uint8Array(1024)]); // room for later edits
@@ -96,7 +105,7 @@ async function writeFlac(file: Blob, t: NewTags) {
     if (last) break;
   }
   const ours: Record<string, string | null | undefined> = {
-    TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year,
+    TITLE: t.title, ARTIST: t.artist, ALBUM: t.album, ALBUMARTIST: t.albumArtist, TRACKNUMBER: t.track, DATE: t.year, STATICCUTS: t.code,
   };
   const comments = [
     ...oldComments.filter((c) => !(c.split("=")[0].toUpperCase() in ours)),

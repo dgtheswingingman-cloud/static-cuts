@@ -3,7 +3,9 @@
 // ID3v1), FLAC and OGG/Opus (Vorbis comments), and M4A/MP4. Anything else, or
 // a file without tags, falls back to the file name ("Artist - Title (V2).mp3").
 
-export type Tags = { title: string | null; artist: string | null; album: string | null; track: string | null; year: string | null; from: "tags" | "name" };
+export type Tags = { title: string | null; artist: string | null; album: string | null; track: string | null; year: string | null; from: "tags" | "name";
+  code?: string | null }; // the Static Cuts code Local Cuts wrote into the file (STATICCUTS)
+const CODE = /^SC-[A-Z0-9]{4}-\d{6,}$/;
 
 const HEAD = 1024 * 1024; // first 1 MB holds almost every tag block
 
@@ -59,6 +61,13 @@ function readId3v2(b: Uint8Array): Partial<Tags> | null {
     else if (id === "TALB") out.album = id3Text(data);
     else if (id === "TRCK") out.track = id3Text(data);
     else if (id === "TYER" || id === "TDRC") out.year = id3Text(data)?.slice(0, 4) ?? null;
+    else if (id === "TXXX") {
+      // description \0 value; ours is plain text: STATICCUTS \0 SC-XXXX-000000
+      const txt = (data[0] === 0 || data[0] === 3) ? latin1(data.subarray(1)) : (id3Text(data) ?? "");
+      const [desc, ...rest] = txt.split(/\u0000+/);
+      const v = rest.join("").replace(/[\u0000\ufeff\ufffe]/g, "").trim();
+      if (desc.replace(/[\ufeff\ufffe]/g, "").trim().toUpperCase() === "STATICCUTS" && CODE.test(v)) out.code = v;
+    }
     p += 10 + fsize;
     if (fsize <= 0) break;
   }
@@ -94,6 +103,7 @@ function readVorbis(b: Uint8Array, p: number): Partial<Tags> {
     else if (k === "ALBUM") out.album = out.album ?? v;
     else if (k === "TRACKNUMBER") out.track = out.track ?? v;
     else if (k === "DATE" || k === "YEAR") out.year = out.year ?? v?.slice(0, 4) ?? null;
+    else if (k === "STATICCUTS" && v && CODE.test(v)) out.code = v;
   }
   return out;
 }
@@ -194,6 +204,7 @@ export async function readTags(file: File): Promise<Tags> {
     album: clean(found?.album),
     track: clean(found?.track),
     year: clean(found?.year),
+    code: found?.code ?? null,
     from: hasTags ? "tags" : "name",
   };
 }
