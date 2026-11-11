@@ -3229,7 +3229,7 @@ body:has(.ms-chat-page) .site-credit { display: none; }
 .home-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 @media (min-width: 1024px) {
   .home-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-  .home-wide .home-pair .otd-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-wide .home-pair .otd-list { grid-template-columns: minmax(0, 1fr); }
 }
 .hl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .hl-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); min-width: 0; }
@@ -3515,4 +3515,22 @@ body:has(.ms-shell) .site-credit { display: none; }
   .page-back { display: block; position: absolute; top: 22px; left: calc(var(--side) + 32px); z-index: 5; }
   .page-back .back-btn { padding: 4px 8px; background: color-mix(in srgb, var(--void) 72%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; color: var(--smoke); }
   .page-back .back-btn:hover { color: var(--bone); }
+}
+
+/* Home: song of the day, next to album of the week (computers) or under it. */
+.home-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.sotd { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; padding: 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); }
+.sotd-cover img, .sotd-cover .era-card-blank { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--hair-strong); }
+.sotd-body { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.sotd-title { margin-top: 6px; font-family: var(--font-anton), sans-serif; font-style: italic; font-size: clamp(1.4rem, 5vw, 2rem); line-height: 0.95; text-transform: uppercase; color: var(--bone); text-decoration: none; overflow-wrap: anywhere; }
+.sotd-artist { margin-top: 6px; font-family: var(--font-mono), monospace; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone); text-decoration: none; }
+.sotd-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); }
+.sotd-sub { font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--smoke); margin-top: 6px; }
+.sotd-go { margin-top: 12px; min-height: 40px; border-radius: 6px; display: flex; align-items: center; text-decoration: none; }
+@media (min-width: 1024px) {
+  .home-wide .home-features { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 0; margin: -28px -36px 0; position: relative; z-index: 2;
+    background: color-mix(in srgb, var(--void) 88%, transparent); border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong); }
+  .home-wide .home-features .aotw-hero { margin: 0; border: 0; border-radius: 0; padding: 16px 24px 16px 36px; background: transparent; }
+  .home-wide .home-features .sotd { grid-template-columns: minmax(0, 1fr); border: 0; border-left: 1px solid var(--hair-strong); border-radius: 0; background: transparent; padding: 16px 36px 16px 24px; }
+  .home-wide .home-features .sotd-cover img { max-width: 220px; }
 }

@@ -1,6 +1,7 @@
 "use client";
 
-// The top of the homepage: album of the week (with On this day under it),
+// The top of the homepage: album of the week and song of the day side by
+// side (On this day under them),
 // latest updates (what just changed in the archive), recently added songs
 // and the artists you follow. Weekly numbers and what's coming up are on Radar.
 
@@ -8,6 +9,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import AlbumOfWeek from "./AlbumOfWeek";
+import SongOfDay from "./SongOfDay";
 import Strip from "./Strip";
 import { thumb } from "@/lib/thumb";
 
@@ -51,7 +53,10 @@ export default function HomeFeed({ photos, followed, afterAlbum }: { photos: Rec
 
   return (
     <div className="hf">
-      <AlbumOfWeek hero />
+      <div className="home-features">
+        <AlbumOfWeek hero />
+        <SongOfDay />
+      </div>
       {afterAlbum}
 
       <Head title="Latest updates" href="/new" />
