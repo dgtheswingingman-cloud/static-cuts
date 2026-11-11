@@ -38,6 +38,7 @@ export default function PremiumPage() {
       <InfoSection id="faq" title="Questions">
         <p className="if-p"><b>Can I cancel?</b> Any time, from “Manage or cancel” on this page. You keep premium until the end of what you&apos;ve paid for.</p>
         <p className="if-p"><b>Can I switch plans?</b> Yes, monthly to yearly or back, from the same place. Stripe works out the difference.</p>
+        <p className="if-p"><b>Changed your mind?</b> Email hello@static-cuts.com within 14 days of first paying and you&apos;ll get a full refund. The full details are in <a href="/legal#premium" className="text-link">Premium &amp; payments</a>.</p>
         <p className="if-p"><b>Who handles the payment?</b> Stripe. Your card details go to them, never to Static-Cuts//.</p>
         <p className="if-p if-dim">“Help the archive” in Local Cuts (matching your files and filling gaps) stays free for everyone.</p>
       </InfoSection>
