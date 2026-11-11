@@ -11,7 +11,8 @@ import "../styles/local.css";
 //      sent to the archive as suggestions (reviewed before anything changes)
 //   4. the rest get their details rewritten from the archive: title with
 //      features, artist, album (or "Unreleased <year>"), year, track number,
-//      cover art, and a clean name
+//      cover art, the song's Static Cuts code (hidden; next time the file
+//      matches exactly, straight away), and a clean name
 //   5. one zip (Artist / Album folders), written straight to disk
 // Originals are never touched. Saving the zip is premium; helping the
 // archive is free.
@@ -41,6 +42,7 @@ type Song = {
   formatted: boolean;           // title, artist and cover in the file already
   track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
   clean: Clean | null;          // Claude's tidy version, when it looked
+  code: string | null;          // Static Cuts code already in the file (from an earlier run)
 };
 type Site = {
   id: string; title: string; artist: string; album: string | null; release_date: string | null; leak_date: string | null;
@@ -48,6 +50,7 @@ type Site = {
   cover_url: string | null; status: string | null; parent_album: string | null; parent_cover: string | null;
   credited_as?: string | null;  // released under another name of theirs
   display_cover?: string | null; // own art, else fans' pick, else a photo of the artist
+  code?: string | null;          // its Static Cuts code, written into the tidied file
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
 type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted" };
@@ -135,13 +138,21 @@ export default function LocalCutsPage() {
         title: t.title, artist: t.artist, album: t.album, track: t.track, year: t.year, fromTags: t.from === "tags",
         duration, details: d,
         formatted: t.from === "tags" && !!t.title && !!t.artist && !!d?.hasCover,
-        track_id: null, artist_id: null, sure: false, guess: false, why: null, clean: null,
+        track_id: null, artist_id: null, sure: false, guess: false, why: null, clean: null, code: t.code ?? null,
       };
       setDone(++n);
     });
 
-    // 2. Match to the archive.
+    // 2. Match to the archive. Files Local Cuts tidied before carry the
+    // song's Static Cuts code: those match exactly, straight away.
     step("matching", read.length);
+    const withCode = read.filter((s) => s.code);
+    for (let i = 0; i < withCode.length; i += 200) {
+      const part = withCode.slice(i, i + 200);
+      const { data } = await supabase.from("track_codes").select("track_id, code").in("code", part.map((s) => s.code!));
+      const byCode = new Map(((data as { track_id: string; code: string }[] | null) ?? []).map((r) => [r.code, r.track_id]));
+      part.forEach((s) => { const id = byCode.get(s.code!); if (id) { s.track_id = id; s.sure = true; } });
+    }
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
@@ -151,7 +162,7 @@ export default function LocalCutsPage() {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
         batch.forEach((s, j) => {
           const r = rows[j];
-          if (!s.artist || !r) return;
+          if (s.sure || !s.artist || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
           if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
@@ -219,11 +230,14 @@ export default function LocalCutsPage() {
       // pick, else a photo of the artist (so every file gets a cover).
       const { data: cv } = await supabase.rpc("rpc_track_covers", { p_ids: rows.map((r) => r.id) });
       const covers = new Map(((cv as { id: string; url: string | null }[] | null) ?? []).map((c) => [c.id, c.url]));
+      const { data: cd } = await supabase.from("track_codes").select("track_id, code").in("track_id", rows.map((r) => r.id));
+      const codes = new Map(((cd as { track_id: string; code: string }[] | null) ?? []).map((c) => [c.track_id, c.code]));
       rows.forEach((r) => site.current.set(r.id, {
         ...r, artist: r.artists?.name ?? "", status: r.release_status,
         parent_album: r.parent_track_id ? pm.get(r.parent_track_id)?.album ?? null : null,
         parent_cover: r.parent_track_id ? pm.get(r.parent_track_id)?.cover_url ?? null : null,
         display_cover: covers.get(r.id) ?? null,
+        code: codes.get(r.id) ?? null,
       }));
     }
     read.forEach((s) => { if (s.track_id) setLocalFile(s.track_id, s.file); });
@@ -334,7 +348,7 @@ export default function LocalCutsPage() {
         const artist = t.credited_as || t.artist;
         return {
           song: s, path: place(t.artist, album, title, s.file), kind: "tidied", coverUrl: t.display_cover ?? t.cover_url ?? t.parent_cover,
-          tags: { title, artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year },
+          tags: { title, artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year, code: t.code ?? null },
         };
       }
       const c = s.clean;
