@@ -279,6 +279,30 @@ export const TOOLS: Tool[] = [
     run: (db, args) => rpc(db, "rpc_suggest_details", { p: args }),
   },
   {
+    name: "suggest_cover",
+    title: "Suggest cover art for a song",
+    description:
+      "For a song on Static-Cuts with no artwork (backlog need: cover; mostly leaks and snippets): suggests the " +
+      "picture used for it, for a person to review. Give image_url as the direct https link to the picture itself " +
+      "(ending in .jpg, .png or .webp, or an image host's direct link), and source_url as the page that shows it " +
+      "with this song: the leaker's or artist's post, a tracker, a fan archive. Only the art actually used for this " +
+      "exact song (or its era's art when the tracker uses it for the song); never generic artist photos, never made-up " +
+      "or AI art. Approved pictures are copied to Static-Cuts and shown as the song's cover.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        track_id: { type: "string" },
+        image_url: { type: "string", description: "Direct https link to the picture." },
+        source_url: { type: "string", description: "The page the picture is on, with this song." },
+        notes: { type: "string", description: "One sentence for the reviewer: where it's from and why it's this song's art." },
+      },
+      required: ["track_id", "image_url", "source_url"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    run: (db, args) => rpc(db, "rpc_suggest_cover", { p: args }),
+  },
+  {
     name: "get_catalogue_backlog",
     title: "List songs that need fixing",
     description:
@@ -286,14 +310,14 @@ export const TOOLS: Tool[] = [
       "Returns counts per followed artist (needs_status, needs_link, needs_details, checked_recently) and a page of " +
       "songs that still need something, never-checked first. needs says what: status (unknown: find out and " +
       "submit_discovery what you can prove), link (suggest_link), details (album, release date or producers " +
-      "missing: suggest_details). Songs checked in the last 30 days are skipped. After each page call mark_checked " +
+      "missing: suggest_details), cover (a leak or snippet with no artwork: suggest_cover). Songs checked in the last 30 days are skipped. After each page call mark_checked " +
       "with every track_id you looked at, then call again (same filters) for the next songs. recheck lists finds " +
       "dismissed 90+ days ago: look for new evidence, resubmit only if you find some, then mark_checked their discovery_ids.",
     inputSchema: {
       type: "object",
       properties: {
         artist_id: { type: "string", description: "One artist only. Leave out for all of the user's followed artists." },
-        kind: { type: "string", enum: ["status", "link", "details"], description: "Only songs needing this. Leave out for all." },
+        kind: { type: "string", enum: ["status", "link", "details", "cover"], description: "Only songs needing this. Leave out for all." },
         limit: { type: "integer", minimum: 1, maximum: 100, description: "Default 50." },
         offset: { type: "integer", minimum: 0, description: "Skip this many (use next_offset to page without marking checked)." },
       },
@@ -452,7 +476,9 @@ export const SERVER_INSTRUCTIONS = [
   "   When no artist is due, or after research, work through get_catalogue_backlog: find each song's status, link",
   "   or details, submit with submit_discovery / suggest_link / suggest_details, then mark_checked the page and call",
   "   again. An empty news queue never means the catalogue is complete. Fix wrong filled-in details with",
-  "   suggest_details replace = true (always reviewed). get_artist_songs pages through a whole catalogue;",
+  "   suggest_details replace = true (always reviewed). Songs needing a cover: find the art used for that leak or",
+  "   snippet (the leaker's post, a tracker, a fan archive) and suggest_cover it with the page it's on.",
+  "   get_artist_songs pages through a whole catalogue;",
   "   get_review_status shows what was approved or turned down.",
   "Link requests: when asked to find links, use get_songs_needing_links, suggest_link and mark_checked.",
   "6. finish_run with the artist_ids you researched, even if you found nothing, so other users' routines",

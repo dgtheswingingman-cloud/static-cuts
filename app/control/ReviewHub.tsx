@@ -79,7 +79,7 @@ const CATEGORIES: { key: string; label: string; types: string[] }[] = [
 type Counts = {
   suggestions: number; finds: number; sub_versions: number; imported_songs: number; guest_artists: number;
   reported_comments: number; sheet_requests: number; tracker_disagreements?: number; takedowns: number | null;
-  album_fixes?: number; announcements?: number; wrong_links?: number;
+  album_fixes?: number; announcements?: number; wrong_links?: number; covers?: number;
   duplicates?: number; deezer_check?: number; cleanup?: number; // counted every 15 minutes
 };
 
@@ -606,7 +606,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
       <div className="mod-grid">
         {[
           { href: "/review/inbox", title: "Inbox", n: counts ? (counts.suggestions ?? 0) + (counts.finds ?? 0) + (counts.reported_comments ?? 0) + (counts.takedowns ?? 0)
-              + (counts.album_fixes ?? 0) + (counts.announcements ?? 0) + (counts.sheet_requests ?? 0) + (counts.tracker_disagreements ?? 0) : undefined,
+              + (counts.album_fixes ?? 0) + (counts.announcements ?? 0) + (counts.covers ?? 0) + (counts.sheet_requests ?? 0) + (counts.tracker_disagreements ?? 0) : undefined,
             blurb: "Everything waiting for a person on one page, most urgent first." },
           { href: "/review/suggestions", title: "Suggestions", n: counts ? counts.suggestions + counts.finds : undefined, blurb: "What people suggest (new songs, edits, wrong links) and finds from ChatGPT routines." },
           { href: "/review/imports", title: "Imported songs", n: counts?.imported_songs, blurb: "Songs found by Genius, Last.fm and sheets, waiting for a yes or no." },
@@ -619,6 +619,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
           { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
           { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
           { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
+          { href: "/review/covers", title: "Covers", n: counts?.covers, blurb: "Cover art suggested for songs with none (mostly leaks), with where it was found." },
           { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
         ]
           // Lists with something waiting first, then ones without a count, then the clear ones.

@@ -3569,3 +3569,4 @@ body:has(.ms-shell) .site-credit { display: none; }
 
 /* Settings: the admin mode switch is for phones; computers have it in the side menu. */
 @media (min-width: 1024px) { .st-admin-phone { display: none !important; } }
+.sp-add-cover { text-decoration: none; border-style: dashed !important; cursor: pointer; }

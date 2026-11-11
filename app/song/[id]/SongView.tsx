@@ -381,6 +381,9 @@ export default function SongView({ id }: { id: string }) {
           <div className="sp-tags">
             <span className={`feature-tag st st-${status}`}>{status}</span>
             {t.display_cover?.kind === "era" && <span className="feature-tag" title="The cover of the album this song is from the era of, not the song's own">era art</span>}
+            {!t.cover_url && (!t.display_cover || t.display_cover.kind === "artist" || t.display_cover.kind === "era") && (
+              <a href="#covers" className="feature-tag sp-add-cover" title="Know the art that went with this song? Add it.">+ add the cover</a>
+            )}
             {t.explicit && <span className="feature-tag sp-tag-line" title="Explicit">E</span>}
             {t.is_featured && <span className="feature-tag sp-tag-line">featured</span>}
           </div>
@@ -592,7 +595,7 @@ export default function SongView({ id }: { id: string }) {
             <div className="comment-meta" style={{ marginTop: 4 }}>From Genius.</div>
           </>
         )}
-        {!t.cover_url && <FanCovers trackId={t.id} onChange={load} />}
+        {!t.cover_url && <div id="covers"><FanCovers trackId={t.id} onChange={load} /></div>}
       </details>
 
       <div className="comment-meta" style={{ marginTop: 30, display: "flex", gap: 14, flexWrap: "wrap" }}>
