@@ -61,3 +61,5 @@
   .lcm-era2-bar { grid-column: 1 / -1; grid-row: 2; }
   .lcm-era2-miss { grid-column: 2; }
 }
+.lcm-letter { padding: 8px 12px 4px; font-family: var(--font-mono), monospace; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: #8B7CF6; background: color-mix(in srgb, var(--void) 80%, transparent); border-bottom: 1px solid var(--hair); }
+.lcm-letter:not(:first-child) { border-top: 1px solid var(--hair-strong); }
