@@ -44,3 +44,8 @@
 .lh-twin a { color: inherit; }
 .lh-twin small { color: var(--smoke); font-size: 0.68rem; }
 .lh-twin .tab { padding: 2px 8px; font-size: 0.7rem; }
+.lh-copyall { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 6px 0 10px; }
+.lh-copyall .st-input { width: auto; min-width: 170px; }
+.lh-copyall .lh-small { margin: 0; }
+.lh-fallback { flex-basis: 100%; width: 100%; font-family: var(--font-mono), monospace; font-size: 0.75rem; }
+.lh-add .st-input { width: 100%; }

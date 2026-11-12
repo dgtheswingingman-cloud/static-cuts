@@ -42,6 +42,60 @@ const ASK: Record<Kind, string> = {
   album: "find the album or era for",
 };
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 100);
+// One paste for ChatGPT stays usable up to about this many songs.
+const COPY_MAX = 1200;
+
+// "Copy for ChatGPT" for every launch artist at once: one gap, or all of
+// them, as one ready-to-paste request grouped by artist.
+function CopyAll({ rows }: { rows: Health[] }) {
+  const [kind, setKind] = useState<Kind | "all">("leak_date");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [fallback, setFallback] = useState<string | null>(null);
+  const kinds = kind === "all" ? KINDS.map((k) => k[0]) : [kind];
+  const total = rows.reduce((a, r) => a + kinds.reduce((b, k) => b + r[k], 0), 0);
+  async function copy() {
+    setBusy(true); setMsg(null); setFallback(null);
+    const parts: string[] = [];
+    let n = 0, cut = false;
+    for (const k of kinds) {
+      const per = rows.filter((r) => r[k] > 0);
+      const lists = await Promise.all(per.map((r) => supabase.rpc("admin_launch_gaps", { p_artist: r.artist_id, p_kind: k, p_limit: 1000 })
+        .then(({ data }) => ({ r, list: ((data as Gap[]) ?? []) }))));
+      const block: string[] = [];
+      for (const { r, list } of lists) {
+        if (!list.length) continue;
+        const room = Math.max(0, COPY_MAX - n);
+        if (room === 0) { cut = true; break; }
+        const some = list.slice(0, room);
+        if (some.length < list.length) cut = true;
+        n += some.length;
+        block.push(`${r.artist}:\n` + some.map((g) => `- ${g.title}${g.code ? ` (${g.code})` : ""}${g.album ? ` [${g.album}]` : ""}`).join("\n"));
+      }
+      if (block.length) parts.push(`${ASK[k][0].toUpperCase()}${ASK[k].slice(1)} these songs:\n\n${block.join("\n\n")}`);
+      if (n >= COPY_MAX) { cut = true; break; }
+    }
+    if (!parts.length) { setBusy(false); setMsg("Nothing to copy."); return; }
+    const text = `For these artists on Static-Cuts, please do the following, and send what you find through the Static-Cuts connector (with a source for each).\n\n${parts.join("\n\n---\n\n")}`;
+    try { await navigator.clipboard.writeText(text); setMsg(`Copied ${n.toLocaleString("en-GB")} songs${cut ? ` (the first ${COPY_MAX.toLocaleString("en-GB")}: paste, then copy again once those are in)` : ""}.`); }
+    // Some browsers won't copy after a wait: show it to copy by hand.
+    catch { setFallback(text); setMsg(`${n.toLocaleString("en-GB")} songs: your browser wouldn't copy it, so it's below to copy by hand.`); }
+    setBusy(false);
+  }
+  return (
+    <div className="lh-copyall">
+      <select className="st-input" value={kind} onChange={(e) => { setKind(e.target.value as Kind | "all"); setMsg(null); }} aria-label="Which gap to copy">
+        <option value="all">Every gap</option>
+        {KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+      </select>
+      <button className="tab" onClick={copy} disabled={busy || total === 0}>
+        {busy ? "Copying…" : `Copy for ChatGPT (${total.toLocaleString("en-GB")})`}
+      </button>
+      {msg && <span className="lh-small">{msg}</span>}
+      {fallback && <textarea className="st-input lh-fallback" readOnly value={fallback} onFocus={(e) => e.currentTarget.select()} rows={8} />}
+    </div>
+  );
+}
 
 function Gaps({ h, kind, onClose, onChanged }: { h: Health; kind: Kind; onClose: () => void; onChanged: () => void }) {
   const [list, setList] = useState<Gap[] | null>(null);
@@ -207,6 +261,7 @@ export default function LaunchPage() {
       {!rows && !err && <ModLoading what="launch artists" />}
       {rows && (
         <>
+          <CopyAll rows={rows} />
           <div className="lh-summary">
             <span><b>{ready}</b> of {rows.length} ready</span>
             <span><b>{pct(clean, total)}%</b> of {total.toLocaleString("en-GB")} songs complete</span>
