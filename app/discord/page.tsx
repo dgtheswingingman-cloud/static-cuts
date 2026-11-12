@@ -17,6 +17,9 @@ const COMMANDS: [string, string][] = [
   ["/song <name>", "Look up a song: its status, era and page."],
   ["/artist <name>", "An artist's numbers: songs, unreleased, leaked, and the latest leaks."],
   ["/leaks", "The latest leaks, on the whole site or for one artist."],
+  ["/album <name>", "An album: its score, tracklist and which songs are leaked or unreleased."],
+  ["/link", "Link your Discord to your Static-Cuts account (once)."],
+  ["/rate <song> <1-10>", "Rate a song from Discord; it counts as your Static-Cuts rating."],
 ];
 
 export default function DiscordPage() {
