@@ -1,9 +1,11 @@
 "use client";
 
-// "What am I missing": after a folder is matched, how much of each artist's
-// catalogue you have (released songs, leaks and snippets), era by era, and
-// which songs you don't have. Counts for everyone; the lists are premium.
+// "What am I missing": how much of each artist's catalogue you have
+// (released songs, leaks and snippets), era by era, and which songs you don't
+// have. From a Local Cuts folder (trackIds) or your collection (Spotify,
+// Exportify and file imports). Counts for everyone; the lists are premium.
 
+import "../styles/missing.css";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -97,15 +99,19 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
   );
 }
 
-export default function Missing({ trackIds, premium }: { trackIds: string[]; premium: boolean }) {
+export default function Missing({ trackIds, collection = false, refresh = 0, premium, intro }: {
+  trackIds?: string[]; collection?: boolean; refresh?: number; premium: boolean; intro?: string;
+}) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const key = trackIds.length + ":" + trackIds.slice(0, 5).join(",");
+  const ids = trackIds ?? [];
+  const key = collection ? `collection:${refresh}` : ids.length + ":" + ids.slice(0, 5).join(",");
   useEffect(() => {
-    if (!trackIds.length) { setRows([]); return; }
+    if (!collection && !ids.length) { setRows([]); return; }
     let live = true;
     setRows(null); setErr(null);
-    supabase.rpc("rpc_local_missing", { p_track_ids: [...new Set(trackIds)] }).then(({ data, error }) => {
+    const ask = collection ? supabase.rpc("rpc_collection_missing") : supabase.rpc("rpc_local_missing", { p_track_ids: [...new Set(ids)] });
+    ask.then(({ data, error }) => {
       if (!live) return;
       if (error) { setErr(error.message); setRows([]); } else setRows((data as Row[]) ?? []);
     });
@@ -115,10 +121,10 @@ export default function Missing({ trackIds, premium }: { trackIds: string[]; pre
 
   if (rows && !rows.length && !err) return null;
   return (
-    <section className="lc-box">
+    <section className="lc-box lcm-wrap">
       <div className="lc-box-head">
         <h2 className="lc-h in">What you&apos;re missing</h2>
-        <span className="lc-small">Every artist you have 3+ songs of: released songs, leaks and snippets on the site, era by era.</span>
+        <span className="lc-small">{intro ?? "Every artist you have 3+ songs of: released songs, leaks and snippets on the site, era by era."}</span>
       </div>
       {rows === null && <p className="lc-small">Working it out…</p>}
       {err && <p className="lc-small">Couldn&apos;t work it out: {err}</p>}

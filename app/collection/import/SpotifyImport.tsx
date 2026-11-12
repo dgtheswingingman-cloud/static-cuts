@@ -25,7 +25,7 @@ function splitCredits(t: string): { title: string; credits: string[] } {
   return { title: title.replace(/\s{2,}/g, " ").trim(), credits: credits.filter(Boolean) };
 }
 
-export default function SpotifyImport() {
+export default function SpotifyImport({ onDone }: { onDone?: () => void } = {}) {
   const [importBusy, setImportBusy] = useState(false);
   const [importProgress, setImportProgress] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<{ checked: number; collected: number; added: number; waiting: number; skipped: string[]; suggested: number } | null>(null);
@@ -212,6 +212,7 @@ export default function SpotifyImport() {
       const suggested = await suggest();
       local.remove(PROGRESS_KEY);
       setImportResult({ checked, ...totals, skipped, suggested });
+      onDone?.();
       setSources(null);
     } catch (e: any) {
       const n = suggestNow ? await suggestNow().catch(() => 0) : 0;
