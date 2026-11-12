@@ -1,3 +1,4 @@
+import { fixMojibake } from "./tags";
 // Local Cuts, the other way round: read the fuller details out of someone's
 // own music files (album, full release date, track number, featured artists,
 // producers, cover art), on their device, so they can fill gaps in the
@@ -27,7 +28,7 @@ async function bytes(file: Blob, start: number, end: number) {
 }
 function latin1(b: Uint8Array) { let s = ""; for (const c of b) s += String.fromCharCode(c); return s; }
 function clean(s: string | null | undefined) {
-  const v = (s ?? "").replace(/\0/g, " ").replace(/\s+/g, " ").trim();
+  const v = fixMojibake((s ?? "").replace(/\0/g, " ").replace(/\s+/g, " ").trim());
   return v === "" ? null : v;
 }
 function be32(b: Uint8Array, p: number) { return ((b[p] << 24) >>> 0) + (b[p + 1] << 16) + (b[p + 2] << 8) + b[p + 3]; }

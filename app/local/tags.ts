@@ -16,8 +16,21 @@ async function bytes(file: Blob, start: number, end: number) {
 
 function latin1(b: Uint8Array) { let s = ""; for (const c of b) s += String.fromCharCode(c); return s; }
 const utf8 = new TextDecoder("utf-8");
+// Text saved as UTF-8 but read as Western European ("Â¥$" for "¥$",
+// "MatinÃ©e" for "Matinée"): put the bytes back and read them as UTF-8.
+// Only when every character fits in a byte and the bytes are valid UTF-8,
+// so real accented text is left alone.
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
+// Windows' version of that encoding puts these characters at bytes 80-9F.
+const CP1252 = new Map([..."€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ"].map((c, i) => [c, 0x80 + i]));
+export function fixMojibake(v: string) {
+  if (!/[Â-ô][\u0080-¿ŒœŠšŸŽžƒˆ˜–-™]/.test(v)) return v;
+  const b: number[] = [];
+  for (const c of v) { const n = c.charCodeAt(0); const m = n <= 0xff ? n : CP1252.get(c); if (m === undefined) return v; b.push(m); }
+  try { return strictUtf8.decode(Uint8Array.from(b)); } catch { return v; }
+}
 function clean(s: string | null | undefined) {
-  const v = (s ?? "").replace(/\0/g, "").trim();
+  const v = fixMojibake((s ?? "").replace(/\0/g, "").trim());
   return v === "" ? null : v;
 }
 
