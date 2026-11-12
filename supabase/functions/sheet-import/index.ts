@@ -55,8 +55,10 @@ function json(body: unknown, status = 200) {
 // Fetching the sheet
 // ---------------------------------------------------------------------------
 
+// Normal links (/d/<id>/edit) and "Publish to the web" links
+// (/d/e/2PACX-.../pubhtml); a published one keeps the "e/" in its id.
 function parseSheetUrl(url: string) {
-  const id = url.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/)?.[1];
+  const id = url.match(/\/spreadsheets\/d\/(e\/2PACX-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{20,})/)?.[1];
   const gid = url.match(/[#?&]gid=(\d+)/)?.[1] ?? "0";
   if (!id) throw new Error("That isn't a Google Sheets link.");
   return { id, gid };
@@ -68,6 +70,11 @@ function parseSheetUrl(url: string) {
 // (headers=0: every row as it is, header row included).
 async function fetchCsv(id: string, gid: string) {
   const ok = (res: Response) => res.ok && !(res.headers.get("content-type") ?? "").includes("text/html");
+  if (id.startsWith("e/")) {
+    const pub = await fetch(`https://docs.google.com/spreadsheets/d/${id}/pub?output=csv&gid=${gid}`, { redirect: "follow" });
+    if (ok(pub)) return await pub.text();
+    throw new Error("Couldn't read the published sheet. Check it's still published to the web.");
+  }
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`, { redirect: "follow" });
   if (ok(res)) return await res.text();
   const alt = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=0&gid=${gid}`, { redirect: "follow" });
@@ -81,7 +88,7 @@ async function fetchCsv(id: string, gid: string) {
 // Sheet title and tab names (best effort: read from the public page).
 async function fetchTabs(id: string) {
   try {
-    const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/htmlview`);
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/${id.startsWith("e/") ? "pubhtml" : "htmlview"}`);
     if (!res.ok) return { title: null, tabs: [] as { gid: string; name: string }[] };
     const html = await res.text();
     const title = html.match(/<title>([^<]*)<\/title>/)?.[1]?.replace(/\s*-\s*Google (Sheets|Drive)\s*$/, "").trim() ?? null;
