@@ -137,10 +137,13 @@ export function Tag({ children, color, solid = true, size = 22 }: { children: Re
 // Every slide: optional picture behind (full-bleed or faded), static on top,
 // tracker-style top bar and footer with the slide number.
 // w/h default to the 1080×1350 post; stories are 1080×1920, X 1600×900.
-// TikTok's safe zone on a 1080×1920 photo post (what its tabs, side buttons
-// and name / caption / sound lines don't cover). Kept tight so the slide
-// fills the screen: the old 200/180/400 left a black band at the bottom.
-export const TT_SAFE = { top: 150, right: 140, bottom: 290, left: 56 };
+// TikTok slides are 1080×2160 (9:18): a 9:16 picture is shorter than a
+// modern phone, so TikTok shows it with black bars above and below. 9:18
+// fills the screen down to the menu bar (at most a hairline at the sides on
+// a short phone). The safe zone is what its tabs, side buttons and name /
+// caption / sound lines don't cover.
+export const TT_SAFE = { top: 250, right: 140, bottom: 270, left: 56 };
+export const TT_H = 2160;
 // Width the content gets inside the frame's padding.
 export const innerWidth = (f: string, w: number) => w - (f === "tt" ? TT_SAFE.left + TT_SAFE.right : 128);
 
@@ -172,10 +175,10 @@ export function Frame({ children, file, page, bg, backdrop, bgHeight, fade = 1, 
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={staticOverlay()} width={W} height={H} alt="" style={{ position: "absolute", top: 0, left: 0, width: W, height: H }} />
-      {/* TikTok (1080×1920) covers the top (tabs), the right (buttons) and the bottom
+      {/* TikTok (1080×2160) covers the top (tabs), the right (buttons) and the bottom
           (name, caption, sound), so everything sits inside its safe zone there. */}
       <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", flexDirection: "column",
-        padding: W === 1080 && H === 1920 ? `${TT_SAFE.top}px ${TT_SAFE.right}px ${TT_SAFE.bottom}px ${TT_SAFE.left}px` : "56px 64px" }}>
+        padding: W === 1080 && H === TT_H ? `${TT_SAFE.top}px ${TT_SAFE.right}px ${TT_SAFE.bottom}px ${TT_SAFE.left}px` : "56px 64px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 2 }}>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A" }}>
             <div style={{ display: "flex", width: 14, height: 14, borderRadius: 7, background: RED, marginRight: 12 }} />

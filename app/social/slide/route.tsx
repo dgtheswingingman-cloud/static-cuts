@@ -1,6 +1,6 @@
 // Pictures for the daily social posts, in each platform's size.
 //   /social/slide?id=<post>&f=ig&n=1      Instagram post (1080×1350), slide n
-//   /social/slide?id=<post>&f=tt&n=1      TikTok (1080×1920)
+//   /social/slide?id=<post>&f=tt&n=1      TikTok (1080×2160)
 //   /social/slide?id=<post>&f=x           X (1600×900, one picture)
 // Song of the day and on this day (3 songs): 1 slide. Album of the week: 2 (X: 1).
 // Monthly roundup: 3 (X: 1). The post keeps a snapshot, so a picture never
@@ -91,7 +91,7 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
     <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={tt ? h : w} w={w} h={h}>
       <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 36 : 30 }}>{cover(tt ? innerWidth(f, w) : 560)}</div>
       <Spacer />
-      {words(innerWidth(f, w), tt ? 150 : 110)}
+      {words(innerWidth(f, w), tt ? 170 : 110)}
       <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: 26 }}>
         EVERY VERSION &gt;&gt; STATIC-CUTS.COM
       </div>
