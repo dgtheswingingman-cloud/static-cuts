@@ -137,6 +137,11 @@ export function Tag({ children, color, solid = true, size = 22 }: { children: Re
 // Every slide: optional picture behind (full-bleed or faded), static on top,
 // tracker-style top bar and footer with the slide number.
 // w/h default to the 1080×1350 post; stories are 1080×1920, X 1600×900.
+// TikTok's safe zone on a 1080×1920 picture (what its buttons and text don't cover).
+export const TT_SAFE = { top: 200, right: 180, bottom: 400, left: 64 };
+// Width the content gets inside the frame's padding.
+export const innerWidth = (f: string, w: number) => w - (f === "tt" ? TT_SAFE.left + TT_SAFE.right : 128);
+
 export function Frame({ children, file, page, bg, backdrop, bgHeight, fade = 1, w = W, h = H, bgWidth }: {
   children: ReactNode; file: string; page: string; bg?: string | null; backdrop?: ReactNode; bgHeight?: number; fade?: number;
   w?: number; h?: number; bgWidth?: number;
@@ -165,7 +170,10 @@ export function Frame({ children, file, page, bg, backdrop, bgHeight, fade = 1, 
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={staticOverlay()} width={W} height={H} alt="" style={{ position: "absolute", top: 0, left: 0, width: W, height: H }} />
-      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", flexDirection: "column", padding: "56px 64px" }}>
+      {/* TikTok (1080×1920) covers the top (tabs), the right (buttons) and the bottom
+          (name, caption, sound), so everything sits inside its safe zone there. */}
+      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", flexDirection: "column",
+        padding: W === 1080 && H === 1920 ? `${TT_SAFE.top}px ${TT_SAFE.right}px ${TT_SAFE.bottom}px ${TT_SAFE.left}px` : "56px 64px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 2 }}>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(7,7,7,0.75)", padding: "6px 12px", border: "1px solid #3A3A3A" }}>
             <div style={{ display: "flex", width: 14, height: 14, borderRadius: 7, background: RED, marginRight: 12 }} />
