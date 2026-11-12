@@ -3573,3 +3573,11 @@ body:has(.ms-shell) .site-credit { display: none; }
 /* Settings: the admin mode switch is for phones; computers have it in the side menu. */
 @media (min-width: 1024px) { .st-admin-phone { display: none !important; } }
 .sp-add-cover { text-decoration: none; border-style: dashed !important; cursor: pointer; }
+/* Artist alert menu: premium filters */
+.af-box { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px 12px; border-top: 1px solid var(--hair); font-size: 0.8rem; }
+.af-box strong { font-size: 0.78rem; }
+.af-box small, .af-box > span { color: var(--smoke); font-size: 0.72rem; }
+.af-saved { font-style: normal; font-weight: 400; color: #2BD67B; margin-left: 6px; }
+.af-row { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.af-eras { display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow-y: auto; }
+.af-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
