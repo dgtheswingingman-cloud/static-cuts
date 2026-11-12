@@ -46,7 +46,7 @@ type Song = {
   track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
   clean: Clean | null;          // Claude's tidy version, when it looked
   base_id?: string | null;      // a version the archive doesn't have: the song it's a version of
-  folder_artist?: string | null; // nearest folder that's an artist on the site (tags have none)
+  folder_artist?: string | null; // nearest folder that's an artist on the site
   code: string | null;          // Static-Cuts code already in the file (from an earlier run)
 };
 type Site = {
@@ -194,13 +194,13 @@ export default function LocalCutsPage() {
     }
     // Files with no artist in their tags: which of their folders is an artist
     // on the site (one look-up for every folder name).
-    const names = [...new Set(read.filter((s) => !s.artist).flatMap((s) => foldersOf(s.file)))];
+    const names = [...new Set(read.flatMap((s) => foldersOf(s.file)))];
     const isArtist = new Set<string>();
     for (let i = 0; i < names.length; i += 300) {
       const { data } = await supabase.rpc("rpc_match_my_songs", { p_items: names.slice(i, i + 300).map((n) => ({ artist: n, title: "" })), p_artist_id: null });
       ((data as { artist_in: string; artist_id: string | null }[] | null) ?? []).forEach((r) => { if (r.artist_id) isArtist.add(r.artist_in); });
     }
-    for (const s of read) if (!s.artist) s.folder_artist = foldersOf(s.file).find((n) => isArtist.has(n)) ?? null;
+    for (const s of read) s.folder_artist = foldersOf(s.file).find((n) => isArtist.has(n)) ?? null;
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
@@ -211,6 +211,7 @@ export default function LocalCutsPage() {
         batch.forEach((s, j) => {
           const r = rows[j];
           if (s.sure || !(s.artist || s.folder_artist) || !r) return; // matched by its code already
+          if (!s.artist && !r.artist_id) return;
           s.artist_id = r.artist_id;
           // No artist in the tags, but the folder's name is an artist on the site.
           if (!s.artist && r.artist_id) s.artist = s.folder_artist ?? null;
@@ -219,23 +220,38 @@ export default function LocalCutsPage() {
       }
       setDone(Math.min(i + 200, read.length));
     }
-    // File names often carry the track number or producer ("2.safehouse
-    // (prod.whitearmor&yung sherman)"): files that didn't match as they are
-    // get one more try without them.
-    const numbered = read.filter((s) => !s.sure && (s.artist || s.folder_artist) && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
-    for (let i = 0; i < numbered.length; i += 200) {
-      const batch = numbered.slice(i, i + 200);
-      const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? s.folder_artist ?? "", title: matchTitle(s.title) })), p_artist_id: null,
-      });
+    // Files that didn't match as they are get a few more tries, first exact
+    // match wins: the title cleaned up (tracker markers, track numbers,
+    // "(prod. ...)"), the file's name when it differs from the tag title
+    // ("HOMICIDE55555 [V1]" vs "pbc HOMICIDE55555 8.29.23"), and both again
+    // with the folder's artist (a K Suave song filed under Playboi Carti).
+    const stem = (f: File) => f.name.replace(/\.[^.]+$/, "").replace(/_+/g, " ").replace(/\s{2,}/g, " ").trim();
+    const tries: { s: Song; artist: string; title: string; byFolder: boolean }[] = [];
+    for (const s of read) {
+      if (s.sure) continue;
+      // "K Suave - Perky97 [V1]", "4 RAWS - EsDeeKid ft. X": each side of the dash too.
+      const sides = stem(s.file).split(/\s+[-–—]\s+/).filter((x) => x.length >= 2);
+      const titles = [...new Set([matchTitle(s.title), matchTitle(stem(s.file)), ...(sides.length === 2 ? sides.map(matchTitle) : [])]
+        .filter((t) => t.length >= 2))];
+      const tagArtist = firstArtist(s.artist);
+      const artists: [string, boolean][] = [];
+      if (tagArtist) artists.push([tagArtist, false]);
+      if (s.folder_artist && s.folder_artist.toLowerCase() !== (tagArtist ?? "").toLowerCase()) artists.push([s.folder_artist, true]);
+      for (const [artist, byFolder] of artists) for (const title of titles) {
+        if (!byFolder && title === s.title) continue; // already tried as it is
+        tries.push({ s, artist, title, byFolder });
+      }
+    }
+    for (let i = 0; i < tries.length; i += 300) {
+      const batch = tries.slice(i, i + 300);
+      const { data, error } = await supabase.rpc("rpc_match_my_songs", { p_items: batch.map((x) => ({ artist: x.artist, title: x.title })), p_artist_id: null });
       if (error) break;
       const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
-      batch.forEach((s, j) => {
+      batch.forEach((x, j) => {
         const r = rows[j];
-        if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) {
-          s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true;
-          if (!s.artist && r.artist_id) s.artist = s.folder_artist ?? null;
-        }
+        if (x.s.sure || !r?.track_id || tidyKey(r.title) !== tidyKey(x.title)) return;
+        x.s.track_id = r.track_id; x.s.artist_id = r.artist_id ?? x.s.artist_id; x.s.sure = true;
+        if (!x.s.artist) x.s.artist = x.artist;
       });
     }
 
@@ -504,7 +520,7 @@ export default function LocalCutsPage() {
         const title = c.version && !c.title.toLowerCase().includes(c.version.toLowerCase()) ? `${c.title} [${c.version}]` : c.title;
         const album = c.status === "released" ? "Singles" : "Unreleased";
         return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: s.details?.hasCover ? null : (s.artist_id && photos.current.get(s.artist_id)) || null,
-          tags: { title: c.featuring && featStyle !== "none" ? `${title} (${featStyle} ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
+          tags: { title: c.featuring && featStyle !== "none" && !/\b(feat|ft)\b\.?/i.test(title) ? `${title} (${featStyle} ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
       }
       return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
     });
