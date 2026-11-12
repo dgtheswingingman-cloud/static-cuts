@@ -17,7 +17,7 @@ import CardButton from "./CardButton";
 
 type Who = { id: string; name: string; avatar: string | null; accent: string | null };
 
-type Era = { era: string; have: number; total: number };
+type Era = { era: string; have: number; total: number; from?: number | null; to?: number | null; cover?: string | null };
 type Gap = { id: string; title: string; status: string; era: string; day: string | null };
 type Row = { artist_id: string; artist: string; photo: string | null; have: number; total: number; eras: Era[]; missing: Gap[] | null };
 
@@ -78,7 +78,13 @@ function ArtistCard({ r, premium, who }: { r: Row; premium: boolean; who: Who | 
   const { eras, eraOf } = useMemo(() => {
     const big = r.eras.filter((e) => e.total >= SMALL && e.era !== LOOSE);
     const bigSet = new Set(big.map((e) => e.era));
-    const loose = r.eras.filter((e) => !bigSet.has(e.era)).reduce((a, e) => ({ era: LOOSE, have: a.have + e.have, total: a.total + e.total }), { era: LOOSE, have: 0, total: 0 });
+    const small = r.eras.filter((e) => !bigSet.has(e.era));
+    const years = small.flatMap((e) => [e.from, e.to]).filter((y): y is number => typeof y === "number");
+    const loose: Era = {
+      era: LOOSE, have: small.reduce((a, e) => a + e.have, 0), total: small.reduce((a, e) => a + e.total, 0),
+      from: years.length ? Math.min(...years) : null, to: years.length ? Math.max(...years) : null,
+      cover: small.find((e) => e.cover)?.cover ?? null,
+    };
     return { eras: [...big, ...(loose.total ? [loose] : [])], eraOf: (g: Gap) => (bigSet.has(g.era) ? g.era : LOOSE) };
   }, [r.eras]);
   const gapsBy = useMemo(() => {
