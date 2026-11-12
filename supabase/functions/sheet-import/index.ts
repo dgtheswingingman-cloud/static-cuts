@@ -231,6 +231,14 @@ function cleanTitle(raw: string) {
   return raw.split("\n")[0].replace(/^[^\p{L}\p{N}(\[]+/u, "").replace(/\s+/g, " ").trim();
 }
 
+// Other names trackers put on the line(s) under a title, in brackets:
+// "DOCTOR [V2]\n(COPS)" or "Untitled\n(LET'S SEE, TEXACO)".
+function altNames(cell: string) {
+  return [...new Set(cell.split("\n").slice(1).map((l) => l.trim()).filter((l) => /^\(.+\)$/.test(l))
+    .flatMap((l) => l.slice(1, -1).split(/\s*,\s*/))
+    .map((x) => x.replace(/\*+$/, "").trim()).filter((x) => x.length >= 2 && x.length <= 80))].slice(0, 8);
+}
+
 function splitNames(s: string) {
   return s.split(/\s*(?:,|&|\band\b|\bx\b|\+|\/)\s*/i).map((x) => x.trim()).filter(Boolean);
 }
@@ -264,7 +272,7 @@ function parseDate(s: string): string | null {
 type Song = {
   title: string; artists: string[]; status: string; album: string | null; release_date: string | null;
   featuring: string | null; producers: string | null; notes: string | null; listen_url: string | null; leak_date: string | null;
-  row: number;
+  alt_titles: string[]; row: number;
 };
 
 function readSongs(rows: string[][], m: Mapping) {
@@ -351,6 +359,7 @@ function readSongs(rows: string[][], m: Mapping) {
       notes: notes || null,
       listen_url: listen,
       leak_date: leak,
+      alt_titles: altNames(titleCell),
       row: i + 1,
     });
   }
