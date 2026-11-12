@@ -68,6 +68,11 @@ const baseTitle = (t: string) => {
   for (let i = 0; i < 3; i++) b = b.replace(/\s*[([][^()[\]]*[)\]]\s*$/, "").trim();
   return b;
 };
+// A file's title as the archive would write it: no leading track number
+// ("2.safehouse", "02. Teddy Picker") and no "(prod. ...)".
+const matchTitle = (t: string | null) => (t ?? "")
+  .replace(/^\s*\d{1,2}\s*\.\s*(?=\p{L})/u, "")
+  .replace(/\s*[([]\s*prod\b[^)\]]*[)\]]/gi, "").trim();
 // Claude's clean title with its version in the archive's style: "Song [V2]".
 const cleanTitle = (s: { clean: Clean | null }) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
   ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
@@ -177,7 +182,7 @@ export default function LocalCutsPage() {
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: s.title ?? "" })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
       });
       if (!error) {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
@@ -185,7 +190,7 @@ export default function LocalCutsPage() {
           const r = rows[j];
           if (s.sure || !s.artist || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
-          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
+          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(matchTitle(s.title)); }
         });
       }
       setDone(Math.min(i + 200, read.length));
