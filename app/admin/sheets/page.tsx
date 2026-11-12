@@ -12,6 +12,11 @@ import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 import { ModPage, ModNotice, ModSection } from "../../components/Mod";
 
+// A link to one tab (published sheets have their own kind of link).
+const tabLink = (sheetId: string, gid: string) => sheetId.startsWith("e/")
+  ? `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml?gid=${gid}`
+  : `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=${gid}`;
+
 const FN_URL = "https://pcuyzaamcsegblrauxsa.functions.supabase.co/sheet-import";
 
 type Field = "title" | "artist" | "era" | "notes" | "length" | "file_date" | "leak_date" | "release_date" |
@@ -61,7 +66,7 @@ const FIELDS: [Field, string, string][] = [
 ];
 const STATUSES = ["leaked", "snippet", "released", "rumored", "teased", "announced", "unconfirmed"];
 
-const sheetIdOf = (u: string) => u.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/)?.[1] ?? u;
+const sheetIdOf = (u: string) => u.match(/\/spreadsheets\/d\/(e\/2PACX-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{20,})/)?.[1] ?? u;
 const gidOf = (u: string) => u.match(/[#?&]gid=(\d+)/)?.[1] ?? "0";
 
 async function callFn(body: unknown) {
@@ -196,7 +201,7 @@ export default function SheetsPage() {
     const log: string[] = [];
     const say = (line: string) => { log.push(line); setAllLog([...log]); };
     for (const t of todo) {
-      const tabUrl = `https://docs.google.com/spreadsheets/d/${preview.sheet_id}/edit#gid=${t.gid}`;
+      const tabUrl = tabLink(preview.sheet_id, t.gid);
       try {
         say(`${t.name}: working it out…`);
         const ai = await callFn({ action: "ai_mapping", url: tabUrl });
@@ -323,7 +328,7 @@ export default function SheetsPage() {
               {preview.tabs.map((t) => (
                 <button key={t.gid} className={`tab ${t.gid === preview.gid ? "active" : ""}`} disabled={busy !== null}
                   onClick={() => {
-                    const next = `https://docs.google.com/spreadsheets/d/${preview.sheet_id}/edit#gid=${t.gid}`;
+                    const next = tabLink(preview.sheet_id, t.gid);
                     setUrl(next);
                     loadPreview(next);
                   }}>
