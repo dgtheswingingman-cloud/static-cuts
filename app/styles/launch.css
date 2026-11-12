@@ -1,0 +1,37 @@
+/* Launch clean-up (control room) */
+.lh-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 6px 0 14px; font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--smoke); }
+.lh-summary b { color: var(--bone); font-size: 1.1rem; }
+.lh-table { display: flex; flex-direction: column; border: 1.5px solid var(--hair-strong); border-radius: 8px; overflow: hidden; }
+.lh-row { display: grid; grid-template-columns: minmax(180px, 1.6fr) repeat(5, minmax(70px, 1fr)) minmax(110px, 1fr); align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--hair); }
+.lh-th { border-top: 0; font-family: var(--font-mono), monospace; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--smoke); background: var(--surface); }
+.lh-block:first-of-type .lh-row { border-top: 1px solid var(--hair); }
+.lh-row.ready { background: color-mix(in srgb, #22C55E 8%, transparent); }
+.lh-artist { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lh-artist img, .lh-blank { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface); }
+.lh-artist a { color: inherit; font-weight: 700; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-ready { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: #070707; background: #22C55E; padding: 1px 5px; letter-spacing: 0.06em; }
+.lh-x { margin-left: auto; background: none; border: 0; color: var(--smoke); cursor: pointer; font-size: 0.8rem; }
+.lh-n { min-width: 48px; min-height: 32px; padding: 2px 10px; border: 1.5px solid #F5B841; border-radius: 4px; background: none; color: #F5B841; font-family: var(--font-mono), monospace; font-size: 0.85rem; cursor: pointer; }
+.lh-n.on { background: #F5B841; color: #070707; }
+.lh-zero { font-family: var(--font-mono), monospace; color: #22C55E; }
+.lh-pct { display: flex; flex-direction: column; gap: 4px; font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+.lh-bar { display: block; height: 4px; background: var(--hair-strong); border-radius: 2px; overflow: hidden; }
+.lh-bar span { display: block; height: 100%; background: #22C55E; }
+.lh-gaps { padding: 10px 14px 14px; border-top: 1px dashed var(--hair-strong); background: color-mix(in srgb, var(--void) 70%, transparent); }
+.lh-gaps-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 8px; }
+.lh-gaps-head small { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lh-gaps-actions { display: flex; gap: 6px; margin-left: auto; }
+.lh-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
+.lh-list li { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--hair); font-size: 0.85rem; }
+.lh-song { color: inherit; text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-song:hover { text-decoration: underline; }
+.lh-meta { flex: none; font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--smoke); max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-add { margin-top: 14px; max-width: 420px; }
+.lh-hits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.lh-small { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); margin-top: 12px; }
+@media (max-width: 800px) {
+  .lh-th { display: none; }
+  .lh-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lh-artist { grid-column: 1 / -1; }
+  .lh-row > [data-label]::before { content: attr(data-label); display: block; font-family: var(--font-mono), monospace; font-size: 0.6rem; text-transform: uppercase; color: var(--smoke); margin-bottom: 2px; }
+}

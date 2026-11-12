@@ -619,6 +619,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
           { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
           { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
           { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },
+          { href: "/review/launch", title: "Launch clean-up", blurb: "The launch artists and what's still missing on their songs: unconfirmed, covers, dates, albums." },
           { href: "/review/covers", title: "Covers", n: counts?.covers, blurb: "Cover art suggested for songs with none (mostly leaks), with where it was found." },
           { href: "/review/announcements", title: "Shows & merch", n: counts?.announcements, blurb: "Shows, tours and merch drops reported for artist pages: approve or dismiss." },
         ]

@@ -39,3 +39,4 @@
 .lcm-song:hover { text-decoration: underline; }
 .lcm-tag { flex: none; font-family: var(--font-mono), monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid; border-radius: 3px; padding: 1px 5px; }
 .lcm-day { flex: none; font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); width: 34px; text-align: right; }
+.lb-missing { width: 100%; background: none; font: inherit; text-align: left; cursor: pointer; }
