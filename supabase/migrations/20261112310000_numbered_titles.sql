@@ -1,17 +1,20 @@
 -- Titles that start with a track number from someone's files ("2.safehouse
 -- (prod.whitearmor&yung sherman)", "02. Teddy Picker"), mostly from Last.fm.
--- 1. New songs: the leading "2." / "02. " is stripped as they come in (only
---    before a letter: "7-Eleven", "1.5 Million" are untouched).
+-- 1. New songs from file names (Last.fm, Local Cuts): the leading "2." /
+--    "02. " is stripped as they come in, only before a letter and only when
+--    3+ characters are left ("7-Eleven", "1.5 Million", "2.oh", "0.o" are
+--    untouched; Deezer / Genius / tracker titles are never changed).
 -- 2. Ones already here: merged into the real song when the archive has it
---    (status, dates, track numbers carry over), otherwise renamed. Titles
---    listing several numbers ("1. X, 2. Y") are left alone.
+--    under the plain name (status, dates, track numbers carry over). The
+--    rest are left as they are: some are real names ("2.oh", "1.NO ISSUES").
 create or replace function tracks_aa_strip_star() returns trigger
 language plpgsql set search_path to 'public' as $$
 begin
   if new.title ~ '\S\s*\*+\s*$' then
     new.title := regexp_replace(new.title, '\s*\*+\s*$', '');
   end if;
-  if new.title ~ '^\s*\d{1,2}\s*\.\s*[[:alpha:]]' and new.title !~ '\s\d{1,2}\.\s' then
+  if new.source in ('lastfm', 'local') and new.title ~ '^\s*\d{1,2}\s*\.\s*[[:alpha:]]' and new.title !~ '\s\d{1,2}\.\s'
+     and length(regexp_replace(new.title, '^\s*\d{1,2}\s*\.\s*', '')) >= 3 then
     new.title := regexp_replace(new.title, '^\s*\d{1,2}\s*\.\s*', '');
   end if;
   return new;
@@ -34,8 +37,5 @@ begin
   for r in select * from _p where orig_id is not null loop
     perform admin_merge_duplicates(r.orig_id, array[r.copy_id]);
   end loop;
-  perform set_config('static_cuts.batch_id', '', true);
-  perform sc_begin_batch('tidy', 'Numbered titles: track number removed');
-  update tracks t set title = p.clean from _p p where p.orig_id is null and t.id = p.copy_id and p.clean <> '';
   perform set_config('static_cuts.batch_id', '', true);
 end $$;

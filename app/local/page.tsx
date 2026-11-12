@@ -182,7 +182,7 @@ export default function LocalCutsPage() {
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: s.title ?? "" })), p_artist_id: null,
       });
       if (!error) {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
@@ -190,10 +190,26 @@ export default function LocalCutsPage() {
           const r = rows[j];
           if (s.sure || !s.artist || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
-          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(matchTitle(s.title)); }
+          if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
       }
       setDone(Math.min(i + 200, read.length));
+    }
+    // File names often carry the track number or producer ("2.safehouse
+    // (prod.whitearmor&yung sherman)"): files that didn't match as they are
+    // get one more try without them.
+    const numbered = read.filter((s) => !s.sure && s.artist && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
+    for (let i = 0; i < numbered.length; i += 200) {
+      const batch = numbered.slice(i, i + 200);
+      const { data, error } = await supabase.rpc("rpc_match_my_songs", {
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
+      });
+      if (error) break;
+      const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
+      batch.forEach((s, j) => {
+        const r = rows[j];
+        if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) { s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true; }
+      });
     }
 
     // 3. Claude looks at the ones that didn't match cleanly (premium).
