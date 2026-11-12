@@ -25,18 +25,61 @@ function Bar({ have, total }: { have: number; total: number }) {
   return <span className="lcm-bar" aria-hidden><span style={{ width: `${Math.max(have ? 2 : 0, pct(have, total))}%` }} /></span>;
 }
 
+const LOOSE = "Singles & loose songs";
+const SMALL = 4; // eras with fewer songs than this are folded into "Singles & loose songs"
+type Only = "all" | "unreleased" | "released";
+const keep = (only: Only) => (g: Gap) => only === "all" || (only === "released" ? g.status === "released" : g.status !== "released");
+
+function EraRow({ e, gaps, premium, openAll }: { e: Era; gaps: Gap[]; premium: boolean; openAll: boolean }) {
+  const [open, setOpen] = useState(false);
+  const done = e.have >= e.total;
+  const show = open || openAll;
+  return (
+    <div className={`lcm-era2${done ? " done" : ""}${show ? " open" : ""}`}>
+      <button className="lcm-era2-head" onClick={() => setOpen(!open)} disabled={done || !premium} aria-expanded={show}>
+        <span className="lcm-era2-name">{e.era}</span>
+        <span className="lcm-era2-bar"><Bar have={e.have} total={e.total} /></span>
+        <span className="lcm-era2-n">{done ? "complete" : `${e.have}/${e.total}`}</span>
+        {!done && premium && <span className="lcm-era2-miss">{gaps.length ? `${gaps.length} missing` : "none here"} {show ? "▴" : "▾"}</span>}
+      </button>
+      {show && !done && premium && gaps.length > 0 && (
+        <ul className="lcm-list">
+          {gaps.map((g) => {
+            const [label, colour] = STATUS[g.status] ?? [g.status, "#9CA3AF"];
+            return (
+              <li key={g.id}>
+                <Link href={`/song/${g.id}`} className="lcm-song" target="_blank">{g.title}</Link>
+                <span className="lcm-tag" style={{ color: colour, borderColor: colour }}>{label}</span>
+                {g.day && <span className="lcm-day">{g.day.slice(0, 4)}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
   const [open, setOpen] = useState(false);
-  const [only, setOnly] = useState<"all" | "unreleased" | "released">("all");
-  const [era, setEra] = useState<string | null>(null);
-  const eras = r.eras.filter((e) => e.total > 0);
-  const gaps = (r.missing ?? []).filter((g) =>
-    (only === "all" || (only === "released" ? g.status === "released" : g.status !== "released")) && (!era || g.era === era));
-  const byEra = useMemo(() => {
+  const [only, setOnly] = useState<Only>("all");
+  const [hideDone, setHideDone] = useState(true);
+  const [openAll, setOpenAll] = useState(false);
+
+  // Real eras / projects, oldest first; small ones folded into one "loose" group.
+  const { eras, eraOf } = useMemo(() => {
+    const big = r.eras.filter((e) => e.total >= SMALL && e.era !== LOOSE);
+    const bigSet = new Set(big.map((e) => e.era));
+    const loose = r.eras.filter((e) => !bigSet.has(e.era)).reduce((a, e) => ({ era: LOOSE, have: a.have + e.have, total: a.total + e.total }), { era: LOOSE, have: 0, total: 0 });
+    return { eras: [...big, ...(loose.total ? [loose] : [])], eraOf: (g: Gap) => (bigSet.has(g.era) ? g.era : LOOSE) };
+  }, [r.eras]);
+  const gapsBy = useMemo(() => {
     const m = new Map<string, Gap[]>();
-    for (const g of gaps) { const l = m.get(g.era) ?? []; l.push(g); m.set(g.era, l); }
-    return [...m.entries()];
-  }, [gaps]);
+    for (const g of (r.missing ?? []).filter(keep(only))) { const k = eraOf(g); m.set(k, [...(m.get(k) ?? []), g]); }
+    return m;
+  }, [r.missing, only, eraOf]);
+  const shown = eras.filter((e) => !(hideDone && e.have >= e.total));
+  const doneN = eras.filter((e) => e.have >= e.total).length;
   const missingCount = r.total - r.have;
 
   return (
@@ -46,58 +89,34 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
         {r.photo ? <img src={thumb(r.photo)} alt="" className="lcm-photo" /> : <span className="lcm-photo blank">SC//</span>}
         <span className="lcm-who">
           <b>{r.artist}</b>
-          <small>{r.have.toLocaleString("en-GB")} of {r.total.toLocaleString("en-GB")} songs · {pct(r.have, r.total)}%</small>
+          <small>{r.have.toLocaleString("en-GB")} of {r.total.toLocaleString("en-GB")} songs · {pct(r.have, r.total)}% · {doneN} of {eras.length} eras complete</small>
           <Bar have={r.have} total={r.total} />
         </span>
         <span className="lcm-more">{open ? "Hide" : missingCount ? `${missingCount.toLocaleString("en-GB")} missing` : "Complete!"}</span>
       </button>
       {open && (
         <div className="lcm-body">
-          <div className="lcm-eras">
-            {eras.map((e) => (
-              <button key={e.era} className={`lcm-era${era === e.era ? " on" : ""}${e.have === e.total ? " full" : ""}`}
-                onClick={() => setEra(era === e.era ? null : e.era)} disabled={!premium} title={premium ? "Show only this era" : undefined}>
-                <span className="lcm-era-name">{e.era}</span>
-                <span className="lcm-era-n">{e.have}/{e.total}</span>
-                <Bar have={e.have} total={e.total} />
-              </button>
+          <div className="lcm-filters">
+            {premium && ([["all", "Everything"], ["unreleased", "Leaks & snippets"], ["released", "Released"]] as const).map(([k, label]) => (
+              <button key={k} aria-pressed={only === k} className={`tab${only === k ? " active" : ""}`} onClick={() => setOnly(k)}>{label}</button>
             ))}
+            <label className="lcm-toggle"><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide complete eras ({doneN})</label>
+            {premium && <button className="text-link" onClick={() => setOpenAll(!openAll)}>{openAll ? "Close all" : "Open all"}</button>}
+            {premium && (r.missing?.length ?? 0) > 0 && (
+              <button className="text-link" onClick={() => saveCsv(`static-cuts-missing-${fileSafe(r.artist)}.csv`, [
+                ["Title", "Status", "Era / album", "Date", "Page"],
+                ...(r.missing ?? []).map((g) => [g.title, g.status, g.era, g.day, `https://static-cuts.com/song/${g.id}`]),
+              ])}>Download list (CSV)</button>
+            )}
           </div>
-          {!premium ? (
-            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> The list of songs you&apos;re missing is premium. <Link href="/premium" className="text-link">Get premium</Link></p>
-          ) : (
-            <>
-              <div className="lcm-filters" role="radiogroup" aria-label="Which songs">
-                {([["all", "Everything"], ["unreleased", "Leaks & snippets"], ["released", "Released"]] as const).map(([k, label]) => (
-                  <button key={k} role="radio" aria-checked={only === k} className={`tab${only === k ? " active" : ""}`} onClick={() => setOnly(k)}>{label}</button>
-                ))}
-                {era && <button className="text-link" onClick={() => setEra(null)}>Show every era</button>}
-                <button className="text-link" onClick={() => saveCsv(`static-cuts-missing-${fileSafe(r.artist)}.csv`, [
-                  ["Title", "Status", "Era / album", "Date", "Page"],
-                  ...(r.missing ?? []).map((g) => [g.title, g.status, g.era, g.day, `https://static-cuts.com/song/${g.id}`]),
-                ])}>Download list (CSV)</button>
-              </div>
-              {byEra.length === 0 && <p className="lc-small">Nothing missing here.</p>}
-              {byEra.map(([name, list]) => (
-                <div key={name} className="lcm-group">
-                  <div className="lcm-group-h">{name} <small>{list.length} missing</small></div>
-                  <ul className="lcm-list">
-                    {list.map((g) => {
-                      const [label, colour] = STATUS[g.status] ?? [g.status, "#9CA3AF"];
-                      return (
-                        <li key={g.id}>
-                          <Link href={`/song/${g.id}`} className="lcm-song" target="_blank">{g.title}</Link>
-                          <span className="lcm-tag" style={{ color: colour, borderColor: colour }}>{label}</span>
-                          {g.day && <span className="lcm-day">{g.day.slice(0, 4)}</span>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-              {(r.missing?.length ?? 0) >= 400 && <p className="lc-small">Showing the first 400. See the rest on the <Link href={`/artist/${r.artist_id}`} className="text-link">artist page</Link>.</p>}
-            </>
+          <div className="lcm-eras2">
+            {shown.map((e) => <EraRow key={e.era} e={e} gaps={gapsBy.get(e.era) ?? []} premium={premium} openAll={openAll} />)}
+            {shown.length === 0 && <p className="lc-small">Every era complete. Nice.</p>}
+          </div>
+          {!premium && (
+            <p className="lc-small"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span> Opening an era to see the songs you&apos;re missing is premium. <Link href="/premium" className="text-link">Get premium</Link></p>
           )}
+          {(r.missing?.length ?? 0) >= 400 && <p className="lc-small">Lists show up to 400 missing songs. See the rest on the <Link href={`/artist/${r.artist_id}`} className="text-link">artist page</Link>.</p>}
         </div>
       )}
     </div>

@@ -42,3 +42,22 @@
 .lb-missing { width: 100%; background: none; font: inherit; text-align: left; cursor: pointer; }
 /* My Library: Watching */
 .lb-watch-row img, .lb-watch-blank { width: 40px; height: 40px; object-fit: cover; flex: none; background: var(--surface); border-radius: 4px; }
+/* era list (v2) */
+.lcm-toggle { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); cursor: pointer; }
+.lcm-eras2 { display: flex; flex-direction: column; border: 1px solid var(--hair-strong); border-radius: 6px; overflow: hidden; }
+.lcm-era2 + .lcm-era2 { border-top: 1px solid var(--hair); }
+.lcm-era2-head { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) auto auto; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 8px 12px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lcm-era2-head:disabled { cursor: default; }
+.lcm-era2-head:not(:disabled):hover { background: color-mix(in srgb, var(--bone) 4%, transparent); }
+.lcm-era2-name { font-weight: 700; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lcm-era2-n, .lcm-era2-miss { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); white-space: nowrap; }
+.lcm-era2-miss { color: #F5B841; }
+.lcm-era2.done .lcm-era2-name { color: var(--smoke); font-weight: 400; }
+.lcm-era2.done .lcm-era2-n { color: #22C55E; }
+.lcm-era2.open { background: color-mix(in srgb, var(--void) 60%, transparent); }
+.lcm-era2 .lcm-list { padding: 0 12px 10px 24px; }
+@media (max-width: 600px) {
+  .lcm-era2-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .lcm-era2-bar { grid-column: 1 / -1; grid-row: 2; }
+  .lcm-era2-miss { grid-column: 2; }
+}
