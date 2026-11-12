@@ -10,7 +10,7 @@ import { ImageResponse } from "next/og";
 import type { ReactElement, ReactNode } from "react";
 import { SOCIAL_SIZE, SOCIAL_SLIDES, type SocialFormat } from "@/lib/social";
 import { supabase } from "@/lib/supabase";
-import { Frame, Tag, Spacer, ACCENT, RED, GREEN, CYAN, MONO, POSTER, glitch, niceDate, tidy, clip, safeImage, slideOptions } from "@/lib/slides";
+import { Frame, Tag, Spacer, innerWidth, ACCENT, RED, GREEN, CYAN, MONO, POSTER, glitch, niceDate, tidy, clip, safeImage, slideOptions } from "@/lib/slides";
 
 type Fmt = SocialFormat;
 const SIZE = SOCIAL_SIZE;
@@ -79,7 +79,7 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
       <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgWidth={h + 200} bgHeight={h} w={w} h={h}>
         <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
           {cover(620)}
-          <div style={{ display: "flex", marginLeft: 52 }}>{words(w - 128 - 620 - 52, 104)}</div>
+          <div style={{ display: "flex", marginLeft: 52 }}>{words(innerWidth(f, w) - 620 - 52, 104)}</div>
         </div>
       </Frame>
     );
@@ -87,10 +87,10 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
   const tt = f === "tt";
   return (
     <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={w} w={w} h={h}>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 90 : 30 }}>{cover(tt ? 760 : 560)}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 30 }}>{cover(tt ? 600 : 560)}</div>
       <Spacer />
-      {words(w - 128, tt ? 140 : 110)}
-      <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: tt ? 200 : 26 }}>
+      {words(innerWidth(f, w), tt ? 120 : 110)}
+      <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: 26 }}>
         EVERY VERSION &gt;&gt; STATIC-CUTS.COM
       </div>
     </Frame>
@@ -128,7 +128,7 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
     </div>
   );
   if (f === "x") {
-    const col = Math.floor((w - 128 - 2 * 36) / 3);
+    const col = Math.floor((innerWidth(f, w) - 2 * 36) / 3);
     return (
       <Frame file="ON_THIS_DAY" page={date} w={w} h={h}>
         <div style={{ display: "flex", marginTop: 8 }}>{head(72)}</div>
@@ -146,21 +146,21 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
     );
   }
   const tt = f === "tt";
-  const size = tt ? 320 : 230;
+  const size = tt ? 250 : 230;
   return (
     <Frame file="ON_THIS_DAY" page={date} w={w} h={h}>
-      <div style={{ display: "flex", marginTop: tt ? 90 : 24 }}>{head(tt ? 150 : 120)}</div>
-      <div style={{ display: "flex", flexDirection: "column", marginTop: tt ? 56 : 34 }}>
+      <div style={{ display: "flex", marginTop: 24 }}>{head(tt ? 130 : 120)}</div>
+      <div style={{ display: "flex", flexDirection: "column", marginTop: tt ? 44 : 34 }}>
         {songs.map((s, i) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 32 : 20) : 0, padding: tt ? 20 : 16,
+          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 26 : 20) : 0, padding: 16,
             background: "rgba(14,14,14,0.9)", border: "2px solid #3A3A3A", borderLeft: `8px solid ${i % 2 ? ACCENT : CYAN}` }}>
             {art(s, size)}
-            <div style={{ display: "flex", marginLeft: 26 }}>{facts(s, w - 128 - size - 26 - (tt ? 40 : 32) - 10, tt ? 64 : 56)}</div>
+            <div style={{ display: "flex", marginLeft: 26 }}>{facts(s, innerWidth(f, w) - size - 26 - 32 - 10, tt ? 60 : 56)}</div>
           </div>
         ))}
       </div>
       <Spacer />
-      {foot && <div style={{ display: "flex", marginBottom: tt ? 200 : 22 }}>{foot}</div>}
+      {foot && <div style={{ display: "flex", marginBottom: 22 }}>{foot}</div>}
     </Frame>
   );
 }
@@ -168,9 +168,9 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
 function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h: number }) {
   const wc = `W/C ${niceDate(a.week_start, false).toUpperCase()}`;
   const songs = (a.highlights ?? []).map(tidy).filter(Boolean);
-  const tail = f === "tt" ? 220 : 26;
+  const tail = 26;
   if (f === "x") {
-    const tw = w - 128 - 660 - 48;
+    const tw = innerWidth(f, w) - 660 - 48;
     return (
       <Frame file="ALBUM_OF_THE_WEEK" page={wc} bg={a.cover} fade={0.16} w={w} h={h}>
         <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
@@ -203,17 +203,17 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
           <Tag color={ACCENT}>ALBUM OF THE WEEK</Tag>
           <div style={{ display: "flex", marginLeft: 12 }}><Tag color="#EDEDED" solid={false}>{wc}</Tag></div>
         </div>
-        <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(a.title, 176, w - 128), lineHeight: 0.92, textTransform: "uppercase", ...glitch(6) }}>{a.title}</div>
+        <div style={{ display: "flex", fontFamily: POSTER, fontSize: titleSize(a.title, 176, innerWidth(f, w)), lineHeight: 0.92, textTransform: "uppercase", ...glitch(6) }}>{a.title}</div>
         <div style={{ display: "flex", fontFamily: MONO, fontWeight: 700, fontSize: 32, color: ACCENT, marginTop: 14 }}>{a.artist.toUpperCase()}{a.year ? ` // ${a.year}` : ""}</div>
         {blurb && <div style={{ display: "flex", fontSize: blurb.length > 240 ? 22 : 24, lineHeight: 1.45, marginTop: 18, color: "#D6D6D6" }}>{blurb}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 18, marginBottom: tail }}>INSIDE THE VAULT &gt;&gt;</div>
       </Frame>
     );
   }
-  const shown = songs.slice(0, f === "tt" ? 7 : 5);
+  const shown = songs.slice(0, f === "tt" ? 6 : 5);
   return (
     <Frame file={`VAULT/${a.artist.toUpperCase().replace(/\s+/g, "_")}`} page="02/02" bg={a.cover} fade={0.5} w={w} h={h}>
-      <div style={{ display: "flex", marginTop: f === "tt" ? 140 : 40 }}><Tag color={RED}>INSIDE THE VAULT</Tag></div>
+      <div style={{ display: "flex", marginTop: 40 }}><Tag color={RED}>INSIDE THE VAULT</Tag></div>
       <div style={{ display: "flex", fontFamily: POSTER, fontSize: 280, lineHeight: 0.86, color: ACCENT, marginTop: 18, ...glitch(8) }}>{n0(a.unreleased)}</div>
       <div style={{ display: "flex", fontFamily: POSTER, fontSize: 84, lineHeight: 0.95, ...glitch(4) }}>UNRELEASED SONGS</div>
       <div style={{ display: "flex", fontSize: 26, color: "#BDBDBD", marginTop: 10 }}>from the {a.title} era</div>
@@ -293,7 +293,7 @@ async function withAvatars(people: Contributor[] | undefined) {
 async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; w: number; h: number }): Promise<ReactNode> {
   const month = new Date(`${m.month}T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase();
   const file = `ROUNDUP/${month.replace(" ", "_")}`;
-  const tail = f === "tt" ? 220 : 26;
+  const tail = 26;
   const people = n === 1 ? await withAvatars(m.contributors) : [];
   if (f === "x") {
     const top = await withCovers(m.leaked ?? [], 3);
@@ -320,10 +320,10 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
   if (n === 1) {
     return (
       <Frame file={file} page="01/03" w={w} h={h}>
-        <div style={{ display: "flex", flexDirection: "column", marginTop: f === "tt" ? 160 : 40 }}>
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 40 }}>
           <div style={{ display: "flex" }}><Tag color={ACCENT}>MONTHLY ROUNDUP</Tag></div>
           <div style={{ display: "flex", fontFamily: POSTER, fontSize: 150, lineHeight: 0.9, marginTop: 18, ...glitch(6) }}>{month}</div>
-          <Stat n={m.added} label="UNRELEASED SONGS FILED" color="#EDEDED" size={f === "tt" ? 200 : 170} />
+          <Stat n={m.added} label="UNRELEASED SONGS FILED" color="#EDEDED" size={170} />
           <div style={{ display: "flex" }}>
             <div style={{ display: "flex", marginRight: 64 }}><Stat n={m.leaked_n} label="LEAKS" color={RED} /></div>
             <Stat n={m.released_n} label="RELEASES" color={GREEN} />
@@ -341,7 +341,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
   const color = leaks ? RED : GREEN;
   return (
     <Frame file={file} page={`0${n}/03`} w={w} h={h}>
-      <div style={{ display: "flex", flexDirection: "column", marginTop: f === "tt" ? 160 : 40 }}>
+      <div style={{ display: "flex", flexDirection: "column", marginTop: 40 }}>
         <div style={{ display: "flex" }}><Tag color={color}>{leaks ? "LEAKED" : "OUT"} IN {month}</Tag></div>
         <div style={{ display: "flex", fontFamily: POSTER, fontSize: 120, lineHeight: 0.9, marginTop: 18, marginBottom: 28, ...glitch(5) }}>{leaks ? "BIGGEST LEAKS" : "BIGGEST RELEASES"}</div>
         {list.length === 0 && <div style={{ display: "flex", fontSize: 30, color: "#8A8A8A" }}>Nothing this month.</div>}
