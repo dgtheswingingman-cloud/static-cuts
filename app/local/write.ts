@@ -67,11 +67,43 @@ function id3v23(t: NewTags) {
   return concat([enc.encode("ID3"), new Uint8Array([3, 0, 0]), size, padded]);
 }
 
+// The picture already in an MP3's tag (ID3v2.3 / 2.4), so a tidied copy
+// with no new cover keeps the file's own art instead of losing it.
+async function oldMp3Cover(file: Blob, head: Uint8Array, start: number): Promise<{ mime: string; data: Uint8Array } | null> {
+  const v = head[3];
+  if (v !== 3 && v !== 4) return null;
+  const tag = new Uint8Array(await file.slice(10, start).arrayBuffer());
+  const syncsafe = (b: Uint8Array, i: number) => (b[i] << 21) | (b[i + 1] << 14) | (b[i + 2] << 7) | b[i + 3];
+  let i = head[5] & 0x40 ? 4 + (v === 4 ? syncsafe(tag, 0) - 4 : (tag[0] << 24 | tag[1] << 16 | tag[2] << 8 | tag[3])) : 0;
+  while (i + 10 <= tag.length) {
+    const id = latin1(tag.subarray(i, i + 4));
+    if (!/^[A-Z0-9]{4}$/.test(id)) break;
+    const size = v === 4 ? syncsafe(tag, i + 4) : ((tag[i + 4] << 24) | (tag[i + 5] << 16) | (tag[i + 6] << 8) | tag[i + 7]) >>> 0;
+    if (size <= 0 || i + 10 + size > tag.length) break;
+    if (id === "APIC") {
+      const b = tag.subarray(i + 10, i + 10 + size);
+      const enc0 = b[0];
+      let j = 1;
+      while (j < b.length && b[j] !== 0) j++;
+      const mime = latin1(b.subarray(1, j)) || "image/jpeg";
+      j += 2; // end of mime, picture type
+      if (enc0 === 1 || enc0 === 2) { while (j + 1 < b.length && !(b[j] === 0 && b[j + 1] === 0)) j += 2; j += 2; }
+      else { while (j < b.length && b[j] !== 0) j++; j += 1; }
+      if (j < b.length) return { mime: mime.includes("/") ? mime : `image/${mime.toLowerCase() === "png" ? "png" : "jpeg"}`, data: b.slice(j) };
+    }
+    i += 10 + size;
+  }
+  return null;
+}
+
 async function writeMp3(file: Blob, t: NewTags) {
   const head = new Uint8Array(await file.slice(0, 10).arrayBuffer());
   let start = 0;
   if (latin1(head.subarray(0, 3)) === "ID3") {
     start = 10 + ((head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9]) + (head[5] & 0x10 ? 10 : 0);
+    if (!t.cover) {
+      try { const c = await oldMp3Cover(file, head, start); if (c) t = { ...t, cover: c }; } catch { /* no picture then */ }
+    }
   }
   let end = file.size;
   if (file.size > 128) {
