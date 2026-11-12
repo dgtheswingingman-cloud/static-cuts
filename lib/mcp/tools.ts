@@ -253,8 +253,8 @@ export const TOOLS: Tool[] = [
     name: "suggest_details",
     title: "Fill in a song's missing details",
     description:
-      "For a song already on Static-Cuts: suggests details it's missing (album, release date, producers, featured " +
-      "artists, track number). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
+      "For a song already on Static-Cuts: suggests details it's missing (album or era, release date, leak date for " +
+      "leaks, producers, featured artists, track number). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
       "set replace = true and say in notes what is wrong and why; corrections always wait for a person to review. " +
       "Give the page that shows the details as source_url. track_ids come from get_catalogue_backlog, " +
       "get_artist_songs, get_songs_needing_links and the research plan. Album art comes automatically from the " +
@@ -265,6 +265,7 @@ export const TOOLS: Tool[] = [
         track_id: { type: "string" },
         album: { type: "string", description: "Album, EP or single name." },
         release_date: { type: "string", description: "YYYY-MM-DD, only when you know the exact day." },
+        leak_date: { type: "string", description: "Leaks only: YYYY-MM-DD the song leaked, only when a source shows the day." },
         producers: { type: "string", description: "Comma-separated." },
         featured_artists: { type: "string", description: "Comma-separated, not the main artist." },
         track_number: { type: "integer", minimum: 1, maximum: 200 },

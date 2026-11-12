@@ -4,7 +4,9 @@
 // on their songs (unconfirmed imports, covers, leak and release dates,
 // albums / eras), so it's clear when each one is ready to promote. Tap a
 // number for the songs behind it, open them to fix, or copy the list for
-// ChatGPT. Admins can add or take artists off the list.
+// ChatGPT. Unconfirmed songs can be ticked and marked released / leaked /
+// snippet, or removed if they aren't real songs (quietly, undoable).
+// Admins can add or take artists off the list.
 
 import "../../styles/launch.css";
 import { useEffect, useState } from "react";
@@ -36,12 +38,29 @@ const ASK: Record<Kind, string> = {
 };
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 100);
 
-function Gaps({ h, kind, onClose }: { h: Health; kind: Kind; onClose: () => void }) {
+function Gaps({ h, kind, onClose, onChanged }: { h: Health; kind: Kind; onClose: () => void; onChanged: () => void }) {
   const [list, setList] = useState<Gap[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const triage = kind === "unconfirmed";
+  async function act(action: "released" | "leaked" | "snippet" | "remove") {
+    const ids = [...picked];
+    if (!ids.length) return;
+    if (action === "remove" && !window.confirm(`Remove ${ids.length} entr${ids.length === 1 ? "y" : "ies"} that aren't real songs? (Undoable from the undo history.)`)) return;
+    setBusy(true); setErr(null);
+    const { data, error } = await supabase.rpc("admin_launch_triage", { p_ids: ids, p_action: action });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setDone(`${data ?? 0} ${action === "remove" ? "removed" : `marked ${action}`}.`);
+    setList((l) => (l ?? []).filter((g) => !picked.has(g.id)));
+    setPicked(new Set());
+    onChanged();
+  }
   useEffect(() => {
-    setList(null); setErr(null);
+    setList(null); setErr(null); setPicked(new Set()); setDone(null);
     supabase.rpc("admin_launch_gaps", { p_artist: h.artist_id, p_kind: kind, p_limit: 500 }).then(({ data, error }) => {
       if (error) setErr(error.message); else setList((data as Gap[]) ?? []);
     });
@@ -64,12 +83,26 @@ function Gaps({ h, kind, onClose }: { h: Health; kind: Kind; onClose: () => void
         </span>
       </div>
       {err && <ModNotice kind="error">{err}</ModNotice>}
+      {done && <ModNotice kind="done" onClose={() => setDone(null)}>{done}</ModNotice>}
+      {triage && list && list.length > 0 && (
+        <div className="lh-triage">
+          <label className="lh-all"><input type="checkbox" checked={picked.size === list.length}
+            onChange={(e) => setPicked(e.target.checked ? new Set(list.map((g) => g.id)) : new Set())} /> All</label>
+          <span className="lh-small">{picked.size} ticked:</span>
+          {(["released", "leaked", "snippet"] as const).map((a) => (
+            <button key={a} className="tab" disabled={busy || !picked.size} onClick={() => act(a)}>Mark {a}</button>
+          ))}
+          <button className="tab lh-remove" disabled={busy || !picked.size} onClick={() => act("remove")}>Not a real song</button>
+        </div>
+      )}
       {!list && !err && <ModLoading what="songs" />}
       {list && list.length === 0 && <ModEmpty>Nothing left here.</ModEmpty>}
       {list && list.length > 0 && (
         <ul className="lh-list">
           {list.map((g) => (
             <li key={g.id}>
+              {triage && <input type="checkbox" checked={picked.has(g.id)} aria-label={`Tick ${g.title}`}
+                onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(g.id); else n.delete(g.id); return n; })} />}
               <Link href={`/song/${g.id}`} target="_blank" className="lh-song">{g.title}</Link>
               <span className="lh-meta">{g.status}{g.album ? ` · ${g.album}` : ""}{g.code ? ` · ${g.code}` : ""}</span>
             </li>
@@ -162,7 +195,7 @@ export default function LaunchPage() {
                       <span className="lh-bar"><span style={{ width: `${pct(r.clean, r.songs)}%` }} /></span>
                     </span>
                   </div>
-                  {open?.artist === r.artist_id && <Gaps h={r} kind={open.kind} onClose={() => setOpen(null)} />}
+                  {open?.artist === r.artist_id && <Gaps h={r} kind={open.kind} onClose={() => setOpen(null)} onChanged={load} />}
                 </div>
               );
             })}
