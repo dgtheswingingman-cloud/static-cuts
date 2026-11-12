@@ -263,7 +263,10 @@ export default function SongView({ id }: { id: string }) {
   else if (t.album) info.push(["Album", t.album]);
 
   if (t.track_number) info.push(["Track number", String(t.track_number)]);
-  if (t.release_date) info.push(["Release date", formatDate(t.release_date)]);
+  // A release date only means something for a song that came out (or is
+  // announced to): a leak's date is its leak date.
+  const relDate = t.release_date && ["released", "removed", "announced"].includes(statusOf(t)) ? t.release_date : null;
+  if (relDate) info.push([statusOf(t) === "announced" ? "Coming out" : "Release date", formatDate(relDate)]);
   if (t.leak_date) info.push(["Leaked", formatDate(t.leak_date)]);
   if (t.length_sec) info.push(["Length", `${Math.floor(t.length_sec / 60)}:${String(t.length_sec % 60).padStart(2, "0")}`]);
   if (t.producers) {
@@ -342,7 +345,7 @@ export default function SongView({ id }: { id: string }) {
   // timeline adds the moments fans add (snippets, shows, interviews…).
   const timeline: AutoEvent[] = [
     ...(t.leak_date ? [{ at: t.leak_date, kind: "leak" as const, text: <>Leaked</> }] : []),
-    ...(t.release_date ? [{ at: t.release_date, kind: "release" as const, text: <>Released{t.album ? <> on {t.album}</> : null}</> }] : []),
+    ...(relDate && statusOf(t) !== "announced" ? [{ at: relDate, kind: "release" as const, text: <>Released{t.album ? <> on {t.album}</> : null}</> }] : []),
     ...song.history.map((h) => ({
       at: h.at, site: true,
       text: h.from ? <>marked {h.from} → <strong>{h.to}</strong></> : <>added as <strong>{h.to}</strong></>,
