@@ -243,9 +243,12 @@ export default function LocalCutsPage() {
     // The archive's details for every matched song.
     const ids = [...new Set(read.filter((s) => s.track_id).map((s) => s.track_id!))];
     for (let i = 0; i < ids.length; i += 200) {
-      const { data } = await supabase.from("tracks")
-        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, credited_as, artists(name)")
+      // artists!artist_id: songs also link to artists through "appears on",
+      // so the main artist has to be named or the whole query fails.
+      const { data, error } = await supabase.from("tracks")
+        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, credited_as, artists!artist_id(name)")
         .in("id", ids.slice(i, i + 200));
+      if (error) setNote(`Couldn't load the archive's details for your matched songs (${error.message}), so they're filed as they are. Try again in a minute.`);
       type Row = Omit<Site, "artist" | "status" | "parent_album" | "parent_cover"> & { release_status: string | null; parent_track_id: string | null; artists: { name: string } | null };
       const rows = (data as Row[] | null) ?? [];
       const parents = [...new Set(rows.map((r) => r.parent_track_id).filter(Boolean))] as string[];
