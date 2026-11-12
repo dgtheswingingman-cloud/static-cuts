@@ -5,7 +5,10 @@
 // albums / eras), so it's clear when each one is ready to promote. Tap a
 // number for the songs behind it, open them to fix, or copy the list for
 // ChatGPT. Unconfirmed songs can be ticked and marked released / leaked /
-// snippet, or removed if they aren't real songs (quietly, undoable).
+// snippet, or removed if they aren't real songs (quietly, undoable). Ones
+// that look like a copy of another song by the artist (same title, a typo,
+// or the other's name in brackets) say so, with a button to merge them in
+// (undoable from the undo history).
 // Admins can add or take artists off the list.
 
 import "../../styles/launch.css";
@@ -20,7 +23,9 @@ import { ModPage, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
 type Kind = "unconfirmed" | "cover" | "leak_date" | "release_date" | "album";
 type Health = { artist_id: string; artist: string; photo: string | null; songs: number; clean: number } & Record<Kind, number>;
-type Gap = { id: string; title: string; status: string; album: string | null; release_date: string | null; leak_date: string | null; code: string | null };
+type Twin = { id: string; title: string; status: string; why: "same" | "spell" | "alt" };
+type Gap = { id: string; title: string; status: string; album: string | null; release_date: string | null; leak_date: string | null; code: string | null; twin?: Twin | null };
+const WHY: Record<Twin["why"], string> = { same: "same title", spell: "spelled differently", alt: "other name for it" };
 
 const KINDS: [Kind, string, string][] = [
   ["unconfirmed", "Unconfirmed", "Imports with no status yet: released, leaked, or not a real song?"],
@@ -45,7 +50,33 @@ function Gaps({ h, kind, onClose, onChanged }: { h: Health; kind: Kind; onClose:
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [copiesOnly, setCopiesOnly] = useState(false);
   const triage = kind === "unconfirmed";
+  const copies = (list ?? []).filter((g) => g.twin);
+  const shown = copiesOnly ? copies : list;
+  // Merge each song into the one it looks like a copy of. Skips a pair whose
+  // other half was already merged away in this go.
+  async function merge(ids: string[]) {
+    const todo = (list ?? []).filter((g) => ids.includes(g.id) && g.twin);
+    if (!todo.length) return;
+    if (!window.confirm(todo.length === 1
+      ? `Merge "${todo[0].title}" into "${todo[0].twin!.title}"? (Undoable from the undo history.)`
+      : `Merge ${todo.length} songs into the songs they look like copies of? (Undoable from the undo history.)`)) return;
+    setBusy(true); setErr(null);
+    const gone = new Set<string>();
+    let n = 0;
+    for (const g of todo) {
+      if (gone.has(g.id) || gone.has(g.twin!.id)) continue;
+      const { error } = await supabase.rpc("admin_merge_duplicates", { p_survivor: g.twin!.id, p_duplicates: [g.id] });
+      if (error) { setErr(error.message); break; }
+      gone.add(g.id); n++;
+    }
+    setBusy(false);
+    setDone(`${n} merged.`);
+    setList((l) => (l ?? []).filter((g) => !gone.has(g.id)).map((g) => (g.twin && gone.has(g.twin.id) ? { ...g, twin: null } : g)));
+    setPicked(new Set());
+    onChanged();
+  }
   async function act(action: "released" | "leaked" | "snippet" | "remove") {
     const ids = [...picked];
     if (!ids.length) return;
@@ -61,7 +92,7 @@ function Gaps({ h, kind, onClose, onChanged }: { h: Health; kind: Kind; onClose:
   }
   useEffect(() => {
     setList(null); setErr(null); setPicked(new Set()); setDone(null);
-    supabase.rpc("admin_launch_gaps", { p_artist: h.artist_id, p_kind: kind, p_limit: 500 }).then(({ data, error }) => {
+    supabase.rpc("admin_launch_gaps", { p_artist: h.artist_id, p_kind: kind, p_limit: 1000 }).then(({ data, error }) => {
       if (error) setErr(error.message); else setList((data as Gap[]) ?? []);
     });
   }, [h.artist_id, kind]);
@@ -84,32 +115,50 @@ function Gaps({ h, kind, onClose, onChanged }: { h: Health; kind: Kind; onClose:
       </div>
       {err && <ModNotice kind="error">{err}</ModNotice>}
       {done && <ModNotice kind="done" onClose={() => setDone(null)}>{done}</ModNotice>}
-      {triage && list && list.length > 0 && (
+      {triage && list && list.length > 0 && copies.length > 0 && (
         <div className="lh-triage">
-          <label className="lh-all"><input type="checkbox" checked={picked.size === list.length}
-            onChange={(e) => setPicked(e.target.checked ? new Set(list.map((g) => g.id)) : new Set())} /> All</label>
+          <span className="lh-small">{copies.length} look like copies of other songs.</span>
+          <button className={`tab${copiesOnly ? " active" : ""}`} onClick={() => { setCopiesOnly(!copiesOnly); setPicked(new Set()); }}>
+            {copiesOnly ? "Show all" : "Only copies"}
+          </button>
+        </div>
+      )}
+      {triage && shown && shown.length > 0 && (
+        <div className="lh-triage">
+          <label className="lh-all"><input type="checkbox" checked={picked.size === shown.length}
+            onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((g) => g.id)) : new Set())} /> All</label>
           <span className="lh-small">{picked.size} ticked:</span>
           {(["released", "leaked", "snippet"] as const).map((a) => (
             <button key={a} className="tab" disabled={busy || !picked.size} onClick={() => act(a)}>Mark {a}</button>
           ))}
           <button className="tab lh-remove" disabled={busy || !picked.size} onClick={() => act("remove")}>Not a real song</button>
+          {copies.some((g) => picked.has(g.id)) && (
+            <button className="tab" disabled={busy} onClick={() => merge([...picked])}>Merge ticked copies</button>
+          )}
         </div>
       )}
       {!list && !err && <ModLoading what="songs" />}
       {list && list.length === 0 && <ModEmpty>Nothing left here.</ModEmpty>}
-      {list && list.length > 0 && (
+      {shown && shown.length > 0 && (
         <ul className="lh-list">
-          {list.map((g) => (
-            <li key={g.id}>
+          {shown.map((g) => (
+            <li key={g.id} className={g.twin ? "lh-has-twin" : undefined}>
               {triage && <input type="checkbox" checked={picked.has(g.id)} aria-label={`Tick ${g.title}`}
                 onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(g.id); else n.delete(g.id); return n; })} />}
               <Link href={`/song/${g.id}`} target="_blank" className="lh-song">{g.title}</Link>
               <span className="lh-meta">{g.status}{g.album ? ` · ${g.album}` : ""}{g.code ? ` · ${g.code}` : ""}</span>
+              {g.twin && (
+                <span className="lh-twin">
+                  Copy of <Link href={`/song/${g.twin.id}`} target="_blank">{g.twin.title}</Link>
+                  <small>{g.twin.status} · {WHY[g.twin.why]}</small>
+                  <button className="tab" disabled={busy} onClick={() => merge([g.id])}>Merge into it</button>
+                </span>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {list && list.length >= 500 && <p className="lh-small">Showing the first 500.</p>}
+      {list && list.length >= 1000 && <p className="lh-small">Showing the first 1,000.</p>}
     </div>
   );
 }

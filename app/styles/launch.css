@@ -39,3 +39,8 @@
 .lh-triage .lh-small { margin: 0; }
 .lh-all { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; }
 .lh-remove { border-color: #FF3355; color: #FF3355; }
+.lh-list li.lh-has-twin { flex-wrap: wrap; }
+.lh-twin { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-left: 22px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: #F5B841; }
+.lh-twin a { color: inherit; }
+.lh-twin small { color: var(--smoke); font-size: 0.68rem; }
+.lh-twin .tab { padding: 2px 8px; font-size: 0.7rem; }
