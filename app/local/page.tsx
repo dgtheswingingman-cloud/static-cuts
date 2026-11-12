@@ -47,6 +47,7 @@ type Song = {
   clean: Clean | null;          // Claude's tidy version, when it looked
   base_id?: string | null;      // a version the archive doesn't have: the song it's a version of
   folder_artist?: string | null; // nearest folder that's an artist on the site
+  folder_artist_id?: string | null;
   code: string | null;          // Static-Cuts code already in the file (from an earlier run)
 };
 type Site = {
@@ -59,6 +60,7 @@ type Site = {
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
 type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted";
+  byFolder?: boolean; // "claude" kind, but named from its artist folder
   code?: string | null }; // kept files: the code to add (nothing else changes)
 
 const plain = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
@@ -75,6 +77,9 @@ const matchTitle = (t: string | null) => (t ?? "")
   .replace(/^[^\p{L}\p{N}([]+/u, "") // tracker markers in front: ✨ ⭐ 🏆 🥇 🗑️
   .replace(/^\s*\d{1,2}\s*\.\s*(?=\p{L})/u, "")
   .replace(/\s*[([]\s*prod\b[^)\]]*[)\]]/gi, "")
+  .replace(/\s+(?:produced by|prod\.? by|prod\.)\s+.+$/i, "") // "you & me produced by horse head"
+  .replace(/\s*\(\d\)\s*$/, "") // the "(1)" a browser adds to a second download
+  .replace(/[\s☆★⭐✨🌟🏆🥇]+$/u, "") // tracker stars at the end: "G6 ☆☆☆☆☆"
   .replace(/\s{2,}/g, " ").trim();
 // The folders a file sits in, nearest first, not counting the top folder
 // that was picked: "Music/Playboi Carti/Die Lit/song.mp3" -> ["Die Lit",
@@ -203,13 +208,33 @@ export default function LocalCutsPage() {
     }
     // Files with no artist in their tags: which of their folders is an artist
     // on the site (one look-up for every folder name).
-    const names = [...new Set(read.flatMap((s) => foldersOf(s.file)))];
-    const isArtist = new Set<string>();
+    // Also checked in the same look-up: the tag artist, and the left side of
+    // titles like "Playboi Carti - Menage" (files whose artist tag is whoever
+    // uploaded them: "joshbeast", "HypeDucky", "Author").
+    const dash = /^(.+?)\s+[-–—]\s+(.+)$/;
+    const leftOf = (t: string | null) => { const m = (t ?? "").match(dash); return m ? [m[1].trim(), m[2].trim()] as const : null; };
+    const names = [...new Set(read.flatMap((s) => [...foldersOf(s.file), firstArtist(s.artist), ...(leftOf(s.title) ?? [])].filter((x): x is string => !!x)))];
+    const isArtist = new Map<string, string>();
     for (let i = 0; i < names.length; i += 300) {
-      const { data } = await supabase.rpc("rpc_match_my_songs", { p_items: names.slice(i, i + 300).map((n) => ({ artist: n, title: "" })), p_artist_id: null });
-      ((data as { artist_in: string; artist_id: string | null }[] | null) ?? []).forEach((r) => { if (r.artist_id) isArtist.add(r.artist_in); });
+      const { data, error } = await supabase.rpc("rpc_match_my_songs", { p_items: names.slice(i, i + 300).map((n) => ({ artist: n, title: "" })), p_artist_id: null });
+      if (error) setNote(`Some folders couldn't be checked against the archive (${error.message}). Run the folder again in a minute.`);
+      ((data as { artist_in: string; artist_id: string | null }[] | null) ?? []).forEach((r) => { if (r.artist_id) isArtist.set(r.artist_in, r.artist_id); });
     }
-    for (const s of read) s.folder_artist = foldersOf(s.file).find((n) => isArtist.has(n)) ?? null;
+    for (const s of read) {
+      s.folder_artist = foldersOf(s.file).find((n) => isArtist.has(n)) ?? null;
+      s.folder_artist_id = s.folder_artist ? isArtist.get(s.folder_artist) ?? null : null;
+      // "Playboi Carti - Menage" by "joshbeast": the artist is in the title.
+      // Not well formatted, whatever the tags say; matched as Carti's "Menage".
+      const lr = leftOf(s.title);
+      const tag = firstArtist(s.artist);
+      const free = (a: string) => !tag || !isArtist.has(tag) || tag.toLowerCase() === a.toLowerCase();
+      if (lr && isArtist.has(lr[0]) && free(lr[0])) {
+        s.artist = lr[0]; s.title = lr[1]; s.formatted = false;
+      } else if (lr && !isArtist.has(lr[0]) && isArtist.has(lr[1]) && free(lr[1])) {
+        // The other way round: "Scream - Black Flag".
+        s.artist = lr[1]; s.title = lr[0]; s.formatted = false;
+      }
+    }
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
@@ -381,7 +406,7 @@ export default function LocalCutsPage() {
     }
     // Songs that aren't on the site get their artist's photo as the cover
     // (the same fallback the site's own songs use).
-    const aids = [...new Set(read.filter((s) => !s.track_id && s.artist_id).map((s) => s.artist_id!))];
+    const aids = [...new Set(read.filter((s) => !s.track_id).flatMap((s) => [s.artist_id, s.folder_artist_id]).filter((x): x is string => !!x))];
     for (let i = 0; i < aids.length; i += 200) {
       const { data } = await supabase.from("artists").select("id, image_url").in("id", aids.slice(i, i + 200));
       ((data as { id: string; image_url: string | null }[] | null) ?? []).forEach((a) => { if (a.image_url) photos.current.set(a.id, a.image_url); });
@@ -532,6 +557,16 @@ export default function LocalCutsPage() {
         return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: s.details?.hasCover ? null : (s.artist_id && photos.current.get(s.artist_id)) || null,
           tags: { title: c.featuring && featStyle !== "none" && !/\b(feat|ft)\b\.?/i.test(title) ? `${title} (${featStyle} ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
       }
+      // Not found anywhere, but it sits in an artist's folder: filed under
+      // that artist as "Unreleased" with a tidied title and the artist's
+      // photo, instead of being left as it was.
+      const named = matchTitle(s.title) || matchTitle(s.file.name.replace(/\.[^.]+$/, "").replace(/_+/g, " "));
+      if (s.folder_artist && named && !s.formatted) {
+        const artist = s.folder_artist;
+        return { song: s, path: place(artist, "Unreleased", named, s.file), kind: "claude", byFolder: true,
+          coverUrl: s.details?.hasCover ? null : (s.folder_artist_id && photos.current.get(s.folder_artist_id)) || null,
+          tags: { title: named, artist, album: "Unreleased", albumArtist: artist, track: null, year: null } };
+      }
       return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
     });
   }
@@ -558,7 +593,7 @@ export default function LocalCutsPage() {
     const q = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
     const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was" };
     return new Blob([["original file,new file,what happened,title,artist,album",
-      ...plan.map((o) => [pathOf(o.song.file), o.path, what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
+      ...plan.map((o) => [pathOf(o.song.file), o.path, o.byFolder ? "not on the site: named from its artist folder" : what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
   }
 
   // Straight into a folder the person picks (no zip to build or unzip).
@@ -763,7 +798,7 @@ export default function LocalCutsPage() {
           <div className="lc-tiles">
             <div className="lc-tile" style={{ "--c": "#22C55E" } as React.CSSProperties}><span>Tidied from the archive</span><b>{count("tidied").toLocaleString("en-GB")}</b></div>
             <div className="lc-tile" style={{ "--c": "#22D3EE" } as React.CSSProperties}><span>Already well formatted</span><b>{count("kept").toLocaleString("en-GB")}</b></div>
-            <div className="lc-tile" style={{ "--c": "#8B7CF6" } as React.CSSProperties}><span>Not on the site (tidied by Claude)</span><b>{count("claude").toLocaleString("en-GB")}</b></div>
+            <div className="lc-tile" style={{ "--c": "#8B7CF6" } as React.CSSProperties}><span>Not on the site (tidied)</span><b>{count("claude").toLocaleString("en-GB")}</b></div>
             <div className="lc-tile" style={{ "--c": "#F5B841" } as React.CSSProperties}><span>Couldn&apos;t be identified</span><b>{unsorted.length.toLocaleString("en-GB")}</b></div>
           </div>
 
