@@ -3,8 +3,9 @@
 // Finds Spotify links for songs that don't have one. Run by a timer only
 // (every 5 minutes, at most 3 calls to Spotify each time):
 //   1. Artists with a Spotify profile: reads their releases (one call per
-//      page of releases, one per release) and matches every song on each
-//      release to the archive by title. Much cheaper than searching.
+//      page of releases, then up to 20 releases per call) and matches every
+//      song on each release to the archive by title. Much cheaper than
+//      searching.
 //   2. Any calls left over: searches song by song for artists with no
 //      Spotify profile, skipping songs that can't be out (leaks, snippets,
 //      rumours), followed artists first, taking turns between artists.
@@ -298,6 +299,40 @@ Deno.serve(async (req) => {
         if (res?.added) releases.imported += res.added;
         releases.listed += albums.length;
       } else {
+        // Up to 20 releases in one call (Spotify's /albums?ids=): 20x the
+        // releases for the same allowance. Long releases' extra pages are
+        // read on their own below.
+        const { data: batch } = await supabase.rpc("sc_spotify_albums_batch", { p_limit: 20 });
+        const list = ((batch ?? []) as { artist_id: string; spotify_artist_id: string; album_id: string }[]);
+        if (list.length > 1) {
+          const got = await spotifyGet(`https://api.spotify.com/v1/albums?ids=${list.map((x) => x.album_id).join(",")}&market=GB`, token);
+          if (got.status === 429) { rateLimited = true; break; }
+          if (!got.ok) break; // try again next run
+          const albums: any[] = got.body?.albums ?? [];
+          for (let k = 0; k < list.length; k++) {
+            const w = list[k];
+            const album = albums[k] ?? {};
+            const tracks: any[] = [...(album?.tracks?.items ?? [])];
+            let more: string | null = album?.tracks?.next ?? null;
+            while (more && more.startsWith("https://api.spotify.com/") && calls < MAX_CALLS + 2) {
+              if ((await spotifyTickets(1)) < 1) break;
+              await breather();
+              calls++;
+              const page = await spotifyGet(more, token);
+              if (!page.ok) break;
+              tracks.push(...(page.body.items ?? []));
+              more = page.body.next ?? null;
+            }
+            const { data: res } = await supabase.rpc("sc_spotify_album_save", {
+              p_artist: w.artist_id, p_album_id: w.album_id, p_items: album?.id ? releaseItems(album, tracks, String(w.spotify_artist_id)) : [],
+            });
+            releases.read++;
+            releases.matched += res?.matched ?? 0;
+            releases.linksChecked += res?.verified ?? 0;
+            if (res?.import?.added) releases.imported += res.import.added;
+          }
+          continue;
+        }
         const got = await spotifyGet(`https://api.spotify.com/v1/albums/${work.album_id}?market=GB`, token);
         if (got.status === 429) { rateLimited = true; break; }
         if (!got.ok && got.status !== 404) break; // try again next run
