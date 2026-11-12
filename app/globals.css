@@ -1858,6 +1858,9 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .user-badges { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; vertical-align: middle; }
 .user-badges.full { margin-left: 0; gap: 6px; flex-wrap: wrap; }
 .user-badges .supporter-badge { margin-left: 0; }
+.founder-badge { color: #F5B841; }
+.founder-badge.full { border-color: #F5B841; }
+.founder-badge .founder-n { font-size: 0.75em; margin-left: 1px; }
 .fan-tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono), monospace; font-weight: 700; font-size: 0.56rem; letter-spacing: 0.08em; line-height: 1; padding: 2px 4px; border: 1px solid var(--hair-strong); color: var(--bone); background: var(--surface2); cursor: pointer; white-space: nowrap; }
 .fan-tag:hover { border-color: var(--pf, #8B7CF6); color: var(--pf, #8B7CF6); }
 .fan-tag.big { font-size: 0.68rem; padding: 4px 8px; }

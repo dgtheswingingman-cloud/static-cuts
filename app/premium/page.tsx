@@ -15,6 +15,7 @@ const PERKS: [string, string, string][] = [
   ["Claude on the leftovers", "#8B7CF6", "Files that can't be matched by their tags get a second look from Claude, which works out what they are."],
   ["Premium profile", "#22D3EE", "A profile colour, a GIF avatar, up to 3 fan badges and a showcase of 6 pinned songs."],
   ["◆ Supporter badge", "#2BD67B", "Next to your name everywhere on the site. And you keep the archive running."],
+  ["Founder badge", "#F5B841", "The first 100 people to go premium get a numbered founder badge, kept for good, even if premium ends."],
 ];
 
 export default function PremiumPage() {
@@ -39,6 +40,7 @@ export default function PremiumPage() {
         <p className="if-p"><b>Can I cancel?</b> Any time, from “Manage or cancel” on this page. You keep premium until the end of what you&apos;ve paid for.</p>
         <p className="if-p"><b>Can I switch plans?</b> Yes, monthly to yearly or back, from the same place. Stripe works out the difference.</p>
         <p className="if-p"><b>Changed your mind?</b> Email hello@static-cuts.com within 14 days of first paying and you&apos;ll get a full refund. The full details are in <a href="/legal#premium" className="text-link">Premium &amp; payments</a>.</p>
+        <p className="if-p"><b>Can I earn it?</b> Yes. Each month&apos;s top 3 contributors get a free month of premium (or a month&apos;s credit if they already pay), announced in the monthly roundup. See the <a href="/contributors" className="text-link">leaderboard</a>.</p>
         <p className="if-p"><b>Who handles the payment?</b> Stripe. Your card details go to them, never to Static-Cuts//.</p>
         <p className="if-p if-dim">“Help the archive” in Local Cuts (matching your files and filling gaps) stays free for everyone.</p>
       </InfoSection>

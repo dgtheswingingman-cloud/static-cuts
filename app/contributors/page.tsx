@@ -66,7 +66,7 @@ export default function ContributorsPage() {
   return (
     <div className="wrap cb-page">
       <h1 className="ls-title cb-title">CONTRIBUTORS<span>//</span></h1>
-      <p className="sb-lead">Who&apos;s been building the archive.</p>
+      <p className="sb-lead">Who&apos;s been building the archive. Each month&apos;s top 3 get a free month of <a href="/premium" className="text-link">Premium</a>.</p>
 
       <nav className="st-seg cb-seg" aria-label="Period">
         <button className={period === "30" ? "on" : undefined} aria-pressed={period === "30"} onClick={() => setPeriod("30")}>Last 30 days</button>
