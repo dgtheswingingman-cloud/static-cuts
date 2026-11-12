@@ -30,7 +30,7 @@ export default function ExportArtist({ artistId, name }: { artistId: string; nam
     if (error) { setFailed(true); setTimeout(() => setFailed(false), 3000); return; }
     const rows = (data as R[]) ?? [];
     saveCsv(`static-cuts-${fileSafe(name)}-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["Title", "Version of", "Status", "Era / album", "Track", "Released", "Leaked", "Length", "Producers", "Featuring", "Spotify", "Apple Music", "Deezer", "Static-Cuts code", "Page"],
+      ["Title", "Version of", "Status", "Era / album", "Track", "Released", "Leaked", "Length", "Producers", "Featuring", "Main link", "Apple Music", "Deezer", "Static-Cuts code", "Page"],
       ...rows.map((r) => [r.title, r.version_of, r.status, r.era, r.track_number, r.release_date, r.leak_date, mmss(r.length_sec), r.producers, r.featured_artists,
         r.spotify_url, r.apple_url, r.deezer_url, r.code, r.url]),
     ]);
