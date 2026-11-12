@@ -28,6 +28,7 @@ import ImportPanel from "./ImportPanel";
 import TrackComments from "./TrackComments";
 import ArtistChangelog from "./ArtistChangelog";
 import ShareButton from "../../components/ShareButton";
+import { MyArtistCard } from "../../components/CollectionShare";
 import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import ArtistCollabs from "./ArtistCollabs";
@@ -1756,6 +1757,7 @@ export default function ArtistPage() {
                 Producer page →
               </Link>
             )}
+            <MyArtistCard artistId={id} name={artist.name} />
             <ShareButton title={`${artist.name} · Static-Cuts//`} path={`/artist/${id}`} className="tab sp-icon-btn" ariaLabel="Share" label={IconShare}
               fileName={`static-cuts-${id}`} storyKey={`${artist.name}:${tracks?.length ?? 0}`} story={async () => {
               const { data: a } = await supabase.from("artists").select("image_url").eq("id", id).maybeSingle();

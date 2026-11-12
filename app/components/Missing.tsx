@@ -15,11 +15,11 @@ import { saveCsv, fileSafe } from "@/lib/csv";
 import { collectionCard, collectionOverviewCard } from "./cards";
 import CardButton from "./CardButton";
 
-type Who = { id: string; name: string; avatar: string | null; accent: string | null };
+export type Who = { id: string; name: string; avatar: string | null; accent: string | null };
 
-type Era = { era: string; have: number; total: number; from?: number | null; to?: number | null; cover?: string | null };
+export type Era = { era: string; have: number; total: number; from?: number | null; to?: number | null; cover?: string | null };
 type Gap = { id: string; title: string; status: string; era: string; day: string | null };
-type Row = { artist_id: string; artist: string; photo: string | null; have: number; total: number; eras: Era[]; missing: Gap[] | null };
+export type Row = { artist_id: string; artist: string; photo: string | null; have: number; total: number; eras: Era[]; missing: Gap[] | null };
 
 const STATUS: Record<string, [string, string]> = {
   released: ["released", "#22C55E"], leaked: ["leaked", "#FF3355"], snippet: ["snippet", "#F5B841"],
@@ -37,6 +37,43 @@ const letter = (n: string) => { const c = sortName(n).charAt(0).toUpperCase(); r
 const SMALL = 4; // eras with fewer songs than this are folded into "Singles & loose songs"
 type Only = "all" | "unreleased" | "released";
 const keep = (only: Only) => (g: Gap) => only === "all" || (only === "released" ? g.status === "released" : g.status !== "released");
+
+// Real eras / projects; small ones folded into one "loose" group.
+export function foldEras(all: Era[]) {
+  const big = all.filter((e) => e.total >= SMALL && e.era !== LOOSE);
+  const bigSet = new Set(big.map((e) => e.era));
+  const small = all.filter((e) => !bigSet.has(e.era));
+  const years = small.flatMap((e) => [e.from, e.to]).filter((y): y is number => typeof y === "number");
+  const loose: Era = {
+    era: LOOSE, have: small.reduce((a, e) => a + e.have, 0), total: small.reduce((a, e) => a + e.total, 0),
+    from: years.length ? Math.min(...years) : null, to: years.length ? Math.max(...years) : null,
+    cover: small.find((e) => e.cover)?.cover ?? null,
+  };
+  return { eras: [...big, ...(loose.total ? [loose] : [])], eraOf: (g: { era: string }) => (bigSet.has(g.era) ? g.era : LOOSE) };
+}
+
+// Your name, picture and colour for the share cards.
+export function useWho() {
+  const [who, setWho] = useState<Who | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      const id = data.user?.id;
+      if (!id) return;
+      const { data: p } = await supabase.from("profiles").select("display_name, avatar_url, accent").eq("id", id).maybeSingle();
+      setWho({ id, name: p?.display_name ?? "A collector", avatar: p?.avatar_url ?? null, accent: p?.accent ?? null });
+    });
+  }, []);
+  return who;
+}
+
+// The card for one artist.
+export const artistCard = (r: Pick<Row, "artist_id" | "artist" | "photo" | "have" | "total" | "eras">, who: Who | null) =>
+  collectionCard({ artist: r.artist, photo: r.photo, have: r.have, total: r.total, eras: foldEras(r.eras).eras, who: who?.name ?? null, accent: who?.accent ?? null, url: `static-cuts.com/artist/${r.artist_id}` });
+
+// The card for the whole collection.
+export const overviewCard = (rows: Pick<Row, "artist" | "photo" | "have" | "total">[], who: Who) =>
+  collectionOverviewCard({ who: who.name, avatar: who.avatar, accent: who.accent, url: `static-cuts.com/profile/${who.id}`,
+    artists: rows.map((r) => ({ artist: r.artist, photo: r.photo, have: r.have, total: r.total })) });
 
 function EraRow({ e, gaps, premium, openAll }: { e: Era; gaps: Gap[]; premium: boolean; openAll: boolean }) {
   const [open, setOpen] = useState(false);
@@ -75,18 +112,7 @@ function ArtistCard({ r, premium, who }: { r: Row; premium: boolean; who: Who | 
   const [openAll, setOpenAll] = useState(false);
 
   // Real eras / projects; small ones folded into one "loose" group.
-  const { eras, eraOf } = useMemo(() => {
-    const big = r.eras.filter((e) => e.total >= SMALL && e.era !== LOOSE);
-    const bigSet = new Set(big.map((e) => e.era));
-    const small = r.eras.filter((e) => !bigSet.has(e.era));
-    const years = small.flatMap((e) => [e.from, e.to]).filter((y): y is number => typeof y === "number");
-    const loose: Era = {
-      era: LOOSE, have: small.reduce((a, e) => a + e.have, 0), total: small.reduce((a, e) => a + e.total, 0),
-      from: years.length ? Math.min(...years) : null, to: years.length ? Math.max(...years) : null,
-      cover: small.find((e) => e.cover)?.cover ?? null,
-    };
-    return { eras: [...big, ...(loose.total ? [loose] : [])], eraOf: (g: Gap) => (bigSet.has(g.era) ? g.era : LOOSE) };
-  }, [r.eras]);
+  const { eras, eraOf } = useMemo(() => foldEras(r.eras), [r.eras]);
   const gapsBy = useMemo(() => {
     const m = new Map<string, Gap[]>();
     for (const g of (r.missing ?? []).filter(keep(only))) { const k = eraOf(g); m.set(k, [...(m.get(k) ?? []), g]); }
@@ -118,7 +144,7 @@ function ArtistCard({ r, premium, who }: { r: Row; premium: boolean; who: Who | 
             ))}
             <CardButton className="tab" fileName={`static-cuts-${fileSafe(r.artist)}-collection`} title={`My ${r.artist} on Static-Cuts//`}
               makeKey={`${r.artist_id}:${r.have}:${r.total}:${who?.name ?? ""}`}
-              make={() => collectionCard({ artist: r.artist, photo: r.photo, have: r.have, total: r.total, eras, who: who?.name ?? null, accent: who?.accent ?? null, url: `static-cuts.com/artist/${r.artist_id}` })} />
+              make={() => artistCard(r, who)} />
             <label className="lcm-toggle"><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide complete eras ({doneN})</label>
             {premium && <button className="text-link" onClick={() => setOpenAll(!openAll)}>{openAll ? "Close all" : "Open all"}</button>}
             {premium && (r.missing?.length ?? 0) > 0 && (
@@ -157,17 +183,8 @@ export default function Missing({ trackIds, collection = false, refresh = 0, pre
 }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [who, setWho] = useState<Who | null>(null);
+  const who = useWho();
   const ids = trackIds ?? [];
-  // Your name, picture and colour for the share cards.
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      const id = data.user?.id;
-      if (!id) return;
-      const { data: p } = await supabase.from("profiles").select("display_name, avatar_url, accent").eq("id", id).maybeSingle();
-      setWho({ id, name: p?.display_name ?? "A collector", avatar: p?.avatar_url ?? null, accent: p?.accent ?? null });
-    });
-  }, []);
   const key = collection ? `collection:${refresh}` : ids.length + ":" + ids.slice(0, 5).join(",");
   useEffect(() => {
     if (!collection && !ids.length) { setRows([]); return; }
@@ -191,8 +208,7 @@ export default function Missing({ trackIds, collection = false, refresh = 0, pre
         {rows && rows.length > 0 && who && (
           <CardButton className="tab lcm-share-all" fileName="static-cuts-my-collection" title="My collection on Static-Cuts//"
             label="Share my collection//" makeKey={`${who.id}:${rows.length}:${rows.reduce((a, r) => a + r.have, 0)}`}
-            make={() => collectionOverviewCard({ who: who.name, avatar: who.avatar, accent: who.accent, url: `static-cuts.com/profile/${who.id}`,
-              artists: rows.map((r) => ({ artist: r.artist, photo: r.photo, have: r.have, total: r.total })) })} />
+            make={() => overviewCard(rows, who)} />
         )}
       </div>
       {rows === null && <p className="lc-small">Working it out…</p>}

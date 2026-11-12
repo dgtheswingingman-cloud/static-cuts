@@ -14,6 +14,7 @@ import HeroCollage from "../components/HeroCollage";
 import ExportCard from "./ExportCard";
 import { thumb } from "@/lib/thumb";
 import Missing from "../components/Missing";
+import { ShareMyCollection } from "../components/CollectionShare";
 import Watching from "./Watching";
 import { usePremium } from "../usePremium";
 
@@ -109,6 +110,7 @@ export default function LibraryPage() {
             <a href="#artists"><strong>{mine ? `${songsTotal ? Math.round((collectedTotal / songsTotal) * 100) : 0}%` : "…"}</strong><span>collected</span></a>
             <a href="#lists"><strong>{lists ? n0(lists.length) : "…"}</strong><span>lists</span></a>
           </div>
+          {collectedTotal > 0 && <div className="lb-share"><ShareMyCollection /></div>}
 
           <section id="artists">
             <div className="sp-head lb-head">
