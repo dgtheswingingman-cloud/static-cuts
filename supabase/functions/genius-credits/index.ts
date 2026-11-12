@@ -4,7 +4,7 @@
 // artwork fields from Genius, and saves samples / interpolations / remixes /
 // covers between songs, a few songs at a time (see 20261019190000_genius_credits.sql).
 // The timer runs every minute. Owner's pace setting (sc_genius_pace):
-//   normal: every 10 minutes, up to 15 songs, 1.5 seconds between requests
+//   normal: every 3 minutes, up to 15 songs, 1.5 seconds between requests
 //   max ("extreme"): every minute, three workers for up to 50 seconds, with
 //        the site paused for everyone else; ends after 3 hours or when
 //        every song has been checked (sc_genius_extreme_done)
@@ -87,8 +87,9 @@ Deno.serve(async (req) => {
 
   const { data: paceName } = await db.rpc("sc_genius_pace", { p_secret: secret });
   const paceKey = typeof paceName === "string" && PACES[paceName] ? paceName : "normal";
-  // Normal pace: every 10 minutes (at :06, :16, …).
-  if (paceKey === "normal" && new Date().getUTCMinutes() % 10 !== 6) return json({ ok: true, skipped: "normal pace" });
+  // Normal pace: every 3 minutes (every song gets checked, not just ones
+  // with gaps, so it needs the extra runs).
+  if (paceKey === "normal" && new Date().getUTCMinutes() % 3 !== 0) return json({ ok: true, skipped: "normal pace" });
   const pace = PACES[paceKey];
   gapMs = pace.gap;
   const started = Date.now();
