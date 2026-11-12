@@ -13,7 +13,8 @@ import "../styles/local.css";
 //      features, artist, album (or "Unreleased <year>"), year, track number,
 //      cover art, the song's Static-Cuts code (hidden; next time the file
 //      matches exactly, straight away), and a clean name
-//   5. one zip (Artist / Album folders), written straight to disk
+//   5. a tidy "Static-Cuts" folder (Artist / Album), written straight into a
+//      folder you pick (Chrome, Edge, Opera) or as one zip
 // Files kept as they are still get the song's code added (nothing else
 // changes). Originals are never touched. Saving the zip is premium; helping the
 // archive is free.
@@ -29,7 +30,7 @@ import { usePremium } from "../usePremium";
 import { readDuration, readTags } from "./tags";
 import { readCover, readDetails, type FileDetails } from "./details";
 import { canTag, makeZip, safeName, tidiedCopy, withCode, type NewTags } from "./write";
-import { pickZipFile, ZipToDisk } from "./zip";
+import { canPickFolder, pickFolder, pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
 import { thumb } from "@/lib/thumb";
 import Missing from "../components/Missing";
@@ -108,6 +109,9 @@ export default function LocalCutsPage() {
   const [sent, setSent] = useState<{ details: number; songs: number; covers: number; problem: string | null } | null>(null);
   const [claudeNote, setClaudeNote] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [folderOk, setFolderOk] = useState(false);
+  useEffect(() => { setFolderOk(canPickFolder()); }, []);
   const [collected, setCollected] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
   const site = useRef(new Map<string, Site>());
@@ -212,6 +216,27 @@ export default function LocalCutsPage() {
         skipped ? `${skipped} couldn't be checked this time` : null,
         stopped ? `stopped early: ${stopped}` : null,
       ].filter(Boolean).join("; ") + ".");
+    }
+    // Files Claude cleaned up (a proper artist and title from messy tags or a
+    // file name) get one more look in the archive with the clean names, so
+    // they're tidied with the archive's details, cover and code, not just
+    // Claude's guess. Only exact title matches count.
+    const cleaned = read.filter((s) => !s.sure && s.clean?.title && (s.clean.artist || s.artist));
+    const cleanTitle = (s: Song) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
+      ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
+    for (let i = 0; i < cleaned.length; i += 200) {
+      const batch = cleaned.slice(i, i + 200);
+      const { data, error } = await supabase.rpc("rpc_match_my_songs", {
+        p_items: batch.map((s) => ({ artist: s.clean!.artist || firstArtist(s.artist) || "", title: cleanTitle(s) })), p_artist_id: null,
+      });
+      if (error) break;
+      const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
+      batch.forEach((s, j) => {
+        const r = rows[j];
+        if (r?.track_id && tidyKey(r.title) === tidyKey(cleanTitle(s))) {
+          s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true;
+        }
+      });
     }
     for (const s of read) if (!s.sure) s.track_id = null;
 
@@ -392,12 +417,36 @@ export default function LocalCutsPage() {
       ...plan.map((o) => [o.song.file.webkitRelativePath || o.song.file.name, o.path, what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
   }
 
+  // Straight into a folder the person picks (no zip to build or unzip).
+  async function saveFolder() {
+    if (!premium || plan.length === 0) return;
+    const out = await pickFolder();
+    if (!out) return; // cancelled
+    step("saving", plan.length);
+    setFinishing(false);
+    const cache = new Map<string, NewTags["cover"]>();
+    let failed = 0;
+    try {
+      let n = 0;
+      await pool(plan, 4, async (o) => {
+        try { await out.add(`Static-Cuts/${o.path}`, await blobFor(o, cache)); } catch { failed++; }
+        setDone(++n);
+      });
+      await out.add("Static-Cuts/Static-Cuts changes.csv", changesCsv());
+      setSaved(`Saved ${plan.length - failed} songs into a "Static-Cuts" folder${failed ? ` (${failed} couldn't be read and were left out)` : ""}. Add that folder in Spotify: Settings → Your Library → Show Local Files → Add a source.`);
+    } catch (e) {
+      setSaved(`Saving stopped: ${String((e as Error)?.message ?? e)}. Your original files are fine; try again.`);
+    }
+    setStage("saved");
+  }
+
   async function saveZip() {
     if (!premium || plan.length === 0) return;
     const date = new Date().toISOString().slice(0, 10);
     const out = await pickZipFile(`Static-Cuts ${date}.zip`);
     if (out === null) return; // cancelled
     step("saving", plan.length);
+    setFinishing(false);
     const cache = new Map<string, NewTags["cover"]>();
     let failed = 0;
     try {
@@ -420,6 +469,7 @@ export default function LocalCutsPage() {
           setDone(i + 1);
         }
         await zip.add("Static-Cuts/Static-Cuts changes.csv", changesCsv());
+        setFinishing(true);
         await zip.finish();
       }
       setSaved(`Saved ${plan.length - failed} songs${failed ? ` (${failed} couldn't be read and were left out)` : ""}. Unzip it, then add the "Static-Cuts" folder in Spotify: Settings → Your Library → Show Local Files → Add a source.`);
@@ -549,7 +599,9 @@ export default function LocalCutsPage() {
             <span className="lc-count">{done.toLocaleString("en-GB")} <small>of</small> {total.toLocaleString("en-GB")}</span>
           </div>
           <div className="lc-bar"><span style={{ width: `${pct}%` }} /></div>
-          <p className="lc-small">{gb(size)} in all. Keep this tab open until it finishes.</p>
+          <p className="lc-small">{finishing
+            ? "Every song's written. Finishing the zip: your browser is moving it into place, which can take a few minutes for a big library. Keep this tab open."
+            : `${gb(size)} in all. Keep this tab open until it finishes.`}</p>
         </section>
       )}
 
@@ -596,9 +648,16 @@ export default function LocalCutsPage() {
           </section>
 
           <div className="lc-actions">
-            <button className="lc-save" disabled={!premium || busy} onClick={saveZip}>
-              {premium ? `Save tidy copy (${gb(size)})` : "Save tidy copy (premium)"}
-            </button>
+            {premium && folderOk ? (
+              <>
+                <button className="lc-save" disabled={busy} onClick={saveFolder}>Save tidy copy to a folder ({gb(size)})</button>
+                <button className="lc-second" disabled={busy} onClick={saveZip}>Save as a zip instead</button>
+              </>
+            ) : (
+              <button className="lc-save" disabled={!premium || busy} onClick={saveZip}>
+                {premium ? `Save tidy copy (${gb(size)})` : "Save tidy copy (premium)"}
+              </button>
+            )}
             {premium && songs.some((s) => s.track_id) && !collected && (
               <button className="lc-second" onClick={collectAll}>+ Add matched songs to my collection</button>
             )}
