@@ -4,6 +4,8 @@
 //   profileCard  a profile: picture, tagline, numbers, favourite artists
 //   year cards   Your year: intro, top artists, rarest finds, biggest find,
 //                numbers and an outro
+//   collection   how much of one artist you have, era by era, or your whole
+//                collection's top artists
 // Drawn in the browser; pictures from other sites need to allow it
 // (crossOrigin), and any that don't are just left out.
 
@@ -426,6 +428,105 @@ export async function yearOutro(d: YearData): Promise<Blob | null> {
   if (logo) { const w = 640, h = (logo.height / logo.width) * w; ctx.drawImage(logo, (W - w) / 2, 1530, w, h); }
   ctx.font = `38px ${f.mono}`;
   ctx.fillText("Make yours at static-cuts.com", W / 2, 1760);
+  return toBlob(c);
+}
+
+// ---------------------------------------------------------------- collection
+
+const GOLD = "#F5B841";
+
+// A thick progress bar with the numbers on it.
+function progress(ctx: Ctx, f: Fonts, x: number, y: number, w: number, h: number, have: number, total: number, accent: string) {
+  const p = total ? Math.min(1, have / total) : 0;
+  ctx.fillStyle = "rgba(237,237,237,0.12)"; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = p >= 1 ? GOLD : accent; ctx.fillRect(x, y, Math.max(p > 0 ? 4 : 0, w * p), h);
+  ctx.strokeStyle = "rgba(237,237,237,0.5)"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+  void f;
+}
+
+export type CollectionCardData = {
+  artist: string; photo?: string | null; have: number; total: number;
+  eras: { era: string; have: number; total: number }[];
+  who?: string | null; accent?: string | null; url: string;
+};
+
+export async function collectionCard(d: CollectionCardData): Promise<Blob | null> {
+  const accent = d.accent ?? "#8B7CF6";
+  const { c, ctx, f, logo } = await setup(accent);
+  header(ctx, logo, f, accent);
+  heading(ctx, f, `My ${d.artist}`, 70, 360, 130, accent);
+  if (d.who) { ctx.fillStyle = SMOKE; ctx.font = `34px ${f.mono}`; ctx.textAlign = "left"; ctx.fillText(wrap(ctx, `${d.who}'s collection`, W - 140, 1)[0] ?? "", 70, 420); }
+  // Photo and the big number.
+  const img = await loadImage(d.photo);
+  cover(ctx, img, 70, 480, 300, 300, true, accent, 8);
+  ctx.textAlign = "left"; ctx.fillStyle = BONE;
+  const big = d.have.toLocaleString("en-GB");
+  ctx.font = `${fitText(ctx, big, (sz) => `${sz}px ${f.display}`, W - 480, 230, 110)}px ${f.display}`;
+  ctx.fillText(big, 410, 680);
+  ctx.font = `700 40px ${f.mono}`; ctx.fillStyle = SMOKE;
+  ctx.fillText(`/ ${d.total.toLocaleString("en-GB")} SONGS`, 414, 750);
+  const pc = d.total ? Math.floor((d.have / d.total) * 100) : 0;
+  progress(ctx, f, 70, 840, W - 140, 56, d.have, d.total, accent);
+  ctx.fillStyle = BONE; ctx.font = `700 40px ${f.mono}`; ctx.textAlign = "right";
+  ctx.fillText(d.have >= d.total ? "COMPLETE//" : `${pc}%`, W - 70, 950);
+  ctx.textAlign = "left"; ctx.fillStyle = SMOKE; ctx.font = `32px ${f.mono}`;
+  const doneN = d.eras.filter((e) => e.have >= e.total).length;
+  ctx.fillText(`${doneN} of ${d.eras.length} eras complete`, 70, 950);
+  line(ctx, 1000);
+  // The biggest eras, each with its own bar.
+  // Real eras first (biggest first), the "loose songs" group only if there's room.
+  const loose = (e: { era: string }) => /^singles & loose songs$/i.test(e.era);
+  const eras = [...d.eras.filter((e) => !loose(e)).sort((a, b) => b.total - a.total), ...d.eras.filter(loose)].slice(0, 7);
+  heading(ctx, f, "Eras", 70, 1090, 64, accent);
+  eras.forEach((e, i) => {
+    const y = 1140 + i * 88;
+    ctx.fillStyle = BONE; ctx.font = `34px ${f.mono}`; ctx.textAlign = "left";
+    ctx.fillText(wrap(ctx, e.era, 470, 1)[0] ?? "", 70, y + 36);
+    progress(ctx, f, 570, y + 10, 270, 30, e.have, e.total, accent);
+    ctx.textAlign = "right"; ctx.font = `700 30px ${f.mono}`;
+    ctx.fillStyle = e.have >= e.total ? GOLD : BONE;
+    ctx.fillText(e.have >= e.total ? "DONE" : `${e.have}/${e.total}`, W - 70, y + 36);
+  });
+  ctx.textAlign = "left";
+  footer(ctx, logo, f, d.url);
+  return toBlob(c);
+}
+
+export type CollectionOverviewData = {
+  who: string; avatar?: string | null; accent?: string | null; url: string;
+  artists: { artist: string; photo: string | null; have: number; total: number }[];
+};
+
+export async function collectionOverviewCard(d: CollectionOverviewData): Promise<Blob | null> {
+  const accent = d.accent ?? "#8B7CF6";
+  const { c, ctx, f, logo } = await setup(accent);
+  header(ctx, logo, f, accent);
+  heading(ctx, f, "My collection", 70, 360, 130, accent);
+  const av = await loadImage(d.avatar);
+  cover(ctx, av, 70, 420, 200, 200, true, accent, 6);
+  ctx.textAlign = "left"; ctx.fillStyle = BONE;
+  ctx.font = `${fitText(ctx, d.who, (sz) => `${sz}px ${f.display}`, W - 380, 72, 40)}px ${f.display}`;
+  ctx.fillText(d.who, 300, 510);
+  const songs = d.artists.reduce((a, x) => a + x.have, 0);
+  ctx.font = `34px ${f.mono}`; ctx.fillStyle = SMOKE;
+  ctx.fillText(`${songs.toLocaleString("en-GB")} songs · ${d.artists.length} artists`, 300, 570);
+  line(ctx, 680);
+  const top = [...d.artists].sort((a, b) => b.have - a.have).slice(0, 7);
+  const imgs = await Promise.all(top.map((a) => loadImage(a.photo)));
+  top.forEach((a, i) => {
+    const y = 730 + i * 145;
+    cover(ctx, imgs[i], 70, y, 110, 110, true, BONE, 3);
+    ctx.textAlign = "left"; ctx.fillStyle = BONE; ctx.font = `700 38px ${f.mono}`;
+    ctx.fillText(wrap(ctx, a.artist, 560, 1)[0] ?? "", 210, y + 44);
+    progress(ctx, f, 210, y + 66, 560, 28, a.have, a.total, accent);
+    ctx.textAlign = "right"; ctx.font = `700 34px ${f.mono}`;
+    ctx.fillStyle = a.have >= a.total ? GOLD : BONE;
+    ctx.fillText(`${a.have}/${a.total}`, W - 70, y + 44);
+    ctx.fillStyle = SMOKE; ctx.font = `30px ${f.mono}`;
+    ctx.fillText(a.have >= a.total ? "complete" : `${a.total ? Math.floor((a.have / a.total) * 100) : 0}%`, W - 70, y + 92);
+  });
+  ctx.textAlign = "left";
+  footer(ctx, logo, f, d.url);
   return toBlob(c);
 }
 

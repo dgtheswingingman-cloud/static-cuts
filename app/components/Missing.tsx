@@ -4,6 +4,7 @@
 // (released songs, leaks and snippets), era by era, and which songs you don't
 // have. From a Local Cuts folder (trackIds) or your collection (Spotify,
 // Exportify and file imports). Counts for everyone; the lists are premium.
+// Share cards (one artist, or the whole collection) are for everyone.
 
 import "../styles/missing.css";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -11,6 +12,10 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { thumb } from "@/lib/thumb";
 import { saveCsv, fileSafe } from "@/lib/csv";
+import { collectionCard, collectionOverviewCard } from "./cards";
+import CardButton from "./CardButton";
+
+type Who = { id: string; name: string; avatar: string | null; accent: string | null };
 
 type Era = { era: string; have: number; total: number };
 type Gap = { id: string; title: string; status: string; era: string; day: string | null };
@@ -63,7 +68,7 @@ function EraRow({ e, gaps, premium, openAll }: { e: Era; gaps: Gap[]; premium: b
   );
 }
 
-function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
+function ArtistCard({ r, premium, who }: { r: Row; premium: boolean; who: Who | null }) {
   const [open, setOpen] = useState(false);
   const [only, setOnly] = useState<Only>("all");
   const [hideDone, setHideDone] = useState(true);
@@ -105,6 +110,9 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
             {premium && ([["all", "Everything"], ["unreleased", "Leaks & snippets"], ["released", "Released"]] as const).map(([k, label]) => (
               <button key={k} aria-pressed={only === k} className={`tab${only === k ? " active" : ""}`} onClick={() => setOnly(k)}>{label}</button>
             ))}
+            <CardButton className="tab" fileName={`static-cuts-${fileSafe(r.artist)}-collection`} title={`My ${r.artist} on Static-Cuts//`}
+              makeKey={`${r.artist_id}:${r.have}:${r.total}:${who?.name ?? ""}`}
+              make={() => collectionCard({ artist: r.artist, photo: r.photo, have: r.have, total: r.total, eras, who: who?.name ?? null, accent: who?.accent ?? null, url: `static-cuts.com/artist/${r.artist_id}` })} />
             <label className="lcm-toggle"><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide complete eras ({doneN})</label>
             {premium && <button className="text-link" onClick={() => setOpenAll(!openAll)}>{openAll ? "Close all" : "Open all"}</button>}
             {premium && (r.missing?.length ?? 0) > 0 && (
@@ -143,7 +151,17 @@ export default function Missing({ trackIds, collection = false, refresh = 0, pre
 }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [who, setWho] = useState<Who | null>(null);
   const ids = trackIds ?? [];
+  // Your name, picture and colour for the share cards.
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      const id = data.user?.id;
+      if (!id) return;
+      const { data: p } = await supabase.from("profiles").select("display_name, avatar_url, accent").eq("id", id).maybeSingle();
+      setWho({ id, name: p?.display_name ?? "A collector", avatar: p?.avatar_url ?? null, accent: p?.accent ?? null });
+    });
+  }, []);
   const key = collection ? `collection:${refresh}` : ids.length + ":" + ids.slice(0, 5).join(",");
   useEffect(() => {
     if (!collection && !ids.length) { setRows([]); return; }
@@ -164,11 +182,17 @@ export default function Missing({ trackIds, collection = false, refresh = 0, pre
       <div className="lc-box-head">
         <h2 className="lc-h in">What you&apos;re missing</h2>
         <span className="lc-small">{intro ?? "Every artist you have 3+ songs of: released songs, leaks and snippets on the site, era by era."}</span>
+        {rows && rows.length > 0 && who && (
+          <CardButton className="tab lcm-share-all" fileName="static-cuts-my-collection" title="My collection on Static-Cuts//"
+            label="Share my collection//" makeKey={`${who.id}:${rows.length}:${rows.reduce((a, r) => a + r.have, 0)}`}
+            make={() => collectionOverviewCard({ who: who.name, avatar: who.avatar, accent: who.accent, url: `static-cuts.com/profile/${who.id}`,
+              artists: rows.map((r) => ({ artist: r.artist, photo: r.photo, have: r.have, total: r.total })) })} />
+        )}
       </div>
       {rows === null && <p className="lc-small">Working it out…</p>}
       {err && <p className="lc-small">Couldn&apos;t work it out: {err}</p>}
       <div className="lcm-cards">
-        {(rows ?? []).map((r) => <ArtistCard key={r.artist_id} r={r} premium={premium} />)}
+        {(rows ?? []).map((r) => <ArtistCard key={r.artist_id} r={r} premium={premium} who={who} />)}
       </div>
     </section>
   );
