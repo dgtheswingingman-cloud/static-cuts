@@ -32,6 +32,7 @@ import Completeness from "./Completeness";
 import ArtistAbout from "./ArtistAbout";
 import ArtistCollabs from "./ArtistCollabs";
 import ArtistEras from "./ArtistEras";
+import AlertFilters from "./AlertFilters";
 import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
@@ -1743,6 +1744,7 @@ export default function ArtistPage() {
                         <strong>{followAlert === v ? "✓ " : ""}{label}</strong><span>{sub}</span>
                       </button>
                     ))}
+                    {followAlert === "instant" && user && <AlertFilters artistId={id} userId={user.id} />}
                   </div>
                 )}
               </div>

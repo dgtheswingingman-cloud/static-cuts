@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import HeroCollage from "../../components/HeroCollage";
+import ProducerAlert from "./ProducerAlert";
 import { accentCss, deepCss, swatch, type Rgb } from "@/lib/swatch";
 import { thumb } from "@/lib/thumb";
 
@@ -178,11 +179,10 @@ export default function ProducerPage() {
         </div>
       </header>
 
-      {self && (
-        <div className="artist-actions ah2-actions">
-          <Link href={`/artist/${self.id}`} className="tab">Artist page →</Link>
-        </div>
-      )}
+      <div className="artist-actions ah2-actions">
+        <ProducerAlert name={name} />
+        {self && <Link href={`/artist/${self.id}`} className="tab">Artist page →</Link>}
+      </div>
 
       <nav className="ap-tabs" aria-label="Producer sections">
         {([["overview", "Overview"], ["songs", "Produced"], ["artists", "Artists"],
