@@ -112,7 +112,7 @@ export default function LaunchPage() {
   }
 
   if (authLoading) return <ModPage title="LAUNCH CLEAN-UP"><ModLoading /></ModPage>;
-  if (!canModerate) return <NoAccess />;
+  if (!canModerate) return <NoAccess loading={authLoading} who="moderators" />;
 
   const total = (rows ?? []).reduce((a, r) => a + r.songs, 0);
   const clean = (rows ?? []).reduce((a, r) => a + r.clean, 0);
