@@ -46,6 +46,7 @@ type Song = {
   track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
   clean: Clean | null;          // Claude's tidy version, when it looked
   base_id?: string | null;      // a version the archive doesn't have: the song it's a version of
+  folder_artist?: string | null; // nearest folder that's an artist on the site (tags have none)
   code: string | null;          // Static-Cuts code already in the file (from an earlier run)
 };
 type Site = {
@@ -75,11 +76,15 @@ const matchTitle = (t: string | null) => (t ?? "")
   .replace(/^\s*\d{1,2}\s*\.\s*(?=\p{L})/u, "")
   .replace(/\s*[([]\s*prod\b[^)\]]*[)\]]/gi, "")
   .replace(/\s{2,}/g, " ").trim();
-// The folder a file sits in ("Music/Playboi Carti/song.mp3" -> "Playboi
-// Carti"): the artist, when the file's own tags don't say. Not the top folder.
-const folderOf = (f: File) => {
-  const parts = (f.webkitRelativePath || "").split("/");
-  return parts.length >= 3 ? parts[parts.length - 2].trim() || null : null;
+// The folders a file sits in, nearest first, not counting the top folder
+// that was picked: "Music/Playboi Carti/Die Lit/song.mp3" -> ["Die Lit",
+// "Playboi Carti"]. The nearest one that's an artist on the site stands in
+// for the artist when the file's tags don't say. Generic names never count,
+// even if an artist with that name turns up later.
+const GENERIC_FOLDER = /^(music|my music|songs?|downloads?|desktop|documents|new folder.*|untitled.*|misc.*|z-?misc|other|old|new|temp|tmp|backup.*|playlists?|local files|spotify|itunes|apple music|phone|ipod|mp3s?|flac|wav|m4a|audio|leaks?|leaked|unreleased|released|snippets?|singles?|albums?|eps?|mixtapes?|demos?|features?|feats?|remix(es)?|instrumentals?|live|bootlegs?|collection|archive|library|rap|hip ?hop|trap|rock|pop|r&b|various( artists)?|unknown( artist)?|va|compilations?|(19|20)\d\d(s)?)$/i;
+const foldersOf = (f: File) => {
+  const parts = (f.webkitRelativePath || "").split("/").slice(1, -1).map((p) => p.trim()).filter(Boolean);
+  return parts.reverse().filter((p) => !GENERIC_FOLDER.test(p));
 };
 // Claude's clean title with its version in the archive's style: "Song [V2]".
 const cleanTitle = (s: { clean: Clean | null }) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
@@ -187,19 +192,28 @@ export default function LocalCutsPage() {
       const byCode = new Map(((data as { track_id: string; code: string }[] | null) ?? []).map((r) => [r.code, r.track_id]));
       part.forEach((s) => { const id = byCode.get(s.code!); if (id) { s.track_id = id; s.sure = true; } });
     }
+    // Files with no artist in their tags: which of their folders is an artist
+    // on the site (one look-up for every folder name).
+    const names = [...new Set(read.filter((s) => !s.artist).flatMap((s) => foldersOf(s.file)))];
+    const isArtist = new Set<string>();
+    for (let i = 0; i < names.length; i += 300) {
+      const { data } = await supabase.rpc("rpc_match_my_songs", { p_items: names.slice(i, i + 300).map((n) => ({ artist: n, title: "" })), p_artist_id: null });
+      ((data as { artist_in: string; artist_id: string | null }[] | null) ?? []).forEach((r) => { if (r.artist_id) isArtist.add(r.artist_in); });
+    }
+    for (const s of read) if (!s.artist) s.folder_artist = foldersOf(s.file).find((n) => isArtist.has(n)) ?? null;
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? folderOf(s.file) ?? "", title: s.title ?? "" })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? s.folder_artist ?? "", title: s.title ?? "" })), p_artist_id: null,
       });
       if (!error) {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
         batch.forEach((s, j) => {
           const r = rows[j];
-          if (s.sure || !(s.artist || folderOf(s.file)) || !r) return; // matched by its code already
+          if (s.sure || !(s.artist || s.folder_artist) || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
           // No artist in the tags, but the folder's name is an artist on the site.
-          if (!s.artist && r.artist_id) s.artist = folderOf(s.file);
+          if (!s.artist && r.artist_id) s.artist = s.folder_artist;
           if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
       }
@@ -208,11 +222,11 @@ export default function LocalCutsPage() {
     // File names often carry the track number or producer ("2.safehouse
     // (prod.whitearmor&yung sherman)"): files that didn't match as they are
     // get one more try without them.
-    const numbered = read.filter((s) => !s.sure && (s.artist || folderOf(s.file)) && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
+    const numbered = read.filter((s) => !s.sure && (s.artist || s.folder_artist) && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
     for (let i = 0; i < numbered.length; i += 200) {
       const batch = numbered.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? folderOf(s.file) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? s.folder_artist ?? "", title: matchTitle(s.title) })), p_artist_id: null,
       });
       if (error) break;
       const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
@@ -220,7 +234,7 @@ export default function LocalCutsPage() {
         const r = rows[j];
         if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) {
           s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true;
-          if (!s.artist && r.artist_id) s.artist = folderOf(s.file);
+          if (!s.artist && r.artist_id) s.artist = s.folder_artist;
         }
       });
     }
@@ -235,7 +249,7 @@ export default function LocalCutsPage() {
       await pool(batches, 3, async (b) => {
         if (stopped) return;
         const { data, error } = await supabase.functions.invoke("local-ai", {
-          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: folderOf(s.file) ? `${folderOf(s.file)}/${s.file.name}` : s.file.name, length: s.duration })) },
+          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: (s.file.webkitRelativePath || "").split("/").slice(1).join("/") || s.file.name, length: s.duration })) },
         });
         if (error) {
           let msg = error.message, status = 0;
