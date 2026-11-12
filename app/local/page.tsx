@@ -45,6 +45,7 @@ type Song = {
   formatted: boolean;           // title, artist and cover in the file already
   track_id: string | null; artist_id: string | null; sure: boolean; guess: boolean; why: string | null;
   clean: Clean | null;          // Claude's tidy version, when it looked
+  base_id?: string | null;      // a version the archive doesn't have: the song it's a version of
   code: string | null;          // Static-Cuts code already in the file (from an earlier run)
 };
 type Site = {
@@ -60,6 +61,13 @@ type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | 
   code?: string | null }; // kept files: the code to add (nothing else changes)
 
 const plain = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
+// The song a version belongs to: "Off The Grid [12.07.20 Ye Voc]" and
+// "Mr. Miyagi (V24)" -> "Off The Grid", "Mr. Miyagi". Features stay out of it.
+const baseTitle = (t: string) => {
+  let b = t.replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b.*$/i, "").trim();
+  for (let i = 0; i < 3; i++) b = b.replace(/\s*[([][^()[\]]*[)\]]\s*$/, "").trim();
+  return b;
+};
 // Claude's clean title with its version in the archive's style: "Song [V2]".
 const cleanTitle = (s: { clean: Clean | null }) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
   ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
@@ -244,8 +252,30 @@ export default function LocalCutsPage() {
     }
     for (const s of read) if (!s.sure) s.track_id = null;
 
+    // Versions the archive doesn't have, of songs it does ("We Did It Kid
+    // [REF 2_15_24]" when it knows "We Did It Kid"): find the song, so the
+    // file is filed under its era with its cover, keeping its own title.
+    const loose = read.filter((s) => !s.track_id && !s.formatted).map((s) => {
+      const title = s.clean?.title ? cleanTitle(s) : s.title;
+      const artist = s.clean?.artist || firstArtist(s.artist);
+      const base = title ? baseTitle(title) : "";
+      return { s, artist, base, ok: !!artist && !!base && base.toLowerCase() !== (title ?? "").toLowerCase() };
+    }).filter((x) => x.ok);
+    for (let i = 0; i < loose.length; i += 200) {
+      const batch = loose.slice(i, i + 200);
+      const { data, error } = await supabase.rpc("rpc_match_my_songs", {
+        p_items: batch.map((x) => ({ artist: x.artist, title: x.base })), p_artist_id: null,
+      });
+      if (error) break;
+      const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
+      batch.forEach((x, j) => {
+        const r = rows[j];
+        if (r?.track_id && tidyKey(r.title) === tidyKey(x.base)) { x.s.base_id = r.track_id; x.s.artist_id = x.s.artist_id ?? r.artist_id; }
+      });
+    }
+
     // The archive's details for every matched song.
-    const ids = [...new Set(read.filter((s) => s.track_id).map((s) => s.track_id!))];
+    const ids = [...new Set(read.flatMap((s) => [s.track_id, s.base_id]).filter((x): x is string => !!x))];
     for (let i = 0; i < ids.length; i += 200) {
       // artists!artist_id: songs also link to artists through "appears on",
       // so the main artist has to be named or the whole query fails.
@@ -299,11 +329,12 @@ export default function LocalCutsPage() {
     // on the site, a clean title and version) and that the archive doesn't
     // have: suggested as new songs / versions too. They go to Import review,
     // which skips anything the archive already has.
-    const worked = read.filter((s) => !s.formatted && !s.track_id && s.artist_id && s.clean?.title);
+    // Versions of a song the archive knows (found by its name) count too.
+    const worked = read.filter((s) => !s.formatted && !s.track_id && s.artist_id && (s.clean?.title || (s.base_id && s.fromTags && s.title)));
     const extra = worked.map((s) => ({
-      artist_id: s.artist_id, title: cleanTitle(s), status: s.clean!.status ?? null,
-      featuring: s.clean!.featuring ?? null, producers: s.clean!.producers ?? null, length_sec: s.duration,
-      notes: ["From a listener's file, identified by Claude.", s.clean!.note].filter(Boolean).join(" "),
+      artist_id: s.artist_id, title: s.clean?.title ? cleanTitle(s) : s.title, status: s.clean?.status ?? null,
+      featuring: s.clean?.featuring ?? null, producers: s.clean?.producers ?? null, length_sec: s.duration,
+      notes: [s.clean ? "From a listener's file, identified by Claude." : "From a listener's file.", s.clean?.note].filter(Boolean).join(" "),
     }));
     if (formatted.length === 0 && extra.length === 0) { setSent({ details: 0, songs: 0, covers: 0, problem: null }); return; }
     step("archive", formatted.length);
@@ -403,6 +434,20 @@ export default function LocalCutsPage() {
         return {
           song: s, path: place(t.artist, album, title, s.file), kind: "tidied", coverUrl: t.display_cover ?? t.cover_url ?? t.parent_cover,
           tags: { title, artist, album, albumArtist: t.artist, track: t.track_number ? String(t.track_number) : null, year, code: t.code ?? null },
+        };
+      }
+      const b = s.base_id ? site.current.get(s.base_id) : undefined;
+      if (b) {
+        // A version the archive doesn't have: its own title, the song's era,
+        // artist and cover (no code: that belongs to the song, not this file).
+        const own = s.clean?.title ? cleanTitle(s) : s.title!;
+        const feat = s.clean?.featuring && featStyle !== "none" && !/\b(feat|ft)\b/i.test(own) ? ` (${featStyle} ${s.clean.featuring})` : "";
+        const unreleased = b.status && b.status !== "released";
+        const album = b.album || b.parent_album || (unreleased ? "Unreleased" : "Singles");
+        const title = own + feat;
+        return {
+          song: s, path: place(b.artist, album, title, s.file), kind: "tidied", coverUrl: s.details?.hasCover ? null : (b.display_cover ?? b.cover_url ?? b.parent_cover),
+          tags: { title, artist: b.credited_as || b.artist, album, albumArtist: b.artist, track: null, year: null },
         };
       }
       const c = s.clean;
