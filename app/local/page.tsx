@@ -32,6 +32,7 @@ import { canTag, makeZip, safeName, tidiedCopy, withCode, type NewTags } from ".
 import { pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
 import { thumb } from "@/lib/thumb";
+import Missing from "./Missing";
 
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
@@ -581,6 +582,7 @@ export default function LocalCutsPage() {
             </p>
           )}
           {claudeNote && <p className="lc-small">{claudeNote}</p>}
+          <Missing trackIds={songs.flatMap((s) => (s.track_id ? [s.track_id] : []))} premium={!!premium} />
 
           <section className="lc-box">
             <div className="lc-box-head"><h2 className="lc-h in">Song name style</h2><span className="lc-small">How features are written in your tidy copy.</span></div>
