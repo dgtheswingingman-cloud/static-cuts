@@ -137,8 +137,10 @@ export function Tag({ children, color, solid = true, size = 22 }: { children: Re
 // Every slide: optional picture behind (full-bleed or faded), static on top,
 // tracker-style top bar and footer with the slide number.
 // w/h default to the 1080×1350 post; stories are 1080×1920, X 1600×900.
-// TikTok's safe zone on a 1080×1920 picture (what its buttons and text don't cover).
-export const TT_SAFE = { top: 200, right: 180, bottom: 400, left: 64 };
+// TikTok's safe zone on a 1080×1920 photo post (what its tabs, side buttons
+// and name / caption / sound lines don't cover). Kept tight so the slide
+// fills the screen: the old 200/180/400 left a black band at the bottom.
+export const TT_SAFE = { top: 150, right: 140, bottom: 290, left: 56 };
 // Width the content gets inside the frame's padding.
 export const innerWidth = (f: string, w: number) => w - (f === "tt" ? TT_SAFE.left + TT_SAFE.right : 128);
 
