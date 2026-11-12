@@ -14,6 +14,7 @@ import HeroCollage from "../components/HeroCollage";
 import ExportCard from "./ExportCard";
 import { thumb } from "@/lib/thumb";
 import Missing from "../components/Missing";
+import Watching from "./Watching";
 import { usePremium } from "../usePremium";
 
 type ListRow = { id: string; title: string; songs: number; is_public: boolean };
@@ -167,6 +168,8 @@ export default function LibraryPage() {
           </section>
         </>
       )}
+
+      {user && <Watching />}
 
       {user && collectedTotal > 0 && (
         <section id="missing">

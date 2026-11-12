@@ -439,8 +439,7 @@ export default function SongView({ id }: { id: string }) {
       {more && !isAdmin && (
         <div className="sp-more">
           <AddToList trackId={t.id} />
-          {(["announced", "teased", "snippet", "rumored"].includes(status) ||
-            (t.release_date && t.release_date >= new Date().toISOString().slice(0, 10))) && <RemindMe trackId={t.id} />}
+          <RemindMe trackId={t.id} />
         </div>
       )}
 
