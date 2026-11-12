@@ -81,9 +81,14 @@ const matchTitle = (t: string | null) => (t ?? "")
 // "Playboi Carti"]. The nearest one that's an artist on the site stands in
 // for the artist when the file's tags don't say. Generic names never count,
 // even if an artist with that name turns up later.
+// A file's path inside the folder you picked ("Music/Playboi Carti/x.mp3").
+// The folder picker fills webkitRelativePath; a dragged-in folder doesn't,
+// so the path from the drop is kept here instead.
+const dropPaths = new WeakMap<File, string>();
+const pathOf = (f: File) => f.webkitRelativePath || dropPaths.get(f) || f.name;
 const GENERIC_FOLDER = /^(music|my music|songs?|downloads?|desktop|documents|new folder.*|untitled.*|misc.*|z-?misc|other|old|new|temp|tmp|backup.*|playlists?|local files|spotify|itunes|apple music|phone|ipod|mp3s?|flac|wav|m4a|audio|leaks?|leaked|unreleased|released|snippets?|singles?|albums?|eps?|mixtapes?|demos?|features?|feats?|remix(es)?|instrumentals?|live|bootlegs?|collection|archive|library|rap|hip ?hop|trap|rock|pop|r&b|various( artists)?|unknown( artist)?|va|compilations?|(19|20)\d\d(s)?)$/i;
 const foldersOf = (f: File) => {
-  const parts = (f.webkitRelativePath || "").split("/").slice(1, -1).map((p) => p.trim()).filter(Boolean);
+  const parts = pathOf(f).split("/").slice(1, -1).map((p) => p.trim()).filter(Boolean);
   return parts.reverse().filter((p) => !GENERIC_FOLDER.test(p));
 };
 // Claude's clean title with its version in the archive's style: "Song [V2]".
@@ -98,10 +103,14 @@ const gb = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max
 
 // Files from a dropped folder (folders inside it too).
 async function filesFromDrop(items: DataTransferItemList): Promise<File[]> {
-  type Entry = { isFile: boolean; isDirectory: boolean; file?: (ok: (f: File) => void, no: () => void) => void; createReader?: () => { readEntries: (ok: (e: Entry[]) => void, no: () => void) => void } };
+  type Entry = { isFile: boolean; isDirectory: boolean; fullPath?: string; file?: (ok: (f: File) => void, no: () => void) => void; createReader?: () => { readEntries: (ok: (e: Entry[]) => void, no: () => void) => void } };
   const out: File[] = [];
   async function walk(e: Entry): Promise<void> {
-    if (e.isFile && e.file) { const f = await new Promise<File | null>((ok) => e.file!(ok, () => ok(null))); if (f) out.push(f); return; }
+    if (e.isFile && e.file) {
+      const f = await new Promise<File | null>((ok) => e.file!(ok, () => ok(null)));
+      if (f) { if (e.fullPath) dropPaths.set(f, e.fullPath.replace(/^\/+/, "")); out.push(f); }
+      return;
+    }
     if (e.isDirectory && e.createReader) {
       const r = e.createReader();
       for (;;) {
@@ -173,7 +182,7 @@ export default function LocalCutsPage() {
       const d = await readDetails(f, firstArtist(t.artist)).catch(() => null);
       const duration = await readDuration(f);
       read[i] = {
-        key: `${f.webkitRelativePath || f.name}|${f.size}`, file: f,
+        key: `${pathOf(f)}|${f.size}`, file: f,
         title: t.title, artist: t.artist, album: t.album, track: t.track, year: t.year, fromTags: t.from === "tags",
         duration, details: d,
         formatted: t.from === "tags" && !!t.title && !!t.artist && !!d?.hasCover,
@@ -206,6 +215,7 @@ export default function LocalCutsPage() {
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
         p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? s.folder_artist ?? "", title: s.title ?? "" })), p_artist_id: null,
       });
+      if (error) setNote(`Some songs couldn't be checked against the archive (${error.message}). Run the folder again in a minute.`);
       if (!error) {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
         batch.forEach((s, j) => {
@@ -245,7 +255,7 @@ export default function LocalCutsPage() {
     for (let i = 0; i < tries.length; i += 300) {
       const batch = tries.slice(i, i + 300);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", { p_items: batch.map((x) => ({ artist: x.artist, title: x.title })), p_artist_id: null });
-      if (error) break;
+      if (error) { setNote(`Some songs couldn't be checked against the archive (${error.message}). Run the folder again in a minute.`); break; }
       const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
       batch.forEach((x, j) => {
         const r = rows[j];
@@ -265,7 +275,7 @@ export default function LocalCutsPage() {
       await pool(batches, 3, async (b) => {
         if (stopped) return;
         const { data, error } = await supabase.functions.invoke("local-ai", {
-          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: (s.file.webkitRelativePath || "").split("/").slice(1).join("/") || s.file.name, length: s.duration })) },
+          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: pathOf(s.file).split("/").slice(1).join("/") || s.file.name, length: s.duration })) },
         });
         if (error) {
           let msg = error.message, status = 0;
@@ -548,7 +558,7 @@ export default function LocalCutsPage() {
     const q = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
     const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was" };
     return new Blob([["original file,new file,what happened,title,artist,album",
-      ...plan.map((o) => [o.song.file.webkitRelativePath || o.song.file.name, o.path, what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
+      ...plan.map((o) => [pathOf(o.song.file), o.path, what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
   }
 
   // Straight into a folder the person picks (no zip to build or unzip).
@@ -851,7 +861,7 @@ export default function LocalCutsPage() {
               <summary><h2 className="lc-h in">Couldn&apos;t be identified</h2><span className="lc-small">{unsorted.length} file{unsorted.length === 1 ? "" : "s"}, kept as they were in &ldquo;Unsorted&rdquo;</span></summary>
               <div className="lc-table one">
                 {unsorted.slice(0, 500).map((o) => (
-                  <div key={o.song.key} className="lc-tr"><span className="lc-mono">{o.song.file.webkitRelativePath || o.song.file.name}</span></div>
+                  <div key={o.song.key} className="lc-tr"><span className="lc-mono">{pathOf(o.song.file)}</span></div>
                 ))}
                 {unsorted.length > 500 && <div className="lc-tr"><span className="lc-small">…and {unsorted.length - 500} more (all listed in the changes file in the copy).</span></div>}
               </div>
