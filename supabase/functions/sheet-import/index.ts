@@ -223,6 +223,8 @@ function suggestMapping(rows: string[][]): Mapping {
 const JUNK_TITLE = /https?:\/\/|www\.|spreadsheet|\btracker\b|right-click|sort sheet|\bjoin\b.*\bhub\b|^snippets?$|^og files?\b|og file: placeholder|\binterview$|^credits?$|notes to editors|editors\/compilers|^\(.{1,3}\):|=\s*these are/i;
 // Era/album cells that aren't album names (counters, placeholders, notices).
 const JUNK_ALBUM = /^(\?+|unknown|other|n\/?a|none|tbd|-+|misc|unreleased|released|credits?|notes to editors|snippets? (&|and) partials)$|total edits|og file\(s\)|og files for|tracker is created|^\d+ (released|unreleased|songs?)$/i;
+// A tracker's counts / stats section, read as an era.
+const SUMMARY_ERA = /spreadsheet data|availability summary|^(statistics|stats|summary|totals?)$/i;
 // Links in notes: only official listening sites and social posts stay.
 const NOTE_LINK_OK = /(^|\.)(open\.spotify\.com|music\.apple\.com|youtube\.com|youtu\.be|soundcloud\.com|bandcamp\.com|tidal\.com|deezer\.com|audiomack\.com|instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com|genius\.com)$/i;
 function cleanNoteLinks(text: string) {
@@ -318,6 +320,8 @@ function readSongs(rows: string[][], m: Mapping) {
     }
     const thisEra = col(r, "era") ? col(r, "era").split("\n")[0].replace(/\s+era\b.*$/i, "").trim() : era;
     if (thisEra && m.skip_eras.includes(thisEra)) { skipped++; continue; }
+    // The tracker's counts box ("782 Total Full, 560 OG File ...") isn't songs.
+    if (thisEra && SUMMARY_ERA.test(thisEra)) { skipped++; continue; }
 
     const p = parseName(titleCell);
     if (!p.title) { skipped++; continue; }
