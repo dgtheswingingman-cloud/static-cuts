@@ -71,11 +71,19 @@ async function checkDeezer(s: Song): Promise<Found | "stop"> {
   }
   if (!id && s.title && s.artist) {
     const q = `artist:"${s.artist.replace(/"/g, "")}" track:"${tidyTitle(s.title).replace(/"/g, "")}"`;
+    const want = plain(s.title), who = plain(s.artist);
+    const pick = (r: any) => ((r?.data ?? []) as any[]).find((x) => plain(String(x?.title ?? "")) === want
+      && [x?.artist?.name, ...((x?.contributors ?? []) as any[]).map((c) => c?.name)].some((n) => plain(String(n ?? "")) === who)
+      && near(s.length_sec, Number(x?.duration) || null));
     const r = await deezer(`/search?q=${encodeURIComponent(q)}&limit=10`);
     if (r === "stop") return "stop";
-    const want = plain(s.title), who = plain(s.artist);
-    const hit = ((r?.data ?? []) as any[]).find((x) => plain(String(x?.title ?? "")) === want && plain(String(x?.artist?.name ?? "")) === who
-      && near(s.length_sec, Number(x?.duration) || null));
+    let hit = pick(r);
+    if (!hit) {
+      // Strict search found nothing (Deezer's fussy about punctuation): a plain one.
+      const r2 = await deezer(`/search?q=${encodeURIComponent(`${s.artist} ${tidyTitle(s.title)}`)}&limit=25`);
+      if (r2 === "stop") return "stop";
+      hit = pick(r2);
+    }
     if (hit?.id) {
       // The search result has no ISRC or date: read the track itself.
       const d = await deezer(`/track/${hit.id}`);
@@ -115,10 +123,12 @@ async function checkApple(s: Song): Promise<Found | "stop"> {
     if (a?.trackId) return fromApple(s, a, "apple-link");
   }
   if (!id && s.title && s.artist) {
-    const r = await apple(`https://itunes.apple.com/search?term=${encodeURIComponent(`${s.artist} ${tidyTitle(s.title)}`.slice(0, 120))}&entity=song&limit=15`);
+    const r = await apple(`https://itunes.apple.com/search?term=${encodeURIComponent(`${s.artist} ${tidyTitle(s.title)}`.slice(0, 120))}&entity=song&limit=50`);
     if (r === "stop") return "stop";
     const want = plain(s.title), who = plain(s.artist);
-    const hit = ((r?.results ?? []) as any[]).find((x) => plain(String(x?.trackName ?? "")) === want && plain(String(x?.artistName ?? "")) === who
+    // Apple joins duets as "A & B": the artist only has to be one of them.
+    const byArtist = (n: string) => n.split(/\s*(?:&|,|\bx\b)\s*/i).some((p) => plain(p) === who) || plain(n) === who;
+    const hit = ((r?.results ?? []) as any[]).find((x) => plain(String(x?.trackName ?? "")) === want && byArtist(String(x?.artistName ?? ""))
       && x?.trackViewUrl && near(s.length_sec, Number(x?.trackTimeMillis) ? Math.round(Number(x.trackTimeMillis) / 1000) : null));
     if (hit) return fromApple(s, hit, "apple-search");
   }
