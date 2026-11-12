@@ -37,8 +37,8 @@ const KINDS: [Kind, string, string][] = [
 const ASK: Record<Kind, string> = {
   unconfirmed: "work out the real status (released, leaked, snippet, or not a real song) of",
   cover: "find cover art (with the page it's from) for",
-  leak_date: "find when each of these leaked (with a source) for",
-  release_date: "find the release date (with a source) for",
+  leak_date: "find when each of these leaked (the day the file or snippet surfaced, not a release date; with a source) for",
+  release_date: "find the official release date (the day it came out officially, not when it leaked; if one turns out to be a leak, send its status and leak date instead; with a source) for",
   album: "find the album or era for",
 };
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 100);
