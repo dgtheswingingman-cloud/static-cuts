@@ -32,9 +32,11 @@ export default function Plans() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [thanks, setThanks] = useState(false);
+  const [founders, setFounders] = useState<number | null>(null);
 
   useEffect(() => {
     billing({ action: "prices" }).then((d) => setPrices(d as typeof prices)).catch(() => setPrices({ month: null, year: null }));
+    supabase.rpc("rpc_founders_left").then(({ data }) => setFounders(typeof data === "number" ? data : null));
   }, []);
 
   // Back from checkout: sync now, then tidy the address.
@@ -78,6 +80,9 @@ export default function Plans() {
         </div>
       )}
 
+      {!paying && founders !== null && founders > 0 && (
+        <p className="if-p pm-founder"><span>◆</span> <b>{founders} of 100 founder spots left.</b> The first 100 people to go premium get a numbered founder badge, kept for good.</p>
+      )}
       {!paying && (
         <div className="pm-plans">
           {([["month", "Monthly", "a month"], ["year", "Yearly", "a year"]] as const).map(([plan, name, per]) => (

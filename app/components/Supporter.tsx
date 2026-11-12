@@ -1,7 +1,8 @@
 "use client";
 
 // Badges next to someone's name: their fan badges (short artist tags like
-// CRT or LNLY that link to the artist) and the ◆ supporter badge (premium).
+// CRT or LNLY that link to the artist), the ◆ supporter badge (premium) and
+// the founder badge (one of the first 100 to pay; kept for good).
 // Badges on one page are looked up together in one call (rpc_user_badges)
 // and remembered.
 
@@ -10,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export type Fan = { artist_id: string; name: string; tag: string };
-type Badges = { supporter: boolean; fans: Fan[] };
+type Badges = { supporter: boolean; founder?: number | null; fans: Fan[] };
 
 const known = new Map<string, Badges>();
 let waiting = new Set<string>();
@@ -76,11 +77,15 @@ export function FanTag({ fan, big = false }: { fan: Fan; big?: boolean }) {
 // full: the profile header version (bigger, "supporter" spelled out).
 export default function Supporter({ id, full = false }: { id: string | null | undefined; full?: boolean }) {
   const b = useBadges(id);
-  if (!b || (!b.supporter && !b.fans.length)) return null;
+  if (!b || (!b.supporter && !b.founder && !b.fans.length)) return null;
   return (
     <span className={`user-badges${full ? " full" : ""}`}>
       {b.fans.map((f) => <FanTag key={f.artist_id} fan={f} big={full} />)}
-      {b.supporter && (
+      {b.founder ? (
+        <span className={`supporter-badge founder-badge${full ? " full" : ""}`} title={`Founding supporter #${b.founder}`}>
+          ◆{full ? <span> founder #{b.founder}</span> : <span className="founder-n">{b.founder}</span>}
+        </span>
+      ) : b.supporter && (
         <span className={`supporter-badge${full ? " full" : ""}`} title="Static-Cuts supporter">
           ◆{full && <span> supporter</span>}
         </span>

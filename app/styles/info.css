@@ -76,3 +76,5 @@
 .pm-ok span { color: #2BD67B; font-weight: 700; }
 .pm-err { color: #FF3355; }
 @media (max-width: 700px) { .pm-plans { grid-template-columns: minmax(0, 1fr); } }
+.pm-founder { padding: 8px 12px; border: 1.5px solid #F5B841; border-radius: 6px; }
+.pm-founder span { color: #F5B841; }

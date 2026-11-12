@@ -8,6 +8,7 @@
 // POST {action: "portal", origin}            -> Stripe "manage or cancel" link (signed in)
 // POST {action: "sync"}                      -> re-read my subscription from Stripe (signed in)
 // POST {action: "setup"} + x-cron-secret     -> creates the Stripe webhook and portal settings
+// POST {action: "rewards"} + x-cron-secret   -> a month's credit for top contributors who already pay
 // Stripe webhooks (stripe-signature header)  -> the event is fetched again from
 //   Stripe by its id, so only real events count, then premium follows the
 //   subscription (sc_stripe_subscription_save).
@@ -147,6 +148,25 @@ async function setup() {
   return json({ ok: true, ...out });
 }
 
+// Top contributors who already pay: a month's credit on their Stripe balance
+// (the next invoice uses it up), once each (sc_rewards_pending / sc_reward_done).
+async function rewards(secret: string) {
+  const { data: todo, error } = await db.rpc("sc_rewards_pending", { p_secret: secret });
+  if (error) throw new Error(error.message);
+  const p = await prices();
+  const amount = p.month?.unit_amount ?? 300;
+  const done: string[] = [];
+  for (const r of (todo ?? []) as { month: string; user_id: string; customer: string; rank: number }[]) {
+    await stripe("POST", `/customers/${r.customer}/balance_transactions`, {
+      amount: -amount, currency: "gbp", description: `Top ${r.rank} contributor, ${r.month.slice(0, 7)}: a free month of Premium`,
+    });
+    const { error: e2 } = await db.rpc("sc_reward_done", { p_secret: secret, p_month: r.month, p_user: r.user_id });
+    if (e2) throw new Error(e2.message);
+    done.push(r.user_id);
+  }
+  return json({ ok: true, credited: done.length });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
@@ -161,11 +181,11 @@ Deno.serve(async (req) => {
       const p = await prices();
       return json({ month: show(p.month), year: show(p.year), test: KEY.startsWith("sk_test_") });
     }
-    if (body.action === "setup") {
+    if (body.action === "setup" || body.action === "rewards") {
       const secret = req.headers.get("x-cron-secret");
       const { data: ok } = await db.from("sc_private_settings").select("value").eq("key", "cron_secret").maybeSingle();
       if (!secret || secret !== ok?.value) return json({ error: "not authorized" }, 403);
-      return await setup();
+      return body.action === "setup" ? await setup() : await rewards(secret);
     }
 
     const user = await signedIn(req);

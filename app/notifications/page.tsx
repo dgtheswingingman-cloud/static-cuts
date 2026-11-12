@@ -20,8 +20,8 @@ type Note = {
 };
 type Filter = "all" | "artists" | "reminders" | "social";
 const FILTERS: [Filter, string][] = [["all", "All"], ["artists", "Artists"], ["reminders", "Reminders"], ["social", "Social"]];
-const GROUP: Record<string, Filter> = { alert: "artists", digest: "artists", release_day: "reminders", status: "reminders", follow: "social", message: "social" };
-const KIND_TAG: Record<string, string> = { digest: "round-up", follow: "follow", message: "message", admin: "admin", release_day: "out today" };
+const GROUP: Record<string, Filter> = { alert: "artists", digest: "artists", release_day: "reminders", status: "reminders", follow: "social", message: "social", reward: "social" };
+const KIND_TAG: Record<string, string> = { digest: "round-up", follow: "follow", message: "message", admin: "admin", release_day: "out today", reward: "premium" };
 
 function ago(at: string) {
   const m = Math.max(1, Math.round((Date.now() - Date.parse(at)) / 60000));
@@ -45,6 +45,7 @@ function dayGroup(at: string) {
 function Icon({ kind }: { kind: string }) {
   const p = { viewBox: "0 0 24 24", width: 24, height: 24, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
   if (kind === "message") return <svg {...p}><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>;
+  if (kind === "reward") return <svg {...p}><path d="M12 3l7 9-7 9-7-9z" /></svg>;
   if (kind === "follow") return <svg {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>;
   return <svg {...p}><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>;
 }
