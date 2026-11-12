@@ -118,3 +118,43 @@ export async function pickZipFile(suggested: string): Promise<Writable | "unsupp
     return null;
   }
 }
+
+// Saving straight into a folder (Chrome, Edge, Opera): the tidy "Static-Cuts"
+// folder is written file by file into a folder the person picks, so there's
+// no zip to build, copy into place or unzip. null if cancelled.
+type Dir = {
+  getDirectoryHandle: (name: string, o?: { create?: boolean }) => Promise<Dir>;
+  getFileHandle: (name: string, o?: { create?: boolean }) => Promise<{ createWritable: () => Promise<Writable> }>;
+};
+export const canPickFolder = () => typeof window !== "undefined" && typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
+export async function pickFolder(): Promise<FolderWriter | null> {
+  const picker = (window as unknown as { showDirectoryPicker?: (o: object) => Promise<Dir> }).showDirectoryPicker;
+  if (!picker) return null;
+  try {
+    return new FolderWriter(await picker({ mode: "readwrite", id: "static-cuts-local" }));
+  } catch {
+    return null;
+  }
+}
+export class FolderWriter {
+  private dirs = new Map<string, Promise<Dir>>();
+  constructor(private root: Dir) {}
+  private dir(parts: string[]): Promise<Dir> {
+    const key = parts.join("/");
+    if (!parts.length) return Promise.resolve(this.root);
+    let d = this.dirs.get(key);
+    if (!d) {
+      d = this.dir(parts.slice(0, -1)).then((p) => p.getDirectoryHandle(parts[parts.length - 1], { create: true }));
+      this.dirs.set(key, d);
+    }
+    return d;
+  }
+  // Write one file at "A/B/name.mp3" (folders made as needed).
+  async add(path: string, blob: Blob) {
+    const parts = path.split("/").filter(Boolean);
+    const name = parts.pop()!;
+    const dir = await this.dir(parts);
+    const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+    try { await w.write(blob); await w.close(); } catch (e) { await w.abort?.(); throw e; }
+  }
+}
