@@ -33,6 +33,7 @@ import ArtistAbout from "./ArtistAbout";
 import ArtistCollabs from "./ArtistCollabs";
 import ArtistEras from "./ArtistEras";
 import AlertFilters from "./AlertFilters";
+import ExportArtist from "./ExportArtist";
 import ArtistPhotos from "./ArtistPhotos";
 import AdminModeNote from "../../components/AdminModeNote";
 import { likeOnSpotify } from "@/lib/spotifyLikes";
@@ -1749,6 +1750,7 @@ export default function ArtistPage() {
                 )}
               </div>
             )}
+            {!isAdmin && <ExportArtist artistId={id} name={artist.name} />}
             {producerCredit && (
               <Link href={`/producer/${encodeURIComponent(producerCredit.name)}`} className="tab" title={`${producerCredit.songs} songs produced`}>
                 Producer page →
