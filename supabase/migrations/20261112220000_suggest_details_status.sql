@@ -1,0 +1,8 @@
+-- suggest_details can change a song's status too (leaked -> released when it
+-- came out officially, released -> leaked when it was really a leak, etc.):
+-- it files a status change (carrying the release date when it's now
+-- released) next to any details. A release date for a song that stays a
+-- leak / snippet / rumour is refused with a note; a leak date is always fine
+-- (for released songs it's their history). Applied live 12 Nov as
+-- "suggest_details_status" (patch of rpc_suggest_details on top of
+-- 20261112210000_dates_by_status.sql).
