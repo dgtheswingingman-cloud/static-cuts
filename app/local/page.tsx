@@ -71,8 +71,16 @@ const baseTitle = (t: string) => {
 // A file's title as the archive would write it: no leading track number
 // ("2.safehouse", "02. Teddy Picker") and no "(prod. ...)".
 const matchTitle = (t: string | null) => (t ?? "")
+  .replace(/^[^\p{L}\p{N}([]+/u, "") // tracker markers in front: ✨ ⭐ 🏆 🥇 🗑️
   .replace(/^\s*\d{1,2}\s*\.\s*(?=\p{L})/u, "")
-  .replace(/\s*[([]\s*prod\b[^)\]]*[)\]]/gi, "").trim();
+  .replace(/\s*[([]\s*prod\b[^)\]]*[)\]]/gi, "")
+  .replace(/\s{2,}/g, " ").trim();
+// The folder a file sits in ("Music/Playboi Carti/song.mp3" -> "Playboi
+// Carti"): the artist, when the file's own tags don't say. Not the top folder.
+const folderOf = (f: File) => {
+  const parts = (f.webkitRelativePath || "").split("/");
+  return parts.length >= 3 ? parts[parts.length - 2].trim() || null : null;
+};
 // Claude's clean title with its version in the archive's style: "Song [V2]".
 const cleanTitle = (s: { clean: Clean | null }) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
   ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
@@ -182,14 +190,16 @@ export default function LocalCutsPage() {
     for (let i = 0; i < read.length; i += 200) {
       const batch = read.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: s.title ?? "" })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? folderOf(s.file) ?? "", title: s.title ?? "" })), p_artist_id: null,
       });
       if (!error) {
         const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
         batch.forEach((s, j) => {
           const r = rows[j];
-          if (s.sure || !s.artist || !r) return; // matched by its code already
+          if (s.sure || !(s.artist || folderOf(s.file)) || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
+          // No artist in the tags, but the folder's name is an artist on the site.
+          if (!s.artist && r.artist_id) s.artist = folderOf(s.file);
           if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
       }
@@ -198,17 +208,20 @@ export default function LocalCutsPage() {
     // File names often carry the track number or producer ("2.safehouse
     // (prod.whitearmor&yung sherman)"): files that didn't match as they are
     // get one more try without them.
-    const numbered = read.filter((s) => !s.sure && s.artist && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
+    const numbered = read.filter((s) => !s.sure && (s.artist || folderOf(s.file)) && s.title && matchTitle(s.title) !== s.title && matchTitle(s.title).length >= 3);
     for (let i = 0; i < numbered.length; i += 200) {
       const batch = numbered.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
-        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
+        p_items: batch.map((s) => ({ artist: firstArtist(s.artist) ?? folderOf(s.file) ?? "", title: matchTitle(s.title) })), p_artist_id: null,
       });
       if (error) break;
       const rows = (data as { track_id: string | null; title: string | null; artist_id: string | null }[]) ?? [];
       batch.forEach((s, j) => {
         const r = rows[j];
-        if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) { s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true; }
+        if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) {
+          s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true;
+          if (!s.artist && r.artist_id) s.artist = folderOf(s.file);
+        }
       });
     }
 
@@ -222,7 +235,7 @@ export default function LocalCutsPage() {
       await pool(batches, 3, async (b) => {
         if (stopped) return;
         const { data, error } = await supabase.functions.invoke("local-ai", {
-          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: s.file.name, length: s.duration })) },
+          body: { items: b.map((s) => ({ ref: s.key, title: s.title ?? "", artist: s.artist ?? "", file_name: folderOf(s.file) ? `${folderOf(s.file)}/${s.file.name}` : s.file.name, length: s.duration })) },
         });
         if (error) {
           let msg = error.message, status = 0;
@@ -277,7 +290,7 @@ export default function LocalCutsPage() {
     // [REF 2_15_24]" when it knows "We Did It Kid"): find the song, so the
     // file is filed under its era with its cover, keeping its own title.
     const loose = read.filter((s) => !s.track_id && !s.formatted).map((s) => {
-      const title = s.clean?.title ? cleanTitle(s) : s.title;
+      const title = s.clean?.title ? cleanTitle(s) : matchTitle(s.title);
       const artist = s.clean?.artist || firstArtist(s.artist);
       const base = title ? baseTitle(title) : "";
       return { s, artist, base, ok: !!artist && !!base && base.toLowerCase() !== (title ?? "").toLowerCase() };
