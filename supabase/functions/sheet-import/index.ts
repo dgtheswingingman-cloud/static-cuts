@@ -533,18 +533,23 @@ async function importSource(sourceId: string, userId: string, onTimer = false) {
   // hundreds. It tells them apart by last_result, which each piece rewrites,
   // so put it back between pieces: every piece then counts as what the whole
   // run is.
-  const CHUNK = 400;
+  // 150 a piece; a piece that still runs out of time (each piece is all or
+  // nothing) is tried again in halves, down to 20.
+  const CHUNK = 150;
+  let size = CHUNK;
   const firstRun = !(src.last_result && typeof src.last_result === "object" && "statuses" in src.last_result);
   let data: Record<string, any> = {};
-  for (let at = 0; at < songs.length || at === 0; at += CHUNK) {
-    const { data: part, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs.slice(at, at + CHUNK) });
+  for (let at = 0; at < songs.length || at === 0;) {
+    const { data: part, error: err } = await db.rpc("sc_sheet_import", { p_user: userId, p_source: sourceId, p_items: songs.slice(at, at + size) });
     if (err) {
       if (err.message.startsWith("Held for a look")) throw new Held(err.message);
+      if (/statement timeout/i.test(err.message) && size > 20) { size = Math.max(20, Math.ceil(size / 2)); continue; }
       throw new Error(err.message);
     }
     data = addResults(data, part ?? {});
     if (songs.length === 0) break;
-    if (firstRun && at + CHUNK < songs.length) await db.from("sheet_sources").update({ last_result: src.last_result ?? null }).eq("id", sourceId);
+    at += size;
+    if (firstRun && at < songs.length) await db.from("sheet_sources").update({ last_result: src.last_result ?? null }).eq("id", sourceId);
   }
   if (songs.length > CHUNK) await db.from("sheet_sources").update({ last_result: { ...data, at: new Date().toISOString() } }).eq("id", sourceId);
   if (!onTimer || !before) await db.from("sheet_sources").update({ header_check: now }).eq("id", sourceId);
