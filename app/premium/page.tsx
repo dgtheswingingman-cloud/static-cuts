@@ -15,6 +15,7 @@ const PERKS: [string, string, string][] = [
   ["Claude on the leftovers", "#8B7CF6", "Files that can't be matched by their tags get a second look from Claude, which works out what they are."],
   ["Track Watch, fully", "#FF3355", "Watching a song is free (you hear when it leaks or comes out). Premium also tells you when a new version turns up, a new link is found, or its date is filled in."],
   ["Smarter alerts", "#F5B841", "Instant alerts for just leaks, just snippets or just releases, or only from the eras you care about. Plus alerts for a producer's new songs, whoever the artist is."],
+  ["Exports", "#22D3EE", "Download an artist's full tracklist as a spreadsheet: every song and version with status, era, dates, producers, links and Static-Cuts codes. And your missing lists too."],
   ["What you're missing", "#2BD67B", "From Local Cuts or your collection: every song you don't have yet, era by era, with leaks and snippets marked."],
   ["Premium profile", "#22D3EE", "A profile colour, a GIF avatar, up to 3 fan badges and a showcase of 6 pinned songs."],
   ["◆ Supporter badge", "#2BD67B", "Next to your name everywhere on the site. And you keep the archive running."],

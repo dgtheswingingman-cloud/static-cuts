@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { thumb } from "@/lib/thumb";
+import { saveCsv, fileSafe } from "@/lib/csv";
 
 type Era = { era: string; have: number; total: number };
 type Gap = { id: string; title: string; status: string; era: string; day: string | null };
@@ -71,6 +72,10 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
                   <button key={k} role="radio" aria-checked={only === k} className={`tab${only === k ? " active" : ""}`} onClick={() => setOnly(k)}>{label}</button>
                 ))}
                 {era && <button className="text-link" onClick={() => setEra(null)}>Show every era</button>}
+                <button className="text-link" onClick={() => saveCsv(`static-cuts-missing-${fileSafe(r.artist)}.csv`, [
+                  ["Title", "Status", "Era / album", "Date", "Page"],
+                  ...(r.missing ?? []).map((g) => [g.title, g.status, g.era, g.day, `https://static-cuts.com/song/${g.id}`]),
+                ])}>Download list (CSV)</button>
               </div>
               {byEra.length === 0 && <p className="lc-small">Nothing missing here.</p>}
               {byEra.map(([name, list]) => (
