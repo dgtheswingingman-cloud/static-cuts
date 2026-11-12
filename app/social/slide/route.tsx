@@ -85,11 +85,13 @@ function SongSlide({ s, f, w, h, day }: { s: Song; f: Fmt; w: number; h: number;
     );
   }
   const tt = f === "tt";
+  // TikTok: the art runs the full height behind, and the cover is as wide
+  // as the safe zone allows, so the slide fills the phone.
   return (
-    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={w} w={w} h={h}>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 30 }}>{cover(tt ? 600 : 560)}</div>
+    <Frame file="SONG_OF_THE_DAY" page={page} bg={s.cover} bgHeight={tt ? h : w} w={w} h={h}>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: tt ? 36 : 30 }}>{cover(tt ? innerWidth(f, w) : 560)}</div>
       <Spacer />
-      {words(innerWidth(f, w), tt ? 120 : 110)}
+      {words(innerWidth(f, w), tt ? 150 : 110)}
       <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 24, color: ACCENT, letterSpacing: 4, marginTop: 20, marginBottom: 26 }}>
         EVERY VERSION &gt;&gt; STATIC-CUTS.COM
       </div>
@@ -146,16 +148,16 @@ function OtdSlide({ songs, total, f, w, h, day }: { songs: Song[]; total: number
     );
   }
   const tt = f === "tt";
-  const size = tt ? 250 : 230;
+  const size = tt ? 300 : 230;
   return (
     <Frame file="ON_THIS_DAY" page={date} w={w} h={h}>
-      <div style={{ display: "flex", marginTop: 24 }}>{head(tt ? 130 : 120)}</div>
-      <div style={{ display: "flex", flexDirection: "column", marginTop: tt ? 44 : 34 }}>
+      <div style={{ display: "flex", marginTop: 24 }}>{head(tt ? 160 : 120)}</div>
+      <div style={{ display: "flex", flexDirection: "column", marginTop: tt ? 60 : 34 }}>
         {songs.map((s, i) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 26 : 20) : 0, padding: 16,
+          <div key={s.id} style={{ display: "flex", alignItems: "center", marginTop: i ? (tt ? 40 : 20) : 0, padding: 16,
             background: "rgba(14,14,14,0.9)", border: "2px solid #3A3A3A", borderLeft: `8px solid ${i % 2 ? ACCENT : CYAN}` }}>
             {art(s, size)}
-            <div style={{ display: "flex", marginLeft: 26 }}>{facts(s, innerWidth(f, w) - size - 26 - 32 - 10, tt ? 60 : 56)}</div>
+            <div style={{ display: "flex", marginLeft: 26 }}>{facts(s, innerWidth(f, w) - size - 26 - 32 - 10, tt ? 72 : 56)}</div>
           </div>
         ))}
       </div>
@@ -197,7 +199,7 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
   if (n === 1) {
     const blurb = a.blurb ?? "";
     return (
-      <Frame file="ALBUM_OF_THE_WEEK" page="01/02" bg={a.cover} bgHeight={w} w={w} h={h}>
+      <Frame file="ALBUM_OF_THE_WEEK" page="01/02" bg={a.cover} bgHeight={f === "tt" ? h : w} w={w} h={h}>
         <Spacer />
         <div style={{ display: "flex", marginBottom: 14 }}>
           <Tag color={ACCENT}>ALBUM OF THE WEEK</Tag>
@@ -210,7 +212,7 @@ function AotwSlide({ a, n, f, w, h }: { a: Aotw; n: number; f: Fmt; w: number; h
       </Frame>
     );
   }
-  const shown = songs.slice(0, f === "tt" ? 6 : 5);
+  const shown = songs.slice(0, f === "tt" ? 8 : 5);
   return (
     <Frame file={`VAULT/${a.artist.toUpperCase().replace(/\s+/g, "_")}`} page="02/02" bg={a.cover} fade={0.5} w={w} h={h}>
       <div style={{ display: "flex", marginTop: 40 }}><Tag color={RED}>INSIDE THE VAULT</Tag></div>
@@ -337,7 +339,7 @@ async function MonthlySlide({ m, n, f, w, h }: { m: Monthly; n: number; f: Fmt; 
     );
   }
   const leaks = n === 2;
-  const list = await withCovers((leaks ? m.leaked : m.released) ?? [], f === "tt" ? 6 : 5);
+  const list = await withCovers((leaks ? m.leaked : m.released) ?? [], f === "tt" ? 8 : 5);
   const color = leaks ? RED : GREEN;
   return (
     <Frame file={file} page={`0${n}/03`} w={w} h={h}>
