@@ -115,6 +115,8 @@ export default function LocalCutsPage() {
   const [collected, setCollected] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
   const site = useRef(new Map<string, Site>());
+  // Artist photos, the cover for songs that aren't on the site.
+  const photos = useRef(new Map<string, string>());
   // How titles are written: "Title [Version] (Feat. X)" by default.
   const [featStyle, setFeatStyleState] = useState<"Feat." | "feat." | "none">(() => {
     try { const v = typeof window !== "undefined" ? localStorage.getItem("local_feat_style") : null; return v === "feat." || v === "none" ? v : "Feat."; } catch { return "Feat."; }
@@ -131,6 +133,7 @@ export default function LocalCutsPage() {
     if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return; }
     setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]);
     site.current = new Map();
+    photos.current = new Map();
 
     // 1. Read every file's details.
     step("reading", list.length);
@@ -268,6 +271,13 @@ export default function LocalCutsPage() {
         code: codes.get(r.id) ?? null,
       }));
     }
+    // Songs that aren't on the site get their artist's photo as the cover
+    // (the same fallback the site's own songs use).
+    const aids = [...new Set(read.filter((s) => !s.track_id && s.artist_id).map((s) => s.artist_id!))];
+    for (let i = 0; i < aids.length; i += 200) {
+      const { data } = await supabase.from("artists").select("id, image_url").in("id", aids.slice(i, i + 200));
+      ((data as { id: string; image_url: string | null }[] | null) ?? []).forEach((a) => { if (a.image_url) photos.current.set(a.id, a.image_url); });
+    }
     read.forEach((s) => { if (s.track_id) setLocalFile(s.track_id, s.file); });
 
     // 4. Well-formatted files help the archive (sent for review).
@@ -385,7 +395,7 @@ export default function LocalCutsPage() {
         const artist = c.artist || firstArtist(s.artist)!;
         const title = c.version && !c.title.toLowerCase().includes(c.version.toLowerCase()) ? `${c.title} [${c.version}]` : c.title;
         const album = c.status === "released" ? "Singles" : "Unreleased";
-        return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: null,
+        return { song: s, path: place(artist, album, title, s.file), kind: "claude", coverUrl: s.details?.hasCover ? null : (s.artist_id && photos.current.get(s.artist_id)) || null,
           tags: { title: c.featuring && featStyle !== "none" ? `${title} (${featStyle} ${c.featuring})` : title, artist, album, albumArtist: artist, track: null, year: null } };
       }
       return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
