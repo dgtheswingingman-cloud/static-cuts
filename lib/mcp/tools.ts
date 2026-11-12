@@ -253,8 +253,8 @@ export const TOOLS: Tool[] = [
     name: "suggest_details",
     title: "Fill in a song's missing details",
     description:
-      "For a song already on Static-Cuts: suggests details it's missing (album or era, release date, leak date for " +
-      "leaks, producers, featured artists, track number). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
+      "For a song already on Static-Cuts: suggests details it's missing (album or era, release date, leak date, " +
+      "producers, featured artists, track number), and its status when that's wrong (leaked <-> released etc.). By default only empty fields are used. To fix a value that is filled in but WRONG, " +
       "set replace = true and say in notes what is wrong and why; corrections always wait for a person to review. " +
       "Give the page that shows the details as source_url. track_ids come from get_catalogue_backlog, " +
       "get_artist_songs, get_songs_needing_links and the research plan. Album art comes automatically from the " +
@@ -264,8 +264,9 @@ export const TOOLS: Tool[] = [
       properties: {
         track_id: { type: "string" },
         album: { type: "string", description: "Album, EP or single name." },
-        release_date: { type: "string", description: "Released songs only: YYYY-MM-DD it came out officially, only when you know the exact day. Leaks, snippets and rumoured songs have no release date (refused): use leak_date." },
-        leak_date: { type: "string", description: "YYYY-MM-DD the song's file (or snippet) surfaced, only when a source shows the day. For released songs this is kept as history; the release date is the main one." },
+        status: { type: "string", enum: ["released", "leaked", "snippet", "teased", "announced", "rumored", "removed"], description: "Only when the song's status is wrong: e.g. a leak that came out officially (status released + release_date) or a 'released' song that was really a leak (status leaked + leak_date). Needs source_url." },
+        release_date: { type: "string", description: "YYYY-MM-DD the song came out officially, only when you know the exact day. Leaks, snippets and rumoured songs don't have one: send leak_date, or status released if it did come out." },
+        leak_date: { type: "string", description: "YYYY-MM-DD the song's file (or snippet) surfaced, only when a source shows the day. Fine for released songs too: it goes in their history (the release date stays the main date)." },
         producers: { type: "string", description: "Comma-separated." },
         featured_artists: { type: "string", description: "Comma-separated, not the main artist." },
         track_number: { type: "integer", minimum: 1, maximum: 200 },
@@ -469,7 +470,9 @@ export const SERVER_INSTRUCTIONS = [
   "   Status checks: each artist's needs_status lists songs whose status is unknown. Find out what each is",
   "   (released, leaked, snippet...), submit_discovery for what you can prove, then mark_checked those track_ids.",
   "   Dates: a release date is when a song came out officially, a leak date is when its file surfaced. Leaks and",
-  "   snippets never get a release date (send leak_date); for released songs the release date is the one that matters.",
+  "   snippets have no release date (send leak_date). For released songs the release date is the main one; a leak",
+  "   date can still be sent for their history. Wrong status (a leak that came out, a 'release' that was a leak):",
+  "   suggest_details with status (and release_date or leak_date) and the source.",
   "   Details: when you see a song's album, exact release date, producers, features or track number and the",
   "   song is already on Static-Cuts, call suggest_details (only gaps are used).",
   "   Shows and merch: when you see an upcoming show, tour, festival slot or merch drop for a researched artist,",

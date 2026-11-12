@@ -17,7 +17,7 @@ B. CATALOGUE (whenever A has nothing due, or you have time left)
 8. mark_checked with every track_id (and recheck discovery_id) you looked at, found or not, then call get_catalogue_backlog again for the next page.
 9. For artists you worked on, look at up to 5 groups from get_possible_duplicates and report_duplicate same or different.
 
-Dates: a release date is the day a song came out officially; a leak date is the day its file surfaced (snippets too); rumoured songs have neither. Leaks and snippets never get a release date: send leak_date. Released songs: the release date is the one that matters (an earlier leak date can be sent too, as history).
+Dates: a release date is the day a song came out officially; a leak date is the day its file surfaced (snippets too); rumoured songs have neither. Leaks and snippets have no release date: send leak_date. Released songs: the release date is the main one, and a leak date can be sent too for their history. Wrong status (a leak that came out officially, a 'released' song that was really a leak): suggest_details with status plus the release_date or leak_date and the source.
 
 Rules: never invent sources; one submission per finding with its best source page; never download or link audio files. Underground finds are welcome as unofficial or unconfirmed with an honest confidence.
 
