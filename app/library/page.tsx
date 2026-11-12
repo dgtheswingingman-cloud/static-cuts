@@ -13,6 +13,8 @@ import { usePersonalUser } from "../useIsAdmin";
 import HeroCollage from "../components/HeroCollage";
 import ExportCard from "./ExportCard";
 import { thumb } from "@/lib/thumb";
+import Missing from "../components/Missing";
+import { usePremium } from "../usePremium";
 
 type ListRow = { id: string; title: string; songs: number; is_public: boolean };
 type Mine = { id: string; name: string; track_count: number; collected: number };
@@ -22,6 +24,8 @@ const n0 = (x: number | null | undefined) => (x ?? 0).toLocaleString("en-GB");
 export default function LibraryPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
+  const { premium } = usePremium();
+  const [showMissing, setShowMissing] = useState(false);
   const [follows, setFollows] = useState<{ artist_id: string; pinned: boolean }[] | null>(null);
   const [artistRows, setArtistRows] = useState<Mine[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
@@ -162,6 +166,22 @@ export default function LibraryPage() {
             </div>
           </section>
         </>
+      )}
+
+      {user && collectedTotal > 0 && (
+        <section id="missing">
+          {showMissing
+            ? <Missing collection premium={!!premium} intro="From your collection: every artist you have 3+ songs of, era by era." />
+            : (
+              <button className="lb-card lb-missing" onClick={() => setShowMissing(true)}>
+                <span className="sp-version-text">
+                  <strong>What you&apos;re missing</strong>
+                  <span>See how much of each artist you have, era by era, and which songs you don&apos;t have yet.</span>
+                </span>
+                <span aria-hidden="true" className="hf-chev">›</span>
+              </button>
+            )}
+        </section>
       )}
 
       <section>
