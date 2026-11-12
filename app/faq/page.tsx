@@ -212,7 +212,7 @@ const SECTIONS: Section[] = [
             <li>Mark songs as collected and see how complete your collection is for each artist.</li>
             <li>Rate songs out of 10 and comment on them.</li>
             <li>Make <Link href="/lists">lists</Link> and follow other people&apos;s.</li>
-            <li>Press &ldquo;remind me&rdquo; on an unreleased song to be told when it comes out or changes status.</li>
+            <li>Press &ldquo;watch&rdquo; on a song to be told when it changes status (a snippet leaks, a leak comes out). With Premium you also hear about new versions, new links and dates being filled in.</li>
           </ul>
         ),
       },

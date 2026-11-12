@@ -42,7 +42,7 @@ export default function LegalPage() {
         <p>
           Lists you make are public unless you make them private. Votes (real-or-fake, link votes) are counted
           publicly, but who voted which way isn&apos;t shown. Ratings work the same way. Reports on comments
-          are only seen by moderators. Notifications and &ldquo;remind me&rdquo; are private to you, and you can turn the
+          are only seen by moderators. Notifications and songs you watch are private to you, and you can turn the
           daily summary off in settings.
         </p>
             </div>
