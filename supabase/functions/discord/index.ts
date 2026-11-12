@@ -6,6 +6,9 @@
 //   /song <name>      best match: status, artist, era, cover, link
 //   /artist <name>    songs, unreleased, leaked, latest leaks, link
 //   /leaks [artist]   latest real leaks (site-wide or one artist)
+//   /album <name>     an album: score, songs, tracklist with statuses, link
+//   /link             a one-time code to tie your Discord to your Static-Cuts account
+//   /rate <song> <1-10>  rate a song as your linked Static-Cuts account
 //   /alerts add|remove|list   new leaks/snippets/releases for an artist,
 //                     posted in this channel (needs Manage Channels)
 //   /daily on|off|status   the site's daily posts in this channel: song of
@@ -130,6 +133,69 @@ async function leaksCmd(q: string) {
   });
 }
 
+async function albumCmd(q: string) {
+  if (q.length < 2) return oops("Type at least 2 letters.");
+  const { data } = await db.rpc("rpc_search_albums", { p_q: q });
+  type Hit = { id: string; title: string; artist: string; artist_id: string; year: string | null; cover: string | null };
+  const hits = ((data as { albums?: Hit[] } | null)?.albums ?? []);
+  if (!hits.length) return oops(`No album on Static-Cuts matches “${q}”.`);
+  const top = hits[0];
+  const { data: al } = await db.rpc("rpc_album", { p_album: top.id });
+  const a = al as { id: string; title: string; kind: string; date: string | null; cover: string | null; songs: number | null; score: number | null; rated: number; votes: number;
+    artist: { id: string; name: string }; tracks: { position: number | null; title: string; site_title: string | null; status: string | null; track_id: string | null; avg_rating: number | null }[] } | null;
+  if (!a) return oops(`Couldn't open “${top.title}”.`);
+  const list = a.tracks.slice(0, 15).map((t, k) => {
+    const name = t.site_title ?? t.title;
+    const line = t.track_id ? `[${name}](${SITE}/song/${t.track_id})` : name;
+    return `\`${String(t.position ?? k + 1).padStart(2, "0")}\` ${line}${t.status && t.status !== "released" ? ` · ${NICE[t.status] ?? t.status}` : ""}${t.avg_rating ? ` · ${Number(t.avg_rating).toFixed(1)}` : ""}`;
+  }).join("\n");
+  const more = a.tracks.length > 15 ? `\n…and ${a.tracks.length - 15} more` : "";
+  const others = hits.slice(1, 4).map((h) => `• [${h.title}](${SITE}/album/${h.id}) · ${h.artist}${h.year ? ` · ${h.year}` : ""}`).join("\n");
+  return reply({
+    embeds: [{
+      title: a.title.slice(0, 250), url: `${SITE}/album/${a.id}`, color: 0x8b7cf6,
+      author: { name: a.artist.name, url: `${SITE}/artist/${a.artist.id}` },
+      description: [
+        [a.kind === "ep" ? "EP" : "Album", a.date ? day(a.date) : null, a.tracks.length ? `${a.tracks.length} songs` : null,
+          a.score && a.rated >= 3 ? `**${Number(a.score).toFixed(1)}/10** from ${n0(a.votes)} ratings` : null].filter(Boolean).join(" · "),
+        list + more,
+        others ? `**Also matches**\n${others}` : null,
+      ].filter(Boolean).join("\n\n").slice(0, 4000),
+      ...(a.cover ? { thumbnail: { url: a.cover } } : {}),
+      footer: { text: "Static-Cuts// · every song, leak and version" },
+    }],
+  });
+}
+
+const userOf = (i: any): string | null => i.member?.user?.id ?? i.user?.id ?? null;
+async function linkCmd(i: any) {
+  const who = userOf(i);
+  if (!who) return oops("Couldn't tell who you are.");
+  const { data, error } = await db.rpc("sc_discord_link_code", { p_secret: await secret(), p_discord: who });
+  if (error || !data) return oops("Something went wrong. Try again in a minute.");
+  return oops(`Open ${SITE}/discord/link?code=${data} while logged in to Static-Cuts to link this Discord account (the code works for 15 minutes). Then \`/rate\` rates songs as you.`);
+}
+
+async function rateCmd(i: any) {
+  const who = userOf(i);
+  const q = opt(i.data.options, "song");
+  const score = Number((i.data.options ?? []).find((o: Opt) => o.name === "score")?.value);
+  if (!who) return oops("Couldn't tell who you are.");
+  if (!(score >= 1 && score <= 10)) return oops("Give a score from 1 to 10.");
+  if (q.length < 2) return oops("Which song?");
+  const { data } = await db.rpc("rpc_search_songs", { p_q: q, p_versions: true, p_sort: "best", p_offset: 0 });
+  const top = ((data as { items?: { id: string; title: string; artist: string }[] } | null)?.items ?? [])[0];
+  if (!top) return oops(`Nothing on Static-Cuts matches “${q}”.`);
+  const { data: r, error } = await db.rpc("sc_discord_rate", { p_secret: await secret(), p_discord: who, p_track: top.id, p_value: Math.round(score) });
+  if (error) return oops("Something went wrong. Try again in a minute.");
+  const res = r as { ok: boolean; why?: string; was?: number | null; avg?: number | null; count?: number | null };
+  if (!res.ok && res.why === "not linked") return oops("Link your Static-Cuts account first: type `/link`.");
+  if (!res.ok) return oops("Couldn't save that rating.");
+  return oops(`Rated **${top.title}** by ${top.artist} **${Math.round(score)}/10**${res.was ? ` (was ${res.was})` : ""}.`
+    + (res.avg && (res.count ?? 0) >= 2 ? ` Average now ${Number(res.avg).toFixed(1)} from ${n0(res.count ?? 0)}.` : "")
+    + ` ${SITE}/song/${top.id}`);
+}
+
 const MANAGE = (1n << 3n) | (1n << 4n) | (1n << 5n); // admin, manage channels, manage server
 async function alertsCmd(i: any) {
   const sub: Opt | undefined = i.data.options?.[0];
@@ -161,6 +227,12 @@ async function register() {
     { name: "song", description: "Look up a song on Static-Cuts", options: [{ type: 3, name: "name", description: "Song title (and artist, if you like)", required: true }] },
     { name: "artist", description: "An artist's page: songs, unreleased, latest leaks", options: [{ type: 3, name: "name", description: "Artist name", required: true }] },
     { name: "leaks", description: "The latest leaks", options: [{ type: 3, name: "artist", description: "Only this artist", required: false }] },
+    { name: "album", description: "Look up an album: score, tracklist and statuses", options: [{ type: 3, name: "name", description: "Album title (and artist, if you like)", required: true }] },
+    { name: "link", description: "Link your Discord to your Static-Cuts account (to rate from here)" },
+    { name: "rate", description: "Rate a song as your Static-Cuts account", options: [
+      { type: 3, name: "song", description: "Song title (and artist)", required: true },
+      { type: 4, name: "score", description: "1 to 10", required: true, min_value: 1, max_value: 10 },
+    ] },
     {
       name: "alerts", description: "Post an artist's new leaks, snippets and releases in this channel", default_member_permissions: String(1 << 4), dm_permission: false,
       options: [
@@ -203,7 +275,7 @@ async function dailyCmd(i: any) {
 
 // Pictures for the daily posts (the same ones as on Instagram/X). Keep the
 // version in step with SOCIAL_SLIDE_VERSION in lib/social.ts.
-const SLIDE_V = "5";
+const SLIDE_V = "7";
 const slide = (id: string) => `${SITE}/social/slide?id=${id}&f=x&v=${SLIDE_V}`;
 type Daily = { channel_id: string; post_id: string; kind: string; post_date: string; ref: any };
 function dailyEmbed(d: Daily) {
@@ -242,7 +314,7 @@ function dailyEmbed(d: Daily) {
   const leaks = ((r.leaked ?? []) as any[]).slice(0, 3).map((x) => `• [${x.title}](${SITE}/song/${x.id}) · ${x.artist}`).join("\n");
   return {
     title: `📊 ${month} on Static-Cuts`, url: `${SITE}/weekly`, color: 0x8b7cf6,
-    description: [`**${n0(r.added)}** songs added · **${n0(r.leaked_n)}** leaks · **${n0(r.released_n)}** releases`,
+    description: [`**${n0(r.added)}** unreleased songs filed · **${n0(r.leaked_n)}** leaks · **${n0(r.released_n)}** releases`,
       leaks ? `**Biggest leaks**\n${leaks}` : null, people ? `**Top contributors** ${people}. Thank you!` : null].filter(Boolean).join("\n\n").slice(0, 4000),
     image: { url: slide(d.post_id) }, footer: foot,
   };
@@ -322,6 +394,9 @@ Deno.serve(async (req) => {
       case "song": return await songCmd(opt(i.data.options, "name"));
       case "artist": return await artistCmd(opt(i.data.options, "name"));
       case "leaks": return await leaksCmd(opt(i.data.options, "artist"));
+      case "album": return await albumCmd(opt(i.data.options, "name"));
+      case "link": return await linkCmd(i);
+      case "rate": return await rateCmd(i);
       case "alerts": return await alertsCmd(i);
       case "daily": return await dailyCmd(i);
       default: return oops("I don't know that one.");
