@@ -25,6 +25,9 @@ const tidyTitle = (t: string) => t
   .trim();
 const plain = (x: string) => tidyTitle(x).toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "")
   .replace(/\s*[\(\[]\s*(feat|ft|with)\b[^\)\]]*[\)\]]/g, "").replace(/&/g, "and").replace(/[^\p{L}\p{N}]+/gu, "");
+// "Song (feat. Us)" by someone else is still our song: our artist is in its credits.
+const featured = (title: string, who: string) => [...title.matchAll(/[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s+([^\)\]]+)[\)\]]/gi)]
+  .some((m) => m[1].split(/\s*(?:,|&|\band\b)\s*/i).some((p) => plain(p) === who));
 const near = (a: number | null, b: number | null) => !a || !b || Math.abs(a - b) <= 8;
 
 async function ticket(service: string) {
@@ -73,7 +76,7 @@ async function checkDeezer(s: Song): Promise<Found | "stop"> {
     const q = `artist:"${s.artist.replace(/"/g, "")}" track:"${tidyTitle(s.title).replace(/"/g, "")}"`;
     const want = plain(s.title), who = plain(s.artist);
     const pick = (r: any) => ((r?.data ?? []) as any[]).find((x) => plain(String(x?.title ?? "")) === want
-      && [x?.artist?.name, ...((x?.contributors ?? []) as any[]).map((c) => c?.name)].some((n) => plain(String(n ?? "")) === who)
+      && ([x?.artist?.name, ...((x?.contributors ?? []) as any[]).map((c) => c?.name)].some((n) => plain(String(n ?? "")) === who) || featured(String(x?.title ?? ""), who))
       && near(s.length_sec, Number(x?.duration) || null));
     const r = await deezer(`/search?q=${encodeURIComponent(q)}&limit=10`);
     if (r === "stop") return "stop";
@@ -128,7 +131,7 @@ async function checkApple(s: Song): Promise<Found | "stop"> {
     const want = plain(s.title), who = plain(s.artist);
     // Apple joins duets as "A & B": the artist only has to be one of them.
     const byArtist = (n: string) => n.split(/\s*(?:&|,|\bx\b)\s*/i).some((p) => plain(p) === who) || plain(n) === who;
-    const hit = ((r?.results ?? []) as any[]).find((x) => plain(String(x?.trackName ?? "")) === want && byArtist(String(x?.artistName ?? ""))
+    const hit = ((r?.results ?? []) as any[]).find((x) => plain(String(x?.trackName ?? "")) === want && (byArtist(String(x?.artistName ?? "")) || featured(String(x?.trackName ?? ""), who))
       && x?.trackViewUrl && near(s.length_sec, Number(x?.trackTimeMillis) ? Math.round(Number(x.trackTimeMillis) / 1000) : null));
     if (hit) return fromApple(s, hit, "apple-search");
   }
