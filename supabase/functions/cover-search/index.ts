@@ -8,9 +8,11 @@
 // No keys needed. Deezer calls share their own budget ("deezercover"), Apple
 // uses the iTunes budget. Called by a timer every 2 minutes through run-job.
 //
-// An exact Deezer search match for an "unconfirmed" song (and the length
-// within 8 seconds, when we know it) is good evidence it's out: the save marks
-// it released and fills the Deezer link, album and length where empty, quietly.
+// Every service counts for "unconfirmed" songs: a working Deezer / Apple link,
+// an exact Deezer search match, or (when Deezer has nothing) an exact Apple
+// search match (length within 8 seconds when we know it) means it's out: the
+// save marks it released and fills the links, album, date and length where
+// empty, quietly.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -42,7 +44,7 @@ async function deezer(path: string): Promise<any | null | "stop"> {
 }
 
 type Item = { id: string; title: string; artist: string; deezer_url: string | null; apple_url: string | null; release_status: string; length_sec: number | null };
-type Out = { track_id: string; cover_url: string | null; how: string; released?: boolean; deezer_id?: string; album?: string; length_sec?: number };
+type Out = { track_id: string; cover_url: string | null; how: string; released?: boolean; deezer_id?: string; apple_url?: string; album?: string; release_date?: string; length_sec?: number };
 
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
@@ -63,6 +65,7 @@ Deno.serve(async (req) => {
       const r = await deezer(`/track/${dz}`);
       if (r === "stop") { stopped = "deezer allowance used up"; break; }
       cover = r?.album?.cover_xl ?? null; how = cover ? "deezer-link" : "none";
+      if (r?.id && t.release_status === "unconfirmed") extra = { released: true };
     } else if (ap && (await ticket("itunes"))) {
       // (no iTunes allowance left this minute: try the Deezer search instead)
       const res = await fetch(`https://itunes.apple.com/lookup?id=${ap}`).catch(() => null);
@@ -70,15 +73,16 @@ Deno.serve(async (req) => {
       const r = res?.ok ? await res.json().catch(() => null) : null;
       const art: string | undefined = r?.results?.[0]?.artworkUrl100;
       cover = art ? art.replace(/\/\d+x\d+bb\./, "/600x600bb.") : null; how = cover ? "apple-link" : "none";
+      if (r?.results?.[0]?.trackId && t.release_status === "unconfirmed") extra = { released: true };
     }
-    if (!cover && t.title && t.artist) {
+    if ((!cover || (t.release_status === "unconfirmed" && !extra.released)) && t.title && t.artist) {
       const q = `artist:"${t.artist.replace(/"/g, "")}" track:"${tidyTitle(t.title).replace(/"/g, "")}"`;
       const r = await deezer(`/search?q=${encodeURIComponent(q)}&limit=10`);
       if (r === "stop") { stopped = "deezer allowance used up"; break; }
       const want = plain(t.title), who = plain(t.artist);
       const hit = ((r?.data ?? []) as any[]).find((x) => plain(String(x?.title ?? "")) === want && plain(String(x?.artist?.name ?? "")) === who && x?.album?.cover_xl);
       if (hit) {
-        cover = hit.album.cover_xl; how = "deezer-search";
+        cover = cover ?? hit.album.cover_xl; how = "deezer-search";
         const len = Number(hit.duration) || null;
         const sameLength = !t.length_sec || !len || Math.abs(t.length_sec - len) <= 8;
         extra = {
@@ -87,6 +91,30 @@ Deno.serve(async (req) => {
           album: sameLength ? String(hit.album?.title ?? "") || undefined : undefined,
           length_sec: sameLength && len && len <= 36000 ? len : undefined,
         };
+      }
+    }
+    // Deezer has nothing: try Apple's search (unconfirmed songs, when there's an iTunes ticket).
+    if (t.release_status === "unconfirmed" && !extra.released && t.title && t.artist && (await ticket("itunes"))) {
+      const term = `${t.artist} ${tidyTitle(t.title)}`.slice(0, 120);
+      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=15`).catch(() => null);
+      await sleep(400);
+      const r = res?.ok ? await res.json().catch(() => null) : null;
+      const want = plain(t.title), who = plain(t.artist);
+      const hit = ((r?.results ?? []) as any[]).find((x) => plain(String(x?.trackName ?? "")) === want && plain(String(x?.artistName ?? "")) === who && x?.trackViewUrl);
+      if (hit) {
+        const len = Number(hit.trackTimeMillis) ? Math.round(Number(hit.trackTimeMillis) / 1000) : null;
+        const sameLength = !t.length_sec || !len || Math.abs(t.length_sec - len) <= 8;
+        if (sameLength) {
+          const art: string | undefined = hit.artworkUrl100;
+          if (!cover && art) cover = art.replace(/\/\d+x\d+bb\./, "/600x600bb.");
+          how = "apple-search";
+          extra = {
+            released: true, apple_url: String(hit.trackViewUrl).replace(/[?&]uo=\d+/, ""),
+            album: String(hit.collectionName ?? "") || undefined,
+            release_date: typeof hit.releaseDate === "string" ? hit.releaseDate.slice(0, 10) : undefined,
+            length_sec: len && len <= 36000 ? len : undefined,
+          };
+        }
       }
     }
     out.push({ track_id: t.id, cover_url: cover, how, ...extra });
