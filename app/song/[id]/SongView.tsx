@@ -353,11 +353,11 @@ export default function SongView({ id }: { id: string }) {
   const cover = t.display_cover?.url ?? t.cover_url ?? null;
   const status = statusOf(t);
   const firstSeen = t.leak_date ?? t.release_date ?? t.created_at;
-  const main = linkKind(t.spotify_url);
-  const proof = main?.kind === "proof" ? { ...main, url: t.spotify_url as string } : null;
+  const link = linkKind(t.spotify_url);
+  const proof = link?.kind === "proof" ? { ...link, url: t.spotify_url as string } : null;
   const official = (n: string) => ["Spotify", "Apple Music", "Deezer", "TIDAL"].includes(n);
   const listen = [
-    main?.kind === "listen" ? { name: main.name, url: t.spotify_url as string } : null,
+    link?.kind === "listen" ? { name: link.name, url: t.spotify_url as string } : null,
     t.deezer_url ? { name: "Deezer", url: t.deezer_url } : null,
     t.apple_url ? { name: "Apple Music", url: t.apple_url } : null,
   ].filter(Boolean) as { name: string; url: string }[];
@@ -500,9 +500,9 @@ export default function SongView({ id }: { id: string }) {
         <>
           <button className="sp-listen" aria-expanded={listenOpen} onClick={() => setListenOpen(!listenOpen)}>
             <span className="sp-listen-icons">
-              {main?.name === "Spotify" && <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1DB954" /><path d="M6.5 9.3c3.8-1.1 8-.8 11.2 1M7.2 12.4c3-.8 6.4-.5 9 1M7.9 15.3c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.7" strokeLinecap="round" fill="none" /></svg>}
+              {link?.name === "Spotify" && <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1DB954" /><path d="M6.5 9.3c3.8-1.1 8-.8 11.2 1M7.2 12.4c3-.8 6.4-.5 9 1M7.9 15.3c2.4-.6 5-.4 7 .8" stroke="#070707" strokeWidth="1.7" strokeLinecap="round" fill="none" /></svg>}
               {t.apple_url && <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8C7 7.3 5.5 8.2 4.7 9.700c-1.7 2.9-.4 7.200 1.200 9.6.8 1.1 1.700 2.400 2.900 2.300 1.200 0 1.600-.7 3-.7s1.800.7 3 .7c1.300 0 2.100-1.100 2.800-2.300.9-1.300 1.300-2.600 1.300-2.700-.1 0-2.500-1-2.500-3.900zM14.200 5.600c.6-.8 1.100-1.800 1-2.900-.9 0-2.100.6-2.700 1.400-.6.700-1.100 1.800-1 2.800 1 .1 2.100-.5 2.700-1.300z" /></svg>}
-              {main?.name !== "Spotify" && !t.apple_url && <span className="sp-sub">{(listen[0]?.name ?? "DZ").slice(0, 2).toUpperCase()}</span>}
+              {link?.name !== "Spotify" && !t.apple_url && <span className="sp-sub">{(listen[0]?.name ?? "DZ").slice(0, 2).toUpperCase()}</span>}
             </span>
             <span className="sp-listen-text">
               <strong>{listen.some((l) => official(l.name)) ? "Listen on streaming" : `Listen on ${listen[0].name}`}</strong>
@@ -510,7 +510,7 @@ export default function SongView({ id }: { id: string }) {
             </span>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="sp-chev"><path d="m9 6 6 6-6 6" /></svg>
           </button>
-          {t.link_issue && main?.name === "Spotify" && (
+          {t.link_issue && link?.name === "Spotify" && (
             <div className="comment-meta sp-link-issue">
               The Spotify link may be the wrong song.{" "}
               <Link href={`/submit?type=correction&track_id=${t.id}&artist_id=${t.artist_id}`} className="text-link">Fix it</Link>
@@ -519,7 +519,7 @@ export default function SongView({ id }: { id: string }) {
           {listenOpen && (
             <div className="sp-listen-list">
               {listen.map((l) => <a key={l.name} className="tab" href={l.url} target="_blank" rel="noopener noreferrer">{l.name} ↗</a>)}
-              <InlinePlayer url={main?.kind === "listen" ? t.spotify_url : null} />
+              <InlinePlayer url={link?.kind === "listen" ? t.spotify_url : null} />
             </div>
           )}
         </>
