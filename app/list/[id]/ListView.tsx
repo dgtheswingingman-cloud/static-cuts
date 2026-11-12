@@ -4,6 +4,7 @@
 // owner can rename it, write a description, reorder songs, add notes,
 // remove songs, make it private or delete it.
 
+import { isListen, linkKind } from "@/lib/linkKind";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -350,7 +351,7 @@ export default function ListView({ id }: { id: string }) {
                   </span>
                   <span className={`feature-tag st st-${it.status}`}>{it.status}</span>
                 </Link>
-                {it.spotify_url && <a className="lv-listen" href={it.spotify_url} target="_blank" rel="noopener noreferrer" aria-label="Listen on Spotify">↗</a>}
+                {isListen(it.spotify_url) && <a className="lv-listen" href={it.spotify_url as string} target="_blank" rel="noopener noreferrer" aria-label={`Listen on ${linkKind(it.spotify_url)?.name}`}>↗</a>}
                 {d.is_owner && !isAdmin && (
                   <button className={`lv-more ${rowMenu === it.track_id ? "on" : ""}`} aria-label="Track options" aria-expanded={rowMenu === it.track_id}
                     onClick={() => setRowMenu(rowMenu === it.track_id ? null : it.track_id)}>•••</button>

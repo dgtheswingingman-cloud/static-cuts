@@ -5,6 +5,7 @@
 // filters live in the address, so a search can be shared ("every Carti leak
 // from 2019 without a link").
 
+import { isListen, linkKind } from "@/lib/linkKind";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -228,8 +229,8 @@ function SearchInner() {
         <span className="sp-sub">{[s.artist, s.album ?? (s.parent_track_id ? "version" : null), s.release_date?.slice(0, 4)].filter(Boolean).join("  •  ")}</span>
       </span>
       <span className={`feature-tag st st-${s.status}`}>{s.status}</span>
-      {s.spotify_url && (
-        <a className="tab sr-listen" href={s.spotify_url} target="_blank" rel="noopener noreferrer" aria-label="Listen on Spotify" onClick={(e) => e.stopPropagation()}>↗</a>
+      {isListen(s.spotify_url) && (
+        <a className="tab sr-listen" href={s.spotify_url as string} target="_blank" rel="noopener noreferrer" aria-label={`Listen on ${linkKind(s.spotify_url)?.name}`} onClick={(e) => e.stopPropagation()}>↗</a>
       )}
     </Link>
   );
