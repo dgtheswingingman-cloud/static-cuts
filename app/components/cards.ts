@@ -149,7 +149,9 @@ function wrap(ctx: Ctx, text: string, maxWidth: number, maxLines: number) {
 
 function cover(ctx: Ctx, img: HTMLImageElement | null, x: number, y: number, w: number, h: number, round = false, border = "rgba(237,237,237,0.85)", lw = 3) {
   ctx.save();
-  if (round) { ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, w / 2, 0, Math.PI * 2); ctx.clip(); }
+  ctx.beginPath();
+  if (round) ctx.arc(x + w / 2, y + h / 2, w / 2, 0, Math.PI * 2); else ctx.rect(x, y, w, h);
+  ctx.clip();
   if (img) {
     const scale = Math.max(w / img.width, h / img.height);
     const dw = img.width * scale, dh = img.height * scale;
@@ -284,6 +286,8 @@ export async function profileCard(d: ProfileCardData): Promise<Blob | null> {
 }
 
 // ---------------------------------------------------------------- your year
+// Same look as the collection cards: photos washed in the profile colour
+// fading into the static, glitch titles, tracker boxes and tags.
 
 export type YearData = {
   year: number; name: string; avatar?: string | null; accent?: string | null; url: string;
@@ -292,142 +296,213 @@ export type YearData = {
   numbers: [string, string, string][]; // [label, value, note]
 };
 
+// The top row on every slide: ● STATIC-CUTS// and the @handle.
+function topBar(ctx: Ctx, f: Fonts, who: string | null | undefined, accent: string, right?: string) {
+  const top = 270;
+  ctx.font = `700 34px ${f.mono}`;
+  const bw = ctx.measureText("STATIC-CUTS//").width + 80;
+  ctx.fillStyle = "rgba(7,7,7,0.75)"; ctx.fillRect(64, top, bw, 64);
+  ctx.strokeStyle = "rgba(237,237,237,0.55)"; ctx.lineWidth = 2; ctx.strokeRect(64, top, bw, 64);
+  ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(64 + 30, top + 32, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = BONE; ctx.textAlign = "left"; ctx.fillText("STATIC-CUTS//", 64 + 54, top + 44);
+  const h = right ?? handle(who);
+  if (h) box(ctx, h.toUpperCase(), W - 64, top, { font: `700 30px ${f.mono}`, fg: accent, border: accent, bg: "rgba(7,7,7,0.75)", h: 64, align: "right" });
+  return top + 64;
+}
+
+// A photo on the right side, washed and fading into the static.
+function sidePhoto(ctx: Ctx, img: HTMLImageElement | null, accent: string, y = 230, h = 820, x = 430) {
+  if (!img) return;
+  const w = W - x;
+  ctx.drawImage(duotone(img, w, h, accent), x, y);
+  let g = ctx.createLinearGradient(x, 0, x + 300, 0);
+  g.addColorStop(0, VOID); g.addColorStop(1, "rgba(11,11,12,0)");
+  ctx.fillStyle = g; ctx.fillRect(x, y, 300, h);
+  g = ctx.createLinearGradient(0, y + h - 320, 0, y + h);
+  g.addColorStop(0, "rgba(11,11,12,0)"); g.addColorStop(1, VOID);
+  ctx.fillStyle = g; ctx.fillRect(x, y + h - 320, w, 320);
+  g = ctx.createLinearGradient(0, y, 0, y + 140);
+  g.addColorStop(0, VOID); g.addColorStop(1, "rgba(11,11,12,0)");
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, 140);
+}
+
+// The link box at the bottom.
+function linkBox(ctx: Ctx, f: Fonts, text: string, y: number, accent: string) {
+  ctx.strokeStyle = accent; ctx.lineWidth = 3; ctx.strokeRect(64, y, W - 128, 70);
+  ctx.fillStyle = "rgba(7,7,7,0.6)"; ctx.fillRect(66, y + 2, W - 132, 66);
+  ctx.fillStyle = accent; ctx.font = `700 30px ${f.mono}`; ctx.textAlign = "left";
+  ctx.fillText("↗", 88, y + 46);
+  ctx.save(); ctx.letterSpacing = "3px";
+  ctx.fillText(clipText(ctx, text.replace(/^https?:\/\//, "").toUpperCase(), W - 260), 140, y + 46);
+  ctx.restore();
+}
+
+function statusTag(ctx: Ctx, f: Fonts, status: string, x: number, y: number, size = 24, h = 40) {
+  const colour = STATUS_COLOURS[status] ?? SMOKE;
+  return box(ctx, `${status.toUpperCase()}//`, x, y, { font: `700 ${size}px ${f.mono}`, fg: "#070707", bg: colour, h, padX: 12 });
+}
+
+const big = (ctx: Ctx, f: Fonts, text: string, y: number, max = W - 128, start = 190, min = 80) => {
+  const size = fitText(ctx, text, (s) => `italic ${s}px ${f.display}`, max, start, min);
+  glitchText(ctx, text, 64, y + size * 0.85, `italic ${size}px ${f.display}`);
+  return y + size * 0.85;
+};
+
+// 1. Intro: YOUR 2026//, who, and the top 5 artists.
 export async function yearIntro(d: YearData): Promise<Blob | null> {
   const accent = d.accent ?? "#8B7CF6";
-  const { c, ctx, f, logo } = await setup(accent);
-  header(ctx, logo, f, accent);
-  heading(ctx, f, `Your ${d.year}`, 70, 380, 150, accent);
+  const { c, ctx, f } = await setup(null);
+  sidePhoto(ctx, await loadImage(d.topArtists[0]?.image), accent);
+  let y = topBar(ctx, f, d.name, accent);
+  y = big(ctx, f, `YOUR ${d.year}//`, y + 30, W - 128, 210);
+  // Who.
   const av = await loadImage(d.avatar);
-  cover(ctx, av, 70, 460, 300, 300, true, accent, 8);
-  ctx.fillStyle = BONE; ctx.textAlign = "left";
-  ctx.font = `${fitText(ctx, d.name, (sz) => `${sz}px ${f.display}`, W - 140, 64, 40)}px ${f.display}`;
-  ctx.fillText(d.name, 70, 860);
-  ctx.font = `38px ${f.mono}`;
-  ctx.fillText("This year, you kept the archive alive.", 70, 920);
-  line(ctx, 990);
-  if (d.topArtists.length) {
-    heading(ctx, f, "Top 5 artists", 70, 1090, 64, accent);
-    const imgs = await Promise.all(d.topArtists.slice(0, 5).map((a) => loadImage(a.image)));
-    d.topArtists.slice(0, 5).forEach((a, i) => {
-      const y = 1140 + i * 112;
-      ctx.fillStyle = BONE; ctx.font = `64px ${f.display}`; ctx.textAlign = "left";
-      ctx.fillText(String(i + 1), 80, y + 72);
-      cover(ctx, imgs[i], 170, y, 96, 96, true, BONE, 3);
-      ctx.font = `42px ${f.mono}`;
-      ctx.fillText(wrap(ctx, a.name, 470, 1)[0] ?? "", 300, y + 62);
-      ctx.fillStyle = SMOKE; ctx.font = `32px ${f.mono}`; ctx.textAlign = "right";
-      ctx.fillText(`${a.n} songs`, W - 70, y + 62);
-      ctx.textAlign = "left";
-    });
-  }
-  footer(ctx, logo, f, d.url);
+  y += 40;
+  thumbOr(ctx, f, av, 64, y, 190, 190, d.name, accent);
+  ctx.strokeStyle = accent; ctx.lineWidth = 5; ctx.strokeRect(64, y, 190, 190);
+  ctx.fillStyle = BONE; ctx.font = `700 46px ${f.mono}`; ctx.textAlign = "left";
+  ctx.fillText(clipText(ctx, handle(d.name) ?? d.name, W - 360), 284, y + 72);
+  box(ctx, "YEAR IN THE ARCHIVE//", 284, y + 100, { font: `700 30px ${f.mono}`, fg: "#070707", bg: accent, h: 56 });
+  // Top 5.
+  y += 310;
+  glitchText(ctx, "TOP 5 ARTISTS//", 64, y, `italic 80px ${f.display}`, BONE, 4);
+  y += 30;
+  ctx.fillStyle = "rgba(237,237,237,0.35)"; ctx.fillRect(64, y, W - 128, 2);
+  const list = d.topArtists.slice(0, 5);
+  const imgs = await Promise.all(list.map((a) => loadImage(a.image)));
+  const rowH = 116;
+  list.forEach((a, i) => {
+    const ry = y + 10 + i * rowH;
+    ctx.fillStyle = BONE; ctx.textAlign = "left"; ctx.font = `italic 64px ${f.display}`;
+    ctx.fillText(String(i + 1).padStart(2, "0"), 64, ry + 80);
+    thumbOr(ctx, f, imgs[i], 160, ry + 10, 140, 92, a.name, accent);
+    ctx.font = `700 36px ${f.mono}`; ctx.fillStyle = BONE;
+    ctx.save(); ctx.letterSpacing = "2px"; ctx.fillText(clipText(ctx, a.name.toUpperCase(), 400), 326, ry + 70); ctx.restore();
+    box(ctx, `${n0(a.n)} SONGS`, W - 64, ry + 33, { font: `700 26px ${f.mono}`, fg: "#070707", bg: accent, h: 46, padX: 14, align: "right" });
+    ctx.fillStyle = "rgba(237,237,237,0.12)"; ctx.fillRect(64, ry + rowH - 2, W - 128, 1);
+  });
+  linkBox(ctx, f, d.url, Math.min(1600, y + 10 + list.length * rowH + 36), accent);
+  finish(ctx, accent);
   return toBlob(c);
 }
 
+// 2. Rarest finds: five songs hardly anyone else has.
 export async function yearFinds(d: YearData): Promise<Blob | null> {
   const accent = d.accent ?? "#8B7CF6";
-  const { c, ctx, f, logo } = await setup(accent);
-  header(ctx, logo, f, accent);
-  heading(ctx, f, "Rarest finds", 70, 380, 130, accent);
+  const { c, ctx, f } = await setup(null);
+  let y = topBar(ctx, f, d.name, accent, String(d.year));
+  y = big(ctx, f, "RAREST FINDS//", y + 30, W - 128, 170);
+  ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`; ctx.textAlign = "left";
+  ctx.save(); ctx.letterSpacing = "5px"; ctx.fillText("SONGS HARDLY ANYONE ELSE HAS", 68, y + 50); ctx.restore();
+  y += 90;
   const list = d.finds.slice(0, 5);
   const imgs = await Promise.all(list.map((x) => loadImage(x.cover)));
+  const rowH = 222;
   list.forEach((s, i) => {
-    const y = 440 + i * 250;
-    ctx.fillStyle = BONE; ctx.font = `70px ${f.display}`; ctx.textAlign = "left";
-    ctx.fillText(String(i + 1), 76, y + 84);
-    cover(ctx, imgs[i], 150, y, 210, 210, false, BONE, 3);
-    const tx = 400, tw = W - 70 - tx;
-    ctx.font = `700 42px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.title, tw, 1)[0] ?? "", tx, y + 46);
-    ctx.font = `34px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.artist, tw, 1)[0] ?? "", tx, y + 92);
-    if (s.status) tag(ctx, f, s.status, tx, y + 112, 26, false);
-    ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`;
-    ctx.fillText(wrap(ctx, [s.year, s.holders === 1 ? "only you have it" : `${s.holders} collectors`].filter(Boolean).join(" · "), tw, 1)[0] ?? "", tx, y + 196);
+    const ry = y + i * rowH;
+    ctx.fillStyle = hexA(accent, 0.6); ctx.fillRect(64 + 12, ry + 12, 190, 190);
+    thumbOr(ctx, f, imgs[i], 64, ry, 190, 190, s.title, accent);
+    const tx = 290, tw = W - 64 - tx;
+    ctx.fillStyle = BONE; ctx.textAlign = "left"; ctx.font = `italic 30px ${f.display}`;
+    ctx.fillText(String(i + 1).padStart(2, "0"), tx, ry + 36);
+    ctx.font = `700 38px ${f.mono}`;
+    ctx.fillText(clipText(ctx, s.title.toUpperCase(), tw), tx, ry + 84);
+    ctx.fillStyle = SMOKE; ctx.font = `30px ${f.mono}`;
+    ctx.fillText(clipText(ctx, [s.artist, s.year].filter(Boolean).join(" · "), tw), tx, ry + 128);
+    let tx2 = tx;
+    if (s.status) tx2 += statusTag(ctx, f, s.status, tx, ry + 148, 22, 38) + 14;
+    box(ctx, s.holders === 1 ? "ONLY YOU" : `${s.holders} COLLECTORS`, tx2, ry + 148, { font: `700 22px ${f.mono}`, fg: accent, border: accent, h: 38, padX: 12 });
   });
-  footer(ctx, logo, f, d.url);
+  finish(ctx, accent);
   return toBlob(c);
 }
 
+// 3. The biggest find: one song, big.
 export async function yearBiggest(d: YearData): Promise<Blob | null> {
   const s = d.finds[0];
-  const accent = (s?.status && STATUS_COLOURS[s.status]) || d.accent || "#8B7CF6";
-  const { c, ctx, f, logo } = await setup(accent);
-  header(ctx, logo, f, accent);
-  heading(ctx, f, "Your biggest find", 70, 380, 120, accent);
+  const accent = d.accent ?? "#8B7CF6";
+  const { c, ctx, f } = await setup(null);
+  let y = topBar(ctx, f, d.name, accent, String(d.year));
+  y = big(ctx, f, "BIGGEST FIND//", y + 30, W - 128, 170);
   if (s) {
     const img = await loadImage(s.cover);
-    const cs = 820;
-    cover(ctx, img, (W - cs) / 2, 440, cs, cs, false, BONE, 4);
-    let y = 440 + cs + 100;
-    ctx.fillStyle = BONE; ctx.textAlign = "left";
-    ctx.font = `700 56px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.title, W - 140, 1)[0] ?? "", 70, y);
-    y += 62;
-    ctx.font = `42px ${f.mono}`;
-    ctx.fillText(wrap(ctx, s.artist, W - 140, 1)[0] ?? "", 70, y);
-    y += 36;
-    const label = s.holders === 1 ? "ONLY YOU HAVE IT" : `ONLY ${s.holders} COLLECTORS`;
-    ctx.font = `700 38px ${f.mono}`;
-    const w = ctx.measureText(label).width + 30;
-    ctx.fillStyle = accent; ctx.fillRect(70, y, w, 58);
-    ctx.fillStyle = "#070707"; ctx.fillText(label, 85, y + 42);
-    y += 118;
-    ctx.fillStyle = SMOKE; ctx.font = `34px ${f.mono}`;
-    for (const l of wrap(ctx, s.holders === 1 ? "Nobody else on Static-Cuts has collected this one." : "One of the rarest songs in anyone's collection.", W - 140, 2)) { if (y > H - 190) break; ctx.fillText(l, 70, y); y += 46; }
+    const cs = 840, cx = 64, cy = y + 50;
+    ctx.fillStyle = hexA(accent, 0.75); ctx.fillRect(cx + 26, cy + 26, cs, cs);
+    thumbOr(ctx, f, img, cx, cy, cs, cs, s.title, accent);
+    ctx.strokeStyle = BONE; ctx.lineWidth = 4; ctx.strokeRect(cx, cy, cs, cs);
+    if (s.status) {
+      ctx.save(); ctx.translate(cx + cs - 10, cy + 60); ctx.rotate(0.12);
+      statusTag(ctx, f, s.status, 0, 0, 34, 60);
+      ctx.restore();
+    }
+    y = cy + cs + 110;
+    const t = s.title.toUpperCase();
+    const size = fitText(ctx, t, (z) => `italic ${z}px ${f.display}`, W - 128, 110, 56);
+    glitchText(ctx, t, 64, y, `italic ${size}px ${f.display}`, BONE, 4);
+    ctx.fillStyle = SMOKE; ctx.font = `34px ${f.mono}`; ctx.textAlign = "left";
+    ctx.fillText(clipText(ctx, [s.artist, s.year].filter(Boolean).join(" · "), W - 128), 64, y + 56);
+    const label = s.holders === 1 ? "ONLY YOU HAVE IT" : `ONLY ${s.holders} COLLECTORS HAVE IT`;
+    box(ctx, label, 64, y + 90, { font: `italic 52px ${f.display}`, fg: "#070707", bg: BONE, h: 80, padX: 24 });
   }
-  footer(ctx, logo, f, d.url);
+  finish(ctx, accent);
   return toBlob(c);
 }
 
+// 4. The numbers: four big stats.
 export async function yearNumbers(d: YearData): Promise<Blob | null> {
   const accent = d.accent ?? "#8B7CF6";
-  const { c, ctx, f, logo } = await setup(accent);
-  header(ctx, logo, f, accent);
-  heading(ctx, f, "Your numbers", 70, 380, 130, accent);
-  d.numbers.slice(0, 4).forEach(([label, value, note], i) => {
-    const y = 450 + i * 300, bh = 260;
-    ctx.strokeStyle = "rgba(237,237,237,0.6)"; ctx.lineWidth = 3;
-    ctx.strokeRect(70, y, W - 140, bh);
-    ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(170, y + bh / 2, 50, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#070707"; ctx.font = `60px ${f.display}`; ctx.textAlign = "center";
-    ctx.fillText(String(i + 1), 170, y + bh / 2 + 22);
-    ctx.textAlign = "left"; ctx.fillStyle = BONE;
-    const tw = W - 70 - 30 - 270;
-    ctx.font = `32px ${f.mono}`; ctx.fillText(wrap(ctx, label.toUpperCase(), tw, 1)[0] ?? "", 270, y + 70);
-    ctx.font = `${fitText(ctx, value, (sz) => `${sz}px ${f.display}`, tw, 104, 50)}px ${f.display}`; ctx.fillText(value, 270, y + 175);
-    ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`; ctx.fillText(wrap(ctx, note, tw, 1)[0] ?? "", 270, y + 225);
+  const { c, ctx, f } = await setup(null);
+  let y = topBar(ctx, f, d.name, accent, String(d.year));
+  y = big(ctx, f, "YOUR NUMBERS//", y + 30, W - 128, 170);
+  y += 60;
+  const rows = d.numbers.slice(0, 4);
+  const rowH = 280;
+  rows.forEach(([label, value, note], i) => {
+    const ry = y + i * rowH;
+    ctx.fillStyle = i % 2 ? hexA(accent, 0.6) : accent; ctx.fillRect(64, ry, 10, rowH - 40);
+    ctx.fillStyle = SMOKE; ctx.font = `700 28px ${f.mono}`; ctx.textAlign = "left";
+    ctx.save(); ctx.letterSpacing = "5px"; ctx.fillText(clipText(ctx, label.toUpperCase(), W - 220), 104, ry + 34); ctx.restore();
+    const size = fitText(ctx, value, (z) => `italic ${z}px ${f.display}`, W - 200, 140, 60);
+    glitchText(ctx, value, 100, ry + 40 + size * 0.85, `italic ${size}px ${f.display}`, BONE, 4);
+    ctx.fillStyle = BONE; ctx.font = `28px ${f.mono}`;
+    ctx.fillText(clipText(ctx, note, W - 220), 104, ry + rowH - 52);
   });
-  footer(ctx, logo, f, d.url);
+  finish(ctx, accent);
   return toBlob(c);
 }
 
+// 5. Outro: a collage of the year's artists and the sign-off.
 export async function yearOutro(d: YearData): Promise<Blob | null> {
   const accent = d.accent ?? "#8B7CF6";
-  const { c, ctx, f, logo } = await setup(accent);
-  header(ctx, logo, f, accent);
-  // A loose collage of the year's artists.
-  const imgs = (await Promise.all(d.topArtists.slice(0, 8).map((a) => loadImage(a.image)))).filter(Boolean) as HTMLImageElement[];
-  const spots: [number, number, number, number][] = [[90, 300, 300, -4], [420, 260, 260, 3], [720, 330, 280, -2], [60, 650, 260, 5], [780, 680, 240, -6], [110, 1000, 240, -3], [770, 980, 250, 4], [430, 1080, 220, 2]];
+  const { c, ctx, f, logo } = await setup(null);
+  const imgs = (await Promise.all(d.topArtists.slice(0, 7).map((a) => loadImage(a.image)))).filter(Boolean) as HTMLImageElement[];
+  const spots: [number, number, number, number][] = [
+    [70, 300, 260, 300], [320, 270, 260, 330], [560, 300, 250, 300], [790, 280, 240, 320],
+    [150, 530, 280, 310], [420, 510, 270, 330], [690, 530, 290, 310],
+  ];
   imgs.forEach((img, i) => {
-    const [x, y, s, rot] = spots[i];
-    ctx.save(); ctx.translate(x + s / 2, y + s / 2); ctx.rotate((rot * Math.PI) / 180);
-    ctx.globalAlpha = 0.75; ctx.filter = "grayscale(1) contrast(1.15)";
-    cover(ctx, img, -s / 2, -s / 2, s, s, false, "rgba(237,237,237,0.4)", 2);
-    ctx.restore();
+    const [x, y, w, h] = spots[i];
+    ctx.fillStyle = hexA(accent, 0.75); ctx.fillRect(x - 18 + (i % 2) * 30, y + 30, w * 0.7, h * 0.45);
+    ctx.drawImage(duotone(img, w, h, "#ffffff", 0), x, y);
   });
-  ctx.filter = "none"; ctx.globalAlpha = 1;
-  ctx.save(); ctx.translate(W / 2, 860); ctx.rotate((-12 * Math.PI) / 180);
-  ctx.fillStyle = BONE; ctx.textAlign = "center"; ctx.font = `italic 100px ${f.display}`;
-  ctx.fillText("ANOTHER YEAR", 0, -60); ctx.fillText("IN THE ARCHIVE", 0, 50);
-  ctx.fillStyle = accent; ctx.fillText("//", 360, 150);
-  ctx.restore();
-  ctx.textAlign = "center"; ctx.fillStyle = BONE; ctx.font = `38px ${f.mono}`;
-  ctx.fillText("Thanks for being part", W / 2, 1420);
-  ctx.fillText(`of Static-Cuts in ${d.year}.`, W / 2, 1470);
-  if (logo) { const w = 640, h = (logo.height / logo.width) * w; ctx.drawImage(logo, (W - w) / 2, 1530, w, h); }
-  ctx.font = `38px ${f.mono}`;
-  ctx.fillText("Make yours at static-cuts.com", W / 2, 1760);
+  let g = ctx.createLinearGradient(0, 700, 0, 880);
+  g.addColorStop(0, "rgba(11,11,12,0)"); g.addColorStop(1, VOID);
+  ctx.fillStyle = g; ctx.fillRect(0, 700, W, 180);
+  ctx.fillStyle = VOID; ctx.fillRect(0, 880, W, H - 880);
+  g = ctx.createLinearGradient(0, 230, 0, 330);
+  g.addColorStop(0, VOID); g.addColorStop(1, "rgba(11,11,12,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 230, W, 100);
+  ctx.fillStyle = VOID; ctx.fillRect(0, 0, W, 230);
+  topBar(ctx, f, d.name, accent, String(d.year));
+  let y = 940;
+  glitchText(ctx, "ANOTHER YEAR", 64, y + 130, `italic 150px ${f.display}`);
+  glitchText(ctx, "IN THE ARCHIVE//", 64, y + 270, `italic ${fitText(ctx, "IN THE ARCHIVE//", (z) => `italic ${z}px ${f.display}`, W - 128, 150, 80)}px ${f.display}`);
+  y += 330;
+  ctx.fillStyle = BONE; ctx.font = `34px ${f.mono}`; ctx.textAlign = "left";
+  ctx.fillText(`Thanks for being part of Static-Cuts in ${d.year}.`, 64, y);
+  if (logo) { const w = 420, h = (logo.height / logo.width) * w; ctx.drawImage(logo, 64, y + 40, w, h); }
+  linkBox(ctx, f, "MAKE YOURS AT STATIC-CUTS.COM", 1600, accent);
+  finish(ctx, accent);
   return toBlob(c);
 }
 
@@ -535,15 +610,7 @@ export async function collectionCard(d: CollectionCardData): Promise<Blob | null
     ctx.fillStyle = g; ctx.fillRect(px, py, pw, 120);
   }
   // Top row: brand and the collector's handle.
-  const top = 270;
-  ctx.font = `700 34px ${f.mono}`;
-  const bw = ctx.measureText("STATIC-CUTS//").width + 80;
-  ctx.fillStyle = "rgba(7,7,7,0.75)"; ctx.fillRect(64, top, bw, 64);
-  ctx.strokeStyle = "rgba(237,237,237,0.55)"; ctx.lineWidth = 2; ctx.strokeRect(64, top, bw, 64);
-  ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(64 + 30, top + 32, 9, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = BONE; ctx.textAlign = "left"; ctx.fillText("STATIC-CUTS//", 64 + 54, top + 44);
-  const h = handle(d.who);
-  if (h) box(ctx, h.toUpperCase(), W - 64, top, { font: `700 30px ${f.mono}`, fg: accent, border: accent, bg: "rgba(7,7,7,0.75)", h: 64, align: "right" });
+  const top = topBar(ctx, f, d.who, accent) - 64;
   // Title, artist tag.
   const title = `MY ${d.artist.toUpperCase()}//`;
   const size = fitText(ctx, title, (s) => `italic ${s}px ${f.display}`, W - 128, 150, 70);

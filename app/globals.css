@@ -2436,6 +2436,7 @@ button.ap-project { background: none; border: 0; padding: 0; cursor: pointer; fo
 .lb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--hair-strong); border-radius: 8px; padding: 12px 0; }
 .lb-stats > a { display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--hair-strong); text-decoration: none; color: var(--bone); padding: 0 4px; text-align: center; }
 .lb-stats > a:last-child { border-right: 0; }
+.lb-share { display: flex; justify-content: flex-end; margin-top: 10px; }
 .lb-stats strong { font-family: var(--font-anton), sans-serif; font-weight: 400; font-size: 1.7rem; }
 .lb-stats span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); }
 
