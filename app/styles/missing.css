@@ -1,0 +1,41 @@
+/* What you're missing (Local Cuts and collection imports) */
+/* the Local Cuts box look, for pages without local.css */
+.lcm-wrap .lc-sl { font-family: var(--font-anton), sans-serif; font-style: italic; margin-right: 6px; }
+.lcm-wrap .lc-small { font-family: var(--font-mono), monospace; font-size: 0.76rem; color: var(--smoke); line-height: 1.6; margin: 10px 0; }
+.lcm-wrap .lc-h { font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; text-transform: uppercase; font-size: clamp(1.6rem, 4vw, 2.2rem); color: var(--bone); margin: 28px 0 12px; line-height: 1; }
+.lcm-wrap .lc-h::after { content: "//"; color: var(--accent); margin-left: 3px; }
+.lcm-wrap .lc-h.in { margin: 0; font-size: clamp(1.3rem, 3vw, 1.7rem); }
+.lcm-wrap { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 16px 18px; margin: 16px 0; background: color-mix(in srgb, var(--void) 82%, transparent); }
+.lcm-wrap .lc-box-head { display: flex; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.lcm-wrap .lc-box-head .lc-small { margin: 0; }
+.lcm-cards { display: flex; flex-direction: column; gap: 8px; }
+.lcm-card { border: 1.5px solid var(--hair-strong); border-radius: 8px; background: color-mix(in srgb, var(--void) 80%, transparent); }
+.lcm-card.open { border-color: var(--accent); }
+.lcm-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: none; border: 0; color: inherit; cursor: pointer; text-align: left; min-height: 44px; }
+.lcm-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; }
+.lcm-photo.blank { display: inline-flex; align-items: center; justify-content: center; background: var(--surface); font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--smoke); }
+.lcm-who { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.lcm-who b { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lcm-who small, .lcm-more { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lcm-more { flex: none; }
+.lcm-bar { display: block; height: 4px; background: var(--hair-strong); border-radius: 2px; overflow: hidden; }
+.lcm-bar span { display: block; height: 100%; background: #22C55E; }
+.lcm-body { padding: 4px 12px 14px; }
+.lcm-eras { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin-bottom: 12px; max-height: 260px; overflow-y: auto; }
+.lcm-era { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 7px 9px; border: 1px solid var(--hair-strong); border-radius: 6px; background: none; color: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; }
+.lcm-era:disabled { cursor: default; }
+.lcm-era .lcm-bar { grid-column: 1 / -1; }
+.lcm-era.on { border-color: var(--accent); }
+.lcm-era.full .lcm-era-n { color: #22C55E; }
+.lcm-era-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lcm-era-n { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); }
+.lcm-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.lcm-group { margin-top: 10px; }
+.lcm-group-h { font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
+.lcm-group-h small { font-family: var(--font-mono), monospace; font-weight: 400; font-size: 0.7rem; color: var(--smoke); margin-left: 6px; }
+.lcm-list { list-style: none; margin: 0; padding: 0; }
+.lcm-list li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--hair); font-size: 0.85rem; }
+.lcm-song { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+.lcm-song:hover { text-decoration: underline; }
+.lcm-tag { flex: none; font-family: var(--font-mono), monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid; border-radius: 3px; padding: 1px 5px; }
+.lcm-day { flex: none; font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--smoke); width: 34px; text-align: right; }

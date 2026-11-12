@@ -12,6 +12,8 @@ import { useIsAdmin, usePersonalUser } from "../../useIsAdmin";
 import { AdminModePage } from "../../components/AdminModeNote";
 import ExportifyImport from "./ExportifyImport";
 import SpotifyImport from "./SpotifyImport";
+import Missing from "../../components/Missing";
+import { usePremium } from "../../usePremium";
 
 type Match = { row: number; artist_in: string | null; title_in: string; artist_id: string | null; track_id: string | null; title: string | null; owned: boolean };
 
@@ -45,6 +47,8 @@ export default function CollectionImportPage() {
   const isAdmin = useIsAdmin();
   const [src, setSrc] = useState<"spotify" | "apple" | "file">("spotify");
   const [owned, setOwned] = useState<number | null>(null);
+  const [imported, setImported] = useState(0); // bumps after an import, to recount
+  const { premium } = usePremium();
   const [text, setText] = useState("");
   const [titleCol, setTitleCol] = useState(-1);
   const [artistCol, setArtistCol] = useState(-1);
@@ -85,7 +89,7 @@ export default function CollectionImportPage() {
     if (!user) return;
     supabase.from("track_ownership").select("track_id", { count: "exact", head: true }).eq("user_id", user.id)
       .then(({ count }) => setOwned(count ?? 0));
-  }, [user, matches]);
+  }, [user, matches, imported]);
 
   async function readFile(f: File | undefined) {
     if (!f) return;
@@ -220,12 +224,12 @@ export default function CollectionImportPage() {
                 <li>Press <b>Export All</b> (or export just the playlists you want). It downloads a file.</li>
                 <li>Pick that file here.</li>
               </ol>
-              <ExportifyImport />
+              <ExportifyImport onDone={() => setImported((n) => n + 1)} />
             </div>
             <div className="im-side">
               <h3 className="im-h3">Straight from Spotify <small>(invited testers)</small></h3>
               <p className="im-small">Spotify only lets new sites connect a handful of accounts. If it says you&apos;re not allowed, use Exportify.</p>
-              <SpotifyImport />
+              <SpotifyImport onDone={() => setImported((n) => n + 1)} />
               <div className="im-what">
                 <strong>What happens//</strong>
                 <ul>
@@ -364,6 +368,10 @@ export default function CollectionImportPage() {
         </>
       )}
       </section>
+      )}
+      {user && (owned ?? 0) > 0 && (
+        <Missing collection refresh={owned ?? 0} premium={!!premium}
+          intro="From your whole collection (Spotify, Exportify and file imports included): every artist you have 3+ songs of, era by era." />
       )}
     </div>
   );

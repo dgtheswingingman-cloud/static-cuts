@@ -97,7 +97,7 @@ async function filesFromZip(file: File): Promise<{ name: string; text: string }[
   return out;
 }
 
-export default function ExportifyImport() {
+export default function ExportifyImport({ onDone }: { onDone?: () => void } = {}) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -258,6 +258,7 @@ export default function ExportifyImport() {
       setNote(null);
     } finally {
       setBusy(false);
+      onDone?.();
     }
   }
 

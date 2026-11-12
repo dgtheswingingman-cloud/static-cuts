@@ -32,7 +32,7 @@ import { canTag, makeZip, safeName, tidiedCopy, withCode, type NewTags } from ".
 import { pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
 import { thumb } from "@/lib/thumb";
-import Missing from "./Missing";
+import Missing from "../components/Missing";
 
 const AUDIO = /\.(mp3|m4a|mp4|aac|flac|wav|ogg|oga|opus|webm|alac|aiff?)$/i;
 
