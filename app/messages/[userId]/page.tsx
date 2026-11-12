@@ -102,7 +102,7 @@ export default function ChatPage() {
     const found: Record<string, Card | null> = {};
     for (const l of want) found[`${l.kind}:${l.id}`] = null;
     Promise.all([
-      ids("song").length ? supabase.from("tracks").select("id, title, cover_url, release_status, artists(name, image_url)").in("id", ids("song")).then(({ data }) => {
+      ids("song").length ? supabase.from("tracks").select("id, title, cover_url, release_status, artists!artist_id(name, image_url)").in("id", ids("song")).then(({ data }) => {
         for (const t of (data ?? []) as unknown as { id: string; title: string; cover_url: string | null; release_status: string | null; artists: { name: string; image_url: string | null } | null }[])
           found[`song:${t.id}`] = { href: `/song/${t.id}`, title: t.title, sub: t.artists?.name ?? null, image: t.cover_url ?? t.artists?.image_url ?? null, status: t.release_status, round: false };
       }) : null,

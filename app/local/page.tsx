@@ -60,6 +60,9 @@ type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | 
   code?: string | null }; // kept files: the code to add (nothing else changes)
 
 const plain = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
+// Claude's clean title with its version in the archive's style: "Song [V2]".
+const cleanTitle = (s: { clean: Clean | null }) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
+  ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
 const tidyKey = (s: string | null) => plain((s ?? "").replace(/\s*[([]\s*(feat|ft|featuring|with|prod)\b[^)\]]*[)\]]/gi, ""));
 function firstArtist(s: string | null) {
   return (s ?? "").split(/\s*(?:,|&|\bx\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|;|\/)\s*/i)[0]?.trim() || null;
@@ -225,8 +228,6 @@ export default function LocalCutsPage() {
     // they're tidied with the archive's details, cover and code, not just
     // Claude's guess. Only exact title matches count.
     const cleaned = read.filter((s) => !s.sure && s.clean?.title && (s.clean.artist || s.artist));
-    const cleanTitle = (s: Song) => (s.clean!.version && !s.clean!.title!.toLowerCase().includes(s.clean!.version.toLowerCase())
-      ? `${s.clean!.title} [${s.clean!.version}]` : s.clean!.title!);
     for (let i = 0; i < cleaned.length; i += 200) {
       const batch = cleaned.slice(i, i + 200);
       const { data, error } = await supabase.rpc("rpc_match_my_songs", {
@@ -246,9 +247,12 @@ export default function LocalCutsPage() {
     // The archive's details for every matched song.
     const ids = [...new Set(read.filter((s) => s.track_id).map((s) => s.track_id!))];
     for (let i = 0; i < ids.length; i += 200) {
-      const { data } = await supabase.from("tracks")
-        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, credited_as, artists(name)")
+      // artists!artist_id: songs also link to artists through "appears on",
+      // so the main artist has to be named or the whole query fails.
+      const { data, error } = await supabase.from("tracks")
+        .select("id, title, album, release_date, leak_date, track_number, featured_artists, producers, length_sec, cover_url, release_status, parent_track_id, credited_as, artists!artist_id(name)")
         .in("id", ids.slice(i, i + 200));
+      if (error) setNote(`Couldn't load the archive's details for your matched songs (${error.message}), so they're filed as they are. Try again in a minute.`);
       type Row = Omit<Site, "artist" | "status" | "parent_album" | "parent_cover"> & { release_status: string | null; parent_track_id: string | null; artists: { name: string } | null };
       const rows = (data as Row[] | null) ?? [];
       const parents = [...new Set(rows.map((r) => r.parent_track_id).filter(Boolean))] as string[];
@@ -291,7 +295,17 @@ export default function LocalCutsPage() {
 
   async function helpArchive(read: Song[]) {
     const formatted = read.filter((s) => s.formatted);
-    if (formatted.length === 0) { setSent({ details: 0, songs: 0, covers: 0, problem: null }); return; }
+    // Files that aren't well formatted but Claude worked out (an artist that's
+    // on the site, a clean title and version) and that the archive doesn't
+    // have: suggested as new songs / versions too. They go to Import review,
+    // which skips anything the archive already has.
+    const worked = read.filter((s) => !s.formatted && !s.track_id && s.artist_id && s.clean?.title);
+    const extra = worked.map((s) => ({
+      artist_id: s.artist_id, title: cleanTitle(s), status: s.clean!.status ?? null,
+      featuring: s.clean!.featuring ?? null, producers: s.clean!.producers ?? null, length_sec: s.duration,
+      notes: ["From a listener's file, identified by Claude.", s.clean!.note].filter(Boolean).join(" "),
+    }));
+    if (formatted.length === 0 && extra.length === 0) { setSent({ details: 0, songs: 0, covers: 0, problem: null }); return; }
     step("archive", formatted.length);
     const gaps: Record<string, unknown>[] = [];
     const coverFor: Song[] = [];
@@ -319,6 +333,7 @@ export default function LocalCutsPage() {
         });
       }
     }
+    news.push(...extra);
     let covers = 0, details = 0, added = 0, problem: string | null = null, n = 0;
     // Covers: shrunk here, uploaded, then sent as a link with the rest.
     await pool(coverFor, 4, async (s) => {
