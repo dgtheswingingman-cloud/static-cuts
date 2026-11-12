@@ -553,40 +553,40 @@ export async function collectionCard(d: CollectionCardData): Promise<Blob | null
   // The three numbers.
   y += 180;
   const stat = (big: string, label: string) => {
-    ctx.fillStyle = BONE; ctx.font = `italic 108px ${f.display}`; ctx.textAlign = "left"; ctx.fillText(big, 64, y);
-    ctx.fillStyle = SMOKE; ctx.font = `30px ${f.mono}`;
-    ctx.save(); ctx.letterSpacing = "6px"; ctx.fillText(label, 68, y + 44); ctx.restore();
-    y += 150;
+    ctx.fillStyle = BONE; ctx.font = `italic 100px ${f.display}`; ctx.textAlign = "left"; ctx.fillText(big, 64, y);
+    ctx.fillStyle = SMOKE; ctx.font = `28px ${f.mono}`;
+    ctx.save(); ctx.letterSpacing = "6px"; ctx.fillText(label, 68, y + 40); ctx.restore();
+    y += 160;
   };
   const doneN = d.eras.filter((e) => e.have >= e.total).length;
   stat(`${n0(d.have)} / ${n0(d.total)}`, "SONGS OWNED");
   stat(pct1(d.have, d.total), "COMPLETE");
   stat(`${doneN} / ${d.eras.length}`, "ERAS COMPLETE");
   // Eras: real ones first (biggest first), loose songs only if there's room.
-  y -= 70;
+  y -= 84;
   ctx.fillStyle = "rgba(237,237,237,0.3)"; ctx.fillRect(64, y, W - 128, 2);
   const loose = (e: { era: string }) => /^singles & loose songs$/i.test(e.era);
   // The 7 biggest, shown oldest first.
   const eras = [...d.eras.filter((e) => !loose(e)).sort((a, b) => b.total - a.total), ...d.eras.filter(loose)].slice(0, 7)
     .sort((a, b) => (loose(a) ? 1 : 0) - (loose(b) ? 1 : 0) || (a.from ?? 9999) - (b.from ?? 9999));
   const covers = await Promise.all(eras.map((e) => loadImage(e.cover)));
-  const rowH = 62;
+  const rowH = 58;
   eras.forEach((e, i) => {
     const ry = y + 12 + i * rowH;
     thumbOr(ctx, f, covers[i], 64, ry, 84, 52, e.era, accent);
-    ctx.textAlign = "left"; ctx.fillStyle = BONE; ctx.font = `700 28px ${f.mono}`;
-    ctx.fillText(clipText(ctx, e.era.toUpperCase(), 330), 168, ry + 24);
+    ctx.textAlign = "left"; ctx.fillStyle = BONE; ctx.font = `700 25px ${f.mono}`;
+    ctx.fillText(clipText(ctx, e.era.toUpperCase(), 250), 168, ry + 24);
     const yrs = e.from ? (e.to && e.to !== e.from ? `${e.from} – ${e.to}` : String(e.from)) : "";
     if (yrs) { ctx.fillStyle = SMOKE; ctx.font = `22px ${f.mono}`; ctx.fillText(yrs, 168, ry + 50); }
-    ctx.textAlign = "right"; ctx.fillStyle = BONE; ctx.font = `26px ${f.mono}`;
-    ctx.fillText(`${e.have} / ${e.total}`, 618, ry + 34);
+    ctx.textAlign = "right"; ctx.fillStyle = BONE; ctx.font = `24px ${f.mono}`;
+    ctx.fillText(`${e.have}/${e.total}`, 574, ry + 34);
     const p = e.total ? Math.min(1, e.have / e.total) : 0;
-    ctx.fillStyle = "rgba(237,237,237,0.18)"; ctx.fillRect(632, ry + 18, 140, 18);
-    ctx.fillStyle = GREEN; ctx.fillRect(632, ry + 18, 140 * p, 18);
+    ctx.fillStyle = "rgba(237,237,237,0.18)"; ctx.fillRect(586, ry + 18, 118, 18);
+    ctx.fillStyle = GREEN; ctx.fillRect(586, ry + 18, 118 * p, 18);
     ctx.textAlign = "left"; ctx.fillStyle = BONE; ctx.font = `24px ${f.mono}`;
-    ctx.fillText(pct1(e.have, e.total), 786, ry + 34);
-    const [label, colour] = p >= 1 ? ["COMPLETE", GREEN] : p >= 0.85 ? ["NEAR", accent] : p >= 0.4 ? ["IN PROGRESS", GOLD] : ["EARLY", RED];
-    box(ctx, label, W - 64, ry + 10, { font: `700 20px ${f.mono}`, fg: colour, border: colour, h: 34, padX: 10, align: "right" });
+    ctx.fillText(pct1(e.have, e.total), 716, ry + 34);
+    const [label, colour] = p >= 1 ? ["COMPLETE", GREEN] : p >= 0.85 ? ["NEAR COMPLETE", accent] : p >= 0.4 ? ["IN PROGRESS", GOLD] : ["EARLY", RED];
+    box(ctx, label, W - 64, ry + 10, { font: `700 19px ${f.mono}`, fg: colour, border: colour, h: 34, padX: 9, align: "right" });
     ctx.fillStyle = "rgba(237,237,237,0.08)"; ctx.fillRect(64, ry + rowH - 4, W - 128, 1);
   });
   // The link.
@@ -664,21 +664,25 @@ export async function collectionOverviewCard(d: CollectionOverviewData): Promise
   ctx.restore();
   ctx.fillStyle = "rgba(237,237,237,0.35)"; ctx.fillRect(64, y + 14, W - 128, 2);
   y += 18;
-  const rowH = 54;
+  const rowH = 64;
   const thumbs = await Promise.all(top.map((a) => loadImage(a.photo)));
   top.forEach((a, i) => {
     const ry = y + i * rowH;
     ctx.textAlign = "left"; ctx.fillStyle = BONE; ctx.font = `28px ${f.mono}`;
-    ctx.fillText(String(i + 1).padStart(2, "0"), 80, ry + 36);
-    thumbOr(ctx, f, thumbs[i], 140, ry + 7, 64, 40, a.artist, accent);
-    ctx.font = `700 28px ${f.mono}`; ctx.fillStyle = BONE;
-    ctx.fillText(clipText(ctx, a.artist.toUpperCase(), 400), 226, ry + 36);
-    ctx.textAlign = "center"; ctx.font = `28px ${f.mono}`;
-    ctx.fillText(`${n0(a.have)} / ${n0(a.total)}`, 770, ry + 36);
+    ctx.fillText(String(i + 1).padStart(2, "0"), 80, ry + 42);
+    thumbOr(ctx, f, thumbs[i], 140, ry + 7, 80, 50, a.artist, accent);
+    ctx.font = `700 29px ${f.mono}`; ctx.fillStyle = BONE;
+    ctx.save(); ctx.letterSpacing = "2px";
+    ctx.fillText(clipText(ctx, a.artist.toUpperCase(), 390), 240, ry + 30);
+    ctx.restore();
+    ctx.font = `22px ${f.mono}`; ctx.fillStyle = SMOKE;
+    ctx.fillText(`${n0(a.have)} SONGS`, 242, ry + 56);
+    ctx.textAlign = "center"; ctx.fillStyle = BONE; ctx.font = `30px ${f.mono}`;
+    ctx.fillText(`${n0(a.have)} / ${n0(a.total)}`, 770, ry + 42);
     const p = a.total ? Math.floor((a.have / a.total) * 100) : 0;
     const done = a.have >= a.total;
-    ctx.fillStyle = done ? GOLD : accent; ctx.fillRect(920, ry + 9, 84, 36);
-    ctx.fillStyle = "#070707"; ctx.font = `700 24px ${f.mono}`; ctx.fillText(`${Math.min(100, p)}%`, 962, ry + 35);
+    ctx.fillStyle = done ? GOLD : accent; ctx.fillRect(916, ry + 12, 90, 40);
+    ctx.fillStyle = "#070707"; ctx.font = `700 26px ${f.mono}`; ctx.fillText(`${Math.min(100, p)}%`, 961, ry + 41);
     ctx.fillStyle = "rgba(237,237,237,0.12)"; ctx.fillRect(64, ry + rowH - 1, W - 128, 1);
   });
   // Link.
