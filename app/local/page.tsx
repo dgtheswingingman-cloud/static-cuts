@@ -213,7 +213,7 @@ export default function LocalCutsPage() {
           if (s.sure || !(s.artist || s.folder_artist) || !r) return; // matched by its code already
           s.artist_id = r.artist_id;
           // No artist in the tags, but the folder's name is an artist on the site.
-          if (!s.artist && r.artist_id) s.artist = s.folder_artist;
+          if (!s.artist && r.artist_id) s.artist = s.folder_artist ?? null;
           if (r.track_id) { s.track_id = r.track_id; s.sure = tidyKey(r.title) === tidyKey(s.title); }
         });
       }
@@ -234,7 +234,7 @@ export default function LocalCutsPage() {
         const r = rows[j];
         if (r?.track_id && tidyKey(r.title) === tidyKey(matchTitle(s.title))) {
           s.track_id = r.track_id; s.artist_id = r.artist_id ?? s.artist_id; s.sure = true;
-          if (!s.artist && r.artist_id) s.artist = s.folder_artist;
+          if (!s.artist && r.artist_id) s.artist = s.folder_artist ?? null;
         }
       });
     }
