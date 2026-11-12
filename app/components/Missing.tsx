@@ -6,7 +6,7 @@
 // Exportify and file imports). Counts for everyone; the lists are premium.
 
 import "../styles/missing.css";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { thumb } from "@/lib/thumb";
@@ -26,6 +26,9 @@ function Bar({ have, total }: { have: number; total: number }) {
 }
 
 const LOOSE = "Singles & loose songs";
+// For A to Z: no leading "The", brackets or symbols.
+const sortName = (n: string) => n.replace(/^the\s+/i, "").replace(/^[^\p{L}\p{N}]+/u, "");
+const letter = (n: string) => { const c = sortName(n).charAt(0).toUpperCase(); return /\p{L}/u.test(c) ? c : "#"; };
 const SMALL = 4; // eras with fewer songs than this are folded into "Singles & loose songs"
 type Only = "all" | "unreleased" | "released";
 const keep = (only: Only) => (g: Gap) => only === "all" || (only === "released" ? g.status === "released" : g.status !== "released");
@@ -66,7 +69,7 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
   const [hideDone, setHideDone] = useState(true);
   const [openAll, setOpenAll] = useState(false);
 
-  // Real eras / projects, oldest first; small ones folded into one "loose" group.
+  // Real eras / projects; small ones folded into one "loose" group.
   const { eras, eraOf } = useMemo(() => {
     const big = r.eras.filter((e) => e.total >= SMALL && e.era !== LOOSE);
     const bigSet = new Set(big.map((e) => e.era));
@@ -78,7 +81,9 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
     for (const g of (r.missing ?? []).filter(keep(only))) { const k = eraOf(g); m.set(k, [...(m.get(k) ?? []), g]); }
     return m;
   }, [r.missing, only, eraOf]);
-  const shown = eras.filter((e) => !(hideDone && e.have >= e.total));
+  // A to Z under letter headings ("The" doesn't count), loose songs last.
+  const shown = eras.filter((e) => !(hideDone && e.have >= e.total))
+    .sort((a, b) => (a.era === LOOSE ? 1 : 0) - (b.era === LOOSE ? 1 : 0) || sortName(a.era).localeCompare(sortName(b.era), "en-GB", { numeric: true }));
   const doneN = eras.filter((e) => e.have >= e.total).length;
   const missingCount = r.total - r.have;
 
@@ -110,7 +115,17 @@ function ArtistCard({ r, premium }: { r: Row; premium: boolean }) {
             )}
           </div>
           <div className="lcm-eras2">
-            {shown.map((e) => <EraRow key={e.era} e={e} gaps={gapsBy.get(e.era) ?? []} premium={premium} openAll={openAll} />)}
+            {shown.map((e, i) => {
+              const l = e.era === LOOSE ? "" : letter(e.era);
+              const head = l && (i === 0 || letter(shown[i - 1].era) !== l || shown[i - 1].era === LOOSE);
+              return (
+                <Fragment key={e.era}>
+                  {head && <div className="lcm-letter">{l}</div>}
+                  {e.era === LOOSE && i > 0 && <div className="lcm-letter">Loose</div>}
+                  <EraRow e={e} gaps={gapsBy.get(e.era) ?? []} premium={premium} openAll={openAll} />
+                </Fragment>
+              );
+            })}
             {shown.length === 0 && <p className="lc-small">Every era complete. Nice.</p>}
           </div>
           {!premium && (
