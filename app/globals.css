@@ -3524,6 +3524,11 @@ body:has(.ms-shell) .site-credit { display: none; }
   .page-back .back-btn { padding: 4px 8px; background: color-mix(in srgb, var(--void) 72%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; color: var(--smoke); }
   .page-back .back-btn:hover { color: var(--bone); }
 }
+/* The back link sits between the top bar and the page, so ".site-top + .wrap"
+   no longer matches and the page keeps its full 60px top padding. Banner pages
+   (artists, profiles) pull their banner up over all of it, so there's no empty
+   strip above the photos; the back link floats on the banner. */
+.page-back ~ .wrap > .artist-hero:first-child { margin-top: -60px; }
 
 /* Home: song of the day, next to album of the week (computers) or under it. */
 .home-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
