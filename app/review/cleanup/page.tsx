@@ -22,7 +22,7 @@ import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, Mo
 type Kind = "not_song" | "placeholder" | "links" | "mixups";
 type Item = {
   id: string; title: string; artist_id: string; artist: string; status: string | null; source?: string | null;
-  album?: string | null; kind?: Kind; versions?: number; collected?: number;
+  album?: string | null; kind?: Kind | "alias" | "multiple"; versions?: number; collected?: number;
   spotify_url?: string; spotify_title?: string | null; spotify_artists?: string | null;
   // bio mix-ups
   other_id?: string | null; other?: string | null; excerpt?: string | null; source_url?: string | null;
