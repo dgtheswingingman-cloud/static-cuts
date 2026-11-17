@@ -8,7 +8,9 @@ import { supabase } from "@/lib/supabase";
 export const alt = "Artist on Static-Cuts//";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const revalidate = 3600;
+// Kept for 30 days: crawlers walking the sitemap asked for ~30,000 of these a
+// day (13–16 Nov 2026), each drawn fresh, which went past the free plan.
+export const revalidate = 2592000;
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
