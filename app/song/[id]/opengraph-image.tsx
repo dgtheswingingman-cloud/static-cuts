@@ -30,6 +30,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     (s.family?.length ?? 0) > 1 ? `${(s.family?.length ?? 1) - 1} other version${(s.family?.length ?? 1) - 1 === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[];
 
+  // The share-image renderer fetches a font for symbols it doesn't have, and
+  // that fails for stars (★ ☆), which some tracker titles use. Swap them for *.
+  const plain = (x: string) => x.replace(/[\u2605\u2606\u2729-\u2730\u272A-\u2740]/g, "*");
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#0A0A0A", color: "#EDEDED", padding: 60, fontFamily: "sans-serif" }}>
@@ -40,13 +43,13 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ width: 360, height: 360, borderRadius: 18, marginRight: 56, background: "#1D1D1D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, color: "#565656" }}>SC//</div>
         )}
         <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
-          <div style={{ fontSize: t && t.title.length > 28 ? 56 : 72, fontWeight: 700, lineHeight: 1.05 }}>{t?.title ?? "Song not found"}</div>
-          <div style={{ fontSize: 40, color: "#A3A3A3", marginTop: 14 }}>{s.artist?.name ?? ""}</div>
+          <div style={{ fontSize: t && t.title.length > 28 ? 56 : 72, fontWeight: 700, lineHeight: 1.05 }}>{plain(t?.title ?? "Song not found")}</div>
+          <div style={{ fontSize: 40, color: "#A3A3A3", marginTop: 14 }}>{plain(s.artist?.name ?? "")}</div>
           <div style={{ display: "flex", gap: 14, marginTop: 30 }}>
             <div style={{ fontSize: 30, padding: "6px 20px", border: "2px solid #EDEDED", borderRadius: 999 }}>{status}</div>
             {confirmed && <div style={{ fontSize: 30, padding: "6px 20px", border: "2px solid #4caf6a", color: "#4caf6a", borderRadius: 999 }}>confirmed on Spotify</div>}
           </div>
-          {facts.length > 0 && <div style={{ fontSize: 30, color: "#A3A3A3", marginTop: 26 }}>{facts.join(" · ")}</div>}
+          {facts.length > 0 && <div style={{ fontSize: 30, color: "#A3A3A3", marginTop: 26 }}>{plain(facts.join(" · "))}</div>}
           <div style={{ fontSize: 26, color: "#565656", marginTop: 40 }}>static-cuts.com</div>
         </div>
       </div>
