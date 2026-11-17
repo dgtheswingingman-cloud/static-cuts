@@ -8,7 +8,9 @@ import { supabase } from "@/lib/supabase";
 export const alt = "Song on Static-Cuts//";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const revalidate = 3600;
+// Kept for 30 days: crawlers walking the sitemap asked for ~30,000 of these a
+// day (13–16 Nov 2026), each drawn fresh, which went past the free plan.
+export const revalidate = 2592000;
 
 type Song = {
   track?: { title: string; release_status: string | null; album: string | null; cover_url?: string | null; display_cover?: { url: string } | null;
