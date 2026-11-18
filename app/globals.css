@@ -3454,6 +3454,16 @@ body:has(.ms-shell) .site-credit { display: none; }
 .hw-vote .hw-skip { align-self: center; padding: 2px 4px; }
 .hw-skipped { margin: -4px 0 10px; }
 .hw-login { margin-top: 8px; display: inline-flex; }
+/* Help Wanted: pick an artist. */
+.hw-artist-pick { position: relative; margin-bottom: 12px; }
+.hw-artist-pick.on { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1.5px solid var(--accent); border-radius: 6px; font-family: var(--font-mono), monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.hw-artist-pick.on b { color: var(--accent); }
+.hw-artist-clear { background: none; border: 0; color: var(--smoke); cursor: pointer; font: inherit; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; }
+.hw-artist-clear:hover { color: var(--bone); }
+.hw-artist-results { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); display: flex; flex-direction: column; border: 1.5px solid var(--hair-strong); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.hw-artist-results button { text-align: left; background: none; border: 0; border-bottom: 1px solid var(--hair); color: var(--bone); padding: 10px 14px; min-height: 40px; cursor: pointer; font: inherit; }
+.hw-artist-results button:last-child { border-bottom: 0; }
+.hw-artist-results button:hover { background: var(--surface2); }
 .hw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--hair-strong); }
 .hw-cover { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 3px; border: 1px solid var(--hair-strong); display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; font-size: 0.8rem; color: var(--smoke); }
 .hw-cover.round { border-radius: 50%; }
