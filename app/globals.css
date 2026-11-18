@@ -3440,6 +3440,13 @@ body:has(.ms-shell) .site-credit { display: none; }
 .hw-h { font-size: 1.8rem; margin: 0; }
 .hw-blurb { margin: 2px 0 10px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
 .hw-done { padding: 30px 0; text-align: center; font-family: var(--font-anton), sans-serif; font-size: 1.6rem; text-transform: uppercase; }
+/* Help Wanted in admin mode: the fill-in boxes on each row. */
+.hw-fill { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 8px; }
+.hw-fill-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hw-fill-field small { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; }
+.hw-fill-wide { flex: 1 1 240px; }
+.hw-fill .ms-say { min-height: 40px; }
+.hw-fixed { color: var(--green); }
 .hw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--hair-strong); }
 .hw-cover { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 3px; border: 1px solid var(--hair-strong); display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; font-size: 0.8rem; color: var(--smoke); }
 .hw-cover.round { border-radius: 50%; }

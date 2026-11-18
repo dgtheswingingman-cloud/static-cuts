@@ -605,9 +605,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
       <div className="section-label" style={{ marginTop: 0 }}>Lists to work through</div>
       <div className="mod-grid">
         {[
-          { href: "/review/inbox", title: "Inbox", n: counts ? (counts.suggestions ?? 0) + (counts.finds ?? 0) + (counts.reported_comments ?? 0) + (counts.takedowns ?? 0)
-              + (counts.album_fixes ?? 0) + (counts.announcements ?? 0) + (counts.covers ?? 0) + (counts.sheet_requests ?? 0) + (counts.tracker_disagreements ?? 0) : undefined,
-            blurb: "Everything waiting for a person on one page, most urgent first." },
+          { href: "/help", title: "Help Wanted", blurb: "Songs and artists missing something (links, dates, albums, status, covers, songs): fill them in on the spot." },
           { href: "/review/suggestions", title: "Suggestions", n: counts ? counts.suggestions + counts.finds : undefined, blurb: "What people suggest (new songs, edits, wrong links) and finds from ChatGPT routines." },
           { href: "/review/imports", title: "Imported songs", n: counts?.imported_songs, blurb: "Songs found by Genius, Last.fm and sheets, waiting for a yes or no." },
           { href: "/review/tracker", title: "Tracker disagrees", n: counts?.tracker_disagreements, blurb: "A community tracker gives a different status from ours: pick one." },
