@@ -11,6 +11,7 @@
 .lh-artist a { color: inherit; font-weight: 700; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lh-ready { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: #070707; background: #22C55E; padding: 1px 5px; letter-spacing: 0.06em; }
 .lh-x { margin-left: auto; background: none; border: 0; color: var(--smoke); cursor: pointer; font-size: 0.8rem; }
+@media (max-width: 767px), (pointer: coarse) { .lh-x { min-width: 32px; min-height: 32px; } }
 .lh-n { min-width: 48px; min-height: 32px; padding: 2px 10px; border: 1.5px solid #F5B841; border-radius: 4px; background: none; color: #F5B841; font-family: var(--font-mono), monospace; font-size: 0.85rem; cursor: pointer; }
 .lh-n.on { background: #F5B841; color: #070707; }
 .lh-zero { font-family: var(--font-mono), monospace; color: #22C55E; }
