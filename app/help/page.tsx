@@ -5,7 +5,8 @@
 // missing info, set a status, add art for leaks, add songs to thin pages.
 // Everyone fills in on the row itself (date, album, cover) instead of going
 // to a form; "Skip" hides a row you can't help with (remembered on this
-// device). If you follow artists, it starts on just theirs.
+// device). If you follow artists, it starts on just theirs. "Pick an artist"
+// narrows every job to one artist (/help?artist=<id> links straight there).
 // In admin mode it's the admin's to-do list: the same jobs, but each fix is
 // made on the spot (use or bin a link, type the date and album, set the
 // status, paste a cover) instead of being suggested for someone to review.
@@ -18,6 +19,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import VersionQuestions from "./VersionQuestions";
 import { InfoFill, CoverFill } from "./Fixes";
+import ArtistPick, { type PickedArtist } from "./ArtistPick";
 import { local } from "@/lib/safeStorage";
 import { thumb } from "@/lib/thumb";
 
@@ -75,6 +77,24 @@ export default function HelpWantedPage() {
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
   // Following anyone? Then start on "Artists I follow". Checked once before the first list loads.
   const [followChecked, setFollowChecked] = useState(false);
+  const [artist, setArtist] = useState<PickedArtist | null>(null);
+  const [artistChecked, setArtistChecked] = useState(false);
+
+  // ?artist=<id> opens straight on that artist.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("artist");
+    if (!id) { setArtistChecked(true); return; }
+    supabase.from("artists").select("id, name").eq("id", id).maybeSingle().then(({ data }) => {
+      if (data) setArtist(data as PickedArtist);
+      setArtistChecked(true);
+    });
+  }, []);
+  function pickArtist(a: PickedArtist | null) {
+    setArtist(a);
+    const url = new URL(window.location.href);
+    if (a) url.searchParams.set("artist", a.id); else url.searchParams.delete("artist");
+    window.history.replaceState(null, "", url.toString());
+  }
 
   useEffect(() => { setSkipped(loadSkipped()); }, []);
   useEffect(() => {
@@ -106,13 +126,13 @@ export default function HelpWantedPage() {
   useEffect(() => { loadStats(); }, [user?.id]);
 
   async function fetchItems(from: number) {
-    const { data, error: err } = await supabase.rpc("rpc_help_wanted", { p_kind: kind, p_following: following, p_offset: from });
+    const { data, error: err } = await supabase.rpc("rpc_help_wanted", { p_kind: kind, p_following: following, p_offset: from, p_artist: artist?.id ?? null });
     if (err) { setError(err.message); return null; }
     return data as { counts: Counts; items: unknown[] };
   }
 
   useEffect(() => {
-    if (authLoading || !followChecked) return;
+    if (authLoading || !followChecked || !artistChecked) return;
     setItems(null);
     setError(null);
     fetchItems(0).then((d) => {
@@ -122,7 +142,7 @@ export default function HelpWantedPage() {
       setHasMore(d.items.length === 30);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, following, authLoading, followChecked, user?.id]);
+  }, [kind, following, authLoading, followChecked, artistChecked, artist?.id, user?.id]);
 
   // Covers for songs and photos for artists on screen.
   useEffect(() => {
@@ -240,6 +260,8 @@ export default function HelpWantedPage() {
 
       {user && !isAdmin && <VersionQuestions />}
 
+      <ArtistPick value={artist} onChange={pickArtist} />
+
       <nav className="hw-tabs" aria-label="Jobs">
         {TABS.map((t) => (
           <button key={t.kind} className={kind === t.kind ? "on" : undefined} aria-pressed={kind === t.kind} onClick={() => setKind(t.kind)}>
@@ -248,7 +270,7 @@ export default function HelpWantedPage() {
             {counts && <em>({n0(counts[t.kind])})</em>}
           </button>
         ))}
-        {!isAdmin && (
+        {!isAdmin && !artist && (
           <button className={`hw-follow ${following ? "on" : ""}`} aria-pressed={following} onClick={() => (user ? setFollowing(!following) : router.push("/login"))}>
             {I(<path d="M4 5h16l-6 7v6l-4 2v-8z" />)}
             <span>{following ? "✓ " : ""}Artists I follow//</span>
