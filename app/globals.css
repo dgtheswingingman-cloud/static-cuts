@@ -3446,6 +3446,8 @@ body:has(.ms-shell) .site-credit { display: none; }
 .hw-fill-field small { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; }
 .hw-fill-wide { flex: 1 1 240px; }
 .hw-fill .ms-say { min-height: 40px; }
+/* Day / Month / Year fit on a phone (the usual padding left room for "Da"). */
+.hw-fill select { padding: 10px 4px 10px 8px; font-size: 0.85rem; min-width: 0; }
 .hw-fixed { color: var(--green); }
 .hw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--hair-strong); }
 .hw-cover { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 3px; border: 1px solid var(--hair-strong); display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; font-size: 0.8rem; color: var(--smoke); }
