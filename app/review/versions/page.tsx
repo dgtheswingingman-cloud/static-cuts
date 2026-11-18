@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
+import ClaudeToday from "./ClaudeToday";
 import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty, ModSection } from "../../components/Mod";
 
 type Suggestion = {
@@ -192,6 +193,7 @@ export default function VersionSuggestionsPage() {
       intro={<>Clear versions are linked automatically. These need a look. Approvals can be reversed from the <UndoHistoryLink />.</>}
       actions={<ModButton busy={busy} onClick={rescan} title="Look for new suggestions across every artist">rescan</ModButton>}
     >
+      <ClaudeToday />
       <ModToolbar
         sticky
         right={shown.length > 0 ? <>

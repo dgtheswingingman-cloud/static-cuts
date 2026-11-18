@@ -10,14 +10,17 @@ import "../styles/local.css";
 //      are kept as they are, and what they know that the archive doesn't is
 //      sent to the archive as suggestions (reviewed before anything changes)
 //   4. the rest get their details rewritten from the archive: title with
-//      features, artist, album (or "Unreleased <year>"), year, track number,
+//      features, artist, album (or "Unreleased"), year, track number,
 //      cover art, the song's Static-Cuts code (hidden; next time the file
 //      matches exactly, straight away), and a clean name
 //   5. a tidy "Static-Cuts" folder (Artist / Album), written straight into a
 //      folder you pick (Chrome, Edge, Opera) or as one zip
 // Files kept as they are still get the song's code added (nothing else
-// changes). Originals are never touched. Saving the zip is premium; helping the
-// archive is free.
+// changes). Originals are never touched and the music itself never leaves the
+// computer. Step 3 ("help the archive") sends details and cover art from
+// well-tagged files for review, and can be switched off. Before saving you
+// can check every file, undo any of Claude's guesses and keep any file as it
+// was. Saving the zip is premium; helping the archive is free.
 
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -59,7 +62,7 @@ type Site = {
   code?: string | null;          // its Static-Cuts code, written into the tidied file
 };
 type Stage = "idle" | "reading" | "matching" | "claude" | "archive" | "ready" | "saving" | "saved";
-type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted";
+type Out = { song: Song; path: string; tags: NewTags | null; coverUrl: string | null; kind: "tidied" | "kept" | "claude" | "unsorted" | "asis";
   byFolder?: boolean; // "claude" kind, but named from its artist folder
   code?: string | null }; // kept files: the code to add (nothing else changes)
 
@@ -157,6 +160,18 @@ export default function LocalCutsPage() {
   useEffect(() => { setFolderOk(canPickFolder()); }, []);
   const [collected, setCollected] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
+  // Help the archive: send what well-tagged files know (details, cover art)
+  // for review. On unless switched off; remembered on this device.
+  const [share, setShareState] = useState(true);
+  useEffect(() => { try { if (localStorage.getItem("local_share") === "off") setShareState(false); } catch { /* fine */ } }, []);
+  const setShare = (v: boolean) => { setShareState(v); try { localStorage.setItem("local_share", v ? "on" : "off"); } catch { /* fine */ } };
+  // Files to copy exactly as they were (chosen in the full list), and
+  // Claude's guesses that were turned down.
+  const [asIs, setAsIs] = useState<Set<string>>(() => new Set());
+  const [undone, setUndone] = useState(0);
+  const [q, setQ] = useState("");
+  const [canStream, setCanStream] = useState(true);
+  useEffect(() => { setCanStream(typeof window !== "undefined" && "showSaveFilePicker" in window); }, []);
   const site = useRef(new Map<string, Site>());
   // Artist photos, the cover for songs that aren't on the site.
   const photos = useRef(new Map<string, string>());
@@ -175,6 +190,7 @@ export default function LocalCutsPage() {
     const list = picked.filter((f) => AUDIO.test(f.name) || f.type.startsWith("audio/"));
     if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return; }
     setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]);
+    setAsIs(new Set()); setUndone(0); setQ("");
     site.current = new Map();
     photos.current = new Map();
 
@@ -413,8 +429,9 @@ export default function LocalCutsPage() {
     }
     read.forEach((s) => { if (s.track_id) setLocalFile(s.track_id, s.file); });
 
-    // 4. Well-formatted files help the archive (sent for review).
-    await helpArchive(read);
+    // 4. Well-formatted files help the archive (sent for review), unless
+    // that's switched off.
+    if (share) await helpArchive(read);
 
     // 5. What each file becomes.
     setSongs(read);
@@ -443,6 +460,8 @@ export default function LocalCutsPage() {
     const seen = new Set<string>();
     for (const s of formatted) {
       const d = s.details;
+      // Only songs matched for certain: a guess could be the wrong song.
+      if (s.guess) continue;
       if (s.track_id) {
         const t = site.current.get(s.track_id);
         if (!t || seen.has(t.id) || !d) continue;
@@ -493,11 +512,23 @@ export default function LocalCutsPage() {
     setFeatStyleState(v);
     try { localStorage.setItem("local_feat_style", v); } catch { /* fine */ }
   }
-  // Re-name everything when the style changes.
+  // Re-name everything when the style changes or a file is set to "as it was".
   useEffect(() => {
     if (songs.length) setPlan(buildPlan(songs));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featStyle]);
+  }, [featStyle, asIs]);
+
+  // "Not this song": one of Claude's guesses turned down. The file is planned
+  // again as if it hadn't matched (its folder's artist, or Unsorted).
+  function rejectGuess(key: string) {
+    const next = songs.map((s) => (s.key === key ? { ...s, track_id: null, sure: false, guess: false } : s));
+    setSongs(next);
+    setPlan(buildPlan(next));
+    setUndone((n) => n + 1);
+  }
+  function toggleAsIs(key: string) {
+    setAsIs((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  }
 
   function buildPlan(read: Song[]): Out[] {
     const used = new Set<string>();
@@ -510,6 +541,11 @@ export default function LocalCutsPage() {
     const place = (artist: string, album: string, title: string, file: File) =>
       unique(`${safeName(artist)}/${safeName(album)}/${safeName(`${artist} - ${title}`)}${ext(file.name)}`);
     return read.map((s): Out => {
+      // Chosen in the full list: copied exactly as it was, in its old folders.
+      if (asIs.has(s.key)) {
+        const rel = pathOf(s.file).split("/").slice(1).join("/") || s.file.name;
+        return { song: s, path: unique(`Kept as it was/${rel.split("/").map((x) => safeName(x)).join("/")}`), tags: null, coverUrl: null, kind: "asis" };
+      }
       const t = s.track_id ? site.current.get(s.track_id) : undefined;
       if (s.formatted) {
         // Kept exactly as it is, just filed.
@@ -591,7 +627,7 @@ export default function LocalCutsPage() {
   }
   function changesCsv() {
     const q = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
-    const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was" };
+    const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was", asis: "you chose to keep it as it was" };
     return new Blob([["original file,new file,what happened,title,artist,album",
       ...plan.map((o) => [pathOf(o.song.file), o.path, o.byFolder ? "not on the site: named from its artist folder" : what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
   }
@@ -684,7 +720,7 @@ export default function LocalCutsPage() {
     ["reading", "Read", "Reading files", "Each file's title, artist, album and art, read on your computer."],
     ["matching", "Match", "Matching to the archive", "Finding each file's song on Static-Cuts."],
     ["claude", "Check", "Claude checking the unsure ones", "A closer look at files that didn't match cleanly."],
-    ["archive", "Share", "Helping the archive", "What your well-tagged files know, sent for review."],
+    ["archive", "Share", "Helping the archive", share ? "What your well-tagged files know, sent for review." : "Switched off: nothing is sent."],
   ];
   const at = ORDER.indexOf(stage);
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -705,7 +741,7 @@ export default function LocalCutsPage() {
         {busy ? "Working through your folder." : results ? "Your folder has been read, matched and tidied. Here's how it went."
           : "Drop in your own music folder and get back a tidy copy, ready for Spotify Local Files."}
       </p>
-      <div className="lc-promise"><span className="lc-sl" style={{ color: "#22C55E" }}>//</span> Never uploaded. Originals never touched.</div>
+      <div className="lc-promise"><span className="lc-sl" style={{ color: "#22C55E" }}>//</span> Your music is never uploaded. Originals never touched.</div>
 
       {!loading && !user && (
         <div className="lc-note-box">
@@ -727,6 +763,12 @@ export default function LocalCutsPage() {
           <span className="lc-drop-sub">or click to choose one</span>
         </label>
       )}
+      {(stage === "idle" || stage === "ready" || stage === "saved") && user && !results && (
+        <label className="lc-share">
+          <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
+          <span><b>Help the archive</b>: send what your well-tagged files know that Static-Cuts doesn&apos;t (song details and cover art) as suggestions, checked before anything changes. Your music itself is never sent.</span>
+        </label>
+      )}
       {note && <div className="lc-note-box warn"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span><span>{note}</span></div>}
 
       {stage === "idle" && (
@@ -735,7 +777,7 @@ export default function LocalCutsPage() {
           <div className="lc-how">
             {[["Read", "#22C55E", "Reads each file's details (title, artist, album, art) on your computer."],
               ["Match", "#8B7CF6", "Finds each song in the Static-Cuts archive and fills in what's missing."],
-              ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album or “Unreleased <year>”, year, track number and cover art."],
+              ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album (or “Unreleased”), year, track number and cover art."],
               ["Save", "#F5B841", "Gives you a clean copy in Artist / Album folders, ready for Local Files."]].map(([t, c, d], i) => (
               <div key={t} className="lc-how-card">
                 <div className="lc-how-top"><span className="lc-how-n">0{i + 1}</span><b>{t}</b><span className="lc-sl" style={{ color: c }}>//</span></div>
@@ -826,6 +868,10 @@ export default function LocalCutsPage() {
             </div>
           </section>
 
+          {premium && !folderOk && !canStream && size > 2e9 && (
+            <div className="lc-note-box warn"><span className="lc-sl" style={{ color: "#F5B841" }}>//</span>
+              <span>This browser builds the whole zip in memory, and {gb(size)} may be too much for it (the tab can crash). For a library this size, use Chrome or Edge, which save straight to disk, or run the folder in smaller parts.</span></div>
+          )}
           <div className="lc-actions">
             {premium && folderOk ? (
               <>
@@ -871,21 +917,23 @@ export default function LocalCutsPage() {
                 ))}
               </div>
               {untaggable > 0 && (
-                <p className="lc-small"><span className="lc-sl" style={{ color: "#22D3EE" }}>//</span> {untaggable} M4A / WAV / OGG file{untaggable === 1 ? " is" : "s are"} renamed and filed, but {untaggable === 1 ? "its" : "their"} details can&apos;t be rewritten yet.</p>
+                <p className="lc-small"><span className="lc-sl" style={{ color: "#22D3EE" }}>//</span> {untaggable} file{untaggable === 1 ? " is" : "s are"} in a format whose details can&apos;t be rewritten (AIFF, WebM): renamed and filed, details as they were.</p>
               )}
             </section>
           )}
 
-          {guesses.length > 0 && (
-            <details className="lc-box lc-fold">
-              <summary><h2 className="lc-h in">Claude&apos;s best guesses</h2><span className="lc-small">{guesses.length} file{guesses.length === 1 ? "" : "s"}</span></summary>
-              <div className="lc-table">
-                <div className="lc-tr lc-th"><span>File in your folder</span><span /><span>Matched song</span><span>Why</span></div>
+          {(guesses.length > 0 || undone > 0) && (
+            <details className="lc-box lc-fold" open>
+              <summary><h2 className="lc-h in">Check Claude&apos;s guesses</h2><span className="lc-small">{guesses.length} file{guesses.length === 1 ? "" : "s"} Claude wasn&apos;t sure about{undone ? ` · ${undone} set back` : ""}</span></summary>
+              <p className="lc-small">These get the matched song&apos;s details when you save. If one&apos;s the wrong song, press <b>Not this song</b> and it&apos;s left out of the match.</p>
+              <div className="lc-table lc-guess">
+                <div className="lc-tr lc-th"><span>File in your folder</span><span /><span>Matched song</span><span>Why</span><span /></div>
                 {guesses.map((o) => (
                   <div key={o.song.key} className="lc-tr">
                     <span className="lc-mono">{fileName(o)}</span><span className="lc-arrow">→</span>
                     <span><Link className="text-link" href={`/song/${o.song.track_id}`}>{o.tags?.title}</Link></span>
                     <span className="lc-why">{o.song.why ?? ""}</span>
+                    <button className="lc-not" onClick={() => rejectGuess(o.song.key)}>Not this song</button>
                   </div>
                 ))}
               </div>
@@ -902,12 +950,37 @@ export default function LocalCutsPage() {
               </div>
             </details>
           )}
+
+          <details className="lc-box lc-fold">
+            <summary><h2 className="lc-h in">Every file</h2><span className="lc-small">{plan.length.toLocaleString("en-GB")} · what each one becomes{asIs.size ? ` · ${asIs.size} kept as they were` : ""}</span></summary>
+            <p className="lc-small">Check before you save. <b>Keep as it was</b> copies a file exactly as it is, in its old folders, under &ldquo;Kept as it was&rdquo;.</p>
+            <input className="st-input lc-search" placeholder="Find a file or song…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file" />
+            {(() => {
+              const term = q.trim().toLowerCase();
+              const KIND: Record<Out["kind"], string> = { tidied: "from the archive", kept: "already tidy", claude: "not on the site", unsorted: "couldn't identify", asis: "kept as it was" };
+              const rows = (term ? plan.filter((o) => pathOf(o.song.file).toLowerCase().includes(term) || o.path.toLowerCase().includes(term)) : plan);
+              return (
+                <div className="lc-table lc-all">
+                  {rows.slice(0, 200).map((o) => (
+                    <div key={o.song.key} className={`lc-tr ${o.kind === "asis" ? "is-asis" : ""}`}>
+                      <span className="lc-mono">{fileName(o)}</span><span className="lc-arrow">→</span>
+                      <span className="lc-mono">{o.path}</span>
+                      <span className="lc-kind">{KIND[o.kind]}{o.song.guess && o.kind !== "asis" ? " (Claude's guess)" : ""}</span>
+                      <button className="lc-not" onClick={() => toggleAsIs(o.song.key)}>{o.kind === "asis" ? "Undo" : "Keep as it was"}</button>
+                    </div>
+                  ))}
+                  {rows.length > 200 && <div className="lc-tr"><span className="lc-small">Showing 200 of {rows.length.toLocaleString("en-GB")}. Type above to find others.</span></div>}
+                  {rows.length === 0 && <div className="lc-tr"><span className="lc-small">Nothing matches that.</span></div>}
+                </div>
+              );
+            })()}
+          </details>
         </>
       )}
 
       {!busy && (
         <p className="lc-small lc-foot">
-          Local Cuts fixes the title (with features), artist, album or &ldquo;Unreleased &lt;year&gt;&rdquo;, year, track number and cover art,
+          Local Cuts fixes the title (with features), artist, album (or &ldquo;Unreleased&rdquo;), year, track number and cover art,
           and sorts everything into Artist / Album folders. Files that are already well formatted are kept as they are.
         </p>
       )}
