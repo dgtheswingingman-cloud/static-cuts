@@ -613,6 +613,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
           { href: "/review/guests", title: "Guest artists", n: counts?.guest_artists, blurb: "Featured artists Spotify couldn't confirm: add, match or skip." },
           { href: "/review/comments", title: "Reported comments", n: counts?.reported_comments, blurb: "Comments people have reported: keep or remove." },
           ...(isAdmin ? [{ href: "/review/deezer", title: "Deezer check", n: counts?.deezer_check, blurb: "Artists whose Deezer profile may be a different artist with the same name." }] : []),
+          ...(isAdmin ? [{ href: "/review/titles", title: "Title checks", blurb: "Titles cut off part-way (with the full song to merge into) and garbled text, found every night." }] : []),
           ...(isAdmin ? [{ href: "/review/eras", title: "Tracker eras", blurb: "Era names from trackers sitting on released songs as their album: keep the real ones, clear the rest." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
           { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
