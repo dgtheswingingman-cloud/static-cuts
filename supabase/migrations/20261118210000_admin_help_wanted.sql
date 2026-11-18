@@ -16,6 +16,12 @@ begin
   if p_release_date is not null and (p_release_date < date '1900-01-01' or p_release_date > current_date + 366) then
     raise exception 'That date looks wrong.';
   end if;
+  if not exists (select 1 from tracks where id = p_track_id) then raise exception 'That song is gone.'; end if;
+  -- Nothing empty to fill: leave it (and don't add an empty entry to Undo).
+  if not exists (select 1 from tracks where id = p_track_id
+                 and ((release_date is null and p_release_date is not null) or (album is null and v_album is not null))) then
+    return;
+  end if;
   -- Admin edits go in a batch, so they show (and can be undone) under Undo.
   if is_admin() then
     perform set_config('static_cuts.batch_id', '', true);
