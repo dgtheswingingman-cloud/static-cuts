@@ -3,6 +3,9 @@
 // Help wanted: small jobs anyone can do, busiest artists first. Your impact
 // at the top, a quick yes/no question, then the jobs: check links, fill in
 // missing info, set a status, add art for leaks, add songs to thin pages.
+// In admin mode it's the admin's to-do list: the same jobs, but each fix is
+// made on the spot (use or bin a link, type the date and album, set the
+// status, paste a cover) instead of being suggested for someone to review.
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -10,8 +13,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
-import AdminModeNote from "../components/AdminModeNote";
 import VersionQuestions from "./VersionQuestions";
+import { AdminInfoFill, AdminCoverFill } from "./AdminFixes";
 import { thumb } from "@/lib/thumb";
 
 type Kind = "links" | "info" | "status" | "covers" | "thin";
@@ -55,6 +58,8 @@ export default function HelpWantedPage() {
   const [faces, setFaces] = useState<Record<string, string>>({});
   const [statusInfo, setStatusInfo] = useState<Record<string, string | null>>({});
   const [sent, setSent] = useState<Record<string, string>>({});
+  // Admin mode: what was just fixed on each row (it stays on screen, ticked).
+  const [fixed, setFixed] = useState<Record<string, string>>({});
 
   const loadStats = () => supabase.rpc("rpc_help_stats").then(({ data }) => setStats((data as Stats) ?? null));
   useEffect(() => { loadStats(); }, [user?.id]);
@@ -121,6 +126,24 @@ export default function HelpWantedPage() {
     loadStats();
   }
 
+  // Admin mode: each fix is made straight away, and the row shows it's done.
+  function markFixed(id: string, msg: string) {
+    setFixed((p) => ({ ...p, [id]: msg }));
+    setCounts((c) => (c ? { ...c, [kind]: Math.max(0, c[kind] - 1) } : c));
+  }
+  async function adminLink(item: LinkItem, use: boolean) {
+    const { error: err } = use
+      ? await supabase.rpc("admin_use_link_candidate", { p_candidate: item.id })
+      : await supabase.rpc("admin_help_reject_link", { p_candidate: item.id });
+    if (err) { setError(err.message); return; }
+    markFixed(item.id, use ? "link added to the song" : "link binned");
+  }
+  async function adminStatus(s: SongItem, to: string) {
+    const { error: err } = await supabase.rpc("admin_set_release_status", { p_track_id: s.id, p_status: to });
+    if (err) { setError(err.message); return; }
+    markFixed(s.id, `set to ${to}`);
+  }
+
   async function setStatus(s: SongItem, to: string) {
     if (!user) { if (!isAdmin) router.push("/login"); return; }
     const { error: err } = await supabase.from("submissions").insert({
@@ -180,7 +203,7 @@ export default function HelpWantedPage() {
       <section className="nw-panel hw-panel">
         <h2 className="nw-h hw-h">{tab.title}<span>//</span></h2>
         <p className="hw-blurb">{tab.blurb}</p>
-        {isAdmin && <div style={{ marginBottom: 14 }}><AdminModeNote what="vote on links or suggest fixes" /></div>}
+        {isAdmin && <div className="comment-meta admin-mode-note" style={{ marginBottom: 14 }}>Admin mode: fixes here go straight onto the song. To vote or suggest instead, use your own account.</div>}
 
         {error && <div className="sb-error">Something went wrong: {error}</div>}
         {!error && !items && <div className="comment-meta">loading…</div>}
@@ -212,6 +235,12 @@ export default function HelpWantedPage() {
                 <button className="hw-wrong" onClick={() => vote(c, -1)}>✗ Wrong//</button>
               </div>
             )}
+            {isAdmin && (fixed[c.id] ? <span className="hw-sent hw-fixed">✓ {fixed[c.id]}</span> : (
+              <div className="hw-vote">
+                <button className="hw-right" onClick={() => adminLink(c, true)}>✓ Use it//</button>
+                <button className="hw-wrong" onClick={() => adminLink(c, false)}>✗ Wrong//</button>
+              </div>
+            ))}
           </div>
         ))}
 
@@ -224,6 +253,8 @@ export default function HelpWantedPage() {
               {(s.missing ?? []).length > 0 && (
                 <span className="hw-missing"><small>Missing:</small>{(s.missing ?? []).map((m) => <span key={m} className="hw-chip">{m}</span>)}</span>
               )}
+              {isAdmin && (fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
+                : <AdminInfoFill trackId={s.id} artistId={s.artist_id} missing={s.missing ?? []} onDone={(m) => markFixed(s.id, m)} />)}
             </div>
             {!isAdmin && <Link href={`/submit?type=correction&track_id=${s.id}`} className="ms-say hw-act">Fill in//</Link>}
           </div>
@@ -235,9 +266,13 @@ export default function HelpWantedPage() {
             <div className="hw-main">
               <Link href={`/song/${s.id}`} className="hw-song">{s.title}</Link>
               <Link href={`/artist/${s.artist_id}`} className="hw-artist">{s.artist}</Link>
-              {sent[s.id] ? (
+              {isAdmin ? (fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span> : (
+                <span className="sb-chips hw-status">
+                  {STATUSES.map((x) => <button key={x} className={`feature-tag st st-${x}`} onClick={() => adminStatus(s, x)}>{x}//</button>)}
+                </span>
+              )) : sent[s.id] ? (
                 <span className="hw-sent">Sent: <span className={`feature-tag st st-${sent[s.id]}`}>{sent[s.id]}</span>. Thanks!</span>
-              ) : !isAdmin && (
+              ) : (
                 <span className="sb-chips hw-status">
                   {STATUSES.map((x) => <button key={x} className={`feature-tag st st-${x}`} onClick={() => setStatus(s, x)}>{x}//</button>)}
                 </span>
@@ -253,6 +288,8 @@ export default function HelpWantedPage() {
               <Link href={`/song/${s.id}`} className="hw-song">{s.title}</Link>
               <Link href={`/artist/${s.artist_id}`} className="hw-artist">{s.artist}</Link>
               {s.status && <span className="hw-missing"><span className={`feature-tag st st-${s.status}`}>{s.status}</span></span>}
+              {isAdmin && (fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
+                : <AdminCoverFill trackId={s.id} onDone={(m) => markFixed(s.id, m)} />)}
             </div>
             {!isAdmin && <Link href={`/song/${s.id}#covers`} className="ms-say hw-act">Add a cover//</Link>}
           </div>
@@ -266,6 +303,7 @@ export default function HelpWantedPage() {
               <span className="hw-artist">Only {a.songs} song{a.songs === 1 ? "" : "s"}</span>
             </div>
             {!isAdmin && <Link href={`/submit?type=new_track&artist_id=${a.artist_id}&artist_name=${encodeURIComponent(a.artist)}`} className="ms-say hw-act">Add songs//</Link>}
+            {isAdmin && <Link href={`/admin/tracklist?artist=${encodeURIComponent(a.artist_id)}`} className="ms-say hw-act">Paste tracklist//</Link>}
           </div>
         ))}
 
