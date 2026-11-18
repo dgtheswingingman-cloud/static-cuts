@@ -45,7 +45,20 @@ Deno.serve(async (req) => {
   const started = Date.now();
   const done = { checked: 0, yes: 0, no: 0, unsure: 0, applied: 0 };
 
-  while (Date.now() - started < 40_000) {
+  // Daily cap, so a big import is worked through over a few days instead of
+  // spending in one go: version_ai_per_day (default 500) suggestions a UTC
+  // day, plus any "check more today" an admin asked for (version_ai_extra,
+  // "YYYY-MM-DD:N", only counts on that day).
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: capRow } = await db.from("sc_private_settings").select("value").eq("key", "version_ai_per_day").maybeSingle();
+  const { data: extraRow } = await db.from("sc_private_settings").select("value").eq("key", "version_ai_extra").maybeSingle();
+  const [extraDay, extraN] = String(extraRow?.value ?? "").split(":");
+  const cap = (Number(capRow?.value) >= 0 && capRow?.value != null ? Number(capRow.value) : 500) + (extraDay === today ? Number(extraN) || 0 : 0);
+  const { count: checkedToday } = await db.from("version_suggestions").select("id", { count: "exact", head: true }).gte("ai_checked_at", `${today}T00:00:00Z`);
+  const left = () => cap - (checkedToday ?? 0) - done.checked;
+  if (left() <= 0) return json({ ok: true, skipped: `daily cap reached (${cap})`, ...done });
+
+  while (Date.now() - started < 40_000 && left() > 0) {
     const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", AI_PAUSE).maybeSingle();
     if (pause?.value && Date.parse(pause.value) > Date.now()) break;
     // Leave room for people using Local Cuts: at most half the minute's tickets.
@@ -54,7 +67,7 @@ Deno.serve(async (req) => {
     const usedNow = (used ?? []).reduce((n: number, r: any) => n + (r.calls ?? 0), 0);
     if (usedNow >= Math.floor(Number(perMin?.value ?? 20) / 2)) break;
 
-    const { data: list, error } = await db.rpc("sc_version_ai_next", { p_secret: secret, p_limit: 40 });
+    const { data: list, error } = await db.rpc("sc_version_ai_next", { p_secret: secret, p_limit: Math.min(40, left()) });
     if (error) return json({ error: error.message }, 403);
     const sugs = (list ?? []) as Sug[];
     if (sugs.length === 0) break;

@@ -111,3 +111,19 @@
   .lc-save { font-size: 1.25rem; }
 }
 
+
+/* Help the archive switch, under the drop area. */
+.lc-share { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; font-size: 0.82rem; color: var(--smoke); line-height: 1.45; cursor: pointer; }
+.lc-share input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--accent); }
+.lc-share b { color: var(--bone); }
+/* Every file, and "Not this song" on Claude's guesses. */
+.lc-not { flex: none; background: none; border: 1.5px solid var(--hair-strong); border-radius: 4px; color: var(--bone); padding: 6px 10px; min-height: 32px; font-family: var(--font-mono), monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; }
+.lc-not:hover { border-color: var(--bone); }
+.lc-search { margin: 6px 0 10px; }
+.lc-kind { font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--smoke); }
+.lc-all .lc-tr.is-asis { opacity: 0.7; }
+.lc-guess .lc-tr, .lc-all .lc-tr { grid-template-columns: minmax(0, 1.2fr) 24px minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; }
+@media (max-width: 720px) {
+  .lc-guess .lc-tr, .lc-all .lc-tr { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .lc-not { justify-self: start; }
+}
