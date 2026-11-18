@@ -1707,6 +1707,15 @@ body { overflow-x: clip; }
   border: 1px solid var(--hair);
   padding: 1px 6px;
   white-space: nowrap;
+  max-width: 100%;
+}
+/* Long tags ("possible version of …") wrap instead of running off a phone. */
+.mod-tag.warn { white-space: normal; overflow-wrap: anywhere; }
+/* Review queues on phones: the row tick boxes and "tick these" links were
+   16-17px, with hundreds per page. */
+@media (max-width: 767px), (pointer: coarse) {
+  .mod-row.has-check input[type="checkbox"] { width: 22px; height: 22px; }
+  .mod-link { display: inline-flex; align-items: center; min-height: 32px; }
 }
 .mod-tag.good { color: var(--bone); border-color: var(--hair-strong); }
 .mod-tag.warn { color: #e0b060; border-color: #6b5524; }
