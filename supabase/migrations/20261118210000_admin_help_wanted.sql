@@ -71,6 +71,3 @@ revoke execute on function admin_help_reject_link(uuid) from public, anon;
 grant execute on function admin_help_fill(text, date, text) to authenticated;
 grant execute on function admin_help_cover(text, text, text) to authenticated;
 grant execute on function admin_help_reject_link(uuid) to authenticated;
-
--- The old Inbox (one long list) is replaced by this; its function goes.
-drop function if exists public.rpc_review_inbox(integer);
