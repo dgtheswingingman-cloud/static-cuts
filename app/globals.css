@@ -985,6 +985,13 @@ a.listen-link {
   color: var(--smoke);
   font-size: inherit;
 }
+/* Footer links were 13px tall on phones; give each a thumb-sized target. */
+@media (max-width: 767px), (pointer: coarse) {
+  .site-credit-links { row-gap: 0; }
+  .site-credit-links a, .site-credit .inline-link-btn, .site-social a {
+    display: inline-flex; align-items: center; min-height: 32px;
+  }
+}
 
 /* ---------- Song search filters: label column + controls ---------- */
 .filter-groups {
@@ -2197,6 +2204,10 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 
 @media (max-width: 1023px) {
   .ah2-inner { padding: 70px 16px 12px !important; }
+  /* One row doesn't fit a phone: Share and More were pushed off the edge.
+     Follow (and its alert bell) take the first line, the rest wrap below. */
+  .ah2-actions { flex-wrap: wrap !important; }
+  .ah2-follow { flex: 1 1 200px; }
   .ah2-actions .sp-icon-btn { width: 56px; }
   .ah2-follow { font-size: 0.76rem !important; }
   .ap-tabs { margin-left: -16px; margin-right: -16px; padding: 0 6px; }
