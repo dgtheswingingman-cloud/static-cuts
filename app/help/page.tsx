@@ -3,6 +3,9 @@
 // Help wanted: small jobs anyone can do, busiest artists first. Your impact
 // at the top, a quick yes/no question, then the jobs: check links, fill in
 // missing info, set a status, add art for leaks, add songs to thin pages.
+// Everyone fills in on the row itself (date, album, cover) instead of going
+// to a form; "Skip" hides a row you can't help with (remembered on this
+// device). If you follow artists, it starts on just theirs.
 // In admin mode it's the admin's to-do list: the same jobs, but each fix is
 // made on the spot (use or bin a link, type the date and album, set the
 // status, paste a cover) instead of being suggested for someone to review.
@@ -14,7 +17,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import VersionQuestions from "./VersionQuestions";
-import { AdminInfoFill, AdminCoverFill } from "./AdminFixes";
+import { InfoFill, CoverFill } from "./Fixes";
+import { local } from "@/lib/safeStorage";
 import { thumb } from "@/lib/thumb";
 
 type Kind = "links" | "info" | "status" | "covers" | "thin";
@@ -42,6 +46,14 @@ const TABS: { kind: Kind; label: string; title: string; blurb: string; icon: Rea
     icon: I(<><path d="M12 3 3 8l9 5 9-5z" /><path d="m3 13 9 5 9-5" /></>) },
 ];
 
+const SKIP_KEY = "static_cuts_help_skipped";
+function loadSkipped(): Set<string> {
+  try { return new Set(JSON.parse(local.get(SKIP_KEY) ?? "[]") as string[]); } catch { return new Set(); }
+}
+// One key per row: the link suggestion, the song or the artist.
+const rowKey = (k: Kind, x: unknown) =>
+  `${k}:${k === "links" ? (x as LinkItem).id : k === "thin" ? (x as ArtistItem).artist_id : (x as SongItem).id}`;
+
 export default function HelpWantedPage() {
   const { loading: authLoading } = useAuth();
   const user = usePersonalUser();
@@ -60,6 +72,35 @@ export default function HelpWantedPage() {
   const [sent, setSent] = useState<Record<string, string>>({});
   // Admin mode: what was just fixed on each row (it stays on screen, ticked).
   const [fixed, setFixed] = useState<Record<string, string>>({});
+  const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
+  // Following anyone? Then start on "Artists I follow". Checked once before the first list loads.
+  const [followChecked, setFollowChecked] = useState(false);
+
+  useEffect(() => { setSkipped(loadSkipped()); }, []);
+  useEffect(() => {
+    if (authLoading || followChecked) return;
+    if (!user) { setFollowChecked(true); return; }
+    supabase.from("follows").select("artist_id", { count: "exact", head: true }).eq("user_id", user.id).then(({ count }) => {
+      if ((count ?? 0) > 0) setFollowing(true);
+      setFollowChecked(true);
+    });
+  }, [authLoading, user, followChecked]);
+
+  function rememberSkip(key: string) {
+    setSkipped((prev) => {
+      const next = new Set(prev); next.add(key);
+      // Keep the most recent few thousand so it doesn't grow forever.
+      local.set(SKIP_KEY, JSON.stringify([...next].slice(-3000)));
+      return next;
+    });
+  }
+  function unskipAll() {
+    setSkipped((prev) => {
+      const next = new Set([...prev].filter((k) => !k.startsWith(`${kind}:`)));
+      local.set(SKIP_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   const loadStats = () => supabase.rpc("rpc_help_stats").then(({ data }) => setStats((data as Stats) ?? null));
   useEffect(() => { loadStats(); }, [user?.id]);
@@ -71,7 +112,7 @@ export default function HelpWantedPage() {
   }
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !followChecked) return;
     setItems(null);
     setError(null);
     fetchItems(0).then((d) => {
@@ -81,7 +122,7 @@ export default function HelpWantedPage() {
       setHasMore(d.items.length === 30);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, following, authLoading, user?.id]);
+  }, [kind, following, authLoading, followChecked, user?.id]);
 
   // Covers for songs and photos for artists on screen.
   useEffect(() => {
@@ -126,22 +167,25 @@ export default function HelpWantedPage() {
     loadStats();
   }
 
-  // Admin mode: each fix is made straight away, and the row shows it's done.
-  function markFixed(id: string, msg: string) {
+  // The row shows it's done. An admin's fix is made straight away (the count
+  // goes down); a suggestion waits for review, so it's just hidden for you
+  // from now on rather than coming back on your next visit.
+  function markFixed(id: string, key: string, msg: string) {
     setFixed((p) => ({ ...p, [id]: msg }));
-    setCounts((c) => (c ? { ...c, [kind]: Math.max(0, c[kind] - 1) } : c));
+    if (isAdmin) setCounts((c) => (c ? { ...c, [kind]: Math.max(0, c[kind] - 1) } : c));
+    else { rememberSkip(key); loadStats(); }
   }
   async function adminLink(item: LinkItem, use: boolean) {
     const { error: err } = use
       ? await supabase.rpc("admin_use_link_candidate", { p_candidate: item.id })
       : await supabase.rpc("admin_help_reject_link", { p_candidate: item.id });
     if (err) { setError(err.message); return; }
-    markFixed(item.id, use ? "link added to the song" : "link binned");
+    markFixed(item.id, rowKey("links", item), use ? "link added to the song" : "link binned");
   }
   async function adminStatus(s: SongItem, to: string) {
     const { error: err } = await supabase.rpc("admin_set_release_status", { p_track_id: s.id, p_status: to });
     if (err) { setError(err.message); return; }
-    markFixed(s.id, `set to ${to}`);
+    markFixed(s.id, rowKey("status", s), `set to ${to}`);
   }
 
   async function setStatus(s: SongItem, to: string) {
@@ -152,10 +196,22 @@ export default function HelpWantedPage() {
     });
     if (err) { setError(err.message); return; }
     setSent((p) => ({ ...p, [s.id]: to }));
+    rememberSkip(rowKey("status", s));
     loadStats();
   }
 
   const tab = TABS.find((t) => t.kind === kind)!;
+  // Rows skipped (or already sent) on this device stay hidden, except the
+  // ones done just now, which stay on screen ticked.
+  const visible = items?.filter((x) => {
+    const id = kind === "links" ? (x as LinkItem).id : kind === "thin" ? (x as ArtistItem).artist_id : (x as SongItem).id;
+    return !skipped.has(rowKey(kind, x)) || id in fixed || id in sent;
+  }) ?? null;
+  const skippedHere = [...skipped].filter((k) => k.startsWith(`${kind}:`)).length;
+  const who = isAdmin ? "admin" as const : user ? { userId: user.id } : null;
+  const Skip = ({ x }: { x: unknown }) => (
+    <button className="hw-skip" onClick={() => rememberSkip(rowKey(kind, x))} title="Hide this one (on this device)">Skip</button>
+  );
   const n0 = (x: number) => x.toLocaleString("en-GB");
   const Cover = ({ id, round }: { id: string; round?: boolean }) => {
     const u = round ? faces[id] : covers[id];
@@ -207,9 +263,12 @@ export default function HelpWantedPage() {
 
         {error && <div className="sb-error">Something went wrong: {error}</div>}
         {!error && !items && <div className="comment-meta">loading…</div>}
-        {items && items.length === 0 && <div className="hw-done">All done here. Nice.</div>}
+        {skippedHere > 0 && (
+          <div className="comment-meta hw-skipped">{n0(skippedHere)} skipped or sent from here · <button className="inline-link-btn" onClick={unskipAll}>show them again</button></div>
+        )}
+        {visible && visible.length === 0 && <div className="hw-done">All done here. Nice.</div>}
 
-        {kind === "links" && (items as LinkItem[] | null)?.map((c) => (
+        {kind === "links" && (visible as LinkItem[] | null)?.map((c) => (
           <div key={c.id} className="hw-row hw-link">
             <Cover id={c.track_id} />
             <div className="hw-main">
@@ -233,18 +292,20 @@ export default function HelpWantedPage() {
               <div className="hw-vote">
                 <button className="hw-right" onClick={() => vote(c, 1)}>✓ Right//</button>
                 <button className="hw-wrong" onClick={() => vote(c, -1)}>✗ Wrong//</button>
+                <Skip x={c} />
               </div>
             )}
             {isAdmin && (fixed[c.id] ? <span className="hw-sent hw-fixed">✓ {fixed[c.id]}</span> : (
               <div className="hw-vote">
                 <button className="hw-right" onClick={() => adminLink(c, true)}>✓ Use it//</button>
                 <button className="hw-wrong" onClick={() => adminLink(c, false)}>✗ Wrong//</button>
+                <Skip x={c} />
               </div>
             ))}
           </div>
         ))}
 
-        {kind === "info" && (items as SongItem[] | null)?.map((s) => (
+        {kind === "info" && (visible as SongItem[] | null)?.map((s) => (
           <div key={s.id} className="hw-row">
             <Cover id={s.id} />
             <div className="hw-main">
@@ -253,14 +314,15 @@ export default function HelpWantedPage() {
               {(s.missing ?? []).length > 0 && (
                 <span className="hw-missing"><small>Missing:</small>{(s.missing ?? []).map((m) => <span key={m} className="hw-chip">{m}</span>)}</span>
               )}
-              {isAdmin && (fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
-                : <AdminInfoFill trackId={s.id} artistId={s.artist_id} missing={s.missing ?? []} onDone={(m) => markFixed(s.id, m)} />)}
+              {fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
+                : who ? <InfoFill who={who} trackId={s.id} artistId={s.artist_id} missing={s.missing ?? []} onDone={(m) => markFixed(s.id, rowKey("info", s), m)} />
+                : <Link href="/login" className="ms-say hw-act hw-login">Log in to fill in//</Link>}
             </div>
-            {!isAdmin && <Link href={`/submit?type=correction&track_id=${s.id}`} className="ms-say hw-act">Fill in//</Link>}
+            {!fixed[s.id] && <Skip x={s} />}
           </div>
         ))}
 
-        {kind === "status" && (items as SongItem[] | null)?.map((s) => (
+        {kind === "status" && (visible as SongItem[] | null)?.map((s) => (
           <div key={s.id} className="hw-row">
             <Cover id={s.id} />
             <div className="hw-main">
@@ -278,24 +340,26 @@ export default function HelpWantedPage() {
                 </span>
               )}
             </div>
+            {!fixed[s.id] && !sent[s.id] && <Skip x={s} />}
           </div>
         ))}
 
-        {kind === "covers" && (items as SongItem[] | null)?.map((s) => (
+        {kind === "covers" && (visible as SongItem[] | null)?.map((s) => (
           <div key={s.id} className="hw-row">
             <Cover id={s.id} />
             <div className="hw-main">
               <Link href={`/song/${s.id}`} className="hw-song">{s.title}</Link>
               <Link href={`/artist/${s.artist_id}`} className="hw-artist">{s.artist}</Link>
               {s.status && <span className="hw-missing"><span className={`feature-tag st st-${s.status}`}>{s.status}</span></span>}
-              {isAdmin && (fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
-                : <AdminCoverFill trackId={s.id} onDone={(m) => markFixed(s.id, m)} />)}
+              {fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
+                : who ? <CoverFill who={who} trackId={s.id} onDone={(m) => markFixed(s.id, rowKey("covers", s), m)} />
+                : <Link href="/login" className="ms-say hw-act hw-login">Log in to add a cover//</Link>}
             </div>
-            {!isAdmin && <Link href={`/song/${s.id}#covers`} className="ms-say hw-act">Add a cover//</Link>}
+            {!fixed[s.id] && <Skip x={s} />}
           </div>
         ))}
 
-        {kind === "thin" && (items as ArtistItem[] | null)?.map((a) => (
+        {kind === "thin" && (visible as ArtistItem[] | null)?.map((a) => (
           <div key={a.artist_id} className="hw-row">
             <Cover id={a.artist_id} round />
             <div className="hw-main">
@@ -304,6 +368,7 @@ export default function HelpWantedPage() {
             </div>
             {!isAdmin && <Link href={`/submit?type=new_track&artist_id=${a.artist_id}&artist_name=${encodeURIComponent(a.artist)}`} className="ms-say hw-act">Add songs//</Link>}
             {isAdmin && <Link href={`/admin/tracklist?artist=${encodeURIComponent(a.artist_id)}`} className="ms-say hw-act">Paste tracklist//</Link>}
+            <Skip x={a} />
           </div>
         ))}
 

@@ -3449,6 +3449,11 @@ body:has(.ms-shell) .site-credit { display: none; }
 /* Day / Month / Year fit on a phone (the usual padding left room for "Da"). */
 .hw-fill select { padding: 10px 4px 10px 8px; font-size: 0.85rem; min-width: 0; }
 .hw-fixed { color: var(--green); }
+.hw-skip { flex: none; align-self: center; background: none; border: 0; padding: 8px 4px; min-height: 32px; color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.hw-skip:hover { color: var(--bone); }
+.hw-vote .hw-skip { align-self: center; padding: 2px 4px; }
+.hw-skipped { margin: -4px 0 10px; }
+.hw-login { margin-top: 8px; display: inline-flex; }
 .hw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--hair-strong); }
 .hw-cover { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 3px; border: 1px solid var(--hair-strong); display: flex; align-items: center; justify-content: center; background: var(--surface2); font-family: var(--font-anton), sans-serif; font-size: 0.8rem; color: var(--smoke); }
 .hw-cover.round { border-radius: 50%; }
@@ -3484,8 +3489,10 @@ body:has(.ms-shell) .site-credit { display: none; }
   .vq-right { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--hair-strong); }
   .vq-art, .vq-art img, .vq-blank { width: 112px; }
   .vq-art img, .vq-blank { height: 112px; }
-  .hw-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .hw-tabs button { min-height: 84px; font-size: 0.62rem; }
+  /* Five jobs: three on top, two wider below, so none sits on its own. */
+  .hw-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .hw-tabs button { grid-column: span 2; min-height: 84px; font-size: 0.62rem; }
+  .hw-tabs button:nth-child(4), .hw-tabs button:nth-child(5) { grid-column: span 3; }
   .hw-tabs .hw-follow { grid-column: 1 / -1; min-height: 0; flex-direction: row; padding: 10px; }
   .hw-impact-you { border-right: 0; padding-right: 0; }
 }
