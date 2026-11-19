@@ -29,6 +29,14 @@ export default async function sitemap(props: { id: number | string | Promise<num
       ),
     );
   }
+  // The last part holds every album page instead of songs.
+  if (part === SITEMAP_PARTS - 1) {
+    const { data: albums } = await supabase.rpc("rpc_sitemap_albums");
+    for (const id of (albums as string[] | null) ?? []) {
+      pages.push({ url: `${SITE}/album/${encodeURIComponent(id)}`, changeFrequency: "weekly", priority: 0.6 });
+    }
+    return pages;
+  }
   const { data } = await supabase.rpc("rpc_sitemap_part", { p_offset: part * PER_PART, p_limit: PER_PART });
   const d = (data as { artists?: string[]; songs?: string[] } | null) ?? {};
   for (const id of d.artists ?? []) {

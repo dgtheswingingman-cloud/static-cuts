@@ -41,7 +41,9 @@ const niceDate = (d: string | null) => d ? new Date(`${d}T12:00:00`).toLocaleDat
 // stand for a whole album.
 const MIN_RATED = 3;
 
-export default function AlbumView({ id }: { id: string }) {
+// children: the server's plain-text version of the page (page.tsx), shown
+// until the album has loaded.
+export default function AlbumView({ id, children }: { id: string; children?: React.ReactNode }) {
   const user = usePersonalUser();
   const moderator = useIsModerator();
   const [a, setA] = useState<Album | null | undefined>(undefined);
@@ -78,7 +80,7 @@ export default function AlbumView({ id }: { id: string }) {
     setBusy(null);
   }
 
-  if (a === undefined) return <div className="wrap al-page"><div className="empty-state">loading…</div></div>;
+  if (a === undefined) return children ? <>{children}</> : <div className="wrap al-page"><div className="empty-state">loading…</div></div>;
   if (a === null) return <div className="wrap al-page"><div className="empty-state">Album not found.</div></div>;
 
   const disks = [...new Set(a.tracks.map((t) => t.disk ?? 1))];

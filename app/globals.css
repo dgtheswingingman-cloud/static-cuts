@@ -2108,7 +2108,7 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .song-ssr dl > div { display: flex; gap: 10px; }
 .song-ssr dt { color: var(--smoke); min-width: 100px; }
 .song-ssr dd { margin: 0; overflow-wrap: anywhere; }
-.song-ssr ul { padding-left: 18px; }
+.song-ssr ul, .song-ssr ol { padding-left: 18px; }
 .song-ssr a { color: var(--bone); }
 .sp-follow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--hair-strong); border-radius: 6px; }
 .sp-follow > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
