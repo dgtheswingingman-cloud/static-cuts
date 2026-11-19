@@ -13,6 +13,11 @@ import ArtistView from "./ArtistView";
 // server's plain-text version is kept; your own collection and ratings
 // still load live in the browser.)
 export const revalidate = 3600;
+// No pages are built ahead of time; each is built on its first visit and
+// then kept (without this, Next.js builds the page fresh on every visit).
+export async function generateStaticParams() {
+  return [];
+}
 
 type Props = { params: Promise<{ id: string }> };
 type Song = { id: string; title: string; release_status: string | null; album: string | null };
