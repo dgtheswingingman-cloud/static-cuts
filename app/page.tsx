@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import AskForArtist from "./components/AskForArtist";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { readPicks, savePicks } from "./components/picks";
@@ -509,14 +510,8 @@ export default function HomePage() {
           ) : q ? (
             <div className="empty-state">
               <b>{query}</b> isn&apos;t in the archive yet
-              {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."} Every
-              artist here got added because someone wanted to track them — you could be the one to
-              start theirs.{" "}
-              {user && !isAdmin && (
-                <a href={`/submit?prefill_name=${encodeURIComponent(query)}`} style={{ color: "var(--bone)" }}>
-                  Suggest &quot;{query}&quot; as a new artist →
-                </a>
-              )}
+              {trackResults.length > 0 ? ", but some of their tracks turned up above." : "."}
+              <AskForArtist name={query} />
             </div>
           ) : user ? (
             <div className="empty-state">

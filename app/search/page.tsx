@@ -8,6 +8,7 @@
 import { isListen, linkKind } from "@/lib/linkKind";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import AskForArtist from "../components/AskForArtist";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Supporter from "../components/Supporter";
@@ -386,6 +387,11 @@ function SearchInner() {
             </div>
           )}
         </>
+      )}
+
+      {/* No artist by that name (and no songs either, or just looking at artists) */}
+      {words.length >= 3 && artists && artists.length === 0 && (type === "artists" || (type === "all" && results?.length === 0)) && (
+        <AskForArtist name={words} />
       )}
 
       {/* Artists */}

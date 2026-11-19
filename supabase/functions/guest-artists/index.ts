@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
 
   const { data: next, error } = await db.rpc("sc_guest_next", { p_secret: secret, p_limit: 20 });
   if (error) return json({ error: error.message }, 403);
-  const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null; searched?: boolean }[];
+  const guests = (next?.guests ?? []) as { key: string; name: string; titles: string[] | null; searched?: boolean; asked?: boolean }[];
   if (guests.length === 0) return json({ ok: true, idle: true });
   const { data: pauseRow } = await db.from("sc_private_settings").select("value").eq("key", DEEZER_PAUSE).maybeSingle();
   if (pauseRow?.value && Date.parse(pauseRow.value) > Date.now()) return json({ ok: true, paused_until: pauseRow.value });
@@ -195,7 +195,8 @@ Deno.serve(async (req) => {
       if (confirmed && fans > BIG_FANS && !g.searched) {
         await db.rpc("sc_guest_found", { p_secret: secret, p_key: g.key, p_action: "wait", p_deezer_id: String(confirmed.id) });
         done.push({ name: g.name, result: "waiting (big name)" });
-      } else if (confirmed && fans >= MIN_FANS && next?.new_pages === false) {
+      } else if (confirmed && fans >= MIN_FANS && next?.new_pages === false && !(g.asked && next?.asked_pages)) {
+        // (Artists visitors asked for get up to 5 extra pages a day.)
         // Would be a new page, but existing artists come first: noted for later.
         await db.rpc("sc_guest_found", { p_secret: secret, p_key: g.key, p_action: "wait", p_deezer_id: String(confirmed.id) });
         done.push({ name: g.name, result: "waiting" });
