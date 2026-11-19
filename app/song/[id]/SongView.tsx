@@ -121,7 +121,9 @@ function formatDate(d: string, withYear = true) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) });
 }
 
-export default function SongView({ id }: { id: string }) {
+// children: the server's plain-text version of the page (page.tsx), shown
+// until the full page has loaded.
+export default function SongView({ id, children }: { id: string; children?: React.ReactNode }) {
   const { loading: authLoading } = useAuth();
   const user = usePersonalUser();
   const isAdmin = useIsAdmin();
@@ -243,7 +245,7 @@ export default function SongView({ id }: { id: string }) {
       </div>
     );
   }
-  if (!song) return <div className="wrap"><div className="empty-state">loading…</div></div>;
+  if (!song) return children ? <>{children}</> : <div className="wrap"><div className="empty-state">loading…</div></div>;
 
   const t = song.track;
   const artistId = song.artist?.id ?? t.artist_id;

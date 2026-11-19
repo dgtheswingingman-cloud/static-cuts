@@ -2102,6 +2102,14 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .ask-artist > .tab, .ask-artist > button { flex-shrink: 0; white-space: nowrap; text-decoration: none; }
 .ask-artist-err { color: var(--danger, #e5484d); flex-basis: 100%; }
 @media (max-width: 560px) { .ask-artist > .tab, .ask-artist > button { width: 100%; text-align: center; } }
+.song-ssr h1 { font-family: var(--font-anton), sans-serif; font-size: 2rem; margin: 24px 0 4px; overflow-wrap: anywhere; }
+.song-ssr h2 { font-size: 1rem; margin: 20px 0 8px; }
+.song-ssr dl { display: grid; gap: 6px; margin: 16px 0; }
+.song-ssr dl > div { display: flex; gap: 10px; }
+.song-ssr dt { color: var(--smoke); min-width: 100px; }
+.song-ssr dd { margin: 0; overflow-wrap: anywhere; }
+.song-ssr ul { padding-left: 18px; }
+.song-ssr a { color: var(--bone); }
 .sp-follow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--hair-strong); border-radius: 6px; }
 .sp-follow > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .sp-follow strong { font-size: 0.92rem; overflow-wrap: anywhere; }
