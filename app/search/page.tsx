@@ -157,7 +157,7 @@ function SearchInner() {
         supabase.rpc("rpc_similar_artists", { p_artist: top.id, p_limit: 10 }).then(({ data }) => setRelated((data as typeof related) ?? []));
       }
       // An artist people look for that isn't here: counted, so they get added sooner.
-      if (list.length === 0 && words.length >= 3) supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "artists" });
+      if (list.length === 0 && words.length >= 3) supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "artists" }).then(() => {});
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.get("q")]);
@@ -176,7 +176,7 @@ function SearchInner() {
       // songs can be added.
       const words = (params.get("q") ?? "").trim();
       if (d.total === 0 && words.length >= 3 && !statuses.length && !from && !to && !link) {
-        supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "songs" });
+        supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "songs" }).then(() => {});
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
