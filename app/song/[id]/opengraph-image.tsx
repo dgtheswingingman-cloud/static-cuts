@@ -19,6 +19,27 @@ type Song = {
   family?: { id: string }[];
 };
 
+// The cover, fetched first so a bad one can't break the whole picture: only
+// JPEG, PNG or GIF (checked by the file's first bytes, since some sites label
+// images wrongly), within 4 seconds and 4 MB. Anything else (WebP from Genius,
+// a slow host) falls back to the SC// square.
+async function loadCover(url: string | null | undefined): Promise<string | null> {
+  if (!url || !/^https:\/\//i.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length < 8 || buf.length > 4_000_000) return null;
+    const type = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff ? "image/jpeg"
+      : buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 ? "image/png"
+      : buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 ? "image/gif" : null;
+    if (!type) return null;
+    return `data:${type};base64,${Buffer.from(buf).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { data } = await supabase.rpc("rpc_song_page", { p_id: id });
@@ -33,14 +54,19 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   ].filter(Boolean) as string[];
 
   // The share-image renderer fetches a font for symbols it doesn't have, and
-  // that fails for stars (★ ☆), which some tracker titles use. Swap them for *.
-  const plain = (x: string) => x.replace(/[\u2605\u2606\u2729-\u2730\u272A-\u2740]/g, "*");
+  // that fails (♡ ✦ ˂ ⁺ ♕ ➹ ⋆, emoji...). Stars become *, other decorative
+  // symbols are left out of the picture (the song page still has them).
+  const plain = (x: string) => x
+    .replace(/[\u2605\u2606\u2729-\u2730\u272A-\u2740]/g, "*")
+    .replace(/[\p{So}\p{Sm}\p{Sk}\p{Extended_Pictographic}\uFE0F\u200D]/gu, (c) => (c.charCodeAt(0) < 128 ? c : ""))
+    .replace(/\s{2,}/g, " ").trim();
+  const cover = await loadCover(t?.display_cover?.url ?? t?.cover_url);
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#0A0A0A", color: "#EDEDED", padding: 60, fontFamily: "sans-serif" }}>
-        {(t?.display_cover?.url ?? t?.cover_url) ? (
+        {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={t?.display_cover?.url ?? t?.cover_url ?? ""} width={360} height={360} style={{ borderRadius: 18, marginRight: 56, objectFit: "cover" }} alt="" />
+          <img src={cover} width={360} height={360} style={{ borderRadius: 18, marginRight: 56, objectFit: "cover" }} alt="" />
         ) : (
           <div style={{ width: 360, height: 360, borderRadius: 18, marginRight: 56, background: "#1D1D1D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, color: "#565656" }}>SC//</div>
         )}
