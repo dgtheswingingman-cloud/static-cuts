@@ -44,7 +44,9 @@ export default function HomeFeed({ photos, followed, afterAlbum }: { photos: Rec
     load();
     const t = setInterval(load, 120000);
     supabase.from("tracks").select("id, title, cover_url, release_status, album, created_at, artist_id, artists!artist_id(name)")
-      .is("parent_track_id", null).not("cover_url", "is", null).order("created_at", { ascending: false }).limit(12)
+      // created_at is null on older songs; without the filter they sorted first.
+      .is("parent_track_id", null).not("cover_url", "is", null).not("created_at", "is", null)
+      .order("created_at", { ascending: false }).limit(12)
       .then(({ data }) => setAdded((data as unknown as Added[]) ?? []));
     return () => clearInterval(t);
   }, []);
