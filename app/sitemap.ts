@@ -29,11 +29,16 @@ export default async function sitemap(props: { id: number | string | Promise<num
       ),
     );
   }
-  // The last part holds every album page instead of songs.
+  // The last part holds every album page (and the top producers) instead of songs.
   if (part === SITEMAP_PARTS - 1) {
     const { data: albums } = await supabase.rpc("rpc_sitemap_albums");
     for (const id of (albums as string[] | null) ?? []) {
       pages.push({ url: `${SITE}/album/${encodeURIComponent(id)}`, changeFrequency: "weekly", priority: 0.6 });
+    }
+    // And the producers with the most songs.
+    const { data: producers } = await supabase.rpc("rpc_producers", { p_query: null, p_limit: 1000 });
+    for (const p of (producers as { name: string }[] | null) ?? []) {
+      pages.push({ url: `${SITE}/producer/${encodeURIComponent(p.name)}`, changeFrequency: "weekly", priority: 0.5 });
     }
     return pages;
   }
