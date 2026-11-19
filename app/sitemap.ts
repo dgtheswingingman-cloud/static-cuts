@@ -6,11 +6,12 @@ import { supabase } from "@/lib/supabase";
 //
 // Split into parts of 40,000 songs (search engines read at most 50,000 links
 // per sitemap): /sitemap/0.xml, /sitemap/1.xml… robots.ts lists every part.
+// Main songs come first, then versions (sc_sitemap_refresh).
 // Part 0 also has the main pages and every artist.
 export const revalidate = 86400;
 
 const SITE = "https://static-cuts.com";
-export const SITEMAP_PARTS = 10; // room for 400,000 songs (empty parts are fine)
+export const SITEMAP_PARTS = 20; // room for 800,000 songs (empty parts are fine)
 const PER_PART = 40000;
 
 export async function generateSitemaps() {
