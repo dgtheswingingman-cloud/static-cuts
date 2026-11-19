@@ -1,7 +1,6 @@
 "use client";
 
-// Title checks (admins): rule-based checks over the whole catalogue, run
-// nightly, no AI.
+// Archive checks (admins): rule-based checks over the whole catalogue, no AI.
 //   Cut-off titles: cut at 28-30 characters mid-word (old MP3 tags cap
 //     titles at 30; nearly all came from Last.fm) where the same artist has
 //     the full-title song. Merge into the right one (collections, ratings,
@@ -10,6 +9,11 @@
 //   Garbled text: broken characters, leftover HTML and stray spaces, each
 //     with its fix ready. Titles that can't be fixed for certain aren't
 //     listed.
+//   Dates (live): an unreleased song's release date that's only a copy of
+//     its leak date (clear it); a leaked song whose only date is in
+//     "release date" (move it to the leak date); an "unreleased" song with a
+//     Spotify track link (maybe released). Other release dates on unreleased
+//     songs are mostly trackers' recording dates and are left alone.
 // Merges and fixes are in Undo.
 
 import { useEffect, useState } from "react";
@@ -24,12 +28,17 @@ type Cand = { id: string; title: string; status: string | null };
 type Cut = { id: string; title: string; artist_id: string; artist: string; status: string | null; candidates: Cand[] };
 type Garbled = { id: string; title: string; artist_id: string; artist: string; fixed: string };
 type Data = { cut: Cut[]; garbled: Garbled[]; checked_at: string | null };
-type Tab = "cut" | "garbled";
+type DateRow = { id: string; title: string; artist_id: string; artist: string; status: string; release_date: string | null; leak_date: string | null; spotify_url: string | null };
+type Dates = { copied: DateRow[]; noleak: DateRow[]; linked: DateRow[]; held: number };
+type DateKind = "copied" | "noleak" | "linked";
+type Tab = "cut" | "garbled" | DateKind;
+const fmt = (d: string | null) => (d ? new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "none");
 
 export default function TitleChecksPage() {
   const { loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
   const [data, setData] = useState<Data | null>(null);
+  const [dates, setDates] = useState<Dates | null>(null);
   const [tab, setTab] = useState<Tab>("cut");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "done" | "error"; text: string } | null>(null);
@@ -40,9 +49,20 @@ export default function TitleChecksPage() {
       if (error) { setNotice({ kind: "error", text: error.message }); setData({ cut: [], garbled: [], checked_at: null }); return; }
       setData((d as Data) ?? { cut: [], garbled: [], checked_at: null });
     });
+    supabase.rpc("admin_date_checks").then(({ data: d }) => setDates((d as Dates) ?? { copied: [], noleak: [], linked: [], held: 0 }));
   }, [isAdmin]);
 
-  async function act(kind: Tab, id: string, action: "merge" | "dismiss" | "fix", target?: string) {
+  // Dates: one song, or all of a kind (track null).
+  async function dateAct(kind: DateKind, action: "clear" | "move" | "released" | "dismiss", id: string | null) {
+    setBusy(`${kind}|${id ?? "all"}`);
+    const { data: n, error } = await supabase.rpc("admin_date_check_action", { p_kind: kind, p_action: action, p_track: id });
+    setBusy(null);
+    if (error) { setNotice({ kind: "error", text: error.message }); return; }
+    setDates((d) => d && { ...d, [kind]: id ? d[kind].filter((x) => x.id !== id) : [] });
+    if (!id) setNotice({ kind: "done", text: `Done: ${n} song${n === 1 ? "" : "s"}. Undo has it if that was wrong.` });
+  }
+
+  async function act(kind: "cut" | "garbled", id: string, action: "merge" | "dismiss" | "fix", target?: string) {
     setBusy(`${kind}|${id}`);
     const { error } = await supabase.rpc("admin_title_check_action", { p_track: id, p_kind: kind, p_action: action, p_target: target ?? null });
     setBusy(null);
@@ -62,17 +82,23 @@ export default function TitleChecksPage() {
   const cut = data?.cut ?? [];
   const garbled = data?.garbled ?? [];
   return (
-    <ModPage title="Title checks"
-      intro={<>Problems found in song titles across the whole archive, checked every night. Nothing changes until you choose; merges and fixes can be undone from the <UndoHistoryLink />.</>}>
+    <ModPage title="Archive checks"
+      intro={<>Problems found across the whole archive: titles are checked every night, dates live. Nothing changes until you choose; merges and fixes can be undone from the <UndoHistoryLink />.</>}>
       {notice && <ModNotice kind={notice.kind} onClose={() => setNotice(null)}>{notice.text}</ModNotice>}
       <ModToolbar right={tab === "garbled" && garbled.length > 1
         ? <ModButton kind="approve" busy={!!busy} confirm={`Apply all ${garbled.length} fixes?`} onClick={fixAll}>fix all {garbled.length}</ModButton> : undefined}>
         <ModTabs<Tab> value={tab} onChange={setTab} tabs={[
           { key: "cut", label: "Cut-off titles", count: cut.length },
           { key: "garbled", label: "Garbled text", count: garbled.length },
+          { key: "copied", label: "Copied dates", count: dates?.copied.length ?? null },
+          { key: "noleak", label: "Leak date in the wrong place", count: dates?.noleak.length ?? null },
+          { key: "linked", label: "Maybe released", count: dates?.linked.length ?? null },
         ]} />
       </ModToolbar>
       {!data && <ModLoading />}
+      {dates && dates.held > 0 && (tab === "copied" || tab === "noleak" || tab === "linked") && (
+        <p className="comment-meta">{dates.held} song{dates.held === 1 ? " is" : "s are"} on store pre-release: shown as announced until their release date, then released automatically.</p>
+      )}
       {data?.checked_at && <p className="comment-meta">Last checked {new Date(data.checked_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.</p>}
 
       {data && tab === "cut" && (<>
@@ -92,6 +118,50 @@ export default function TitleChecksPage() {
             </>}
             actions={<ModButton kind="dismiss" busy={busy === `cut|${c.id}`} onClick={() => act("cut", c.id, "dismiss")}>not the same</ModButton>}
           />
+        ))}
+      </>)}
+
+      {tab === "copied" && dates && (<>
+        <p className="comment-meta">Unreleased songs whose release date is just a copy of their leak date. The leak date stays; only the copy goes.</p>
+        {dates.copied.length === 0 && <ModEmpty>None left.</ModEmpty>}
+        {dates.copied.length > 0 && <p><ModButton kind="approve" busy={busy === "copied|all"} confirm={`Clear the copied release date on all ${dates.copied.length} songs? Their leak dates stay.`} onClick={() => dateAct("copied", "clear", null)}>clear all {dates.copied.length}</ModButton></p>}
+        {dates.copied.map((r) => (
+          <ModRow key={r.id}
+            title={<><Link href={`/song/${r.id}`}>{r.title}</Link> <ModTag>{r.status}</ModTag></>}
+            meta={<><Link href={`/artist/${r.artist_id}`}>{r.artist}</Link><span>release {fmt(r.release_date)} · leak {fmt(r.leak_date)}</span></>}
+            actions={<>
+              <ModButton kind="approve" busy={busy === `copied|${r.id}`} onClick={() => dateAct("copied", "clear", r.id)}>clear release date</ModButton>
+              <ModButton kind="dismiss" busy={busy === `copied|${r.id}`} onClick={() => dateAct("copied", "dismiss", r.id)}>leave it</ModButton>
+            </>} />
+        ))}
+      </>)}
+
+      {tab === "noleak" && dates && (<>
+        <p className="comment-meta">Leaked songs whose only date is in &ldquo;release date&rdquo;. Leaked songs don&apos;t have a release date, so it most likely belongs in the leak date.</p>
+        {dates.noleak.length === 0 && <ModEmpty>None left.</ModEmpty>}
+        {dates.noleak.length > 1 && <p><ModButton kind="approve" busy={busy === "noleak|all"} confirm={`Move the date to the leak date on all ${dates.noleak.length} songs?`} onClick={() => dateAct("noleak", "move", null)}>move all {dates.noleak.length}</ModButton></p>}
+        {dates.noleak.map((r) => (
+          <ModRow key={r.id}
+            title={<><Link href={`/song/${r.id}`}>{r.title}</Link> <ModTag>{r.status}</ModTag></>}
+            meta={<><Link href={`/artist/${r.artist_id}`}>{r.artist}</Link><span>release {fmt(r.release_date)} · leak none</span></>}
+            actions={<>
+              <ModButton kind="approve" busy={busy === `noleak|${r.id}`} onClick={() => dateAct("noleak", "move", r.id)}>move to leak date</ModButton>
+              <ModButton kind="dismiss" busy={busy === `noleak|${r.id}`} onClick={() => dateAct("noleak", "dismiss", r.id)}>leave it</ModButton>
+            </>} />
+        ))}
+      </>)}
+
+      {tab === "linked" && dates && (<>
+        <p className="comment-meta">Marked unreleased but linked to a Spotify track. Open the link: if it&apos;s really this song out on Spotify, it&apos;s released.</p>
+        {dates.linked.length === 0 && <ModEmpty>None left.</ModEmpty>}
+        {dates.linked.map((r) => (
+          <ModRow key={r.id}
+            title={<><Link href={`/song/${r.id}`}>{r.title}</Link> <ModTag>{r.status}</ModTag></>}
+            meta={<><Link href={`/artist/${r.artist_id}`}>{r.artist}</Link>{r.spotify_url && <a href={r.spotify_url} target="_blank" rel="noopener noreferrer">open on Spotify ↗</a>}</>}
+            actions={<>
+              <ModButton kind="approve" busy={busy === `linked|${r.id}`} onClick={() => dateAct("linked", "released", r.id)}>it&apos;s released</ModButton>
+              <ModButton kind="dismiss" busy={busy === `linked|${r.id}`} onClick={() => dateAct("linked", "dismiss", r.id)}>it isn&apos;t</ModButton>
+            </>} />
         ))}
       </>)}
 
