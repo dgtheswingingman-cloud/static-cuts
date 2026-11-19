@@ -20,6 +20,7 @@ import DesktopNav from "./DesktopNav";
 import PageBack from "./PageBack";
 import MobileTabBar from "./MobileTabBar";
 import SpotifyImportResume from "./SpotifyImportResume";
+import PendingFollow from "./PendingFollow";
 import SitePause from "./SitePause";
 import AuthNotice from "./AuthNotice";
 import UserAccent from "./UserAccent";
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <UserAccent />
               <StaticOverlay />
               <SpotifyImportResume />
+              <PendingFollow />
               <div className="scanlines" />
               <VisitorPreviewBar />
               <DesktopNav />

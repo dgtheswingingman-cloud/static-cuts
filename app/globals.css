@@ -2095,6 +2095,12 @@ a.mod-btn { display: inline-block; text-decoration: none; }
 .sp-facts > div { padding: 2px 8px; border-right: 1px solid var(--hair-strong); display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
 .sp-facts > div:last-child { border-right: 0; }
 .sp-facts > div > span { font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--smoke); }
+.sp-follow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--hair-strong); border-radius: 6px; }
+.sp-follow > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-follow strong { font-size: 0.92rem; overflow-wrap: anywhere; }
+.sp-follow small { color: var(--smoke); font-size: 0.78rem; }
+.sp-follow button { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 560px) { .sp-follow { flex-direction: column; align-items: stretch; } .sp-follow button { width: 100%; } }
 .sp-facts strong { font-family: var(--font-mono), monospace; font-size: 0.92rem; text-transform: uppercase; overflow-wrap: anywhere; }
 .sp-facts .feature-tag.st { font-size: 0.66rem; }
 .sp-trust { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
