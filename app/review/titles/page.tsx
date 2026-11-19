@@ -31,7 +31,8 @@ type Data = { cut: Cut[]; garbled: Garbled[]; checked_at: string | null };
 type DateRow = { id: string; title: string; artist_id: string; artist: string; status: string; release_date: string | null; leak_date: string | null; spotify_url: string | null };
 type Dates = { copied: DateRow[]; noleak: DateRow[]; linked: DateRow[]; held: number };
 type DateKind = "copied" | "noleak" | "linked";
-type Tab = "cut" | "garbled" | DateKind;
+type Cross = { id: string; title: string; artist_id: string; artist: string; status: string | null; parent_id: string; parent_title: string; parent_artist_id: string; parent_artist: string };
+type Tab = "cut" | "garbled" | DateKind | "cross";
 const fmt = (d: string | null) => (d ? new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "none");
 
 export default function TitleChecksPage() {
@@ -39,6 +40,7 @@ export default function TitleChecksPage() {
   const isAdmin = useIsAdmin();
   const [data, setData] = useState<Data | null>(null);
   const [dates, setDates] = useState<Dates | null>(null);
+  const [cross, setCross] = useState<Cross[] | null>(null);
   const [tab, setTab] = useState<Tab>("cut");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "done" | "error"; text: string } | null>(null);
@@ -50,6 +52,7 @@ export default function TitleChecksPage() {
       setData((d as Data) ?? { cut: [], garbled: [], checked_at: null });
     });
     supabase.rpc("admin_date_checks").then(({ data: d }) => setDates((d as Dates) ?? { copied: [], noleak: [], linked: [], held: 0 }));
+    supabase.rpc("admin_cross_versions").then(({ data: d }) => setCross((d as Cross[]) ?? []));
   }, [isAdmin]);
 
   // Dates: one song, or all of a kind (track null).
@@ -93,6 +96,7 @@ export default function TitleChecksPage() {
           { key: "copied", label: "Copied dates", count: dates?.copied.length ?? null },
           { key: "noleak", label: "Leak date in the wrong place", count: dates?.noleak.length ?? null },
           { key: "linked", label: "Maybe released", count: dates?.linked.length ?? null },
+          { key: "cross", label: "Version under another artist", count: cross?.length ?? null },
         ]} />
       </ModToolbar>
       {!data && <ModLoading />}
@@ -147,6 +151,33 @@ export default function TitleChecksPage() {
             actions={<>
               <ModButton kind="approve" busy={busy === `noleak|${r.id}`} onClick={() => dateAct("noleak", "move", r.id)}>move to leak date</ModButton>
               <ModButton kind="dismiss" busy={busy === `noleak|${r.id}`} onClick={() => dateAct("noleak", "dismiss", r.id)}>leave it</ModButton>
+            </>} />
+        ))}
+      </>)}
+
+      {tab === "cross" && cross && (<>
+        <p className="comment-meta">Versions filed under another artist&apos;s song, with nothing linking the two (neither artist is in the other&apos;s title, features or credits). Often two different songs that share a title, or a generic &ldquo;Intro&rdquo;. A remixer&apos;s own remix is fine.</p>
+        {cross.length === 0 && <ModEmpty>None left.</ModEmpty>}
+        {cross.map((c) => (
+          <ModRow key={c.id}
+            title={<><Link href={`/song/${c.id}`}>{c.title}</Link> <span className="comment-meta">by <Link href={`/artist/${c.artist_id}`}>{c.artist}</Link></span></>}
+            meta={<span>filed as a version of <Link href={`/song/${c.parent_id}`}>&ldquo;{c.parent_title}&rdquo;</Link> by <Link href={`/artist/${c.parent_artist_id}`}>{c.parent_artist}</Link></span>}
+            actions={<>
+              <ModButton kind="approve" busy={busy === `cross|${c.id}`} onClick={async () => {
+                setBusy(`cross|${c.id}`);
+                const { error } = await supabase.rpc("admin_cross_version_action", { p_track: c.id, p_action: "own" });
+                setBusy(null);
+                if (error) { setNotice({ kind: "error", text: error.message }); return; }
+                setCross((l) => (l ?? []).filter((x) => x.id !== c.id));
+                setNotice({ kind: "done", text: `“${c.title}” is its own song now.` });
+              }}>make it its own song</ModButton>
+              <ModButton kind="dismiss" busy={busy === `cross|${c.id}`} onClick={async () => {
+                setBusy(`cross|${c.id}`);
+                const { error } = await supabase.rpc("admin_cross_version_action", { p_track: c.id, p_action: "fine" });
+                setBusy(null);
+                if (error) { setNotice({ kind: "error", text: error.message }); return; }
+                setCross((l) => (l ?? []).filter((x) => x.id !== c.id));
+              }}>it&apos;s right</ModButton>
             </>} />
         ))}
       </>)}
