@@ -66,7 +66,7 @@ export default function NotificationsPage() {
       const d = data as { items: Note[] } | null;
       setItems(d?.items ?? []);
       // Opening the page counts as reading them (the dots stay until you leave).
-      if ((d?.items ?? []).some((n) => !n.read_at)) supabase.rpc("rpc_mark_notifications_read", { p_admin: isAdmin });
+      if ((d?.items ?? []).some((n) => !n.read_at)) supabase.rpc("rpc_mark_notifications_read", { p_admin: isAdmin }).then(() => {});
     });
   }, [authLoading, user, router, isAdmin]);
 

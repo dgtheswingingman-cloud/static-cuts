@@ -158,7 +158,7 @@ export default function HomePage() {
     const found = artists.some((a) => a.name.toLowerCase().includes(needle) || a.aliases.some((x) => x.toLowerCase().includes(needle)));
     if (found) return;
     const t = setTimeout(() => {
-      if (trackResults.length === 0) supabase.rpc("rpc_log_search_miss", { p_query: term, p_kind: "artists" });
+      if (trackResults.length === 0) supabase.rpc("rpc_log_search_miss", { p_query: term, p_kind: "artists" }).then(() => {});
     }, 2000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
