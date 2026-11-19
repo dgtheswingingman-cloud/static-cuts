@@ -18,6 +18,7 @@ import SongCredits from "./SongCredits";
 import RealOrFake, { VOTEABLE_STATUSES } from "./RealOrFake";
 import AddToList from "./AddToList";
 import RemindMe from "./RemindMe";
+import FollowArtist from "./FollowArtist";
 import InlinePlayer from "../../components/InlinePlayer";
 import FileNote from "./FileNote";
 import MyFile from "./MyFile";
@@ -467,6 +468,7 @@ export default function SongView({ id }: { id: string }) {
             : <span className={`trust-tag trust-${tr.level}`} title={tr.title}>{tr.label}</span>;
         })()}
       </div>
+      {song.artist && <FollowArtist artistId={artistId} artistName={song.artist.name} trackId={t.id} />}
 
       {!isAdmin && (
         <button className={`sp-rate ${song.my_rating ? "rated" : ""}`} aria-expanded={rateOpen} onClick={() => (user ? setRateOpen(!rateOpen) : router.push("/login"))}>
