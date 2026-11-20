@@ -39,7 +39,7 @@ export const JOB_GROUPS: { title: string; jobs: Record<string, string> }[] = [
     title: "Covers",
     jobs: {
       "fetch-covers": "Fills in missing artwork from Spotify.",
-      "cover-search": "Finds covers through Deezer and Apple links or an exact Deezer search, launch artists first.",
+      "cover-search": "Finds covers through Deezer and Apple links or an exact search. Paused 21 Nov: song-check does the same searches (new songs with no cover first).",
       "covers-known": "Fills covers from the album they're on, then works out era art for unreleased songs.",
       "cover-copy": "Copies covers you approved on the Covers page into the site's own storage and puts them live.",
       "soundcloud-covers": "Uses SoundCloud artwork for songs that only have a SoundCloud link.",
