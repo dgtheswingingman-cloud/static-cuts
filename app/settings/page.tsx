@@ -27,6 +27,7 @@ type Prefs = {
   show_ratings: boolean;
   show_followed_artists: boolean;
   show_contributions: boolean;
+  show_on_supporters: boolean;
   notify_followed_daily: boolean;
   notify_collected: boolean;
 };
@@ -38,6 +39,7 @@ const PRIVACY: [keyof Prefs, string][] = [
   ["show_ratings", "Show my ratings publicly"],
   ["show_followed_artists", "Show artists I follow publicly"],
   ["show_contributions", "Show my contributions publicly"],
+  ["show_on_supporters", "Show me on the supporters wall (premium)"],
 ];
 const NOTIFY: [keyof Prefs, string][] = [
   ["notify_followed_daily", "Daily round-up for artists I follow"],
@@ -60,7 +62,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles")
-      .select("display_name, avatar_url, created_at, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions, notify_followed_daily, notify_collected")
+      .select("display_name, avatar_url, created_at, show_completion_pct, show_collected_tracks, show_ratings, show_followed_artists, show_contributions, show_on_supporters, notify_followed_daily, notify_collected")
       .eq("id", user.id).single()
       .then(({ data }) => {
         if (!data) return;

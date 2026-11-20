@@ -22,6 +22,7 @@ const MORE: [string, string, string][] = [
   ["/local", "Local Cuts", "Tidy your music folder for Spotify Local Files."],
   ["/discord", "Add the Discord bot", "Daily picks and artist alerts in your server."],
   ["/submit", "Help the archive", "Know a song we're missing? Add it."],
+  ["/supporters", "Supporters", "The people keeping Static-Cuts// running."],
 ];
 
 export default function LinksPage() {

@@ -18,7 +18,7 @@ const PERKS: [string, string, string][] = [
   ["Exports", "#22D3EE", "Download an artist's full tracklist as a spreadsheet: every song and version with status, era, dates, producers, links and Static-Cuts codes. And your missing lists too."],
   ["What you're missing", "#2BD67B", "From Local Cuts or your collection: every song you don't have yet, era by era, with leaks and snippets marked."],
   ["Premium profile", "#22D3EE", "A profile colour, a GIF avatar, up to 3 fan badges and a showcase of 6 pinned songs."],
-  ["◆ Supporter badge", "#2BD67B", "Next to your name everywhere on the site. And you keep the archive running."],
+  ["◆ Supporter badge", "#2BD67B", "Next to your name everywhere on the site, and a spot on the supporters wall (/supporters) if you want one. And you keep the archive running."],
   ["Founder badge", "#F5B841", "The first 100 people to go premium get a numbered founder badge, kept for good, even if premium ends."],
 ];
 
