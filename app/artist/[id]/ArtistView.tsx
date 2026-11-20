@@ -49,6 +49,9 @@ type Track = {
   spotify_url: string | null;
   parent_track_id: string | null;
   is_featured: boolean;
+  // What this page's artist did on someone else's song when it isn't a
+  // feature: produced it, released it on their label, or wrote it.
+  credit_role?: "producer" | "label" | "writer" | null;
   is_official: boolean;
   aliases: string | null;
   release_status?: string | null;
@@ -71,7 +74,9 @@ type Track = {
   homeArtistName?: string;
 };
 type Artist = { id: string; name: string; status: string | null };
-type RoleFilter = "all" | "main" | "featured";
+type RoleFilter = "all" | "main" | "featured" | "credits";
+
+const CREDIT_LABEL = { producer: "produced", label: "released", writer: "written" } as const;
 type ReleaseFilter = "all" | "official" | "unreleased";
 type CollectedFilter = "all" | "collected" | "uncollected";
 
@@ -83,7 +88,8 @@ function trackPasses(
   collected: CollectedFilter
 ) {
   if (role === "main" && t.is_featured) return false;
-  if (role === "featured" && !t.is_featured) return false;
+  if (role === "featured" && (!t.is_featured || t.credit_role)) return false;
+  if (role === "credits" && !t.credit_role) return false;
   if (release === "official" && !t.is_official) return false;
   if (release === "unreleased" && t.is_official) return false;
   if (collected === "collected" && !owned.has(t.id)) return false;
@@ -277,7 +283,7 @@ export default function ArtistView({ children }: { children?: React.ReactNode })
     while (true) {
       const { data: page, error: trackErr } = await supabase
         .from("tracks")
-        .select("id, title, spotify_url, parent_track_id, is_featured, is_official, aliases, release_status, source, source_url")
+        .select("id, title, spotify_url, parent_track_id, is_featured, credit_role, is_official, aliases, release_status, source, source_url")
         .eq("artist_id", id)
         .range(from, from + PAGE_SIZE - 1);
       if (trackErr) throw trackErr;
@@ -1102,6 +1108,14 @@ export default function ArtistView({ children }: { children?: React.ReactNode })
   const pageTrackIds = new Set((tracks ?? []).map((t) => t.id));
   const isMainHere = (t: Track) => !t.parent_track_id || !pageTrackIds.has(t.parent_track_id);
   const mainTracks = tracks?.filter(isMainHere) ?? [];
+  // Producers, labels and songwriters get a tab for the songs they made,
+  // released or wrote for others ("produced", "released", "written").
+  const creditRole = (() => {
+    const n = { producer: 0, label: 0, writer: 0 };
+    for (const t of tracks ?? []) if (t.credit_role) n[t.credit_role]++;
+    const top = (Object.entries(n) as [keyof typeof n, number][]).sort((a, b) => b[1] - a[1])[0];
+    return top[1] > 0 ? top[0] : null;
+  })();
   const subsByParent: Record<string, Track[]> = {};
   (tracks ?? []).forEach((t) => {
     if (!isMainHere(t)) (subsByParent[t.parent_track_id as string] = subsByParent[t.parent_track_id as string] || []).push(t);
@@ -1303,7 +1317,9 @@ export default function ArtistView({ children }: { children?: React.ReactNode })
         <div className="track-row" data-st={releaseLabel(t)} onClick={() => toggleOwned(t.id)} style={{ opacity: isToggling ? 0.5 : 1 }}>
           <div className={`sigil ${isOwned ? "owned" : ""}`}>{isOwned ? "✓" : ""}</div>
           <span className={`track-title ${isOwned ? "owned" : ""}`}>{t.title}</span>
-          {t.is_featured && <span className="feature-tag">featured</span>}
+          {t.credit_role
+            ? <span className="feature-tag">{CREDIT_LABEL[t.credit_role]}</span>
+            : t.is_featured && <span className="feature-tag">featured</span>}
           <span className={`feature-tag st st-${releaseLabel(t)}`}>{releaseLabel(t)}</span>
           {authenticity[t.id] && ["rumored", "teased", "snippet", "leaked"].includes(releaseLabel(t)) && (() => {
             const v = authenticity[t.id];
@@ -2163,8 +2179,10 @@ export default function ArtistView({ children }: { children?: React.ReactNode })
             />
             <div className="tabs filter-groups">
               <div className="filter-group">
-                {(["all", "main", "featured"] as RoleFilter[]).map((f) => (
-                  <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>{f}</button>
+                {(["all", "main", "featured", ...(creditRole ? ["credits"] : [])] as RoleFilter[]).map((f) => (
+                  <button key={f} className={`tab ${roleFilter === f ? "active" : ""}`} onClick={() => setRoleFilter(f)}>
+                    {f === "credits" && creditRole ? CREDIT_LABEL[creditRole] : f}
+                  </button>
                 ))}
               </div>
               <div className="filter-group">
