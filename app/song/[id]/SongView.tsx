@@ -44,6 +44,7 @@ type Track = {
   length_sec?: number | null;
   parent_track_id: string | null;
   is_featured: boolean;
+  credit_role?: "producer" | "label" | "writer" | null;
   is_official: boolean;
   aliases: string | null;
   track_number: number | null;
@@ -395,7 +396,9 @@ export default function SongView({ id, children }: { id: string; children?: Reac
               <a href="#covers" className="feature-tag sp-add-cover" title="Know the art that went with this song? Add it.">+ add the cover</a>
             )}
             {t.explicit && <span className="feature-tag sp-tag-line" title="Explicit">E</span>}
-            {t.is_featured && <span className="feature-tag sp-tag-line">featured</span>}
+            {t.credit_role
+              ? <span className="feature-tag sp-tag-line">{{ producer: "produced", label: "label release", writer: "written" }[t.credit_role]}</span>
+              : t.is_featured && <span className="feature-tag sp-tag-line">featured</span>}
           </div>
           <h1 className="detail-name song-title">{t.title}</h1>
           <div className="sp-artist">
