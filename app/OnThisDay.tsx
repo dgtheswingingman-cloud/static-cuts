@@ -23,7 +23,7 @@ export function AnniversaryRow({ a }: { a: Anniversary }) {
           <Link href={`/artist/${a.artist_id}`}>{a.artist}</Link>
           <span className="feature-tag">{a.kind}</span>
           <span>{a.years_ago} year{a.years_ago === 1 ? "" : "s"} ago ({a.on_date.slice(0, 4)})</span>
-          {a.album && <span>{a.album}</span>}
+          {a.album && <span>on {a.album}</span>}
         </div>
       </div>
       {a.spotify_url && <a className="listen-link" href={a.spotify_url} target="_blank" rel="noopener noreferrer">listen</a>}
