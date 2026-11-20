@@ -887,17 +887,18 @@ export default function LocalCutsPage() {
 
       {desk && user && (
         <div className="lc-desk">
+          <div className="lc-desk-title">Automatic tidying</div>
           <div className="lc-desk-row">
-            <b>New music lands in</b><span>{folders?.watch ?? "not chosen yet"}</span>
+            <b>1. Where new music arrives</b><span>{folders?.watch ?? "Choose the folder songs land in, e.g. your Downloads"}</span>
             <button className="lc-second" disabled={busy} onClick={() => chooseFolder("watch")}>{folders?.watch ? "Change" : "Choose"}</button>
           </div>
           <div className="lc-desk-row">
-            <b>Tidy library goes in</b><span>{folders?.library ?? "not chosen yet"}</span>
+            <b>2. Where the tidy copies go</b><span>{folders?.library ?? "Choose a different folder, e.g. a new \"Music library\" folder"}</span>
             <button className="lc-second" disabled={busy} onClick={() => chooseFolder("library")}>{folders?.library ? "Change" : "Choose"}</button>
           </div>
           <p className="lc-desk-status">
             {!premium ? <>The desktop app&apos;s folder watching is part of premium. <Link className="text-link" href="/premium">Go premium →</Link></>
-              : !folders?.watch || !folders?.library ? <>Choose both folders: every new song that lands in the first is tidied into a &ldquo;Static-Cuts&rdquo; folder in the second. Your originals are never touched.</>
+              : !folders?.watch || !folders?.library ? <>Once both are chosen, every new song that arrives in folder 1 gets a tidied copy in a &ldquo;Static-Cuts&rdquo; folder inside folder 2, automatically. The original stays where it is, untouched.</>
               : busy ? <>Tidying new songs…</>
               : queued ? <>{queued} song{queued === 1 ? "" : "s"} waiting…</>
               : <>Watching for new songs. Closing this window keeps it running in the tray.</>}
@@ -923,6 +924,9 @@ export default function LocalCutsPage() {
       )}
 
       {/* ---------------------------------------------------------------- drop */}
+      {desk && user && (stage === "idle" || stage === "ready" || stage === "saved") && !results && (
+        <p className="lc-desk-or">Or tidy a folder once, by hand (like on the website):</p>
+      )}
       {(stage === "idle" || stage === "ready" || stage === "saved") && user && !results && (
         <label className={`lc-drop ${hover ? "is-over" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
