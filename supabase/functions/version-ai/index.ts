@@ -20,6 +20,19 @@ const json = (body: unknown, status = 200) =>
 const AI_PAUSE = "claude_pause_until";
 const AI_MODEL = "claude-haiku-5-5";
 
+// Claude's monthly budget (about £5 site wide, sc_ai_can_spend): may this
+// spend now, and record what each call really cost (from Claude's reply).
+async function canSpend(who: "person" | "background") {
+  const { data } = await db.rpc("sc_ai_can_spend", { p_who: who });
+  return data !== false;
+}
+async function spent(job: string, out: any) {
+  const u = out?.usage;
+  if (!u) return;
+  const input = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+  await db.rpc("sc_ai_spend_add", { p_job: job, p_input: input, p_output: u.output_tokens ?? 0 });
+}
+
 type Sug = { id: string; artist: string; song: string; status: string; action: string; version: string | null; main_song: string | null; main_exists: boolean; main_artist: string | null };
 
 function prompt(list: Sug[]) {
@@ -90,6 +103,7 @@ Deno.serve(async (req) => {
 
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return json({ ok: true, skipped: "Claude isn't set up", checked_by_pc: byPc });
+  if (!(await canSpend("background"))) return json({ ok: true, skipped: "Claude's monthly budget: NIX's share is used", checked_by_pc: byPc });
 
   // Daily cap, so a big import is worked through over a few days instead of
   // spending in one go: version_ai_per_day (default 500) suggestions a UTC
@@ -107,6 +121,7 @@ Deno.serve(async (req) => {
   while (Date.now() - started < 40_000 && left() > 0) {
     const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", AI_PAUSE).maybeSingle();
     if (pause?.value && Date.parse(pause.value) > Date.now()) break;
+    if (done.checked > 0 && !(await canSpend("background"))) break;
     // Leave room for people using Local Cuts: at most half the minute's tickets.
     const { data: perMin } = await db.from("sc_private_settings").select("value").eq("key", "claude_per_minute").maybeSingle();
     const { data: used } = await db.from("api_budget").select("calls").in("service", ["claude", "claudemax"]).eq("minute", new Date(Math.floor(Date.now() / 60000) * 60000).toISOString());
@@ -132,6 +147,7 @@ Deno.serve(async (req) => {
       break;
     }
     const out: any = await res.json().catch(() => null);
+    await spent("version-ai", out);
     if (!res.ok) return json({ error: `Claude: ${out?.error?.message ?? res.status}`, ...done }, 502);
     const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""));
     const items = readVerdicts(text, sugs.map((x) => x.id), null);

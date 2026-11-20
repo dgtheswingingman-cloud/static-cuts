@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+type Spend = { cap_usd: number; month_usd: number; today_usd: number; calls_month: number; by_job: { job: string; calls: number; usd: number }[] };
 type Ai = {
   online: boolean; auto_apply: boolean; queued: number; running: number; done_24h: number; failed_24h: number; avg_s: number | null;
   workers: { worker: string; model: string | null; ollama: boolean; last_seen: string; jobs_done: number; last_error: string | null }[];
@@ -23,9 +24,13 @@ function ago(iso: string) {
 
 export default function LocalAi() {
   const [ai, setAi] = useState<Ai | null>(null);
+  const [spend, setSpend] = useState<Spend | null>(null);
 
   useEffect(() => {
-    const load = () => supabase.rpc("admin_nix_ai").then(({ data }) => setAi((data as Ai) ?? null));
+    const load = () => {
+      supabase.rpc("admin_nix_ai").then(({ data }) => setAi((data as Ai) ?? null));
+      supabase.rpc("admin_ai_spend").then(({ data }) => setSpend((data as Spend) ?? null));
+    };
     load();
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
@@ -44,6 +49,14 @@ export default function LocalAi() {
         {ai.avg_s != null ? `; about ${ai.avg_s} s a job` : ""}.
         {" "}{ai.auto_apply ? "Its sub-version answers are applied straight away (undoable)." : "Its sub-version answers wait on the review page with its note, so you can see how good it is first."}
       </div>
+      {spend && (
+        <div className="comment-meta" style={{ marginBottom: 8 }}>
+          <b>Claude this month:</b> ${Number(spend.month_usd).toFixed(2)} of ${Number(spend.cap_usd).toFixed(2)} (about £5 with VAT),
+          {" "}{Number(spend.calls_month).toLocaleString("en-GB")} calls; today ${Number(spend.today_usd).toFixed(2)}.
+          {spend.by_job.length > 0 && <> {spend.by_job.map((j) => `${j.job} $${Number(j.usd).toFixed(2)}`).join(", ")}.</>}
+          {" "}NIX&apos;s own jobs stop at 60% so Local Cuts always has room; everything stops at the cap until the 1st.
+        </div>
+      )}
       {ai.workers.map((w) => (
         <div key={w.worker} className="review-row nix-row">
           <div style={{ minWidth: 0 }}>
