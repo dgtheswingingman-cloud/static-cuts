@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Local Cuts on static-cuts.com may use the folder commands; nothing else gets native access.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://static-cuts.com/*"]
+  },
+  "permissions": [
+    "core:event:default",
+    "allow-get-folders",
+    "allow-choose-folder",
+    "allow-list-watched",
+    "allow-read-watched",
+    "allow-write-library"
+  ]
+}

@@ -1,0 +1,14 @@
+fn main() {
+    // The app's own commands, so the capability file can allow exactly these
+    // for static-cuts.com and nothing else.
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
+        tauri_build::AppManifest::new().commands(&[
+            "get_folders",
+            "choose_folder",
+            "list_watched",
+            "read_watched",
+            "write_library",
+        ]),
+    ))
+    .expect("failed to run tauri-build");
+}

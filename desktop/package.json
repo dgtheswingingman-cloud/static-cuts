@@ -1,0 +1,12 @@
+{
+  "name": "static-cuts-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static-Cuts desktop app: Local Cuts with folder watching (Windows). Built by .github/workflows/desktop.yml.",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
