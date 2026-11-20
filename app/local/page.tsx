@@ -35,6 +35,7 @@ import { readCover, readDetails, type FileDetails } from "./details";
 import { canTag, makeZip, safeName, tidiedCopy, withCode, type NewTags } from "./write";
 import { canPickFolder, pickFolder, pickZipFile, ZipToDisk } from "./zip";
 import { setLocalFile } from "./store";
+import { desktop, doneSet, inDesktopApp, LibraryWriter, markDone, type Folders } from "./desktop";
 import { thumb } from "@/lib/thumb";
 import Missing from "../components/Missing";
 
@@ -211,10 +212,12 @@ export default function LocalCutsPage() {
 
   // ------------------------------------------------------------ the run
 
-  async function run(picked: File[]) {
-    if (!user || busy) return;
+  // Returns what each file becomes (null if nothing ran), so the desktop app
+  // can save it straight away without the review step.
+  async function run(picked: File[]): Promise<Out[] | null> {
+    if (!user || busy) return null;
     const list = picked.filter((f) => AUDIO.test(f.name) || f.type.startsWith("audio/"));
-    if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return; }
+    if (list.length === 0) { setNote("There's no music in that folder (MP3, FLAC, M4A, WAV, OGG…)."); return null; }
     setNote(null); setSent(null); setSaved(null); setCollected(null); setClaudeNote(null); setPlan([]);
     setAsIs(new Set()); setUndone(0); setQ("");
     site.current = new Map();
@@ -461,8 +464,10 @@ export default function LocalCutsPage() {
 
     // 5. What each file becomes.
     setSongs(read);
-    setPlan(buildPlan(read));
+    const built = buildPlan(read);
+    setPlan(built);
     setStage("ready");
+    return built;
   }
 
   async function helpArchive(read: Song[]) {
@@ -671,11 +676,11 @@ export default function LocalCutsPage() {
     if (!o.tags || !canTag(o.song.file.name)) return o.song.file;
     return tidiedCopy(o.song.file, { ...o.tags, cover: await coverBytes(o.coverUrl, cache) });
   }
-  function changesCsv() {
+  function changesCsv(list: Out[] = plan) {
     const q = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
     const what = { tidied: "details from the archive", kept: "already well formatted: kept as it was", claude: "not on the site: tidied by Claude", unsorted: "couldn't be identified: kept as it was", asis: "you chose to keep it as it was" };
     return new Blob([["original file,new file,what happened,title,artist,album",
-      ...plan.map((o) => [pathOf(o.song.file), o.path, o.byFolder ? "not on the site: named from its artist folder" : what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
+      ...list.map((o) => [pathOf(o.song.file), o.path, o.byFolder ? "not on the site: named from its artist folder" : what[o.kind], o.tags?.title ?? o.song.title, o.tags?.artist ?? o.song.artist, o.tags?.album ?? o.song.album].map(q).join(","))].join("\n")], { type: "text/csv" });
   }
 
   // Straight into a folder the person picks (no zip to build or unzip).
@@ -700,6 +705,78 @@ export default function LocalCutsPage() {
     }
     setStage("saved");
   }
+
+  // ------------------------------------------------------- desktop app
+  // In the Static-Cuts desktop app: new songs in the watched folder are read,
+  // matched and tidied like a dropped folder, then written straight into the
+  // library folder (no review step; every batch also gets a changes list).
+  // Premium only, like saving.
+  const [desk, setDesk] = useState(false);
+  useEffect(() => { setDesk(inDesktopApp()); }, []);
+  const [folders, setFolders] = useState<Folders | null>(null);
+  const [deskLog, setDeskLog] = useState<string[]>([]);
+  const [deskErr, setDeskErr] = useState<string | null>(null);
+  const queue = useRef<string[]>([]);
+  const [queued, setQueued] = useState(0);
+  const [tick, setTick] = useState(0); // bumped after each batch so the next one starts
+  const working = useRef(false);
+  useEffect(() => { if (desk) desktop.folders().then(setFolders).catch((e) => setDeskErr(String(e))); }, [desk]);
+  useEffect(() => {
+    if (!desk) return;
+    let off: (() => void) | undefined;
+    desktop.onNewFiles((rels) => { queue.current.push(...rels); setQueued(queue.current.length); }).then((f) => { off = f; });
+    return () => off?.();
+  }, [desk]);
+  async function chooseFolder(which: "watch" | "library") {
+    try { setFolders(await desktop.choose(which)); setDeskErr(null); } catch (e) { setDeskErr(String(e)); }
+  }
+  async function tidyExisting() {
+    try { const rels = await desktop.list(); queue.current.push(...rels); setQueued(queue.current.length); } catch (e) { setDeskErr(String(e)); }
+  }
+  async function autoTidy() {
+    working.current = true;
+    const rels = [...new Set(queue.current.splice(0, 200))];
+    setQueued(queue.current.length);
+    const already = doneSet();
+    const files: File[] = [];
+    const keys: string[] = [];
+    for (const rel of rels) {
+      try {
+        const f = await desktop.file(rel);
+        const k = `${rel}|${f.size}`;
+        if (already.has(k)) continue;
+        dropPaths.set(f, `watched/${rel}`);
+        files.push(f);
+        keys.push(k);
+      } catch { /* moved, deleted or still locked: picked up again if it changes */ }
+    }
+    const p = files.length ? await run(files) : null;
+    if (p) {
+      const out = new LibraryWriter();
+      const cache = new Map<string, NewTags["cover"]>();
+      let failed = 0;
+      let n = 0;
+      step("saving", p.length);
+      await pool(p, 4, async (o) => {
+        try { await out.add(`Static-Cuts/${o.path}`, await blobFor(o, cache)); } catch { failed++; }
+        setDone(++n);
+      });
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      try { await out.add(`Static-Cuts/Static-Cuts changes/${stamp}.csv`, changesCsv(p)); } catch { /* the songs are saved either way */ }
+      markDone(keys);
+      const line = `${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}: tidied ${p.length - failed} song${p.length - failed === 1 ? "" : "s"}${failed ? ` (${failed} couldn't be written)` : ""}`;
+      setDeskLog((l) => [line, ...l].slice(0, 30));
+      setSaved(`${line}. They're in the "Static-Cuts" folder inside your library folder.`);
+      setStage("saved");
+    }
+    working.current = false;
+    setQueued(queue.current.length);
+    setTick((t) => t + 1);
+  }
+  useEffect(() => {
+    if (desk && queued > 0 && !busy && premium && user && folders?.watch && folders?.library && !working.current) autoTidy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desk, queued, tick, busy, premium, user, folders]);
 
   async function saveZip() {
     if (!premium || plan.length === 0) return;
@@ -788,6 +865,31 @@ export default function LocalCutsPage() {
           : "Drop in your own music folder and get back a tidy copy, ready for Spotify Local Files."}
       </p>
       <div className="lc-promise"><span className="lc-sl" style={{ color: "#22C55E" }}>//</span> Your music is never uploaded. Originals never touched.</div>
+
+      {desk && user && (
+        <div className="lc-desk">
+          <div className="lc-desk-row">
+            <b>New music lands in</b><span>{folders?.watch ?? "not chosen yet"}</span>
+            <button className="lc-second" disabled={busy} onClick={() => chooseFolder("watch")}>{folders?.watch ? "Change" : "Choose"}</button>
+          </div>
+          <div className="lc-desk-row">
+            <b>Tidy library goes in</b><span>{folders?.library ?? "not chosen yet"}</span>
+            <button className="lc-second" disabled={busy} onClick={() => chooseFolder("library")}>{folders?.library ? "Change" : "Choose"}</button>
+          </div>
+          <p className="lc-desk-status">
+            {!premium ? <>The desktop app&apos;s folder watching is part of premium. <Link className="text-link" href="/premium">Go premium →</Link></>
+              : !folders?.watch || !folders?.library ? <>Choose both folders: every new song that lands in the first is tidied into a &ldquo;Static-Cuts&rdquo; folder in the second. Your originals are never touched.</>
+              : busy ? <>Tidying new songs…</>
+              : queued ? <>{queued} song{queued === 1 ? "" : "s"} waiting…</>
+              : <>Watching for new songs. Closing this window keeps it running in the tray.</>}
+          </p>
+          {premium && folders?.watch && folders?.library && (
+            <button className="lc-second" disabled={busy} onClick={tidyExisting}>Tidy what&apos;s already in the folder</button>
+          )}
+          {deskErr && <p className="lc-desk-err">{deskErr}</p>}
+          {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
+        </div>
+      )}
 
       {!loading && !user && (
         <div className="lc-note-box">

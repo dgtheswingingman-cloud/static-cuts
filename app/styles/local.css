@@ -127,3 +127,12 @@
   .lc-guess .lc-tr, .lc-all .lc-tr { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .lc-not { justify-self: start; }
 }
+
+/* Local Cuts inside the desktop app: the two folders and what's happened. */
+.lc-desk { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 14px; margin: 14px 0; display: flex; flex-direction: column; gap: 10px; }
+.lc-desk-row { display: grid; grid-template-columns: 170px 1fr auto; gap: 10px; align-items: center; min-width: 0; }
+.lc-desk-row span { font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); overflow-wrap: anywhere; }
+.lc-desk-status { margin: 0; font-size: 0.9rem; }
+.lc-desk-err { margin: 0; color: #F87171; font-size: 0.8rem; }
+.lc-desk-log { margin: 0; padding-left: 18px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
+@media (max-width: 640px) { .lc-desk-row { grid-template-columns: 1fr; } }
