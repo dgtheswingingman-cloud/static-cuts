@@ -42,6 +42,14 @@ export const desktop = {
   setAutostart: async (on: boolean): Promise<boolean> => (await tauri()!.core.invoke("set_autostart", { on })) as boolean,
   // A Windows notification after a batch ("3 new songs tidied…").
   tidied: (count: number, failed: number) => tauri()!.core.invoke("tidied", { count, failed }).catch(() => {}),
+  // A newer app version already downloaded (its version), or null. Older
+  // installs don't have these commands; they just answer null.
+  updateReady: async (): Promise<string | null> => {
+    try { return ((await tauri()!.core.invoke("update_status")) as string | null) ?? null; } catch { return null; }
+  },
+  onUpdateReady: (cb: (version: string) => void) =>
+    tauri()!.event.listen("local-cuts://update-ready", (e) => cb(String(e.payload ?? ""))),
+  installUpdate: () => tauri()!.core.invoke("install_update"),
 };
 
 // Writes the tidy library into the library folder ("Static-Cuts/Artist/Album/x.mp3").
