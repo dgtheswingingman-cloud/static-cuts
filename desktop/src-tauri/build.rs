@@ -8,6 +8,9 @@ fn main() {
             "list_watched",
             "read_watched",
             "write_library",
+            "get_autostart",
+            "set_autostart",
+            "tidied",
         ]),
     ))
     .expect("failed to run tauri-build");

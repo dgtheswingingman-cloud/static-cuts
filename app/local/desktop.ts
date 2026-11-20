@@ -37,6 +37,11 @@ export const desktop = {
   // stopped growing, so half-downloaded files aren't picked up).
   onNewFiles: (cb: (rels: string[]) => void) =>
     tauri()!.event.listen("local-cuts://new-files", (e) => cb((e.payload as string[]) ?? [])),
+  // Start with Windows (quietly, in the tray).
+  autostart: async (): Promise<boolean> => (await tauri()!.core.invoke("get_autostart")) as boolean,
+  setAutostart: async (on: boolean): Promise<boolean> => (await tauri()!.core.invoke("set_autostart", { on })) as boolean,
+  // A Windows notification after a batch ("3 new songs tidied…").
+  tidied: (count: number, failed: number) => tauri()!.core.invoke("tidied", { count, failed }).catch(() => {}),
 };
 
 // Writes the tidy library into the library folder ("Static-Cuts/Artist/Album/x.mp3").

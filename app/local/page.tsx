@@ -720,7 +720,12 @@ export default function LocalCutsPage() {
   const [queued, setQueued] = useState(0);
   const [tick, setTick] = useState(0); // bumped after each batch so the next one starts
   const working = useRef(false);
-  useEffect(() => { if (desk) desktop.folders().then(setFolders).catch((e) => setDeskErr(String(e))); }, [desk]);
+  const [autostart, setAutostart] = useState(false);
+  useEffect(() => {
+    if (!desk) return;
+    desktop.folders().then(setFolders).catch((e) => setDeskErr(String(e)));
+    desktop.autostart().then(setAutostart).catch(() => {});
+  }, [desk]);
   useEffect(() => {
     if (!desk) return;
     let off: (() => void) | undefined;
@@ -764,6 +769,7 @@ export default function LocalCutsPage() {
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
       try { await out.add(`Static-Cuts/Static-Cuts changes/${stamp}.csv`, changesCsv(p)); } catch { /* the songs are saved either way */ }
       markDone(keys);
+      desktop.tidied(p.length - failed, failed);
       const line = `${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}: tidied ${p.length - failed} song${p.length - failed === 1 ? "" : "s"}${failed ? ` (${failed} couldn't be written)` : ""}`;
       setDeskLog((l) => [line, ...l].slice(0, 30));
       setSaved(`${line}. They're in the "Static-Cuts" folder inside your library folder.`);
@@ -886,6 +892,11 @@ export default function LocalCutsPage() {
           {premium && folders?.watch && folders?.library && (
             <button className="lc-second" disabled={busy} onClick={tidyExisting}>Tidy what&apos;s already in the folder</button>
           )}
+          <label className="lc-share">
+            <input type="checkbox" checked={autostart}
+              onChange={async (e) => { try { setAutostart(await desktop.setAutostart(e.target.checked)); } catch (err) { setDeskErr(String(err)); } }} />
+            <span><b>Start with Windows</b>: open quietly in the tray when your computer starts, so new music is always tidied.</span>
+          </label>
           {deskErr && <p className="lc-desk-err">{deskErr}</p>}
           {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
         </div>
