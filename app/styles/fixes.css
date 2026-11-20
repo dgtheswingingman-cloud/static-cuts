@@ -7,6 +7,6 @@
 /* On this day cards on phones: the listen link goes under the song instead of
    being squeezed off the edge of the card. */
 @media (max-width: 720px) {
-  .otd-list .review-row { grid-template-columns: minmax(0, 1fr) !important; gap: 8px; }
-  .otd-list .review-row .listen-link { justify-self: start; }
+  .otd-list .review-row, .otd-page .review-row { grid-template-columns: minmax(0, 1fr) !important; gap: 8px; }
+  .otd-list .review-row .listen-link, .otd-page .review-row .listen-link { justify-self: start; }
 }
