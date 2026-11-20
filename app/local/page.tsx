@@ -10,8 +10,8 @@ import "../styles/local.css";
 //      are kept as they are, and what they know that the archive doesn't is
 //      sent to the archive as suggestions (reviewed before anything changes)
 //   4. the rest get their details rewritten from the archive: title with
-//      features, artist, album (or "Unreleased"), year, track number,
-//      cover art, the song's Static-Cuts code (hidden; next time the file
+//      features, artist, album (or "Unreleased <year>"), year, track number,
+//      cover art (600×600, shared across an unreleased year), the song's Static-Cuts code (hidden; next time the file
 //      matches exactly, straight away), and a clean name
 //   5. a tidy "Static-Cuts" folder (Artist / Album), written straight into a
 //      folder you pick (Chrome, Edge, Opera) or as one zip
@@ -108,6 +108,32 @@ function firstArtist(s: string | null) {
 }
 const ext = (name: string) => (name.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? "").toLowerCase();
 const gb = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+
+// Every cover written into a file the same way: a 600×600 JPEG, cropped to a
+// square from the middle. Covers come from many sites in every size and
+// format (WebP, huge PNGs, wide photos), and some players show WebP as no
+// art at all. null if the browser can't read the picture (the original is
+// used then).
+const COVER = 600;
+async function squareJpeg(blob: Blob): Promise<{ mime: string; data: Uint8Array } | null> {
+  try {
+    const img = await createImageBitmap(blob);
+    const side = Math.min(img.width, img.height);
+    if (!side) return null;
+    const size = Math.min(COVER, side);
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+    img.close();
+    const out = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.9));
+    return out ? { mime: "image/jpeg", data: new Uint8Array(await out.arrayBuffer()) } : null;
+  } catch {
+    return null;
+  }
+}
 
 // Files from a dropped folder (folders inside it too).
 async function filesFromDrop(items: DataTransferItemList): Promise<File[]> {
@@ -540,7 +566,7 @@ export default function LocalCutsPage() {
     };
     const place = (artist: string, album: string, title: string, file: File) =>
       unique(`${safeName(artist)}/${safeName(album)}/${safeName(`${artist} - ${title}`)}${ext(file.name)}`);
-    return read.map((s): Out => {
+    const out = read.map((s): Out => {
       // Chosen in the full list: copied exactly as it was, in its old folders.
       if (asIs.has(s.key)) {
         const rel = pathOf(s.file).split("/").slice(1).join("/") || s.file.name;
@@ -561,8 +587,9 @@ export default function LocalCutsPage() {
         const date = t.release_date ?? t.leak_date;
         const year = date?.slice(0, 4) ?? null;
         const unreleased = t.status && t.status !== "released";
-        // The era is the album; unreleased songs with no era: "Unreleased".
-        const album = t.album || t.parent_album || (unreleased ? "Unreleased" : "Singles");
+        // The era is the album; unreleased songs with no era go under
+        // "Unreleased <year>" (or plain "Unreleased" with no date).
+        const album = t.album || t.parent_album || (unreleased ? (year ? `Unreleased ${year}` : "Unreleased") : "Singles");
         const title = t.title + feat;
         // Songs released under another of their names keep that name.
         const artist = t.credited_as || t.artist;
@@ -605,6 +632,24 @@ export default function LocalCutsPage() {
       }
       return { song: s, path: unique(`Unsorted/${safeName(s.file.name.replace(/\.[^.]+$/, ""))}${ext(s.file.name)}`), tags: null, coverUrl: null, kind: "unsorted" };
     });
+    // Era art: in an "Unreleased <year>" folder, songs with no art of their
+    // own share the one cover most of that year's songs have, instead of
+    // each getting a different fallback picture.
+    const groups = new Map<string, Out[]>();
+    for (const o of out) {
+      if (o.kind !== "tidied" || !o.tags?.album || !/^Unreleased \d{4}$/.test(o.tags.album)) continue;
+      const k = `${o.tags.albumArtist ?? o.tags.artist}|${o.tags.album}`.toLowerCase();
+      groups.set(k, [...(groups.get(k) ?? []), o]);
+    }
+    for (const list of groups.values()) {
+      const own = (o: Out) => (o.song.track_id ? site.current.get(o.song.track_id)?.cover_url : null) ?? null;
+      const tally = new Map<string, number>();
+      for (const o of list) { const c = own(o); if (c) tally.set(c, (tally.get(c) ?? 0) + 1); }
+      const era = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (!era) continue;
+      for (const o of list) if (!own(o) && o.coverUrl) o.coverUrl = era;
+    }
+    return out;
   }
 
   // --------------------------------------------------------------- saving
@@ -615,7 +660,8 @@ export default function LocalCutsPage() {
     try {
       const res = await fetch(`/api/img?u=${encodeURIComponent(url)}`);
       if (!res.ok) throw new Error();
-      const c = { mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg", data: new Uint8Array(await res.arrayBuffer()) };
+      const raw = await res.blob();
+      const c = (await squareJpeg(raw)) ?? { mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg", data: new Uint8Array(await raw.arrayBuffer()) };
       cache.set(url, c);
       return c;
     } catch { cache.set(url, null); return null; }
@@ -777,7 +823,7 @@ export default function LocalCutsPage() {
           <div className="lc-how">
             {[["Read", "#22C55E", "Reads each file's details (title, artist, album, art) on your computer."],
               ["Match", "#8B7CF6", "Finds each song in the Static-Cuts archive and fills in what's missing."],
-              ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album (or “Unreleased”), year, track number and cover art."],
+              ["Tidy", "#22D3EE", "Fixes titles (with features), artist, album (or “Unreleased 2019” and so on), year, track number and cover art."],
               ["Save", "#F5B841", "Gives you a clean copy in Artist / Album folders, ready for Local Files."]].map(([t, c, d], i) => (
               <div key={t} className="lc-how-card">
                 <div className="lc-how-top"><span className="lc-how-n">0{i + 1}</span><b>{t}</b><span className="lc-sl" style={{ color: c }}>//</span></div>
@@ -980,7 +1026,7 @@ export default function LocalCutsPage() {
 
       {!busy && (
         <p className="lc-small lc-foot">
-          Local Cuts fixes the title (with features), artist, album (or &ldquo;Unreleased&rdquo;), year, track number and cover art,
+          Local Cuts fixes the title (with features), artist, album (or &ldquo;Unreleased 2019&rdquo; and so on), year, track number and cover art,
           and sorts everything into Artist / Album folders. Files that are already well formatted are kept as they are.
         </p>
       )}
