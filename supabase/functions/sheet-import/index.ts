@@ -396,9 +396,23 @@ function headerCheck(rows: string[][], m: Mapping) {
 const AI_PAUSE = "claude_pause_until";
 const AI_MODEL = "claude-haiku-5-5";
 
+// Claude's monthly budget (about £5 site wide, sc_ai_can_spend): may this
+// spend now, and record what each call really cost (from Claude's reply).
+async function canSpend(who: "person" | "background") {
+  const { data } = await db.rpc("sc_ai_can_spend", { p_who: who });
+  return data !== false;
+}
+async function spent(job: string, out: any) {
+  const u = out?.usage;
+  if (!u) return;
+  const input = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+  await db.rpc("sc_ai_spend_add", { p_job: job, p_input: input, p_output: u.output_tokens ?? 0 });
+}
+
 async function aiTicket() {
   const { data: p } = await db.from("sc_private_settings").select("value").eq("key", AI_PAUSE).maybeSingle();
   if (p?.value && Date.parse(p.value) > Date.now()) throw new Error("The AI asked us to slow down. Try again in a few minutes.");
+  if (!(await canSpend("person"))) throw new Error("The site's AI budget is used up for now. It frees up again tomorrow (or on the 1st of the month).");
   const { data, error } = await db.rpc("sc_api_allow", { p_service: "claude", p_want: 1 });
   if (!error && data !== 1) throw new Error("The AI allowance is used up for now. Try again in a minute.");
 }
@@ -475,6 +489,7 @@ Era banners: many trackers put a row before each era (album/period) with the era
     throw new Error("The AI is busy. Try again in a few minutes.");
   }
   const body: any = await res.json().catch(() => null);
+  await spent("sheet-import", body);
   if (!res.ok) throw new Error(`The AI couldn't read this tab (${body?.error?.message ?? res.status}).`);
   const text = String((body?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""))
     .replace(/```(?:json)?/g, "");
