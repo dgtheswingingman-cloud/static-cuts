@@ -13,6 +13,8 @@ fn main() {
             "tidied",
             "update_status",
             "install_update",
+            "ai_status",
+            "ai_generate",
         ]),
     ))
     .expect("failed to run tauri-build");

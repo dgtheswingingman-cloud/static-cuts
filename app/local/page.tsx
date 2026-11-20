@@ -27,7 +27,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
+import { useIsAdmin, useIsOwner, usePersonalUser } from "../useIsAdmin";
+import NixWorker from "./NixWorker";
 import { AdminModePage } from "../components/AdminModeNote";
 import { usePremium } from "../usePremium";
 import { readDuration, readTags } from "./tags";
@@ -172,6 +173,7 @@ export default function LocalCutsPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
   const isAdmin = useIsAdmin();
+  const isOwner = useIsOwner();
   const { premium } = usePremium();
   const [stage, setStage] = useState<Stage>("idle");
   const [done, setDone] = useState(0);
@@ -924,6 +926,7 @@ export default function LocalCutsPage() {
           </label>
           {deskErr && <p className="lc-desk-err">{deskErr}</p>}
           {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
+          {isOwner && <NixWorker />}
         </div>
       )}
 

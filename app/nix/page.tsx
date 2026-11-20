@@ -13,6 +13,7 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, useIsOwner } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import { CALENDAR, JOB_GROUPS, KNOWN_JOBS } from "./jobs";
+import LocalAi from "./LocalAi";
 
 type Task = {
   name: string; kind: "api" | "db"; every_min: number; max_every_min: number; at_time: string | null; only_if: boolean;
@@ -145,6 +146,8 @@ export default function NixPage() {
             <div className="health-tile"><div className="health-tile-value">{n(d.totals.worked)}</div><div className="health-tile-label">found something to do</div></div>
             <div className="health-tile" data-alert={d.totals.failed > 0 ? "true" : undefined}><div className="health-tile-value">{n(d.totals.failed)}</div><div className="health-tile-label">failed runs in 24 h</div></div>
           </div>
+
+          <LocalAi />
 
           <div className="cr-grid">
             <section className="cr-box">

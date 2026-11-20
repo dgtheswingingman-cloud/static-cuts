@@ -13,6 +13,11 @@
 // hours it looks for a newer signed version, downloads it quietly and offers
 // a restart (tray menu, window, notification).
 // Originals are never changed, and nothing is ever downloaded.
+//
+// NIX on this PC (owner only, switched on in the page): the page asks the
+// local Ollama (http://127.0.0.1:11434, installed separately) which models it
+// has (ai_status) and to answer a prompt (ai_generate). Only that address is
+// ever called; the page can't reach Ollama itself because of browser rules.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -378,6 +383,73 @@ fn install_update(app: AppHandle) -> Result<(), String> {
     install_and_restart(&app)
 }
 
+// ------------------------------------------------------------ NIX on this PC
+
+const OLLAMA: &str = "http://127.0.0.1:11434";
+
+#[derive(Serialize)]
+struct AiStatus {
+    ollama: bool,
+    models: Vec<String>,
+    pc: String,
+}
+
+fn ok_model(m: &str) -> bool {
+    !m.is_empty() && m.len() <= 120 && m.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c))
+}
+
+// Is Ollama running, and which models has it got?
+#[tauri::command]
+async fn ai_status() -> AiStatus {
+    let pc = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "this PC".into());
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(5)).build();
+    let Ok(client) = client else { return AiStatus { ollama: false, models: vec![], pc } };
+    let res = client.get(format!("{}/api/tags", OLLAMA)).send().await;
+    let Ok(res) = res else { return AiStatus { ollama: false, models: vec![], pc } };
+    let body: serde_json::Value = res.json().await.unwrap_or_default();
+    let models = body["models"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|m| m["name"].as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    AiStatus { ollama: true, models, pc }
+}
+
+// One answer from the PC's model. Up to 10 minutes (a big prompt on a slow PC).
+#[tauri::command]
+async fn ai_generate(model: String, prompt: String, json: bool) -> Result<String, String> {
+    if !ok_model(&model) {
+        return Err("bad model name".into());
+    }
+    if prompt.len() > 200_000 {
+        return Err("prompt too long".into());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut body = serde_json::json!({
+        "model": model,
+        "prompt": prompt,
+        "stream": false,
+        "options": { "temperature": 0.2, "num_ctx": 8192 }
+    });
+    if json {
+        body["format"] = serde_json::json!("json");
+    }
+    let res = client
+        .post(format!("{}/api/generate", OLLAMA))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|_| "Ollama isn't running".to_string())?;
+    let status = res.status();
+    let out: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(out["error"].as_str().unwrap_or("Ollama error").to_string());
+    }
+    Ok(out["response"].as_str().unwrap_or("").to_string())
+}
+
 // -------------------------------------------------------------------- app
 
 fn show_main(app: &AppHandle) {
@@ -407,7 +479,9 @@ fn main() {
             set_autostart,
             tidied,
             update_status,
-            install_update
+            install_update,
+            ai_status,
+            ai_generate
         ])
         .setup(|app| {
             let handle = app.handle().clone();
