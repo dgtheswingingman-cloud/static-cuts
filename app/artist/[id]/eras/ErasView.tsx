@@ -1,0 +1,41 @@
+"use client";
+import "../../../styles/pages.css";
+
+// /artist/[id]/eras: the Eras view on its own page (old links and shares).
+// The artist page has the same thing as its Eras tab. Until the songs have
+// loaded it shows the server's plain-text version (children, from page.tsx).
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import type { Song } from "@/lib/eras";
+import ArtistEras from "../ArtistEras";
+
+export default function ErasView({ children }: { children?: React.ReactNode }) {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [artist, setArtist] = useState<{ id: string; name: string } | null>(null);
+  const [songs, setSongs] = useState<Song[] | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.rpc("rpc_artist_eras", { p_artist: id }).then(({ data }) => {
+      const d = data as { artist: { id: string; name: string } | null; songs: Song[] } | null;
+      setArtist(d?.artist ?? null);
+      setSongs(d?.songs ?? []);
+    });
+    if (window.location.hash) setFocus(decodeURIComponent(window.location.hash.slice(1)));
+  }, [id]);
+
+  if (songs === null && children) return <>{children}</>;
+
+  return (
+    <div className="wrap pg-page pg-wide">
+      <button className="back-btn" onClick={() => router.push(`/artist/${id}`)}>← {artist?.name ?? "artist"}</button>
+      <div className="pg-kicker">Eras</div>
+      <h1 className="detail-name page-title pg-title">{artist?.name ?? "Eras"}</h1>
+      <p className="pg-lead">Every song grouped by era: each album or project, with the leaks and snippets from that time.</p>
+      <ArtistEras songs={songs} focus={focus} />
+    </div>
+  );
+}
