@@ -1,0 +1,13 @@
+/* ===================== NIX (/nix) ===================== */
+.nix-page .nix-tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: 16px 0 18px; }
+.nix-page .nix-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.nix-page .nix-wrap { overflow-wrap: anywhere; }
+.nix-page .nix-off { opacity: 0.55; }
+.nix-page .nix-group + .nix-group { margin-top: 6px; }
+.nix-page .nix-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.nix-page .nix-actions .st-btn,
+.nix-page .nix-row > .st-btn { padding: 6px 10px; font-size: 0.68rem; white-space: nowrap; }
+@media (max-width: 640px) {
+  .nix-page .nix-row { grid-template-columns: minmax(0, 1fr); }
+  .nix-page .nix-actions { justify-content: flex-start; }
+}

@@ -52,135 +52,15 @@ function Tile({ label, value, href, alert }: { label: string; value: string; hre
   return href ? <Link href={href} style={{ textDecoration: "none" }}>{body}</Link> : body;
 }
 
-type Timer = {
-  name: string; schedule: string; active: boolean; last_run: string | null; last_status: string | null;
-  failed_24h: number; runs_24h?: number; failed_1h?: number; last_error?: string | null;
+type NixData = {
+  tasks: { name: string; enabled: boolean; behind: boolean; failed_24h: number; last_failed_at: string | null; last_run_at: string | null }[];
+  totals: { runs: number; worked: number; failed: number };
 };
-
-// Every timer, grouped by what it's for, in plain words. A timer missing
-// from here still shows (under "Other") with its name.
-const TIMER_GROUPS: { title: string; timers: Record<string, string> }[] = [
-  {
-    title: "Finding songs",
-    timers: {
-      "deezer-sync": "Reads every artist's releases on Deezer: adds missing released songs and fills in albums, dates, covers and lengths. Every 5 min.",
-      "genius-import": "Looks up an artist's songs on Genius and puts new ones in the review list. Every 10 min.",
-      "genius-auto-add": "Adds clear-cut Genius songs without review (switch in Owner). Hourly.",
-      "lastfm-import": "Looks up an artist's most-played songs on Last.fm and puts new ones in the review list. Every 2 min.",
-      "sheet-sync": "Re-reads community tracker sheets that are due. Hourly.",
-      "artist-growth": "Adds new artists (up to the daily number) once Deezer has read every artist here. Twice an hour.",
-      "queue-searched-artists": "Names people searched for and didn't find go to the front of the new-artist queue. Hourly.",
-    },
-  },
-  {
-    title: "Filling in details",
-    timers: {
-      "spotify-match": "Adds Spotify links by reading artists' releases on Spotify. Every 5 min (Spotify only allows a few calls).",
-      "apple-music": "Adds Apple Music links to songs. Every 5 min.",
-      "musicbrainz-sync": "Fills in band members from MusicBrainz. Every 2 min.",
-      "genius-credits": "Fills in producers, features, dates and artwork from Genius. Every minute.",
-      "discogs-sync": "Reads physical releases from Discogs: which albums came out on vinyl, CD or cassette. Every 5 min.",
-      "listenbrainz-sync": "Reads play counts from ListenBrainz, plus Cover Art Archive covers for songs with none. Every 5 min.",
-      "wikipedia-sync": "Adds artist bios from Wikipedia (found through MusicBrainz, never by name, with a link back). Every 5 min.",
-      "deezer-fans": "Reads each artist's Deezer fan count once a month, for how big they are in the home page mix. Every 10 min.",
-      "artist-info": "Fills in artist photos, about text and genres. Twice an hour.",
-      "artist-photos": "Adds photos to artists' photo pools from Deezer and TheAudioDB (only when it's clearly the same artist). Every 3 min.",
-      "youtube-search": "Finds YouTube links for songs with no link. Every 15 min.",
-      "album-track-linking": "Puts songs onto their albums' tracklists where the title matches exactly one song (your tracklist fixes always win). Nightly.",
-      "claude-check": "The site's own Claude check for missing statuses, links and details. Switched off: the ChatGPT routines do this now.",
-    },
-  },
-  {
-    title: "Covers",
-    timers: {
-      "fetch-covers": "Fills in missing artwork from Spotify. Every 10 min.",
-      "cover-search": "Finds covers through Deezer and Apple links or an exact Deezer search, launch artists first. Exact Deezer matches also mark unconfirmed songs released. Every 2 min.",
-      "covers-known": "Fills covers from the album they're on, then works out era art for unreleased songs. Nightly.",
-      "cover-copy": "Copies covers you approved on the Covers page into the site's own storage and puts them live. Every 2 min, only when there are some.",
-    },
-  },
-  {
-    title: "Tidying up",
-    timers: {
-      "version-ai": "Claude checks the sub-version suggestions: clear ones applied (undoable), unsure ones left for you. Every 10 min.",
-      "version-auto-clear": "Approves \u201csame song?\u201d suggestions that are beyond doubt, only within one artist (same recording, or the tag is just Deluxe, Explicit, Remastered...). Hourly, undoable.",
-      "duplicate-auto-merge": "Merges songs filed twice on one artist's page when it's beyond doubt (same Spotify link, same ISRC, or same album and length). Less sure ones wait on Duplicates. Hourly.",
-      "title-cleanup": "Cuts download-site tags out of song titles, e.g. \u201c(www.site.com)\u201d, keeping the old title as an alias. Hourly.",
-      "possible-editions": "Finds albums that are probably a deluxe of another album under a different name, for you to combine on Albums. Nightly.",
-    },
-  },
-  {
-    title: "Guest artists",
-    timers: {
-      "guest-artists": "Checks featured artists on Deezer: links them to their page here, or saves them for a new page. Every 10 min.",
-      "guest-refresh": "Updates the guest list and moves songs onto guests' pages. Every 20 min.",
-    },
-  },
-  {
-    title: "Checking links",
-    timers: {
-      "link-check": "Checks YouTube and SoundCloud links still work. Every 30 min.",
-      "spotify-verify": "Re-checks old Spotify links and clears removed ones. Hourly.",
-    },
-  },
-  {
-    title: "Posts and picks",
-    timers: {
-      "social-posts": "Makes the day's posts just after midnight: song of the day, on this day, album of the week on Mondays, the roundup on the 1st. Daily.",
-      "aotw-shortlist": "Builds next week's album of the week shortlist. Thursdays, 09:17.",
-      "aotw-blurb": "Claude writes a short blurb for each album on the album of the week shortlist. Every 10 min, only when one needs it.",
-      "discord-alerts": "Posts artist alerts and the daily picks to Discord servers that asked for them. Every 2 min, only when there's something to send.",
-    },
-  },
-  {
-    title: "Keeping pages fast",
-    timers: {
-      "home-cache": "Saves a copy of the home page feed. Every 5 min (skips when nothing changed).",
-      "radar-cache": "Saves a copy of the release radar. Every 10 min (skips when nothing changed).",
-      "whats-new-warm": "Keeps the What's new page ready (last 3 and 7 days) so it opens quickly. Every 9 min.",
-      "artist-counts-refresh": "Counts each artist's songs. Every 10 min.",
-      "genre-cache": "Works out genre scores for genre pages. Every 10 min.",
-      "duplicate-refresh": "Finds possible duplicate songs for the duplicates page. Hourly.",
-      "review-counts": "Counts what's waiting on Duplicates, Deezer check and Clean-up for the control room (too slow to count live). Every 15 min.",
-      "version-rescan": "Runs a sub-versions rescan when you press rescan. Checks every 2 min.",
-      "leaderboard-refresh": "Works out the contributors leaderboard. Hourly.",
-      "top-contributors": "Works out the top contributors shown on the home page and the monthly roundup. Every 10 min.",
-      "visitor-stats": "Works out the headline numbers on the first-visit home page. Hourly.",
-      "collab-cache": "Saves the collab map's data so the page doesn't work it out on every visit. Hourly.",
-      "collab-refresh": "Works out who has worked with whom, for the collab map. Nightly.",
-      "sitemap-refresh": "Saves the song list search engines read. Nightly.",
-    },
-  },
-  {
-    title: "Alerts",
-    timers: {
-      "push-alerts": "Sends phone alerts. Every 2 min.",
-      "radar-daily": "Release-day reminders. Daily, 07:05.",
-      "follow-digest": "Daily summary of followed artists. Daily, 07:07.",
-      "background-check": "Tells you in Alerts if any of these fail. Hourly.",
-    },
-  },
-  {
-    title: "Housekeeping",
-    timers: {
-      "undo-trim": "Clears old undo history (automatic changes after 7 days, people's after 60). Nightly.",
-      "cron-history-trim": "Clears timer logs older than 3 days. Nightly.",
-      "api-budget-tidy": "Clears old API allowance counts. Nightly.",
-    },
-  },
-];
-const KNOWN_TIMERS = new Set(TIMER_GROUPS.flatMap((g) => Object.keys(g.timers)));
-
-// How a timer is doing, in a few words: problem now, recovered, or fine.
-function timerState(t: Timer): { kind: "bad" | "was" | "ok" | "off"; text: string } {
-  if (!t.active) return { kind: "off", text: "off" };
-  // Failing = its latest run failed. Earlier failures that it has since
-  // recovered from (a restart, a busy hour) only show as a note.
-  if (t.last_status && t.last_status !== "succeeded" && t.last_status !== "running") {
-    return { kind: "bad", text: `failing${t.last_error ? `: ${t.last_error}` : ""}` };
-  }
-  if (t.failed_24h > 0) return { kind: "was", text: `${t.failed_24h} of ${t.runs_24h ?? "?"} runs failed in the last 24h, fine now` };
-  return { kind: "ok", text: "" };
+type NixSummary = { jobs: number; runs: number; worked: number; problems: string[] };
+function summariseNix(d: NixData): NixSummary {
+  const problems = d.tasks.filter((t) => !t.enabled || t.behind || (t.failed_24h > 0 && !!t.last_failed_at
+    && (!t.last_run_at || new Date(t.last_failed_at) >= new Date(t.last_run_at)))).map((t) => t.name);
+  return { jobs: d.tasks.length, runs: d.totals.runs, worked: d.totals.worked, problems };
 }
 
 type Budget = { today: number; last_hour: number; per_day: number | null; per_minute: number | null; paused_until: string | null };
@@ -222,7 +102,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
   const router = useRouter();
   const [h, setH] = useState<Health | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [timers, setTimers] = useState<Timer[]>([]);
+  const [nix, setNix] = useState<NixSummary | null>(null);
   const [bg, setBg] = useState<{ calls_6h: number; failed_6h: number; last_error: string | null } | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [budget, setBudget] = useState<Record<string, Budget> | null>(null);
@@ -238,7 +118,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
     setError(null);
     setH(data as Health);
     const [{ data: t }, { data: b }, { data: p }, { data: sb }, { data: dl }] = await Promise.all([
-      supabase.rpc("admin_timers"),
+      supabase.rpc("admin_nix"),
       supabase.rpc("admin_background_failures"),
       supabase.rpc("admin_job_progress"),
       supabase.rpc("admin_api_budget"),
@@ -256,7 +136,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
     setChecked((ck as CheckedRow[]) ?? []);
     setStats((st as SiteStats) ?? null);
     setMisses((ms as Miss[]) ?? []);
-    setTimers((t as Timer[]) ?? []);
+    setNix(t ? summariseNix(t as NixData) : null);
     setBg(b ?? null);
     setProgress((p as Progress) ?? null);
   }
@@ -479,53 +359,21 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
           )}
 
           <section className="cr-box">
-          <div className="section-label" style={{ marginTop: 20 }}>Timers</div>
+          <div className="section-label" style={{ marginTop: 20 }}>NIX</div>
           {bg && bg.failed_6h > 0 && (
             <div className="comments-panel" style={{ marginBottom: 10 }}>
               {bg.failed_6h} of {bg.calls_6h} background calls failed in the last 6 hours.
               {bg.last_error && <div className="comment-meta" style={{ marginTop: 4, overflowWrap: "anywhere" }}>Latest: {bg.last_error}</div>}
             </div>
           )}
-          {(() => {
-            const failing = timers.filter((t) => timerState(t).kind === "bad");
-            return (
-              <div className="comment-meta" style={{ marginBottom: 8 }}>
-                {failing.length === 0
-                  ? `All ${timers.filter((t) => t.active).length} timers are running normally.`
-                  : `${failing.length} of ${timers.length} timers are failing right now: ${failing.map((t) => t.name).join(", ")}.`}
-              </div>
-            );
-          })()}
-          {[...TIMER_GROUPS, { title: "Other", timers: Object.fromEntries(timers.filter((t) => !KNOWN_TIMERS.has(t.name)).map((t) => [t.name, ""])) }]
-            .map((g) => {
-              const rows = timers.filter((t) => t.name in g.timers);
-              if (!rows.length) return null;
-              return (
-                <div key={g.title} style={{ marginBottom: 12 }}>
-                  <div className="comment-meta" style={{ textTransform: "uppercase", letterSpacing: "0.08em", margin: "10px 0 4px" }}>{g.title}</div>
-                  {rows.map((t) => {
-                    const st = timerState(t);
-                    return (
-                      <div key={t.name} className="review-row" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div className="review-row-title">
-                            {t.name}{" "}
-                            <span className="comment-meta" style={{ whiteSpace: "nowrap" }}>· {t.last_run ? `ran ${ago(t.last_run)}` : "not run yet"}</span>
-                            {st.kind === "ok" && <span className="comment-meta"> · ok</span>}
-                          </div>
-                          <div className="review-row-meta">
-                            <span>{g.timers[t.name] || "No description yet."}</span>
-                            {st.kind === "off" && <span className="feature-tag">off</span>}
-                            {st.kind === "bad" && <span className="feature-tag disputed-tag" style={{ overflowWrap: "anywhere" }}>{st.text}</span>}
-                            {st.kind === "was" && <span className="feature-tag">{st.text}</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+          {nix && (
+            <div className="comment-meta" style={{ marginBottom: 8 }}>
+              {nix.problems.length === 0
+                ? `All ${nix.jobs} automatic jobs are running normally. ${nix.worked.toLocaleString("en-GB")} of ${nix.runs.toLocaleString("en-GB")} runs in the last 24 h found something to do.`
+                : `${nix.problems.length} of ${nix.jobs} jobs need a look: ${nix.problems.join(", ")}.`}
+            </div>
+          )}
+          <Link href="/nix" className="text-link">Open NIX: every job, what it did, what it fixed, what&apos;s stuck</Link>
           </section>
 
           <section className="cr-box">
