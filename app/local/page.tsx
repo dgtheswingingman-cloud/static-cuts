@@ -740,6 +740,19 @@ export default function LocalCutsPage() {
   }
   async function autoTidy() {
     working.current = true;
+    try {
+      await tidyBatch();
+    } catch (e) {
+      // Whatever went wrong, the watcher carries on with the next songs.
+      setDeskErr(`A batch stopped: ${String((e as Error)?.message ?? e)}. Your originals are fine; those songs are tried again next time they change, or with "Tidy what's already in the folder".`);
+      setStage("idle");
+    } finally {
+      working.current = false;
+      setQueued(queue.current.length);
+      setTick((t) => t + 1);
+    }
+  }
+  async function tidyBatch() {
     const rels = [...new Set(queue.current.splice(0, 200))];
     setQueued(queue.current.length);
     const already = doneSet();
@@ -775,9 +788,6 @@ export default function LocalCutsPage() {
       setSaved(`${line}. They're in the "Static-Cuts" folder inside your library folder.`);
       setStage("saved");
     }
-    working.current = false;
-    setQueued(queue.current.length);
-    setTick((t) => t + 1);
   }
   useEffect(() => {
     if (desk && queued > 0 && !busy && premium && user && folders?.watch && folders?.library && !working.current) autoTidy();
