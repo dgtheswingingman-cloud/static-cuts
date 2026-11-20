@@ -85,7 +85,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <Link href="/faq">FAQ</Link>
                   <Link href="/listen">How to listen</Link>
                   <Link href="/discord">Discord bot</Link>
+                  <Link href="/desktop">Desktop app</Link>
                   <Link href="/contributors">Contributors</Link>
+                  <Link href="/supporters">Supporters</Link>
                   <Link href="/sources">Sources</Link>
                   <Link href="/legal">Privacy &amp; terms</Link>
                   <Link href="/takedown">Request a takedown</Link>
