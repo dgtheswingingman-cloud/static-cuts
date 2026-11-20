@@ -4,6 +4,9 @@
 // week shortlist (sc_aotw_blurb_next / sc_aotw_blurb_save). The owner picks
 // one and can edit its blurb. Takes a 'claude' ticket (sc_api_allow) and
 // respects claude_pause_until, like the other Claude jobs.
+//
+// While Nathan's PC is running NIX (desktop app, Ollama), the prompt goes to
+// the NIX queue instead and the PC's answer is saved on a later run: free.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -34,11 +37,44 @@ Reply with one line per album and nothing else, in this form:
 2: the blurb`;
 }
 
+// "1: blurb" per line -> rows to save.
+function readBlurbs(text: string, items: Item[]) {
+  return text.split("\n")
+    .map((line) => line.match(/^\s*(\d+)[:.)]\s*(.+?)\s*$/))
+    .filter((m): m is RegExpMatchArray => !!m && !!items[Number(m[1]) - 1] && m[2].length > 20)
+    .map((m) => {
+      const it = items[Number(m[1]) - 1];
+      return { week_start: it.week_start, artist_id: it.artist_id, album_key: it.album_key, blurb: m[2].replace(/^["“]|["”]$/g, "") };
+    });
+}
+
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
+
+  // NIX on Nathan's PC: save what it finished, then queue more while it's online.
+  let local = 0;
+  const { data: got } = await db.rpc("sc_nix_ai_collect", { p_secret: secret, p_kind: "aotw-blurb" });
+  for (const j of (got ?? []) as { payload: { items: Item[] }; output: string | null; error: string | null }[]) {
+    if (j.error || !j.output) continue; // their claims run out and they're tried again
+    const rows = readBlurbs(j.output, j.payload.items ?? []);
+    if (rows.length) {
+      const { data: n } = await db.rpc("sc_aotw_blurb_save", { p_secret: secret, p_items: rows });
+      local += Number(n) || 0;
+    }
+  }
+  const { data: ai } = await db.rpc("sc_nix_ai_state", { p_secret: secret, p_kind: "aotw-blurb" });
+  if (ai?.online) {
+    if (ai.waiting > 0) return json({ ok: true, written_by_pc: local, waiting_for_pc: ai.waiting });
+    const { data: list, error } = await db.rpc("sc_aotw_blurb_next", { p_secret: secret, p_limit: 8 });
+    if (error) return json({ error: error.message }, 403);
+    const items = (list ?? []) as Item[];
+    if (items.length) await db.rpc("sc_nix_ai_enqueue", { p_secret: secret, p_kind: "aotw-blurb", p_prompt: prompt(items), p_payload: { items }, p_json: false });
+    return json({ ok: true, written_by_pc: local, sent_to_pc: items.length });
+  }
+
   const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) return json({ ok: true, skipped: "Claude isn't set up" });
+  if (!key) return json({ ok: true, skipped: "Claude isn't set up", written_by_pc: local });
 
   const { data: pause } = await db.from("sc_private_settings").select("value").eq("key", AI_PAUSE).maybeSingle();
   if (pause?.value && Date.parse(pause.value) > Date.now()) return json({ ok: true, paused: true });
@@ -64,14 +100,7 @@ Deno.serve(async (req) => {
   const out: any = await res.json().catch(() => null);
   if (!res.ok) return json({ error: `Claude: ${out?.error?.message ?? res.status}` }, 502);
   const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""));
-  // "1: blurb" per line.
-  const save = text.split("\n")
-    .map((line) => line.match(/^\s*(\d+)[:.)]\s*(.+?)\s*$/))
-    .filter((m): m is RegExpMatchArray => !!m && !!items[Number(m[1]) - 1] && m[2].length > 20)
-    .map((m) => {
-      const it = items[Number(m[1]) - 1];
-      return { week_start: it.week_start, artist_id: it.artist_id, album_key: it.album_key, blurb: m[2].replace(/^["“]|["”]$/g, "") };
-    });
+  const save = readBlurbs(text, items);
   if (save.length === 0) return json({ ok: true, written: 0, note: "couldn't read Claude's answer", got: text.slice(0, 300), stop: out?.stop_reason ?? null, blocks: (out?.content ?? []).map((c: any) => c.type) });
   const { data: n, error: saveErr } = await db.rpc("sc_aotw_blurb_save", { p_secret: secret, p_items: save });
   if (saveErr) return json({ error: saveErr.message }, 500);

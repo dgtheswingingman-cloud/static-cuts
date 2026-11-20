@@ -50,7 +50,17 @@ export const desktop = {
   onUpdateReady: (cb: (version: string) => void) =>
     tauri()!.event.listen("local-cuts://update-ready", (e) => cb(String(e.payload ?? ""))),
   installUpdate: () => tauri()!.core.invoke("install_update"),
+  // NIX on this PC (owner): the local Ollama's models, and one answer from it.
+  // Older installs don't have these commands: appTooOld.
+  aiStatus: async (): Promise<AiStatus> => {
+    try { return (await tauri()!.core.invoke("ai_status")) as AiStatus; }
+    catch { return { ollama: false, models: [], pc: "this PC", appTooOld: true }; }
+  },
+  aiGenerate: async (model: string, prompt: string, json: boolean): Promise<string> =>
+    (await tauri()!.core.invoke("ai_generate", { model, prompt, json })) as string,
 };
+
+export type AiStatus = { ollama: boolean; models: string[]; pc: string; appTooOld?: boolean };
 
 // Writes the tidy library into the library folder ("Static-Cuts/Artist/Album/x.mp3").
 export class LibraryWriter {

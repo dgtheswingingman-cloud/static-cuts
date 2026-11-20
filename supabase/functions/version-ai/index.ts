@@ -7,6 +7,10 @@
 // note. Every call takes a 'claude' ticket (sc_api_allow), shared with
 // Local Cuts, so people using the site always come first (we stop at half
 // the minute's allowance).
+//
+// While Nathan's PC is running NIX (desktop app, Ollama) the suggestions go
+// to the NIX queue instead (free, no daily cap). The PC's yes/no is left for
+// review with its note unless nix_ai_auto_apply is 'on'.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -37,13 +41,55 @@ ${lines.join("\n")}
 Reply with JSON only: {"r":[{"n":1,"v":"yes|no|unsure","why":"a few words"}, ...]} covering every number.`;
 }
 
+// {"r":[{"n":1,"v":"yes","why":"..."}]} -> rows for sc_version_ai_save.
+function readVerdicts(text: string, ids: string[], local: { model: string | null; autoApply: boolean } | null) {
+  const clean = text.replace(/```(?:json)?/g, "");
+  let answer: any = null;
+  try { answer = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)); } catch { return null; }
+  return (Array.isArray(answer?.r) ? answer.r : [])
+    .filter((x: any) => Number.isInteger(x?.n) && x.n >= 1 && x.n <= ids.length)
+    .map((x: any) => {
+      const v = ["yes", "no"].includes(x.v) ? x.v : "unsure";
+      const why = String(x.why ?? "").slice(0, 240);
+      if (local && !local.autoApply) {
+        // Left for review, with what the PC thought.
+        return { id: ids[x.n - 1], verdict: "unsure", note: `NIX on PC${local.model ? ` (${local.model})` : ""} says ${v}: ${why}`.slice(0, 300) };
+      }
+      return { id: ids[x.n - 1], verdict: v, note: why };
+    });
+}
+
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
   if (!secret) return json({ error: "not authorized" }, 403);
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) return json({ ok: true, skipped: "Claude isn't set up" });
   const started = Date.now();
   const done = { checked: 0, yes: 0, no: 0, unsure: 0, applied: 0 };
+
+  // NIX on Nathan's PC: save what it finished, then queue more while it's online.
+  const { data: ai } = await db.rpc("sc_nix_ai_state", { p_secret: secret, p_kind: "version-ai" });
+  const { data: got } = await db.rpc("sc_nix_ai_collect", { p_secret: secret, p_kind: "version-ai" });
+  let byPc = 0;
+  for (const j of (got ?? []) as { payload: { ids: string[] }; output: string | null; error: string | null; model: string | null }[]) {
+    if (j.error || !j.output) continue; // their claims run out and they're tried again
+    const items = readVerdicts(j.output, j.payload.ids ?? [], { model: j.model, autoApply: !!ai?.auto_apply });
+    if (!items?.length) continue;
+    const { data: saved } = await db.rpc("sc_version_ai_save", { p_secret: secret, p_items: items });
+    byPc += items.length;
+    done.applied += (saved as any)?.applied ?? 0;
+  }
+  if (ai?.online) {
+    if (ai.waiting > 0) return json({ ok: true, checked_by_pc: byPc, applied: done.applied, waiting_for_pc: ai.waiting });
+    const { data: list, error } = await db.rpc("sc_version_ai_next", { p_secret: secret, p_limit: 40 });
+    if (error) return json({ error: error.message }, 403);
+    const sugs = (list ?? []) as Sug[];
+    if (sugs.length) {
+      await db.rpc("sc_nix_ai_enqueue", { p_secret: secret, p_kind: "version-ai", p_prompt: prompt(sugs), p_payload: { ids: sugs.map((x) => x.id) }, p_json: true });
+    }
+    return json({ ok: true, checked_by_pc: byPc, applied: done.applied, sent_to_pc: sugs.length });
+  }
+
+  const key = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!key) return json({ ok: true, skipped: "Claude isn't set up", checked_by_pc: byPc });
 
   // Daily cap, so a big import is worked through over a few days instead of
   // spending in one go: version_ai_per_day (default 500) suggestions a UTC
@@ -87,14 +133,9 @@ Deno.serve(async (req) => {
     }
     const out: any = await res.json().catch(() => null);
     if (!res.ok) return json({ error: `Claude: ${out?.error?.message ?? res.status}`, ...done }, 502);
-    const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join("")).replace(/```(?:json)?/g, "");
-    let answer: any = null;
-    try { answer = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { /* left for next time */ }
-    if (!answer) break;
-
-    const items = (Array.isArray(answer?.r) ? answer.r : [])
-      .filter((x: any) => Number.isInteger(x?.n) && x.n >= 1 && x.n <= sugs.length)
-      .map((x: any) => ({ id: sugs[x.n - 1].id, verdict: ["yes", "no"].includes(x.v) ? x.v : "unsure", note: String(x.why ?? "").slice(0, 300) }));
+    const text = String((out?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text ?? "").join(""));
+    const items = readVerdicts(text, sugs.map((x) => x.id), null);
+    if (!items) break; // left for next time
     const { data: saved, error: sErr } = await db.rpc("sc_version_ai_save", { p_secret: secret, p_items: items });
     if (sErr) return json({ error: sErr.message, ...done }, 500);
     done.checked += items.length;
