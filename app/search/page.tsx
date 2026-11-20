@@ -379,7 +379,7 @@ function SearchInner() {
       {results && (type === "all" || type === "songs") && (
         <>
           <Sec icon="♫" title={fuzzy ? "Close matches" : capped ? "Top matches" : "Songs"} n={total} to="songs" />
-          {results.length === 0 && <div className="empty-state">Nothing matches. Try fewer filters.</div>}
+          {results.length === 0 && <div className="empty-state">{statuses.length || from || to || link || !versions ? "Nothing matches. Try fewer filters." : "No songs match."}</div>}
           {results.length > 0 && <div className="sp-versions">{(type === "all" ? results.slice(0, 5) : results).map(songRow)}</div>}
           {type === "songs" && results.length < total && (
             <div style={{ textAlign: "center", marginTop: 20 }}>
