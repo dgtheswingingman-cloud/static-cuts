@@ -1,20 +1,28 @@
 # Builds the Static-Cuts desktop app (desktop/) for Windows and attaches the
 # installers to the run (Actions → this run → Artifacts → Static-Cuts-Windows).
+#
+# Builds from main are also published (static-cuts.com/desktop, and as the
+# app's self-update), once these are set in GitHub → Settings → Secrets and
+# variables → Actions (by Nathan; never printed anywhere):
+#   secret   SUPABASE_SERVICE_ROLE_KEY     upload to the private "desktop" bucket
+#   secret   TAURI_SIGNING_PRIVATE_KEY     signs updates (+ _PASSWORD if it has one)
+#   variable TAURI_UPDATER_PUBKEY          the matching public key, built into the app
+# Without them the build still runs; it just isn't published / self-updating.
 name: Desktop app (Windows)
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, desktop-app]
+    branches: [main, desktop-app, desktop-updater]
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
 
 jobs:
   build:
     runs-on: windows-latest
     env:
-      # Set by Nathan in GitHub → Settings → Secrets → Actions. Without it the
-      # build still runs; it just isn't published for download.
       HAS_UPLOAD_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+      HAS_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && vars.TAURI_UPDATER_PUBKEY != '' }}
+      ON_MAIN: ${{ github.ref == 'refs/heads/main' }}
     defaults:
       run:
         working-directory: desktop
@@ -30,8 +38,35 @@ jobs:
       - run: npm install
       - name: Icons from the site's app icon
         run: npx tauri icon ../public/icon-512.png
+
+      # Every build from main gets a higher version (0.1.<run number>), so the
+      # app can tell it's newer. With the update key it is also signed and
+      # points the app at desktop-update for future updates.
+      - name: Version and updates
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: |
+          node -e '
+            const fs = require("fs"), p = "src-tauri/tauri.conf.json", c = JSON.parse(fs.readFileSync(p, "utf8"));
+            if (process.env.ON_MAIN === "true") c.version = "0.1." + process.env.GITHUB_RUN_NUMBER;
+            if (process.env.HAS_SIGNING_KEY === "true") {
+              c.bundle.createUpdaterArtifacts = true;
+              c.plugins = { ...(c.plugins || {}), updater: {
+                pubkey: process.env.PUBKEY,
+                endpoints: ["https://pcuyzaamcsegblrauxsa.supabase.co/functions/v1/desktop-update?target={{target}}&arch={{arch}}&current_version={{current_version}}"],
+                windows: { installMode: "passive" }
+              } };
+            }
+            fs.writeFileSync(p, JSON.stringify(c, null, 2));
+            console.log("version", c.version, "updates", process.env.HAS_SIGNING_KEY === "true");
+          '
+
       - name: Build
         run: npx tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
           name: Static-Cuts-Windows
@@ -39,26 +74,33 @@ jobs:
             desktop/src-tauri/target/release/bundle/nsis/*.exe
             desktop/src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
-      # Builds from main go up for premium members (static-cuts.com/desktop):
-      # the installer into the private "desktop" bucket, then a desktop_releases row.
-      - name: Publish for download
-        if: github.ref == 'refs/heads/main' && env.HAS_UPLOAD_KEY == 'true'
+
+      # The installer into the private "desktop" bucket, then a desktop_releases
+      # row (with the update signature when there is one).
+      - name: Publish
+        if: env.ON_MAIN == 'true' && env.HAS_UPLOAD_KEY == 'true'
         shell: bash
         env:
           KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           URL: https://pcuyzaamcsegblrauxsa.supabase.co
         run: |
           set -euo pipefail
-          FILE=$(ls src-tauri/target/release/bundle/nsis/*.exe | head -1)
+          FILE=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
           SHA=${GITHUB_SHA::7}
           OBJ="windows/static-cuts-$VERSION-$SHA-setup.exe"
           SIZE=$(stat -c %s "$FILE")
+          SIG=""
+          [ -f "$FILE.sig" ] && SIG=$(cat "$FILE.sig")
           curl -fsS -X POST "$URL/storage/v1/object/desktop/$OBJ" \
             -H "Authorization: Bearer $KEY" -H "apikey: $KEY" \
             -H "Content-Type: application/octet-stream" -H "x-upsert: true" \
             --data-binary "@$FILE" > /dev/null
+          BODY=$(V="$VERSION" O="$OBJ" S="$SIZE" C="$SHA" G="$SIG" node -e '
+            const e = process.env;
+            process.stdout.write(JSON.stringify({ platform: "windows", version: e.V, path: e.O, size: Number(e.S), commit_sha: e.C, signature: e.G || null }));
+          ')
           curl -fsS -X POST "$URL/rest/v1/desktop_releases" \
             -H "Authorization: Bearer $KEY" -H "apikey: $KEY" -H "Content-Type: application/json" \
-            -d "{\"platform\":\"windows\",\"version\":\"$VERSION\",\"path\":\"$OBJ\",\"size\":$SIZE,\"commit_sha\":\"$SHA\"}" > /dev/null
-          echo "Published $OBJ ($SIZE bytes)"
+            -d "$BODY" > /dev/null
+          echo "Published $OBJ ($SIZE bytes, signed: $([ -n "$SIG" ] && echo yes || echo no))"

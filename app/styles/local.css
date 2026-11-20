@@ -139,3 +139,4 @@
 .lc-desk-title { font-family: var(--font-anton), sans-serif; font-style: italic; text-transform: uppercase; font-size: 1.15rem; color: var(--bone); }
 .lc-desk-title::after { content: "//"; color: var(--accent); margin-left: 2px; }
 .lc-desk-or { margin: 4px 0 -4px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
+.lc-desk-update { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.4); font-size: 0.9rem; }

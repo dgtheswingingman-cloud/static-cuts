@@ -721,10 +721,15 @@ export default function LocalCutsPage() {
   const [tick, setTick] = useState(0); // bumped after each batch so the next one starts
   const working = useRef(false);
   const [autostart, setAutostart] = useState(false);
+  const [update, setUpdate] = useState<string | null>(null);
   useEffect(() => {
     if (!desk) return;
     desktop.folders().then(setFolders).catch((e) => setDeskErr(String(e)));
     desktop.autostart().then(setAutostart).catch(() => {});
+    desktop.updateReady().then(setUpdate);
+    let off: (() => void) | undefined;
+    desktop.onUpdateReady((v) => setUpdate(v)).then((f) => { off = f; }).catch(() => {});
+    return () => off?.();
   }, [desk]);
   useEffect(() => {
     if (!desk) return;
@@ -887,6 +892,12 @@ export default function LocalCutsPage() {
 
       {desk && user && (
         <div className="lc-desk">
+          {update && (
+            <div className="lc-desk-update">
+              <span>Version {update} of the app is ready.</span>
+              <button className="lc-second" disabled={busy} onClick={() => desktop.installUpdate().catch((e) => setDeskErr(String(e)))}>Restart to update</button>
+            </div>
+          )}
           <div className="lc-desk-title">Automatic tidying</div>
           <div className="lc-desk-row">
             <b>1. Where new music arrives</b><span>{folders?.watch ?? "Choose the folder songs land in, e.g. your Downloads"}</span>

@@ -9,7 +9,9 @@
 // and a watcher that tells the page when a new song has finished arriving
 // ("local-cuts://new-files"). Closing the window keeps it running in the tray.
 // It can start with Windows (quietly, in the tray: "--hidden") and shows a
-// notification when the page has tidied a batch.
+// notification when the page has tidied a batch. It updates itself: every few
+// hours it looks for a newer signed version, downloads it quietly and offers
+// a restart (tray menu, window, notification).
 // Originals are never changed, and nothing is ever downloaded.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -31,6 +33,7 @@ use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_updater::{Update, UpdaterExt};
 
 const AUDIO: &[&str] = &[
     "mp3", "m4a", "mp4", "aac", "flac", "wav", "ogg", "oga", "opus", "webm", "alac", "aif", "aiff",
@@ -48,6 +51,8 @@ struct Folders {
 struct AppState {
     folders: Mutex<Folders>,
     watcher: Mutex<Option<RecommendedWatcher>>,
+    // A newer version, already downloaded, waiting for a restart.
+    update: Mutex<Option<(Update, Vec<u8>)>>,
 }
 
 fn is_audio(p: &Path) -> bool {
@@ -331,6 +336,48 @@ fn tidied(app: AppHandle, count: u32, failed: u32) {
     let _ = app.notification().builder().title("Static-Cuts").body(body).show();
 }
 
+// ---------------------------------------------------------------- updates
+
+// Looks for a newer version (signed with the Static-Cuts key; anything else is
+// refused by the updater), downloads it, and says so. Shortly after start, then
+// every 6 hours. Only runs when the build has an update key (see desktop.yml).
+async fn check_for_update(app: &AppHandle) {
+    if app.state::<AppState>().update.lock().unwrap().is_some() {
+        return;
+    }
+    let Ok(updater) = app.updater() else { return };
+    let Ok(Some(update)) = updater.check().await else { return };
+    let Ok(bytes) = update.download(|_, _| {}, || {}).await else { return };
+    let version = update.version.clone();
+    *app.state::<AppState>().update.lock().unwrap() = Some((update, bytes));
+    let _ = app.emit("local-cuts://update-ready", version.clone());
+    let _ = app
+        .notification()
+        .builder()
+        .title("Static-Cuts update ready")
+        .body(format!("Version {} is downloaded. Restart from the tray icon when it suits you.", version))
+        .show();
+}
+
+fn install_and_restart(app: &AppHandle) -> Result<(), String> {
+    let pending = app.state::<AppState>().update.lock().unwrap().take();
+    let Some((update, bytes)) = pending else {
+        return Err("No update is waiting.".into());
+    };
+    update.install(bytes).map_err(|e| e.to_string())?;
+    app.restart();
+}
+
+#[tauri::command]
+fn update_status(state: State<'_, AppState>) -> Option<String> {
+    state.update.lock().unwrap().as_ref().map(|(u, _)| u.version.clone())
+}
+
+#[tauri::command]
+fn install_update(app: AppHandle) -> Result<(), String> {
+    install_and_restart(&app)
+}
+
 // -------------------------------------------------------------------- app
 
 fn show_main(app: &AppHandle) {
@@ -358,7 +405,9 @@ fn main() {
             write_library,
             get_autostart,
             set_autostart,
-            tidied
+            tidied,
+            update_status,
+            install_update
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -373,19 +422,40 @@ fn main() {
 
             let open = MenuItem::with_id(app, "open", "Open Local Cuts", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit (stop watching)", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let restart = MenuItem::with_id(app, "update", "Restart to update", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &restart, &quit])?;
             let mut tray = TrayIconBuilder::new()
                 .tooltip("Static-Cuts: watching for new music")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => show_main(app),
                     "quit" => app.exit(0),
+                    "update" => {
+                        if install_and_restart(app).is_err() {
+                            let _ = app.notification().builder().title("Static-Cuts")
+                                .body("You're on the newest version.").show();
+                        }
+                    }
                     _ => {}
                 });
             if let Some(icon) = app.default_window_icon() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+
+            // Updates: only when this build was given an update key (the
+            // updater section in tauri.conf.json is added by the build then).
+            if app.config().plugins.0.contains_key("updater") {
+                app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(Duration::from_secs(20)).await;
+                    loop {
+                        check_for_update(&handle).await;
+                        tokio::time::sleep(Duration::from_secs(6 * 60 * 60)).await;
+                    }
+                });
+            }
             Ok(())
         })
         // Closing the window hides it; the tray icon keeps it watching.
