@@ -27,7 +27,9 @@ export default function SignupNudge() {
       const views = Number(localStorage.getItem(VIEWS) ?? "0") + 1;
       localStorage.setItem(VIEWS, String(views));
       const hiddenUntil = Number(localStorage.getItem(HIDDEN) ?? "0");
-      setShow(views >= AFTER && Date.now() > hiddenUntil);
+      // Song pages have their own "follow the artist" card (FollowArtist), so
+      // the bar only shows on artist pages; song visits still count.
+      setShow(views >= AFTER && Date.now() > hiddenUntil && path!.startsWith("/artist/"));
     } catch {
       setShow(false);
     }

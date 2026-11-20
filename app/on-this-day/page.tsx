@@ -31,7 +31,7 @@ function Inner() {
   const go = (d: string) => router.replace(d === todayLondon() ? "/on-this-day" : `/on-this-day?date=${d}`, { scroll: false });
 
   return (
-    <div className="wrap">
+    <div className="wrap otd-page">
       <h1 className="detail-name page-title">On {label}</h1>
       <div className="detail-meta">Songs released or leaked on {label} in past years.</div>
       <div className="tabs">
