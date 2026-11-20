@@ -7,6 +7,9 @@
 // from the undo history. Nothing here is deleted automatically.
 // Wrong links: Spotify links whose title and artist don't match what Spotify
 // says (found by the link checker). Clear the link, or say it's right.
+// Spelling: Spotify links on the right artist whose title Spotify spells
+// differently (also found by the link checker). Use Spotify's spelling (the
+// old title stays as an alias, undoable), or keep ours.
 // Bio mix-ups: bios from Last.fm etc. that describe someone else ("old
 // pseudonym of Playboi Carti", "there are two artists with this name"),
 // found by a weekly scan. Clear the bio, or say it's right.
@@ -19,11 +22,11 @@ import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
 import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
-type Kind = "not_song" | "placeholder" | "links" | "mixups";
+type Kind = "not_song" | "placeholder" | "links" | "spelling" | "mixups";
 type Item = {
   id: string; title: string; artist_id: string; artist: string; status: string | null; source?: string | null;
   album?: string | null; kind?: Kind | "alias" | "multiple"; versions?: number; collected?: number;
-  spotify_url?: string; spotify_title?: string | null; spotify_artists?: string | null;
+  spotify_url?: string; spotify_title?: string | null; spotify_artists?: string | null; spotify_clean?: string | null;
   // bio mix-ups
   other_id?: string | null; other?: string | null; excerpt?: string | null; source_url?: string | null;
 };
@@ -41,19 +44,21 @@ export default function CleanupPage() {
 
   async function load(k = kind) {
     setItems(null);
-    const side = k === "links" || k === "mixups";
-    const [list, links, mix] = await Promise.all([
+    const side = k === "links" || k === "spelling" || k === "mixups";
+    const [list, links, mix, spell] = await Promise.all([
       supabase.rpc("admin_cleanup_list", { p_kind: side ? "not_song" : k, p_limit: side ? 1 : 500 }),
       supabase.rpc("admin_link_issues", { p_limit: k === "links" ? 500 : 1 }),
       supabase.rpc("admin_mixup_list", { p_limit: k === "mixups" ? 500 : 1 }),
+      supabase.rpc("admin_title_diffs", { p_limit: k === "spelling" ? 500 : 1 }),
     ]);
-    const err = list.error ?? links.error ?? mix.error;
+    const err = list.error ?? links.error ?? mix.error ?? spell.error;
     if (err) { setError(err.message); setItems([]); return; }
     const d = list.data as { counts: Record<"not_song" | "placeholder", number>; items: Item[] };
     const l = links.data as { count: number; items: Item[] };
     const m = (mix.data as { count: number; items: Item[] } | null) ?? { count: 0, items: [] };
-    setCounts({ ...d.counts, links: l.count, mixups: m.count });
-    setItems(k === "links" ? l.items : k === "mixups" ? m.items : d.items);
+    const sp = (spell.data as { count: number; items: Item[] } | null) ?? { count: 0, items: [] };
+    setCounts({ ...d.counts, links: l.count, mixups: m.count, spelling: sp.count });
+    setItems(k === "links" ? l.items : k === "mixups" ? m.items : k === "spelling" ? sp.items : d.items);
     setTicked(new Set());
   }
   useEffect(() => { if (canModerate) load(kind); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [canModerate, kind]);
@@ -62,14 +67,18 @@ export default function CleanupPage() {
     if (!ids.length) return;
     setBusy(true);
     setError(null);
-    const { data, error: err } = kind === "links"
+    const { data, error: err } = kind === "spelling"
+      ? await supabase.rpc("admin_title_diff_action", { p_ids: ids, p_action: action === "delete" ? "spotify" : "ours" })
+      : kind === "links"
       ? await supabase.rpc("admin_link_issue_action", { p_ids: ids, p_action: action === "delete" ? "clear" : "ok" })
       : kind === "mixups"
         ? await supabase.rpc("admin_mixup_action", { p_ids: ids, p_action: action === "delete" ? "clear" : "ok" })
         : await supabase.rpc("admin_cleanup_action", { p_ids: ids, p_action: action });
     setBusy(false);
     if (err) { setError(err.message); return; }
-    setDone(kind === "mixups"
+    setDone(kind === "spelling"
+      ? (action === "delete" ? `Used Spotify's spelling on ${data} song${data === 1 ? "" : "s"}; the old titles are kept as aliases (undo from the undo history).` : `Kept our spelling on ${data}: they won't be listed again.`)
+      : kind === "mixups"
       ? (action === "delete" ? `Cleared ${data} bio${data === 1 ? "" : "s"} (undo from the undo history). They won't be fetched again.` : `Marked ${data} as right: they won't be listed again.`)
       : kind === "links"
       ? (action === "delete" ? `Cleared ${data} link${data === 1 ? "" : "s"} (undo from the undo history).` : `Marked ${data} as right: they won't be listed again.`)
@@ -85,7 +94,7 @@ export default function CleanupPage() {
   return (
     <ModPage
       title="Clean-up"
-      intro="Entries that don't look like songs, empty placeholders, Spotify links that point at a different song, and artist bios that describe someone else. Delete what isn't a song; keep anything that is (it won't be listed again). Deletes can be undone from the undo history."
+      intro="Entries that don't look like songs, empty placeholders, Spotify links that point at a different song, songs Spotify spells differently, and artist bios that describe someone else. Delete what isn't a song; keep anything that is (it won't be listed again). Deletes can be undone from the undo history."
     >
       <ModToolbar
         sticky
@@ -102,6 +111,7 @@ export default function CleanupPage() {
             { key: "not_song", label: "Not songs", count: counts?.not_song ?? null },
             { key: "placeholder", label: "Empty placeholders", count: counts?.placeholder ?? null },
             { key: "links", label: "Wrong links", count: counts?.links ?? null },
+            { key: "spelling", label: "Spelling", count: counts?.spelling ?? null },
             { key: "mixups", label: "Bio mix-ups", count: counts?.mixups ?? null },
           ]}
         />
@@ -109,10 +119,16 @@ export default function CleanupPage() {
       {error && <ModNotice kind="error" onClose={() => setError(null)}>{error}</ModNotice>}
       {done && <ModNotice kind="done" onClose={() => setDone(null)}>{done}</ModNotice>}
       <ModBulkBar count={ticked.size} onClear={() => setTicked(new Set())}>
+        {kind === "spelling" ? (<>
+          <ModButton kind="approve" busy={busy} confirm={`Use Spotify's spelling on ${ticked.size} song${ticked.size === 1 ? "" : "s"}? (The old titles stay as aliases; undo from the undo history.)`}
+            onClick={() => act([...ticked], "delete")}>use Spotify&apos;s</ModButton>
+          <ModButton busy={busy} onClick={() => act([...ticked], "keep")}>keep ours</ModButton>
+        </>) : (<>
         <ModButton kind="danger" busy={busy}
           confirm={kind === "mixups" ? `Clear ${ticked.size} bio${ticked.size === 1 ? "" : "s"}? (Undo from the undo history.)` : kind === "links" ? `Clear ${ticked.size} Spotify link${ticked.size === 1 ? "" : "s"}?` : `Delete ${ticked.size} entr${ticked.size === 1 ? "y" : "ies"}? (Undo from the undo history.)`}
           onClick={() => act([...ticked], "delete")}>{kind === "mixups" ? "clear bio" : kind === "links" ? "clear link" : "delete"}</ModButton>
         <ModButton kind="approve" busy={busy} onClick={() => act([...ticked], "keep")}>{kind === "mixups" ? "bio is right" : kind === "links" ? "link is right" : "keep"}</ModButton>
+        </>)}
       </ModBulkBar>
       {!items && <ModLoading />}
       {items && items.length === 0 && <ModEmpty>Nothing to clean up here.</ModEmpty>}
@@ -137,7 +153,29 @@ export default function CleanupPage() {
           </>}
         />
       ))}
-      {kind !== "mixups" && items?.map((i) => (
+      {kind === "spelling" && items?.map((i) => (
+        <ModRow
+          key={i.id}
+          check={{ checked: ticked.has(i.id), onChange: (v) => toggle(i.id, v) }}
+          title={<>
+            <Link href={`/song/${i.id}`}>{i.title}</Link>
+            <ModTag kind="warn">Spotify: {i.spotify_clean ?? i.spotify_title}</ModTag>
+          </>}
+          meta={<>
+            <Link href={`/artist/${i.artist_id}`}>{i.artist}</Link>
+            {i.spotify_url && <a href={i.spotify_url} target="_blank" rel="noopener noreferrer">on Spotify: {i.spotify_title} ↗</a>}
+            {i.status && <span>{i.status}</span>}
+          </>}
+          actions={<>
+            {i.spotify_clean && (
+              <ModButton kind="approve" busy={busy} confirm={`Rename "${i.title}" to "${i.spotify_clean}"? (The old title stays as an alias.)`}
+                onClick={() => act([i.id], "delete")}>use Spotify&apos;s</ModButton>
+            )}
+            <ModButton busy={busy} onClick={() => act([i.id], "keep")}>keep ours</ModButton>
+          </>}
+        />
+      ))}
+      {kind !== "mixups" && kind !== "spelling" && items?.map((i) => (
         <ModRow
           key={i.id}
           check={{ checked: ticked.has(i.id), onChange: (v) => toggle(i.id, v) }}
