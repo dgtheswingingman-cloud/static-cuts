@@ -881,6 +881,9 @@ export default function LocalCutsPage() {
           : "Drop in your own music folder and get back a tidy copy, ready for Spotify Local Files."}
       </p>
       <div className="lc-promise"><span className="lc-sl" style={{ color: "#22C55E" }}>//</span> Your music is never uploaded. Originals never touched.</div>
+      {!desk && (
+        <div className="lc-promise"><span className="lc-sl" style={{ color: "#22D3EE" }}>//</span> Want it automatic? The <Link className="text-link" href="/desktop">desktop app</Link> tidies new songs as they land (Windows, premium).</div>
+      )}
 
       {desk && user && (
         <div className="lc-desk">

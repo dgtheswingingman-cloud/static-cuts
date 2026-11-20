@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const PERKS: [string, string, string][] = [
   ["Local Cuts", "#F5B841", "Drop in a folder and get back a clean copy: titles with features, artist, album or “Unreleased <year>”, year, track numbers, cover art and the song's Static-Cuts code, in Artist / Album folders ready for Spotify Local Files."],
+  ["Local Cuts desktop app", "#22D3EE", "For Windows: pick your downloads folder once and every new song is tidied into your library as it lands, even with the window closed. static-cuts.com/desktop"],
   ["Claude on the leftovers", "#8B7CF6", "Files that can't be matched by their tags get a second look from Claude, which works out what they are."],
   ["Track Watch, fully", "#FF3355", "Watching a song is free (you hear when it leaks or comes out). Premium also tells you when a new version turns up, a new link is found, or its date is filled in."],
   ["Smarter alerts", "#F5B841", "Instant alerts for just leaks, just snippets or just releases, or only from the eras you care about. Plus alerts for a producer's new songs, whoever the artist is."],
