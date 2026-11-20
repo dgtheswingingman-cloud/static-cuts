@@ -8,6 +8,8 @@
 //   write_library                one tidied file (only inside the library folder)
 // and a watcher that tells the page when a new song has finished arriving
 // ("local-cuts://new-files"). Closing the window keeps it running in the tray.
+// It can start with Windows (quietly, in the tray: "--hidden") and shows a
+// notification when the page has tidied a batch.
 // Originals are never changed, and nothing is ever downloaded.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -26,7 +28,9 @@ use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_notification::NotificationExt;
 
 const AUDIO: &[&str] = &[
     "mp3", "m4a", "mp4", "aac", "flac", "wav", "ogg", "oga", "opus", "webm", "alac", "aif", "aiff",
@@ -300,6 +304,33 @@ fn write_library(state: State<'_, AppState>, request: Request<'_>) -> Result<(),
     fs::write(&path, bytes).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_autostart(app: AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_autostart(app: AppHandle, on: bool) -> Result<bool, String> {
+    let a = app.autolaunch();
+    let res = if on { a.enable() } else { a.disable() };
+    res.map_err(|e| e.to_string())?;
+    Ok(a.is_enabled().unwrap_or(false))
+}
+
+// The page tidied a batch: a notification, so it's clear it worked even with
+// the window closed.
+#[tauri::command]
+fn tidied(app: AppHandle, count: u32, failed: u32) {
+    if count == 0 && failed == 0 {
+        return;
+    }
+    let mut body = format!("{} new song{} tidied into your library.", count, if count == 1 { "" } else { "s" });
+    if failed > 0 {
+        body.push_str(&format!(" {} couldn't be written.", failed));
+    }
+    let _ = app.notification().builder().title("Static-Cuts").body(body).show();
+}
+
 // -------------------------------------------------------------------- app
 
 fn show_main(app: &AppHandle) {
@@ -315,19 +346,30 @@ fn main() {
         // A second launch just brings the open window forward.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        // Started with Windows: "--hidden", so it opens quietly in the tray.
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             get_folders,
             choose_folder,
             list_watched,
             read_watched,
-            write_library
+            write_library,
+            get_autostart,
+            set_autostart,
+            tidied
         ])
         .setup(|app| {
             let handle = app.handle().clone();
             let state = app.state::<AppState>();
             *state.folders.lock().unwrap() = load_folders(&handle);
             start_watching(&handle, &state);
+            // The window starts hidden; shown unless started with Windows.
+            // (Hidden, the page still loads and keeps tidying.)
+            if !std::env::args().any(|a| a == "--hidden") {
+                show_main(&handle);
+            }
 
             let open = MenuItem::with_id(app, "open", "Open Local Cuts", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit (stop watching)", true, None::<&str>)?;

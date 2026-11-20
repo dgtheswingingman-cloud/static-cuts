@@ -1,0 +1,10 @@
+/* /desktop: the desktop app page. */
+.dk-card { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 18px; margin: 18px 0 28px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.dk-btn { background: var(--accent); color: #070707; border: 0; border-radius: 8px; padding: 12px 20px; font-weight: 800; font-size: 1rem; cursor: pointer; }
+.dk-btn:disabled { opacity: 0.6; cursor: default; }
+.dk-muted { margin: 0; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
+.dk-err { margin: 0; color: #F87171; font-size: 0.85rem; }
+.dk-steps { padding-left: 20px; line-height: 1.6; }
+.dk-steps li { margin-bottom: 6px; }
+.dk-h { margin: 22px 0 8px; font-family: var(--font-anton), sans-serif; font-style: italic; font-weight: 400; font-size: 1.25rem; text-transform: uppercase; color: var(--bone); }
+.dk-h::after { content: "//"; color: var(--accent); margin-left: 2px; }

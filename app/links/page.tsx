@@ -20,6 +20,7 @@ const MORE: [string, string, string][] = [
   ["/search", "Search every song", "Any artist: released, leaked, snippets and versions."],
   ["/radar", "This week's leaks and releases", "What dropped, leaked or got announced."],
   ["/local", "Local Cuts", "Tidy your music folder for Spotify Local Files."],
+  ["/desktop", "Desktop app", "Local Cuts on Windows: tidies new songs as they land (premium)."],
   ["/discord", "Add the Discord bot", "Daily picks and artist alerts in your server."],
   ["/submit", "Help the archive", "Know a song we're missing? Add it."],
   ["/supporters", "Supporters", "The people keeping Static-Cuts// running."],

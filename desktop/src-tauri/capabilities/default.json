@@ -12,6 +12,9 @@
     "allow-choose-folder",
     "allow-list-watched",
     "allow-read-watched",
-    "allow-write-library"
+    "allow-write-library",
+    "allow-get-autostart",
+    "allow-set-autostart",
+    "allow-tidied"
   ]
 }
