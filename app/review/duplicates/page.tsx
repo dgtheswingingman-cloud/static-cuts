@@ -7,6 +7,7 @@
 // titles become aliases and the old pages redirect.
 
 import { useEffect, useState } from "react";
+import { NixNote, useNixNotes } from "../../nix/NixNote";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +52,7 @@ export default function DuplicatesPage() {
   const [artists, setArtists] = useState<{ id: string; name: string }[]>([]);
   const [artistFilter, setArtistFilter] = useState("");
   const [groups, setGroups] = useState<Group[] | null>(null);
+  const nix = useNixNotes("duplicates", (groups ?? []).map((g) => g.group_id));
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +173,7 @@ export default function DuplicatesPage() {
               {same.length > 0 && <ModTag kind="good">ChatGPT: same song ({same.length})</ModTag>}
               {diff.length > 0 && <ModTag kind="warn">ChatGPT: different ({diff.length})</ModTag>}
             </div>
+            <NixNote n={nix[g.group_id]} />
 
             {g.reports.map((r, i) => (
               <div key={i} className="comment-meta" style={{ fontStyle: "italic", wordBreak: "break-word", marginBottom: 4 }}>

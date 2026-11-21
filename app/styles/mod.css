@@ -91,3 +91,10 @@
 /* Title checks: the full-title songs a cut-off one could be. */
 .tc-cand { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tc-old { color: var(--smoke); }
+
+/* NIX's note on a review item (from the PC running NIX; a suggestion only). */
+.nix-note { flex-basis: 100%; margin: 6px 0 2px; padding: 5px 10px; border-radius: 6px; border-left: 3px solid var(--smoke); background: color-mix(in srgb, var(--bone) 6%, transparent); font-family: var(--font-mono), monospace; font-size: 0.74rem; line-height: 1.45; color: var(--bone); overflow-wrap: anywhere; }
+.nix-note b { color: var(--accent); margin-right: 4px; }
+.nix-note span { color: var(--smoke); }
+.nix-note-good { border-left-color: #22C55E; }
+.nix-note-warn { border-left-color: #F59E0B; }

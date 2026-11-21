@@ -25,11 +25,13 @@ function ago(iso: string) {
 export default function LocalAi() {
   const [ai, setAi] = useState<Ai | null>(null);
   const [spend, setSpend] = useState<Spend | null>(null);
+  const [notes, setNotes] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const load = () => {
       supabase.rpc("admin_nix_ai").then(({ data }) => setAi((data as Ai) ?? null));
       supabase.rpc("admin_ai_spend").then(({ data }) => setSpend((data as Spend) ?? null));
+      supabase.rpc("admin_nix_review_progress").then(({ data }) => setNotes((data as Record<string, number>) ?? {}));
     };
     load();
     const t = setInterval(load, 60000);
@@ -48,6 +50,14 @@ export default function LocalAi() {
         {ai.queued || ai.running ? `; ${ai.queued} waiting, ${ai.running} in progress` : ""}
         {ai.avg_s != null ? `; about ${ai.avg_s} s a job` : ""}.
         {" "}{ai.auto_apply ? "Its sub-version answers are applied straight away (undoable)." : "Its sub-version answers wait on the review page with its note, so you can see how good it is first."}
+      </div>
+      <div className="comment-meta" style={{ marginBottom: 8 }}>
+        <b>Review notes from your PC so far:</b>{" "}
+        <Link href="/review/duplicates" className="text-link">Duplicates</Link> {(notes.duplicates ?? 0).toLocaleString("en-GB")} ·{" "}
+        <Link href="/review/cleanup" className="text-link">Clean-up</Link> {(notes.cleanup ?? 0).toLocaleString("en-GB")} ·{" "}
+        <Link href="/review/cleanup" className="text-link">Bio mix-ups</Link> {(notes.mixups ?? 0).toLocaleString("en-GB")} ·{" "}
+        <Link href="/review/deezer" className="text-link">Deezer check</Link> {(notes.deezer ?? 0).toLocaleString("en-GB")}.
+        {" "}They show on each item as &ldquo;NIX: …&rdquo;. Suggestions only: nothing is applied from them.
       </div>
       {spend && (
         <div className="comment-meta" style={{ marginBottom: 8 }}>
