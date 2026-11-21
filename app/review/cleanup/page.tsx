@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { NixNote, useNixNotes } from "../../nix/NixNote";
 import { useAuth } from "../../AuthProvider";
 import { useIsModerator } from "../../useIsAdmin";
 import NoAccess from "../../components/NoAccess";
@@ -36,6 +37,9 @@ export default function CleanupPage() {
   const canModerate = useIsModerator();
   const [kind, setKind] = useState<Kind>("not_song");
   const [items, setItems] = useState<Item[] | null>(null);
+  // NIX's notes (from the PC running NIX) for not-a-song, placeholder and bio mix-up rows.
+  const nix = useNixNotes(kind === "mixups" ? "mixups" : "cleanup",
+    kind === "mixups" || kind === "not_song" || kind === "placeholder" ? (items ?? []).map((i) => String(i.id)) : []);
   const [counts, setCounts] = useState<Record<Kind, number> | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -146,6 +150,7 @@ export default function CleanupPage() {
               ? <a href={i.source_url} target="_blank" rel="noopener noreferrer">from {i.source} ↗</a>
               : <span>from {i.source}</span>)}
             {i.excerpt && <span>&ldquo;{i.excerpt}&rdquo;</span>}
+            <NixNote n={nix[String(i.id)]} />
           </>}
           actions={<>
             <ModButton kind="danger" busy={busy} confirm={`Clear the bio on ${i.artist}?`} onClick={() => act([i.id], "delete")}>clear bio</ModButton>
@@ -194,6 +199,7 @@ export default function CleanupPage() {
             {i.status && <span>{i.status}</span>}
             {i.album && <span>{i.album}</span>}
             {i.source && <span>from {i.source}</span>}
+            {kind !== "links" && <NixNote n={nix[String(i.id)]} />}
           </>}
           actions={<>
             <ModButton kind="danger" busy={busy} confirm={kind === "links" ? `Clear the Spotify link on "${i.title}"?` : `Delete "${i.title}"?`}

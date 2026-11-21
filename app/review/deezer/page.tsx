@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { NixNote, useNixNotes } from "../../nix/NixNote";
 import { useAuth } from "../../AuthProvider";
 import { useIsAdmin } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
@@ -93,6 +94,7 @@ export default function DeezerCheckPage() {
   const { loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const nix = useNixNotes("deezer", (rows ?? []).map((r) => r.artist_id));
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -144,6 +146,7 @@ export default function DeezerCheckPage() {
             {r.deezer_id && (
               <a href={`https://www.deezer.com/artist/${r.deezer_id}`} target="_blank" rel="noopener noreferrer" className="listen-link">Deezer profile ↗</a>
             )}
+            <NixNote n={nix[r.artist_id]} deezer />
           </>}
           actions={<>
             {!r.mixed && <ModButton kind="approve" busy={busy === r.artist_id} onClick={() => looksRight(r)}>looks right</ModButton>}
