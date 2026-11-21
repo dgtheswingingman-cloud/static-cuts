@@ -8,8 +8,8 @@ import { cache } from "react";
 import { supabase } from "@/lib/supabase";
 import ProducerView from "./ProducerView";
 
-// Built on first visit, then kept for an hour (see the song page).
-export const revalidate = 3600;
+// Built on first visit, then kept for a day (see the song page).
+export const revalidate = 86400;
 export async function generateStaticParams() {
   return [];
 }
