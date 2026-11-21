@@ -11,11 +11,11 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import SongView from "./SongView";
 
-// Each page is built once and kept for an hour, so crawlers visiting
+// Each page is built once and kept for a day, so crawlers visiting
 // hundreds of thousands of pages don't each cost a fresh build. (Only the
 // server's plain-text version is kept; your own collection and ratings
 // still load live in the browser.)
-export const revalidate = 3600;
+export const revalidate = 86400;
 // No pages are built ahead of time; each is built on its first visit and
 // then kept (without this, Next.js builds the page fresh on every visit).
 export async function generateStaticParams() {
