@@ -5,12 +5,13 @@
 
 import { useEffect } from "react";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin } from "../useIsAdmin";
+import { useIsRealAdmin } from "../useIsAdmin";
 import { nixAllow } from "./worker";
 
 export default function NixHost() {
   const { user } = useAuth();
-  const isAdmin = useIsAdmin();
+  // The real role, not the Admin mode switch: NIX keeps running with it off.
+  const isAdmin = useIsRealAdmin();
   useEffect(() => { nixAllow(!!user && isAdmin); }, [user, isAdmin]);
   return null;
 }
