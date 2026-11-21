@@ -122,7 +122,12 @@ export default function NixPage() {
   if (!isAdmin) return <NoAccess loading={loading} who="admin" />;
 
   const tasks = d?.tasks ?? [];
-  const needsLook = tasks.filter((t) => failingNow(t) || t.behind || !t.enabled);
+  // Paused jobs were paused on purpose: listed quietly, not as problems.
+  const needsLook = tasks.filter((t) => t.enabled && (failingNow(t) || t.behind));
+  const paused = tasks.filter((t) => !t.enabled);
+  // "Already running" / "nothing to do" replies are skipped runs, not failures.
+  const SKIP = /already running|could not be found|JWT issued at future/i;
+  const failures = (d?.failures ?? []).filter((f) => !SKIP.test(f.error));
   const groups = [
     ...JOB_GROUPS,
     { title: "Other", jobs: Object.fromEntries(tasks.filter((t) => !KNOWN_JOBS.has(t.name)).map((t) => [t.name, ""])) },
@@ -163,22 +168,29 @@ export default function NixPage() {
                   <div style={{ minWidth: 0 }}>
                     <div className="review-row-title">{t.name}</div>
                     <div className="review-row-meta">
-                      {!t.enabled && <span className="feature-tag">paused</span>}
                       {t.behind && <span className="feature-tag disputed-tag">behind: was due {ago(t.next_at)}</span>}
                       {failingNow(t) && <span className="feature-tag disputed-tag nix-wrap">failing: {t.last_result?.slice(0, 160)}</span>}
                     </div>
                   </div>
                   {isOwner && (
-                    <button className="st-btn" disabled={busy === t.name} onClick={() => act(t.name, t.enabled ? "run" : "resume")}>
-                      {t.enabled ? "Try now" : "Resume"}
-                    </button>
+                    <button className="st-btn" disabled={busy === t.name} onClick={() => act(t.name, "run")}>Try now</button>
                   )}
                 </div>
               ))}
-              {d.failures.length > 0 && (
+              {paused.length > 0 && (
+                <p className="comment-meta" style={{ marginTop: 10 }}>
+                  Paused on purpose: {paused.map((t, i) => (
+                    <span key={t.name}>
+                      {i > 0 && ", "}{t.name}
+                      {isOwner && <> (<button className="inline-link-btn" disabled={busy === t.name} onClick={() => act(t.name, "resume")}>resume</button>)</>}
+                    </span>
+                  ))}.
+                </p>
+              )}
+              {failures.length > 0 && (
                 <>
                   <div className="cr-sub">Failed runs (24 h)</div>
-                  {d.failures.slice(0, 8).map((f, i) => (
+                  {failures.slice(0, 8).map((f, i) => (
                     <div key={i} className="review-row nix-row">
                       <div style={{ minWidth: 0 }}>
                         <div className="review-row-title">{f.name} <span className="comment-meta">· {ago(f.at)}</span></div>
