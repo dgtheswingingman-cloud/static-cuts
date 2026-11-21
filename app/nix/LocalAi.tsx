@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type Job = { kind: string; label: string; done: number; done_24h: number; done_1h: number; left: number; suggested: number; agreed: number; decided: number };
+type Job = { kind: string; label: string; done: number; done_24h: number; done_1h: number; left: number; suggested: number; agreed: number; decided: number;
+  checked?: number; claude_agreed?: number; claude_disagreed?: number; to_check?: number };
 const JOB_LINK: Record<string, string> = {
   duplicates: "/review/duplicates", cleanup: "/review/cleanup", mixups: "/review/cleanup", deezer: "/review/deezer",
   titles: "/review/nix", audit: "/review/nix", notes: "/review/nix", eras: "/review/nix",
@@ -59,7 +60,7 @@ export default function LocalAi() {
       {jobs.length > 0 && (
         <div className="nix-jobs">
           <div className="nix-jobs-row nix-jobs-head">
-            <span>Job</span><span>Done</span><span>Left</span><span>Last hour</span><span>Finish</span><span>Agreed with you</span>
+            <span>Job</span><span>Done</span><span>Left</span><span>Last hour</span><span>Finish</span><span>Claude agrees</span><span>You agree</span>
           </div>
           {jobs.map((j) => {
             const rate = j.done_1h || Math.round(j.done_24h / 24);
@@ -71,6 +72,11 @@ export default function LocalAi() {
                 <span>{j.left.toLocaleString("en-GB")}</span>
                 <span>{j.done_1h.toLocaleString("en-GB")}</span>
                 <span>{j.left === 0 ? "done" : hours == null ? "—" : hours < 1 ? "within the hour" : hours < 48 ? `~${Math.round(hours)} h` : `~${Math.round(hours / 24)} days`}</span>
+                <span title={j.to_check ? `${j.to_check.toLocaleString("en-GB")} still to check` : undefined}>
+                  {(j.claude_agreed ?? 0) + (j.claude_disagreed ?? 0) > 0
+                    ? `${Math.round(((j.claude_agreed ?? 0) / ((j.claude_agreed ?? 0) + (j.claude_disagreed ?? 0))) * 100)}% of ${((j.claude_agreed ?? 0) + (j.claude_disagreed ?? 0)).toLocaleString("en-GB")}`
+                    : j.to_check ? "checking…" : "—"}
+                </span>
                 <span>{j.decided ? `${Math.round((j.agreed / j.decided) * 100)}% of ${j.decided}` : "—"}</span>
               </div>
             );
@@ -78,12 +84,13 @@ export default function LocalAi() {
           <p className="comment-meta" style={{ marginTop: 6 }}>
             Notes show on each review page as &ldquo;NIX: …&rdquo;; suggestions wait on <Link href="/review/nix" className="text-link">NIX suggestions</Link>.
             Speeds and finish times are rough, from the last hour. Artists people follow go first.
+            Claude checks everything NIX does; &ldquo;Claude agrees&rdquo; leaves out the ones it wasn&apos;t sure about.
           </p>
         </div>
       )}
       {spend && (
         <div className="comment-meta" style={{ marginBottom: 8 }}>
-          <b>Claude this month:</b> ${Number(spend.month_usd).toFixed(2)} of ${Number(spend.cap_usd).toFixed(2)} (about £5 with VAT),
+          <b>Claude this month:</b> ${Number(spend.month_usd).toFixed(2)} of ${Number(spend.cap_usd).toFixed(2)} (about £10 with VAT),
           {" "}{Number(spend.calls_month).toLocaleString("en-GB")} calls; today ${Number(spend.today_usd).toFixed(2)}.
           {spend.by_job.length > 0 && <> {spend.by_job.map((j) => `${j.job} $${Number(j.usd).toFixed(2)}`).join(", ")}.</>}
           {" "}NIX&apos;s own jobs stop at 60% so Local Cuts always has room; everything stops at the cap until the 1st.
