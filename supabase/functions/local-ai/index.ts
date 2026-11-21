@@ -27,7 +27,7 @@ const json = (body: unknown, status = 200) =>
 const AI_PAUSE = "claude_pause_until";
 const AI_MODEL = "claude-haiku-5-5";
 
-// Claude's monthly budget (about £5 site wide, sc_ai_can_spend): may this
+// Claude's monthly budget (about £10 site wide, sc_ai_can_spend): may this
 // spend now, and record what each call really cost (from Claude's reply).
 async function canSpend(who: "person" | "background") {
   const { data } = await db.rpc("sc_ai_can_spend", { p_who: who });
@@ -144,7 +144,9 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
-          model: AI_MODEL, max_tokens: 8000,
+          // A little thinking (low effort) helps tell songs apart from messy
+          // file names; Haiku 5.5's default would spend far more.
+          model: AI_MODEL, max_tokens: 8000, output_config: { effort: "low" },
           messages: [{ role: "user", content: attempt === 0 ? prompt : prompt + "\n\nIMPORTANT: reply with valid JSON only (escape any quotes inside strings)." }],
         }),
       });

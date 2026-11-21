@@ -16,7 +16,7 @@ const json = (body: unknown, status = 200) =>
 const AI_PAUSE = "claude_pause_until";
 const AI_MODEL = "claude-haiku-5-5";
 
-// Claude's monthly budget (about £5 site wide, sc_ai_can_spend): may this
+// Claude's monthly budget (about £10 site wide, sc_ai_can_spend): may this
 // spend now, and record what each call really cost (from Claude's reply).
 async function canSpend(who: "person" | "background") {
   const { data } = await db.rpc("sc_ai_can_spend", { p_who: who });
@@ -103,7 +103,8 @@ Deno.serve(async (req) => {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt(items) }] }),
+    // Thinking off: short blurbs (Haiku 5.5 thinks by default).
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: 8000, thinking: { type: "disabled" }, messages: [{ role: "user", content: prompt(items) }] }),
   }).catch(() => null);
   if (!res) return json({ ok: true, waiting: "Claude didn't answer" });
   if (res.status === 429 || res.status === 529) {
