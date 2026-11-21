@@ -130,6 +130,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
     supabase.rpc("rpc_unread_notifications", { p_admin: true }).then(({ data }) => setAlerts(typeof data === "number" ? data : 0));
   }, [isAdmin, mode]);
 
+  const [nixOpen, setNixOpen] = useState<number | null>(null);
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,6 +139,10 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
   async function load() {
     if (!user || !canModerate) return;
     supabase.rpc("rpc_moderation_counts").then(({ data }) => setCounts((data as Counts) ?? null));
+    supabase.rpc("admin_nix_suggestions", { p_kind: "titles", p_limit: 1 }).then(({ data }) => {
+      const c = (data as { counts?: Record<string, number> } | null)?.counts ?? {};
+      setNixOpen(Object.values(c).reduce((a, b) => a + Number(b || 0), 0));
+    });
     if (mode === "hub") return;
     const { data, error: err } = await supabase
       .from("submissions")
@@ -616,6 +621,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
           ...(isAdmin ? [{ href: "/review/titles", title: "Archive checks", blurb: "Cut-off and garbled titles, and dates in the wrong place: found across the whole archive." }] : []),
           ...(isAdmin ? [{ href: "/review/eras", title: "Tracker eras", blurb: "Era names from trackers sitting on released songs as their album: keep the real ones, clear the rest." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
+          { href: "/review/nix", title: "NIX suggestions", n: nixOpen ?? undefined, blurb: "What NIX found reading the archive on the owner's PC: facts from song notes, eras, versions linked wrongly, messy titles. Accept or dismiss." },
           { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
           { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
           { href: "/review/albums", title: "Albums", n: counts?.album_fixes, blurb: "Suggested album fixes (details, combine or separate editions, tracklist links), and undo." },

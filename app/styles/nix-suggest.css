@@ -1,0 +1,7 @@
+/* ===================== NIX suggestions (/review/nix) ===================== */
+.nix-sug-about { margin: 4px 0 14px; font-size: 0.85rem; color: var(--smoke); line-height: 1.5; }
+.nix-sug-change { font-family: var(--font-mono), monospace; font-size: 0.78rem; color: var(--bone); overflow-wrap: anywhere; }
+.nix-sug-change s { color: var(--smoke); }
+.nix-sug-change em { color: var(--smoke); font-style: normal; }
+.nix-sug-change strong { color: #22C55E; font-weight: 700; }
+.nix-sug-note { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); font-style: italic; overflow-wrap: anywhere; }
