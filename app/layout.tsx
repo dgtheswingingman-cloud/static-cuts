@@ -11,6 +11,7 @@ import { AuthProvider } from "./AuthProvider";
 import { AdminViewProvider } from "./AdminViewContext";
 import { ThemeProvider } from "./ThemeProvider";
 import RegisterServiceWorker from "./RegisterServiceWorker";
+import NixHost from "./nix/NixHost";
 import SignupNudge from "./components/SignupNudge";
 import OnboardingGate from "./components/OnboardingGate";
 import { VisitorPreviewBar } from "./components/visitorPreview";
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <AdminViewProvider>
               <RegisterServiceWorker />
+              <NixHost />
               <UserAccent />
               <StaticOverlay />
               <SpotifyImportResume />

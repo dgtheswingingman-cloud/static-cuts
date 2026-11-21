@@ -14,6 +14,7 @@ import { useIsAdmin, useIsOwner } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import { CALENDAR, JOB_GROUPS, KNOWN_JOBS } from "./jobs";
 import LocalAi from "./LocalAi";
+import NixPanel from "./NixPanel";
 import Learning from "./Learning";
 
 type Task = {
@@ -148,6 +149,7 @@ export default function NixPage() {
             <div className="health-tile" data-alert={d.totals.failed > 0 ? "true" : undefined}><div className="health-tile-value">{n(d.totals.failed)}</div><div className="health-tile-label">failed runs in 24 h</div></div>
           </div>
 
+          <NixPanel />
           <LocalAi />
           <Learning />
 

@@ -50,6 +50,20 @@ export const desktop = {
   onUpdateReady: (cb: (version: string) => void) =>
     tauri()!.event.listen("local-cuts://update-ready", (e) => cb(String(e.payload ?? ""))),
   installUpdate: () => tauri()!.core.invoke("install_update"),
+  // This app's version (null on installs too old to say).
+  appVersion: async (): Promise<string | null> => {
+    try { return (await tauri()!.core.invoke("app_version")) as string; } catch { return null; }
+  },
+  // Look for an update now: the version downloaded and waiting, or null if
+  // this is the newest. Throws with a plain message if it can't (old install).
+  checkUpdate: async (): Promise<string | null> => {
+    try { return ((await tauri()!.core.invoke("check_update")) as string | null) ?? null; }
+    catch (e) {
+      const m = String(e);
+      if (/not found|not allowed|unknown|command/i.test(m)) throw new Error(OLD_APP);
+      throw new Error(m);
+    }
+  },
   // NIX on this PC (owner): the local Ollama's models, and one answer from it.
   // Older installs don't have these commands: appTooOld.
   aiStatus: async (): Promise<AiStatus> => {
@@ -59,6 +73,8 @@ export const desktop = {
   aiGenerate: async (model: string, prompt: string, json: boolean): Promise<string> =>
     (await tauri()!.core.invoke("ai_generate", { model, prompt, json })) as string,
 };
+
+const OLD_APP = "This copy of the app can't update itself. Download the newest version from static-cuts.com/desktop and install it over the top (no need to uninstall).";
 
 export type AiStatus = { ollama: boolean; models: string[]; pc: string; appTooOld?: boolean };
 

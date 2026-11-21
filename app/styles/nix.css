@@ -11,3 +11,12 @@
   .nix-page .nix-row { grid-template-columns: minmax(0, 1fr); }
   .nix-page .nix-actions { justify-content: flex-start; }
 }
+
+/* Run NIX on this PC */
+.nix-page .nix-switch { display: flex; gap: 10px; align-items: flex-start; font-size: 0.9rem; line-height: 1.5; cursor: pointer; }
+.nix-page .nix-switch input { margin-top: 4px; width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+.nix-page .nix-status { margin: 10px 0 0; }
+.nix-page .nix-status code { font-family: var(--font-mono), monospace; background: color-mix(in srgb, var(--bone) 10%, transparent); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.nix-page .nix-model { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 0.85rem; }
+.nix-page .nix-model select { background: var(--void); color: var(--bone); border: 1.5px solid var(--hair-strong); border-radius: 4px; padding: 6px 8px; font: inherit; max-width: 100%; }
+.nix-page .nix-err { color: var(--red); margin: 8px 0 0; }
