@@ -14,6 +14,7 @@ import { useIsAdmin, useIsOwner } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import { CALENDAR, JOB_GROUPS, KNOWN_JOBS } from "./jobs";
 import LocalAi from "./LocalAi";
+import Learning from "./Learning";
 
 type Task = {
   name: string; kind: "api" | "db"; every_min: number; max_every_min: number; at_time: string | null; only_if: boolean;
@@ -148,6 +149,7 @@ export default function NixPage() {
           </div>
 
           <LocalAi />
+          <Learning />
 
           <div className="cr-grid">
             <section className="cr-box">
