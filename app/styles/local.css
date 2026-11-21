@@ -144,6 +144,8 @@
 .lc-desk .lc-share input { width: 16px; height: 16px; margin-top: 1px; }
 .lc-desk-ver { margin: 12px 0 0; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
 .lc-desk-ver .inline-link-btn { font: inherit; }
+.lc-desk-msg { margin: 10px 0 0; font-family: var(--font-mono), monospace; font-size: 0.76rem; color: var(--bone); }
+.lc-desk-msg .inline-link-btn { font: inherit; }
 .lc-desk-err { margin: 10px 0 0; color: #F87171; font-family: var(--font-mono), monospace; font-size: 0.75rem; }
 .lc-desk-log { margin: 10px 0 0; padding-left: 18px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
 .lc-desk-nix { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--hair); font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
