@@ -17,7 +17,7 @@ import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, Mo
 type Kind = "notes" | "eras" | "audit" | "titles";
 type Item = {
   id: number; track_id: string; title: string; artist_id: string; artist: string | null; status: string | null;
-  field: string; current: string | null; suggested: string; note: string | null; model: string | null;
+  field: string; current: string | null; suggested: string; note: string | null; model: string | null; sure: string | null;
 };
 type Data = { counts: Record<string, number>; left: Record<string, number>; items: Item[] };
 
@@ -69,18 +69,24 @@ export default function NixSuggestionsPage() {
     <ModPage
       title="NIX suggestions"
       intro={<>
-        What NIX proposes after reading the archive on the owner&apos;s PC. Nothing changes until you accept;
+        What NIX proposes after reading the archive on the owner&apos;s PC, surest first. Your accepts and dismissals
+        teach it: recent ones go into its next prompts. Nothing changes until you accept;
         accepted ones go in as one batch you can undo from the <UndoHistoryLink />. NIX keeps working through the
         archive while the PC is on, so these lists keep growing. <Link href="/nix" className="text-link">NIX</Link>
       </>}
     >
       <ModToolbar
         sticky
-        right={items.length > 0 && (
+        right={items.length > 0 && (<>
+          {items.some((i) => i.sure === "high") && (
+            <button className="mod-link" onClick={() => setTicked(new Set(items.filter((i) => i.sure === "high").map((i) => i.id)))}>
+              tick the sure ones
+            </button>
+          )}
           <button className="mod-link" onClick={() => setTicked(ticked.size === items.length ? new Set() : new Set(items.map((i) => i.id)))}>
             {ticked.size === items.length ? "untick all" : "tick all"}
           </button>
-        )}
+        </>)}
       >
         <ModTabs<Kind>
           value={kind}
@@ -113,6 +119,7 @@ export default function NixSuggestionsPage() {
           title={<>
             <Link href={`/song/${i.track_id}`}>{i.title}</Link>
             {i.status && <ModTag>{i.status}</ModTag>}
+            {i.sure && <ModTag kind={i.sure === "high" ? "good" : i.sure === "low" ? "warn" : undefined}>{i.sure === "high" ? "NIX is sure" : i.sure === "low" ? "NIX unsure" : "fairly sure"}</ModTag>}
           </>}
           meta={<>
             {i.artist && <Link href={`/artist/${i.artist_id}`}>{i.artist}</Link>}

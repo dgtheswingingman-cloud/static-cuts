@@ -20,3 +20,12 @@
 .nix-page .nix-model { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 0.85rem; }
 .nix-page .nix-model select { background: var(--void); color: var(--bone); border: 1.5px solid var(--hair-strong); border-radius: 4px; padding: 6px 8px; font: inherit; max-width: 100%; }
 .nix-page .nix-err { color: var(--red); margin: 8px 0 0; }
+
+/* Job progress table (NIX on your PC box) */
+.nix-page .nix-jobs { margin: 6px 0 12px; font-family: var(--font-mono), monospace; font-size: 0.74rem; }
+.nix-page .nix-jobs-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1.3fr 0.8fr 0.7fr 0.8fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+.nix-page .nix-jobs-head { color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.66rem; }
+@media (max-width: 760px) {
+  .nix-page .nix-jobs-row { grid-template-columns: 1fr 1fr; }
+  .nix-page .nix-jobs-head { display: none; }
+}

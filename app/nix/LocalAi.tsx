@@ -8,6 +8,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+type Job = { kind: string; label: string; done: number; done_24h: number; done_1h: number; left: number; suggested: number; agreed: number; decided: number };
+const JOB_LINK: Record<string, string> = {
+  duplicates: "/review/duplicates", cleanup: "/review/cleanup", mixups: "/review/cleanup", deezer: "/review/deezer",
+  titles: "/review/nix", audit: "/review/nix", notes: "/review/nix", eras: "/review/nix",
+};
 type Spend = { cap_usd: number; month_usd: number; today_usd: number; calls_month: number; by_job: { job: string; calls: number; usd: number }[] };
 type Ai = {
   online: boolean; auto_apply: boolean; queued: number; running: number; done_24h: number; failed_24h: number; avg_s: number | null;
@@ -25,13 +30,13 @@ function ago(iso: string) {
 export default function LocalAi() {
   const [ai, setAi] = useState<Ai | null>(null);
   const [spend, setSpend] = useState<Spend | null>(null);
-  const [notes, setNotes] = useState<Record<string, number>>({});
+  const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
     const load = () => {
       supabase.rpc("admin_nix_ai").then(({ data }) => setAi((data as Ai) ?? null));
       supabase.rpc("admin_ai_spend").then(({ data }) => setSpend((data as Spend) ?? null));
-      supabase.rpc("admin_nix_review_progress").then(({ data }) => setNotes((data as Record<string, number>) ?? {}));
+      supabase.rpc("admin_nix_jobs_progress").then(({ data }) => setJobs((data as Job[]) ?? []));
     };
     load();
     const t = setInterval(load, 60000);
@@ -51,14 +56,31 @@ export default function LocalAi() {
         {ai.avg_s != null ? `; about ${ai.avg_s} s a job` : ""}.
         {" "}{ai.auto_apply ? "Its sub-version answers are applied straight away (undoable)." : "Its sub-version answers wait on the review page with its note, so you can see how good it is first."}
       </div>
-      <div className="comment-meta" style={{ marginBottom: 8 }}>
-        <b>Review notes from your PC so far:</b>{" "}
-        <Link href="/review/duplicates" className="text-link">Duplicates</Link> {(notes.duplicates ?? 0).toLocaleString("en-GB")} ·{" "}
-        <Link href="/review/cleanup" className="text-link">Clean-up</Link> {(notes.cleanup ?? 0).toLocaleString("en-GB")} ·{" "}
-        <Link href="/review/cleanup" className="text-link">Bio mix-ups</Link> {(notes.mixups ?? 0).toLocaleString("en-GB")} ·{" "}
-        <Link href="/review/deezer" className="text-link">Deezer check</Link> {(notes.deezer ?? 0).toLocaleString("en-GB")}.
-        {" "}They show on each item as &ldquo;NIX: …&rdquo;. Suggestions only: nothing is applied from them.
-      </div>
+      {jobs.length > 0 && (
+        <div className="nix-jobs">
+          <div className="nix-jobs-row nix-jobs-head">
+            <span>Job</span><span>Done</span><span>Left</span><span>Last hour</span><span>Finish</span><span>Agreed with you</span>
+          </div>
+          {jobs.map((j) => {
+            const rate = j.done_1h || Math.round(j.done_24h / 24);
+            const hours = rate > 0 ? j.left / rate : null;
+            return (
+              <div key={j.kind} className="nix-jobs-row">
+                <Link href={JOB_LINK[j.kind] ?? "/nix"} className="text-link">{j.label}</Link>
+                <span>{j.done.toLocaleString("en-GB")}{j.suggested ? ` (${j.suggested.toLocaleString("en-GB")} to review)` : ""}</span>
+                <span>{j.left.toLocaleString("en-GB")}</span>
+                <span>{j.done_1h.toLocaleString("en-GB")}</span>
+                <span>{j.left === 0 ? "done" : hours == null ? "—" : hours < 1 ? "within the hour" : hours < 48 ? `~${Math.round(hours)} h` : `~${Math.round(hours / 24)} days`}</span>
+                <span>{j.decided ? `${Math.round((j.agreed / j.decided) * 100)}% of ${j.decided}` : "—"}</span>
+              </div>
+            );
+          })}
+          <p className="comment-meta" style={{ marginTop: 6 }}>
+            Notes show on each review page as &ldquo;NIX: …&rdquo;; suggestions wait on <Link href="/review/nix" className="text-link">NIX suggestions</Link>.
+            Speeds and finish times are rough, from the last hour. Artists people follow go first.
+          </p>
+        </div>
+      )}
       {spend && (
         <div className="comment-meta" style={{ marginBottom: 8 }}>
           <b>Claude this month:</b> ${Number(spend.month_usd).toFixed(2)} of ${Number(spend.cap_usd).toFixed(2)} (about £5 with VAT),
