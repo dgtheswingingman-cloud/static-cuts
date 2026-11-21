@@ -19,6 +19,8 @@
     "allow-update-status",
     "allow-install-update",
     "allow-ai-status",
-    "allow-ai-generate"
+    "allow-ai-generate",
+    "allow-app-version",
+    "allow-check-update"
   ]
 }

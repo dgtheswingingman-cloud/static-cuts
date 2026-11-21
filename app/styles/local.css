@@ -141,8 +141,7 @@
 .lc-desk-or { margin: 4px 0 -4px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
 .lc-desk-update { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.4); font-size: 0.9rem; }
 
-/* NIX on this PC (owner, desktop app) */
-.lc-nix { display: grid; gap: 10px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--hair-strong); }
-.lc-nix code { font-family: var(--font-mono), monospace; font-size: 0.82rem; background: color-mix(in srgb, var(--bone) 10%, transparent); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
-.lc-nix-model { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
-.lc-nix-model select { background: var(--void); color: var(--bone); border: 1.5px solid var(--hair-strong); border-radius: 4px; padding: 6px 8px; font: inherit; max-width: 100%; }
+/* Buttons inside the desktop panel (a column): their normal width, not stretched tall. */
+.lc-desk > .lc-second { flex: none; align-self: flex-start; padding: 10px 16px; }
+.lc-desk-ver { margin: 0; font-size: 0.8rem; color: var(--smoke); }
+.lc-desk-nix { margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--hair-strong); font-size: 0.85rem; color: var(--smoke); }

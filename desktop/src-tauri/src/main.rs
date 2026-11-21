@@ -346,22 +346,59 @@ fn tidied(app: AppHandle, count: u32, failed: u32) {
 // Looks for a newer version (signed with the Static-Cuts key; anything else is
 // refused by the updater), downloads it, and says so. Shortly after start, then
 // every 6 hours. Only runs when the build has an update key (see desktop.yml).
+const NO_UPDATER: &str = "This copy of the app can't update itself. Download the newest version from static-cuts.com/desktop and install it over the top (no need to uninstall).";
+
+// Looks now: Ok(Some(version)) when a newer one is downloaded and waiting,
+// Ok(None) when this is the newest.
+async fn fetch_update(app: &AppHandle) -> Result<Option<String>, String> {
+    if let Some((u, _)) = app.state::<AppState>().update.lock().unwrap().as_ref() {
+        return Ok(Some(u.version.clone()));
+    }
+    let updater = app.updater().map_err(|_| NO_UPDATER.to_string())?;
+    let Some(update) = updater.check().await.map_err(|e| format!("Couldn't check for updates: {}", e))? else {
+        return Ok(None);
+    };
+    let bytes = update
+        .download(|_, _| {}, || {})
+        .await
+        .map_err(|e| format!("Couldn't download the update: {}", e))?;
+    let version = update.version.clone();
+    *app.state::<AppState>().update.lock().unwrap() = Some((update, bytes));
+    let _ = app.emit("local-cuts://update-ready", version.clone());
+    Ok(Some(version))
+}
+
 async fn check_for_update(app: &AppHandle) {
     if app.state::<AppState>().update.lock().unwrap().is_some() {
         return;
     }
-    let Ok(updater) = app.updater() else { return };
-    let Ok(Some(update)) = updater.check().await else { return };
-    let Ok(bytes) = update.download(|_, _| {}, || {}).await else { return };
-    let version = update.version.clone();
-    *app.state::<AppState>().update.lock().unwrap() = Some((update, bytes));
-    let _ = app.emit("local-cuts://update-ready", version.clone());
-    let _ = app
-        .notification()
-        .builder()
-        .title("Static-Cuts update ready")
-        .body(format!("Version {} is downloaded. Restart from the tray icon when it suits you.", version))
-        .show();
+    if let Ok(Some(version)) = fetch_update(app).await {
+        let _ = app
+            .notification()
+            .builder()
+            .title("Static-Cuts update ready")
+            .body(format!("Version {} is downloaded. Restart from the tray icon when it suits you.", version))
+            .show();
+    }
+}
+
+fn notify(app: &AppHandle, body: String) {
+    let _ = app.notification().builder().title("Static-Cuts").body(body).show();
+}
+
+// Tray "Check for updates": look now; if there's a newer version, install it
+// and restart straight away (that's what was asked for).
+async fn update_now(app: AppHandle) {
+    let current = app.package_info().version.to_string();
+    match fetch_update(&app).await {
+        Ok(Some(_)) => {
+            if let Err(e) = install_and_restart(&app) {
+                notify(&app, format!("Couldn't install the update: {}", e));
+            }
+        }
+        Ok(None) => notify(&app, format!("You're on the newest version ({}).", current)),
+        Err(e) => notify(&app, e),
+    }
 }
 
 fn install_and_restart(app: &AppHandle) -> Result<(), String> {
@@ -381,6 +418,17 @@ fn update_status(state: State<'_, AppState>) -> Option<String> {
 #[tauri::command]
 fn install_update(app: AppHandle) -> Result<(), String> {
     install_and_restart(&app)
+}
+
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+// The page's "Check for updates" button: the waiting version, or None.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
+    fetch_update(&app).await
 }
 
 // ------------------------------------------------------------ NIX on this PC
@@ -481,7 +529,9 @@ fn main() {
             update_status,
             install_update,
             ai_status,
-            ai_generate
+            ai_generate,
+            app_version,
+            check_update
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -496,7 +546,7 @@ fn main() {
 
             let open = MenuItem::with_id(app, "open", "Open Local Cuts", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit (stop watching)", true, None::<&str>)?;
-            let restart = MenuItem::with_id(app, "update", "Restart to update", true, None::<&str>)?;
+            let restart = MenuItem::with_id(app, "update", "Check for updates", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &restart, &quit])?;
             let mut tray = TrayIconBuilder::new()
                 .tooltip("Static-Cuts: watching for new music")
@@ -505,10 +555,8 @@ fn main() {
                     "open" => show_main(app),
                     "quit" => app.exit(0),
                     "update" => {
-                        if install_and_restart(app).is_err() {
-                            let _ = app.notification().builder().title("Static-Cuts")
-                                .body("You're on the newest version.").show();
-                        }
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(update_now(app));
                     }
                     _ => {}
                 });

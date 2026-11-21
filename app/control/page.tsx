@@ -69,6 +69,9 @@ function ControlInner() {
       {tab === "todo" && <ReviewHub />}
       {tab === "health" && (
         <>
+          <div className="mod-grid cr-owner-cards">
+            <Card href="/nix" title="NIX" blurb="Every automatic job, what it did and fixed, what it's learning, and running its AI free on your own PC." />
+          </div>
           <section className="cr-box cr-live"><LivePanel /></section>
           <HealthPanel part="health" />
         </>
