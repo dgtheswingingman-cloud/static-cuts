@@ -396,7 +396,7 @@ function headerCheck(rows: string[][], m: Mapping) {
 const AI_PAUSE = "claude_pause_until";
 const AI_MODEL = "claude-haiku-5-5";
 
-// Claude's monthly budget (about £5 site wide, sc_ai_can_spend): may this
+// Claude's monthly budget (about £10 site wide, sc_ai_can_spend): may this
 // spend now, and record what each call really cost (from Claude's reply).
 async function canSpend(who: "person" | "background") {
   const { data } = await db.rpc("sc_ai_can_spend", { p_who: who });
@@ -481,7 +481,10 @@ Era banners: many trackers put a row before each era (album/period) with the era
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
+    // Working out a tab's layout takes some reasoning, so a little thinking
+    // (low effort) with room left for the answer; Haiku 5.5's default would
+    // think for much longer.
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: 10000, output_config: { effort: "low" }, messages: [{ role: "user", content: prompt }] }),
   });
   if (res.status === 429 || res.status === 529) {
     const wait = Number(res.headers.get("retry-after")) || 60;
