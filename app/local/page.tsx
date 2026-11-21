@@ -753,8 +753,25 @@ export default function LocalCutsPage() {
   async function chooseFolder(which: "watch" | "library") {
     try { setFolders(await desktop.choose(which)); setDeskErr(null); } catch (e) { setDeskErr(String(e)); }
   }
-  async function tidyExisting() {
-    try { const rels = await desktop.list(); queue.current.push(...rels); setQueued(queue.current.length); } catch (e) { setDeskErr(String(e)); }
+  // "Tidy what's already in the folder": everything in the watched folder
+  // (and its sub-folders). Songs tidied before are skipped unless `again`.
+  const again = useRef(false);
+  const [deskMsg, setDeskMsg] = useState<string | null>(null);
+  const [offerAgain, setOfferAgain] = useState(false);
+  async function tidyExisting(redo = false) {
+    setDeskErr(null); setOfferAgain(false);
+    setDeskMsg("Looking through the folder…");
+    try {
+      const rels = await desktop.list();
+      if (rels.length === 0) {
+        setDeskMsg(`No music files in ${folders?.watch ?? "the folder"} or its sub-folders (MP3, FLAC, M4A, WAV, OGG…).`);
+        return;
+      }
+      again.current = redo;
+      setDeskMsg(`Found ${rels.length.toLocaleString("en-GB")} song${rels.length === 1 ? "" : "s"}${redo ? "" : ". Skipping any tidied before"}…`);
+      queue.current.push(...rels);
+      setQueued(queue.current.length);
+    } catch (e) { setDeskErr(String(e)); setDeskMsg(null); }
   }
   async function autoTidy() {
     working.current = true;
@@ -773,20 +790,32 @@ export default function LocalCutsPage() {
   async function tidyBatch() {
     const rels = [...new Set(queue.current.splice(0, 200))];
     setQueued(queue.current.length);
-    const already = doneSet();
+    const already = again.current ? new Set<string>() : doneSet();
     const files: File[] = [];
     const keys: string[] = [];
+    let skipped = 0;
     for (const rel of rels) {
       try {
         const f = await desktop.file(rel);
         const k = `${rel}|${f.size}`;
-        if (already.has(k)) continue;
+        if (already.has(k)) { skipped++; continue; }
         dropPaths.set(f, `watched/${rel}`);
         files.push(f);
         keys.push(k);
       } catch { /* moved, deleted or still locked: picked up again if it changes */ }
     }
-    const p = files.length ? await run(files) : null;
+    if (queue.current.length === 0) again.current = false;
+    if (files.length === 0) {
+      if (skipped > 0) {
+        setDeskMsg(`All ${skipped.toLocaleString("en-GB")} song${skipped === 1 ? " was" : "s were"} already tidied before. They're in the "Static-Cuts" folder inside your library folder.`);
+        setOfferAgain(true);
+      } else {
+        setDeskMsg("Those files couldn't be read (moved, deleted or still in use).");
+      }
+      return;
+    }
+    const p = await run(files);
+    if (!p) { setDeskMsg(null); return; }
     if (p) {
       const out = new LibraryWriter();
       const cache = new Map<string, NewTags["cover"]>();
@@ -804,6 +833,7 @@ export default function LocalCutsPage() {
       const line = `${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}: tidied ${p.length - failed} song${p.length - failed === 1 ? "" : "s"}${failed ? ` (${failed} couldn't be written)` : ""}`;
       setDeskLog((l) => [line, ...l].slice(0, 30));
       setSaved(`${line}. They're in the "Static-Cuts" folder inside your library folder.`);
+      setDeskMsg(`${line}${skipped ? `; ${skipped.toLocaleString("en-GB")} were already tidied before` : ""}.`);
       setStage("saved");
     }
   }
@@ -928,7 +958,7 @@ export default function LocalCutsPage() {
               : <>Watching for new songs. Closing this window keeps it running in the tray.</>}
           </p>
           {premium && folders?.watch && folders?.library && (
-            <button className="lc-second" disabled={busy} onClick={tidyExisting}>Tidy what&apos;s already in the folder</button>
+            <button className="lc-second" disabled={busy} onClick={() => tidyExisting(false)}>Tidy what&apos;s already in the folder</button>
           )}
           <label className="lc-share">
             <input type="checkbox" checked={autostart}
@@ -940,6 +970,12 @@ export default function LocalCutsPage() {
             <button className="inline-link-btn" disabled={checking} onClick={checkForUpdate}>{checking ? "Checking…" : "Check for updates"}</button>
             {updMsg && <> · {updMsg}{/static-cuts\.com\/desktop/.test(updMsg) && <> <Link className="text-link" href="/desktop">Get it</Link></>}</>}
           </p>
+          {deskMsg && (
+            <p className="lc-desk-msg">
+              {deskMsg}
+              {offerAgain && !busy && <> <button className="inline-link-btn" onClick={() => tidyExisting(true)}>Tidy them again</button></>}
+            </p>
+          )}
           {deskErr && <p className="lc-desk-err">{deskErr}</p>}
           {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
           {isRealAdmin && (
