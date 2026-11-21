@@ -2,8 +2,8 @@
 //
 // Claude (Haiku) checks NIX's work: every suggestion NIX makes on
 // /review/nix, then every review note (clean-up, bio mix-ups, Deezer,
-// duplicates), about 40 at a time for up to 45 seconds a run (NIX timer
-// "nix-check", every 2 minutes while anything is waiting).
+// duplicates), one kind at a time (15-40 items a call) for up to 45 seconds
+// a run (NIX timer "nix-check", every 2 minutes while anything is waiting).
 //
 // Claude says agree / disagree / unsure, and the right answer when it
 // disagrees (sc_nix_check_save). Nothing on the site changes because of it:
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return json({ ok: true, skipped: "Claude isn't set up" });
   const started = Date.now();
-  const done = { checked: 0, agree: 0, disagree: 0, unsure: 0, calls: 0 };
+  const done = { checked: 0, agree: 0, disagree: 0, unsure: 0, calls: 0, kinds: [] as string[] };
   let stopped: string | null = null;
 
   while (Date.now() - started < 45_000) {
@@ -72,15 +72,22 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message, ...done }, 403);
     if (!batch) break; // nothing waiting
     const keys = (batch as any).keys as string[];
+    if (!done.kinds.includes((batch as any).kind)) done.kinds.push((batch as any).kind);
     const { data: ticket } = await db.rpc("sc_api_allow", { p_service: "claude", p_want: 1 });
     if (ticket !== 1) { stopped = "no Claude ticket this minute"; break; } // claims expire in 5 minutes
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      // Thinking off: a quick yes/no per item, and Haiku 5.5 otherwise spends the
-      // whole allowance thinking before it answers.
-      body: JSON.stringify({ model: AI_MODEL, max_tokens: 2500, thinking: { type: "disabled" }, messages: [{ role: "user", content: (batch as any).prompt }] }),
+      // Titles, version audit, duplicates and clean-up: thinking off, a quick
+      // call per item. Eras, reading notes, bios and Deezer: a little thinking
+      // (low effort), because answering straight off got those wrong too often.
+      body: JSON.stringify({
+        model: AI_MODEL, messages: [{ role: "user", content: (batch as any).prompt }],
+        ...((batch as any).think
+          ? { max_tokens: 8000, output_config: { effort: "low" } }
+          : { max_tokens: 2500, thinking: { type: "disabled" } }),
+      }),
     }).catch(() => null);
     if (!res) { stopped = "couldn't reach Claude"; break; }
     if (res.status === 429 || res.status === 529) {

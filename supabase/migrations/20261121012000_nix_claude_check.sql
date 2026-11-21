@@ -337,3 +337,111 @@ returns text language sql stable security definer set search_path to 'public' as
   where s.id = p_id;
 $$;
 revoke all on function public.sc_nix_check_line(bigint), public.sc_nix_check_rules(text) from public, anon, authenticated;
+
+-- One kind per batch, so the edge function can let Claude think a little on
+-- the harder kinds (eras, reading notes) and answer straight off on the rest.
+-- A "disagree" whose right answer is what NIX already said counts as agree.
+create or replace function public.sc_nix_check_batch(p_secret text, p_limit int default 40)
+returns jsonb language plpgsql security definer set search_path to 'public' as $$
+declare items jsonb := '[]'; v_kind text; v_n int; rules text; lines text; think boolean;
+begin
+  if p_secret is null or p_secret <> (select value from sc_private_settings where key = 'cron_secret') then raise exception 'not authorized'; end if;
+
+  select kind into v_kind from nix_suggestions
+  where state = 'open' and checked_at is null and (check_claim_at is null or check_claim_at < now() - interval '5 minutes')
+  order by created_at, id limit 1;
+
+  if v_kind is not null then
+    v_n := case when v_kind in ('eras', 'notes') then least(p_limit, 20) else least(p_limit, 40) end;
+    with picked as (
+      select id from nix_suggestions
+      where kind = v_kind and state = 'open' and checked_at is null and (check_claim_at is null or check_claim_at < now() - interval '5 minutes')
+      order by created_at, id limit v_n for update skip locked)
+    update nix_suggestions s set check_claim_at = clock_timestamp() from picked where s.id = picked.id;
+    select coalesce(jsonb_agg(jsonb_build_object('key', 's:' || s.id, 'line', sc_nix_check_line(s.id)) order by s.created_at, s.id), '[]')
+    into items from nix_suggestions s
+    where s.kind = v_kind and s.state = 'open' and s.checked_at is null and s.check_claim_at >= now();
+  else
+    select kind into v_kind from nix_notes
+    where kind in ('cleanup', 'mixups', 'deezer', 'duplicates') and line is not null and checked_at is null
+      and (check_claim_at is null or check_claim_at < now() - interval '5 minutes')
+    order by array_position(array['cleanup', 'mixups', 'deezer', 'duplicates'], kind), created_at limit 1;
+    if v_kind is null then return null; end if;
+    v_n := case when v_kind in ('mixups', 'deezer') then least(p_limit, 15) else least(p_limit, 40) end;
+    with picked as (
+      select kind, item_key from nix_notes
+      where kind = v_kind and line is not null and checked_at is null
+        and (check_claim_at is null or check_claim_at < now() - interval '5 minutes')
+      order by created_at limit v_n for update skip locked)
+    update nix_notes n set check_claim_at = clock_timestamp() from picked where n.kind = picked.kind and n.item_key = picked.item_key;
+    select coalesce(jsonb_agg(jsonb_build_object('key', 'n:' || n.kind || ':' || n.item_key,
+             'line', n.line || ' | NIX says: ' || n.verdict || coalesce(' (' || n.note || ')', '')) order by n.created_at), '[]')
+    into items from nix_notes n
+    where n.kind = v_kind and n.checked_at is null and n.check_claim_at >= now();
+  end if;
+
+  items := (select coalesce(jsonb_agg(x), '[]') from jsonb_array_elements(items) x where x ->> 'line' is not null);
+  if jsonb_array_length(items) = 0 then return null; end if;
+  think := v_kind in ('eras', 'notes', 'mixups', 'deezer');
+  rules := sc_nix_check_rules(v_kind);
+  select string_agg(o.n || '. ' || (o.x ->> 'line'), E'\n' order by o.n) into lines
+  from jsonb_array_elements(items) with ordinality o(x, n);
+
+  return jsonb_build_object(
+    'kind', v_kind, 'think', think,
+    'keys', (select jsonb_agg(x -> 'key') from jsonb_array_elements(items) x),
+    'prompt', 'You are checking the work of NIX, a small AI model that helps the admins of a fan music archive (released songs, leaks, snippets, unreleased eras). Each numbered item shows what NIX looked at and what NIX said. Judge from the information given plus well-known facts about music releases; when you cannot tell, say unsure rather than guess. If NIX''s answer is right, say agree: never disagree and then give NIX''s own answer as the right one.'
+      || E'\n\n' || rules || E'\n\n' || lines
+      || E'\n\nReply with exactly one line per item and nothing else, in this form:\n1|agree\n2|disagree|<the right answer>|<why, under 15 words>\n3|unsure|<why, under 15 words>');
+end $$;
+
+create or replace function public.sc_nix_same_answer(a text, b text)
+returns boolean language sql immutable as $$
+  select nullif(lower(btrim(regexp_replace(coalesce(a, ''), '^\s*(title|producers|featuring|era|value)\s*[=:]\s*', '', 'i'), ' "''')), '')
+       = lower(btrim(coalesce(b, ''), ' "'''));
+$$;
+
+create or replace function public.sc_nix_check_save(p_secret text, p_keys jsonb, p_items jsonb, p_model text)
+returns int language plpgsql security definer set search_path to 'public' as $$
+declare r jsonb; k text; v text; n int := 0; kd text; ik text; ans text;
+begin
+  if p_secret is null or p_secret <> (select value from sc_private_settings where key = 'cron_secret') then raise exception 'not authorized'; end if;
+  for r in select value from jsonb_array_elements(coalesce(p_items, '[]')) loop
+    k := p_keys ->> ((r ->> 'n')::int - 1);
+    v := lower(r ->> 'v');
+    ans := left(nullif(r ->> 'answer', ''), 200);
+    continue when k is null or v not in ('agree', 'disagree', 'unsure');
+    if k like 's:%' then
+      if v = 'disagree' and (sc_nix_same_answer(ans, (select suggested from nix_suggestions where id = substring(k from 3)::bigint))
+                             or lower(coalesce(ans, '')) ~ '^\s*(no change|correct|nix is right)') then
+        v := 'agree'; ans := null;
+      end if;
+      update nix_suggestions set check_verdict = v, check_answer = ans, check_note = left(nullif(r ->> 'why', ''), 200),
+        checked_at = now(), check_claim_at = null
+      where id = substring(k from 3)::bigint;
+    else
+      kd := split_part(k, ':', 2);
+      ik := substring(k from length(kd) + 4);
+      if v = 'disagree' and sc_nix_same_answer(ans, (select verdict from nix_notes where kind = kd and item_key = ik)) then
+        v := 'agree'; ans := null;
+      end if;
+      update nix_notes set check_verdict = v, check_answer = ans, check_note = left(nullif(r ->> 'why', ''), 200),
+        checked_at = now(), check_claim_at = null
+      where kind = kd and item_key = ik;
+    end if;
+    n := n + 1;
+  end loop;
+  update nix_suggestions set check_claim_at = null
+  where checked_at is null and id in (select substring(x from 3)::bigint from jsonb_array_elements_text(p_keys) x where x like 's:%');
+  update nix_notes nn set check_claim_at = null
+  from (select split_part(x, ':', 2) kd, substring(x from length(split_part(x, ':', 2)) + 4) ik from jsonb_array_elements_text(p_keys) x where x like 'n:%') q
+  where nn.checked_at is null and nn.kind = q.kd and nn.item_key = q.ik;
+  return n;
+end $$;
+revoke all on function public.sc_nix_check_batch(text, int), public.sc_nix_check_save(text, jsonb, jsonb, text) from public, anon, authenticated;
+
+-- First runs had no thinking on eras: check those again.
+update public.nix_suggestions set check_verdict = null, check_answer = null, check_note = null, checked_at = null, check_claim_at = null
+where kind in ('eras', 'notes') and checked_at is not null;
+update public.nix_suggestions set check_verdict = 'agree', check_answer = null
+where check_verdict = 'disagree' and sc_nix_same_answer(check_answer, suggested);
