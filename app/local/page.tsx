@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
-import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
+import { useIsAdmin, useIsRealAdmin, usePersonalUser } from "../useIsAdmin";
 import { AdminModePage } from "../components/AdminModeNote";
 import { usePremium } from "../usePremium";
 import { readDuration, readTags } from "./tags";
@@ -172,6 +172,7 @@ export default function LocalCutsPage() {
   const { loading } = useAuth();
   const user = usePersonalUser();
   const isAdmin = useIsAdmin();
+  const isRealAdmin = useIsRealAdmin();
   const { premium } = usePremium();
   const [stage, setStage] = useState<Stage>("idle");
   const [done, setDone] = useState(0);
@@ -941,8 +942,8 @@ export default function LocalCutsPage() {
           </p>
           {deskErr && <p className="lc-desk-err">{deskErr}</p>}
           {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
-          {isAdmin && (
-            <p className="lc-desk-nix">NIX on this PC (free AI for NIX&apos;s jobs) is in the <Link className="text-link" href="/nix">Control room → NIX</Link>.</p>
+          {isRealAdmin && (
+            <p className="lc-desk-nix">NIX on this PC (free AI for NIX&apos;s jobs): switch on Admin mode, then <Link className="text-link" href="/nix">Control room → NIX</Link>. Once it&apos;s on it keeps running with Admin mode off.</p>
           )}
         </div>
       )}

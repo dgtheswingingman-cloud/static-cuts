@@ -128,20 +128,29 @@
   .lc-not { justify-self: start; }
 }
 
-/* Local Cuts inside the desktop app: the two folders and what's happened. */
-.lc-desk { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 14px; margin: 14px 0; display: flex; flex-direction: column; gap: 10px; }
-.lc-desk-row { display: grid; grid-template-columns: 230px 1fr auto; gap: 10px; align-items: center; min-width: 0; }
-.lc-desk-row span { font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); overflow-wrap: anywhere; }
-.lc-desk-status { margin: 0; font-size: 0.9rem; }
-.lc-desk-err { margin: 0; color: #F87171; font-size: 0.8rem; }
-.lc-desk-log { margin: 0; padding-left: 18px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
-@media (max-width: 640px) { .lc-desk-row { grid-template-columns: 1fr; } }
-.lc-desk-title { font-family: var(--font-anton), sans-serif; font-style: italic; text-transform: uppercase; font-size: 1.15rem; color: var(--bone); }
+/* Local Cuts inside the desktop app: the two folders and what's happened.
+   One card: title, two folder rows (label / path / button), status, then the
+   controls, each on its own line, all the same small type. */
+.lc-desk { border: 1.5px solid var(--hair-strong); border-radius: 10px; padding: 18px 20px; margin: 14px 0 26px; display: flex; flex-direction: column; gap: 0; background: color-mix(in srgb, var(--void) 70%, transparent); }
+.lc-desk-title { font-family: var(--font-anton), sans-serif; font-style: italic; text-transform: uppercase; font-size: 1.15rem; color: var(--bone); margin-bottom: 10px; }
 .lc-desk-title::after { content: "//"; color: var(--accent); margin-left: 2px; }
-.lc-desk-or { margin: 4px 0 -4px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
-.lc-desk-update { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.4); font-size: 0.9rem; }
-
-/* Buttons inside the desktop panel (a column): their normal width, not stretched tall. */
-.lc-desk > .lc-second { flex: none; align-self: flex-start; padding: 10px 16px; }
-.lc-desk-ver { margin: 0; font-size: 0.8rem; color: var(--smoke); }
-.lc-desk-nix { margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--hair-strong); font-size: 0.85rem; color: var(--smoke); }
+.lc-desk-row { display: grid; grid-template-columns: 210px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+.lc-desk-row b { font-family: var(--font-mono), monospace; font-size: 0.78rem; font-weight: 700; color: var(--bone); }
+.lc-desk-row span { font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); overflow-wrap: anywhere; }
+.lc-desk .lc-second { flex: none; align-self: flex-start; padding: 7px 14px; font-size: 0.74rem; border-radius: 6px; }
+.lc-desk-row .lc-second { align-self: center; }
+.lc-desk-status { margin: 14px 0 10px; font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--bone); }
+.lc-desk .lc-share { margin: 14px 0 0; font-family: var(--font-mono), monospace; font-size: 0.76rem; }
+.lc-desk .lc-share input { width: 16px; height: 16px; margin-top: 1px; }
+.lc-desk-ver { margin: 12px 0 0; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lc-desk-ver .inline-link-btn { font: inherit; }
+.lc-desk-err { margin: 10px 0 0; color: #F87171; font-family: var(--font-mono), monospace; font-size: 0.75rem; }
+.lc-desk-log { margin: 10px 0 0; padding-left: 18px; font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lc-desk-nix { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--hair); font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
+.lc-desk-update { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 8px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.4); font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+.lc-desk-or { margin: 0 0 10px; font-family: var(--font-mono), monospace; font-size: 0.75rem; color: var(--smoke); }
+@media (max-width: 640px) {
+  .lc-desk { padding: 14px; }
+  .lc-desk-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .lc-desk-row .lc-second { justify-self: start; }
+}
