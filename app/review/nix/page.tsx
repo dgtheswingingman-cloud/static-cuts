@@ -5,6 +5,8 @@ import "../../styles/nix-suggest.css";
 // the archive: facts from song notes, eras for unreleased songs, sub-versions
 // it thinks were linked wrongly, and cleaned-up titles. Nothing changes until
 // someone accepts; accepted ones go in as one undoable batch.
+// Claude checks every suggestion (nix-check) and the list is split by what it
+// thought: agrees, disagrees, unsure, not checked yet.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -18,8 +20,14 @@ type Kind = "notes" | "eras" | "audit" | "titles";
 type Item = {
   id: number; track_id: string; title: string; artist_id: string; artist: string | null; status: string | null;
   field: string; current: string | null; suggested: string; note: string | null; model: string | null; sure: string | null;
+  check: "agree" | "disagree" | "unsure" | null; check_answer: string | null; check_note: string | null;
 };
-type Data = { counts: Record<string, number>; left: Record<string, number>; items: Item[] };
+type Pile = "agree" | "disagree" | "unsure" | "unchecked";
+type Data = { counts: Record<string, number>; left: Record<string, number>; piles: Record<Pile, number>; items: Item[] };
+const PILES: { key: Pile; label: string }[] = [
+  { key: "agree", label: "Claude agrees" }, { key: "disagree", label: "Claude disagrees" },
+  { key: "unsure", label: "Claude unsure" }, { key: "unchecked", label: "Not checked yet" },
+];
 
 const FIELD: Record<string, string> = {
   leak_date: "Leak date", producers: "Producers", featured_artists: "Featuring", aliases: "Also known as",
@@ -36,18 +44,19 @@ export default function NixSuggestionsPage() {
   const { loading: authLoading } = useAuth();
   const canModerate = useIsModerator();
   const [kind, setKind] = useState<Kind>("titles");
+  const [pile, setPile] = useState<Pile>("agree");
   const [d, setD] = useState<Data | null>(null);
   const [ticked, setTicked] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  async function load(k: Kind = kind) {
-    const { data, error: err } = await supabase.rpc("admin_nix_suggestions", { p_kind: k, p_limit: 300 });
+  async function load(k: Kind = kind, p: Pile = pile) {
+    const { data, error: err } = await supabase.rpc("admin_nix_suggestions", { p_kind: k, p_limit: 300, p_pile: p });
     if (err) { setError(err.message); return; }
     setD(data as Data);
   }
-  useEffect(() => { if (canModerate) { setD(null); setTicked(new Set()); load(kind); } }, [canModerate, kind]);
+  useEffect(() => { if (canModerate) { setD(null); setTicked(new Set()); load(kind, pile); } }, [canModerate, kind, pile]);
 
   async function decide(ids: number[], accept: boolean) {
     if (!ids.length) return;
@@ -69,8 +78,9 @@ export default function NixSuggestionsPage() {
     <ModPage
       title="NIX suggestions"
       intro={<>
-        What NIX proposes after reading the archive on the owner&apos;s PC, surest first. Your accepts and dismissals
-        teach it: recent ones go into its next prompts. Nothing changes until you accept;
+        What NIX proposes after reading the archive on the owner&apos;s PC, surest first. Claude checks every one
+        and sorts them by whether it agrees. Your accepts and dismissals, and Claude&apos;s disagreements,
+        teach NIX: recent ones go into its next prompts. Nothing changes until you accept;
         accepted ones go in as one batch you can undo from the <UndoHistoryLink />. NIX keeps working through the
         archive while the PC is on, so these lists keep growing. <Link href="/nix" className="text-link">NIX</Link>
       </>}
@@ -99,6 +109,14 @@ export default function NixSuggestionsPage() {
           ]}
         />
       </ModToolbar>
+      <div className="nix-sug-piles" role="tablist">
+        {PILES.map((p) => (
+          <button key={p.key} role="tab" aria-selected={pile === p.key}
+            className={`nix-sug-pile nix-sug-pile-${p.key}${pile === p.key ? " is-on" : ""}`} onClick={() => setPile(p.key)}>
+            {p.label}{d?.piles ? <span>{(d.piles[p.key] ?? 0).toLocaleString("en-GB")}</span> : null}
+          </button>
+        ))}
+      </div>
       <p className="nix-sug-about">
         {ABOUT[kind]}
         {d && (d.left?.[kind] ?? 0) > 0 && <> NIX still has {(d.left[kind]).toLocaleString("en-GB")} to look at.</>}
@@ -111,7 +129,9 @@ export default function NixSuggestionsPage() {
       </ModBulkBar>
 
       {!d && <ModLoading />}
-      {d && items.length === 0 && <ModEmpty>Nothing waiting here yet. NIX adds to this list as it works.</ModEmpty>}
+      {d && items.length === 0 && <ModEmpty>{pile === "unchecked" || (d.piles?.unchecked ?? 0) === 0
+        ? "Nothing waiting here yet. NIX adds to this list as it works."
+        : "Nothing in this pile yet. Claude is still checking the rest."}</ModEmpty>}
       {items.map((i) => (
         <ModRow
           key={i.id}
@@ -130,6 +150,13 @@ export default function NixSuggestionsPage() {
                 : <>{i.current ? <s>{i.current}</s> : <em>empty</em>} → <strong>{i.suggested}</strong></>}
             </span>
             {i.note && <span className="nix-sug-note">NIX: {i.note}</span>}
+            {i.check && (
+              <span className={`nix-sug-check nix-sug-check-${i.check}`}>
+                Claude {i.check === "agree" ? "agrees" : i.check === "disagree" ? "disagrees" : "isn't sure"}
+                {i.check === "disagree" && i.check_answer ? <>: {i.check_answer}</> : null}
+                {i.check_note ? <> ({i.check_note})</> : null}
+              </span>
+            )}
           </>}
           actions={<>
             <ModButton kind="approve" busy={busy} onClick={() => decide([i.id], true)}>accept</ModButton>

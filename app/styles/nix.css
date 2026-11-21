@@ -23,7 +23,7 @@
 
 /* Job progress table (NIX on your PC box) */
 .nix-page .nix-jobs { margin: 6px 0 12px; font-family: var(--font-mono), monospace; font-size: 0.74rem; }
-.nix-page .nix-jobs-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1.3fr 0.8fr 0.7fr 0.8fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+.nix-page .nix-jobs-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1.3fr 0.8fr 0.7fr 0.8fr 1fr 0.9fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
 .nix-page .nix-jobs-head { color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.66rem; }
 @media (max-width: 760px) {
   .nix-page .nix-jobs-row { grid-template-columns: 1fr 1fr; }

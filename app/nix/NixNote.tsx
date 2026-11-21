@@ -1,12 +1,17 @@
 "use client";
 
 // NIX's note on a review item ("NIX: same song: same title and length"),
-// from the PC running NIX. Only a suggestion: nothing is applied from it.
+// from the PC running NIX, with Claude's check of it underneath ("Claude
+// disagrees: different (lengths 40 s apart)"). Only suggestions: nothing is
+// applied from either.
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export type NixNoteData = { verdict: string | null; note: string | null; model: string | null };
+export type NixNoteData = {
+  verdict: string | null; note: string | null; model: string | null;
+  check?: "agree" | "disagree" | "unsure" | null; check_answer?: string | null; check_note?: string | null;
+};
 
 // The notes for the items on screen, keyed by item (reloads when the keys change).
 export function useNixNotes(kind: string, keys: string[]) {
@@ -41,6 +46,15 @@ export function NixNote({ n, deezer }: { n?: NixNoteData; deezer?: boolean }) {
   return (
     <div className={`nix-note nix-note-${tone}`} title={n.model ? `NIX on PC (${n.model}). A suggestion only.` : "A suggestion only."}>
       <b>NIX:</b> {label}{n.note ? <span>: {n.note}</span> : null}
+      {n.check && (
+        <div className={`nix-note-check nix-note-check-${n.check}`}>
+          <b>Claude:</b> {n.check === "agree" ? "agrees" : n.check === "unsure" ? "isn't sure" : "disagrees"}
+          {n.check === "disagree" && n.check_answer
+            ? <>, says {((deezer && DEEZER[n.check_answer]) || SAYS[n.check_answer] || [n.check_answer])[0]}</>
+            : null}
+          {n.check_note ? <span>: {n.check_note}</span> : null}
+        </div>
+      )}
     </div>
   );
 }

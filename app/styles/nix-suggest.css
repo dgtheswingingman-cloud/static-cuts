@@ -5,3 +5,15 @@
 .nix-sug-change em { color: var(--smoke); font-style: normal; }
 .nix-sug-change strong { color: #22C55E; font-weight: 700; }
 .nix-sug-note { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); font-style: italic; overflow-wrap: anywhere; }
+
+/* Claude's check: piles + the line on each suggestion */
+.nix-sug-piles { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.nix-sug-pile { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1.5px solid var(--hair-strong); background: transparent; color: var(--smoke); font: inherit; font-size: 0.76rem; cursor: pointer; }
+.nix-sug-pile span { font-family: var(--font-mono), monospace; font-size: 0.7rem; color: var(--bone); }
+.nix-sug-pile:hover { color: var(--bone); }
+.nix-sug-pile.is-on { color: var(--bone); border-color: var(--bone); }
+.nix-sug-pile-agree.is-on { border-color: #22C55E; }
+.nix-sug-pile-disagree.is-on { border-color: #F59E0B; }
+.nix-sug-check { font-family: var(--font-mono), monospace; font-size: 0.72rem; overflow-wrap: anywhere; padding-left: 8px; border-left: 2px solid var(--smoke); color: var(--bone); }
+.nix-sug-check-agree { border-left-color: #22C55E; }
+.nix-sug-check-disagree { border-left-color: #F59E0B; }

@@ -98,3 +98,7 @@
 .nix-note span { color: var(--smoke); }
 .nix-note-good { border-left-color: #22C55E; }
 .nix-note-warn { border-left-color: #F59E0B; }
+.nix-note-check { margin-top: 3px; padding-top: 3px; border-top: 1px dashed var(--hair); }
+.nix-note-check b { color: var(--bone); }
+.nix-note-check-agree b { color: #22C55E; }
+.nix-note-check-disagree b { color: #F59E0B; }
