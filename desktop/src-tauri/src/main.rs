@@ -462,7 +462,8 @@ async fn ai_status() -> AiStatus {
     AiStatus { ollama: true, models, pc }
 }
 
-// One answer from the PC's model. Up to 10 minutes (a big prompt on a slow PC).
+// One answer from the PC's model. At most 3,000 words of answer and 5 minutes,
+// so a model that gets stuck (endless output) can't hold up the queue.
 #[tauri::command]
 async fn ai_generate(model: String, prompt: String, json: bool) -> Result<String, String> {
     if !ok_model(&model) {
@@ -472,14 +473,14 @@ async fn ai_generate(model: String, prompt: String, json: bool) -> Result<String
         return Err("prompt too long".into());
     }
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(600))
+        .timeout(Duration::from_secs(300))
         .build()
         .map_err(|e| e.to_string())?;
     let mut body = serde_json::json!({
         "model": model,
         "prompt": prompt,
         "stream": false,
-        "options": { "temperature": 0.2, "num_ctx": 8192 }
+        "options": { "temperature": 0.2, "num_ctx": 8192, "num_predict": 3000 }
     });
     if json {
         body["format"] = serde_json::json!("json");
@@ -489,7 +490,7 @@ async fn ai_generate(model: String, prompt: String, json: bool) -> Result<String
         .json(&body)
         .send()
         .await
-        .map_err(|_| "Ollama isn't running".to_string())?;
+        .map_err(|e| if e.is_timeout() { "Ollama took longer than 5 minutes".to_string() } else { "Ollama isn't running".to_string() })?;
     let status = res.status();
     let out: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
