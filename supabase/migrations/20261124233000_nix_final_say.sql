@@ -274,3 +274,20 @@ begin
   if position('lower(x.album) = lower(ans) group by' in d) = 0 then raise exception 'patch missed'; end if;
   execute d;
 end $$;
+
+-- Reteach, from the first final-say results on "from notes": the clearest
+-- repeated mistakes go straight into the instructions.
+do $$
+declare d text := pg_get_functiondef('public.sc_nix_suggest_batch'::regproc);
+begin
+  d := replace(d, '- other_names: other titles the song is known by ("aka", "also known as", "original title"), comma separated.',
+    '- other_names: other titles the song is known by ("aka", "also known as", "original title"), comma separated. An "OG Filename" or file name is NOT another name, and neither is the song''''s own title.');
+  d := replace(d, '- producers: who produced it (names only, never @handles or links), comma separated, only when the notes say so ("prod. by", "produced by").',
+    '- producers: who produced it (names only, never @handles or links), comma separated, only when the notes say so ("prod. by", "produced by"). Engineers, mixers and people "in the studio" are not producers.');
+  d := replace(d, '- featuring: featured artists, comma separated, only when the notes say so.',
+    '- featuring: featured artists, comma separated, only when the notes say they are ON the song. Being seen in the studio together is not a feature.');
+  d := replace(d, '- leak_date: the date the song leaked or surfaced, as YYYY-MM-DD, only when the notes give a full day, month and year. Otherwise null.',
+    '- leak_date: the date the song leaked or surfaced, as YYYY-MM-DD, only when the notes give a full day, month and year. A release, re-release or upload date is not a leak date. Otherwise null.');
+  if position('OG Filename" or file name is NOT another name' in d) = 0 or position('re-release or upload date' in d) = 0 then raise exception 'patch missed'; end if;
+  execute d;
+end $$;
