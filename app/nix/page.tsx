@@ -2,9 +2,11 @@
 import "../styles/control.css";
 import "../styles/nix.css";
 
-// NIX, the archivist: every automatic job in one place. What NIX did today,
-// what it fixed (undoable), what went wrong, what's stuck, and each job's
-// pace (jobs with nothing to do slow down on their own).
+// NIX, the archivist: the control room. Four tabs:
+//   Overview  is everything OK, how good NIX's AI work is, what it fixed
+//   AI work   the PC running NIX, what it works on, Claude's budget
+//   Jobs      every automatic job: what it did, its pace, pause/run
+//   Learning  what NIX is being taught, sub-version accuracy and rules
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -13,9 +15,14 @@ import { useAuth } from "../AuthProvider";
 import { useIsAdmin, useIsOwner } from "../useIsAdmin";
 import NoAccess from "../components/NoAccess";
 import { CALENDAR, JOB_GROUPS, KNOWN_JOBS } from "./jobs";
-import LocalAi from "./LocalAi";
 import NixPanel from "./NixPanel";
 import Learning from "./Learning";
+import { PcStatus, Scoreboard, Spend, Switches, Teaching, trust, useAiData } from "./AiWork";
+
+type Tab = "overview" | "ai" | "jobs" | "learning";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Overview" }, { key: "ai", label: "AI work" }, { key: "jobs", label: "Jobs" }, { key: "learning", label: "Learning" },
+];
 
 type Task = {
   name: string; kind: "api" | "db"; every_min: number; max_every_min: number; at_time: string | null; only_if: boolean;
@@ -96,6 +103,20 @@ export default function NixPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [tab, setTabState] = useState<Tab>("overview");
+  const { ai, spend, jobs } = useAiData();
+
+  // The tab lives in the address (#jobs), so a link or a refresh keeps it.
+  useEffect(() => {
+    const read = () => {
+      const h = window.location.hash.slice(1) as Tab;
+      if (TABS.some((t) => t.key === h)) setTabState(h);
+    };
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, []);
+  const setTab = (t: Tab) => { setTabState(t); history.replaceState(null, "", t === "overview" ? window.location.pathname : `#${t}`); };
 
   async function load() {
     const { data, error: err } = await supabase.rpc("admin_nix");
@@ -134,12 +155,16 @@ export default function NixPage() {
   ];
   const activity = d ? (showAll ? d.activity : d.activity.slice(0, 15)) : [];
 
+  const failingCount = needsLook.length;
+  const scored = jobs.map(trust).reduce((a, t) => ({ agree: a.agree + t.agree, total: a.total + t.total }), { agree: 0, total: 0 });
+  const pc = ai?.workers?.[0];
+
   return (
     <div className="wrap cr-page nix-page">
       <h1 className="ls-title cr-title">NIX<span>//</span></h1>
       <p className="sb-lead">
-        The archivist. NIX runs every automatic job on one clock, slows a job down when it has nothing to do and
-        speeds it back up when there&apos;s work. Refreshes every minute.
+        The archivist. NIX runs every automatic job on one clock, does the AI work on the owner&apos;s PC for free,
+        and Claude checks everything it does. Refreshes every minute.
         {d && <> Updated {ago(d.generated_at)}.</>}
       </p>
       {error && <div className="comments-panel" style={{ margin: "12px 0" }}>Couldn&apos;t load: {error}</div>}
@@ -148,81 +173,116 @@ export default function NixPage() {
       {d && (
         <>
           <div className="health-tiles nix-tiles">
-            <div className="health-tile"><div className="health-tile-value">{n(tasks.length)}</div><div className="health-tile-label">jobs</div></div>
-            <div className="health-tile"><div className="health-tile-value">{n(d.totals.runs)}</div><div className="health-tile-label">runs in 24 h</div></div>
-            <div className="health-tile"><div className="health-tile-value">{n(d.totals.worked)}</div><div className="health-tile-label">found something to do</div></div>
-            <div className="health-tile" data-alert={d.totals.failed > 0 ? "true" : undefined}><div className="health-tile-value">{n(d.totals.failed)}</div><div className="health-tile-label">failed runs in 24 h</div></div>
+            <div className="health-tile" data-alert={ai && !ai.online ? "true" : undefined}>
+              <div className="health-tile-value">{ai ? (ai.online ? "online" : "offline") : "…"}</div>
+              <div className="health-tile-label">{pc ? `${pc.worker}${pc.model ? ` · ${pc.model}` : ""}` : "PC running NIX"}</div>
+            </div>
+            <div className="health-tile">
+              <div className="health-tile-value">{scored.total ? `${Math.round((scored.agree / scored.total) * 100)}%` : "—"}</div>
+              <div className="health-tile-label">of NIX&apos;s AI answers right</div>
+            </div>
+            <div className="health-tile">
+              <div className="health-tile-value">{spend ? `$${Number(spend.month_usd).toFixed(2)}` : "…"}</div>
+              <div className="health-tile-label">Claude this month{spend ? ` of $${Number(spend.cap_usd).toFixed(2)}` : ""}</div>
+            </div>
+            <div className="health-tile" data-alert={failingCount > 0 ? "true" : undefined}>
+              <div className="health-tile-value">{n(failingCount)}</div>
+              <div className="health-tile-label">job{failingCount === 1 ? "" : "s"} need{failingCount === 1 ? "s" : ""} a look</div>
+            </div>
           </div>
 
-          <NixPanel />
-          <LocalAi />
-          <Learning />
+          <div className="nix-tabs" role="tablist">
+            {TABS.map((t) => (
+              <button key={t.key} role="tab" aria-selected={tab === t.key} className={`nix-tab${tab === t.key ? " is-on" : ""}`} onClick={() => setTab(t.key)}>
+                {t.label}
+                {t.key === "jobs" && failingCount > 0 && <span className="nix-tab-dot" aria-label="needs a look" />}
+              </button>
+            ))}
+          </div>
 
-          <div className="cr-grid">
-            <section className="cr-box">
-              <div className="section-label">Needs a look</div>
-              {needsLook.length === 0 ? (
-                <div className="comment-meta">Nothing. Every job is running and its latest run worked.</div>
-              ) : needsLook.map((t) => (
-                <div key={t.name} className="review-row nix-row">
-                  <div style={{ minWidth: 0 }}>
-                    <div className="review-row-title">{t.name}</div>
-                    <div className="review-row-meta">
-                      {t.behind && <span className="feature-tag disputed-tag">behind: was due {ago(t.next_at)}</span>}
-                      {failingNow(t) && <span className="feature-tag disputed-tag nix-wrap">failing: {t.last_result?.slice(0, 160)}</span>}
-                    </div>
+          {tab === "overview" && (
+            <>
+              <div className="cr-grid">
+          <section className="cr-box">
+            <div className="section-label">Needs a look</div>
+            {needsLook.length === 0 ? (
+              <div className="comment-meta">Nothing. Every job is running and its latest run worked.</div>
+            ) : needsLook.map((t) => (
+              <div key={t.name} className="review-row nix-row">
+                <div style={{ minWidth: 0 }}>
+                  <div className="review-row-title">{t.name}</div>
+                  <div className="review-row-meta">
+                    {t.behind && <span className="feature-tag disputed-tag">behind: was due {ago(t.next_at)}</span>}
+                    {failingNow(t) && <span className="feature-tag disputed-tag nix-wrap">failing: {t.last_result?.slice(0, 160)}</span>}
                   </div>
-                  {isOwner && (
-                    <button className="st-btn" disabled={busy === t.name} onClick={() => act(t.name, "run")}>Try now</button>
-                  )}
                 </div>
-              ))}
-              {paused.length > 0 && (
-                <p className="comment-meta" style={{ marginTop: 10 }}>
-                  Paused on purpose: {paused.map((t, i) => (
-                    <span key={t.name}>
-                      {i > 0 && ", "}{t.name}
-                      {isOwner && <> (<button className="inline-link-btn" disabled={busy === t.name} onClick={() => act(t.name, "resume")}>resume</button>)</>}
-                    </span>
-                  ))}.
-                </p>
-              )}
-              {failures.length > 0 && (
-                <>
-                  <div className="cr-sub">Failed runs (24 h)</div>
-                  {failures.slice(0, 8).map((f, i) => (
-                    <div key={i} className="review-row nix-row">
-                      <div style={{ minWidth: 0 }}>
-                        <div className="review-row-title">{f.name} <span className="comment-meta">· {ago(f.at)}</span></div>
-                        <div className="review-row-meta nix-wrap"><span>{f.error.slice(0, 200)}</span></div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </section>
-
-            <section className="cr-box">
-              <div className="section-label">What NIX fixed</div>
-              <div className="comment-meta" style={{ marginBottom: 6 }}>
-                Automatic changes in the last 7 days. Every one can be undone on <Link href="/admin/batches" className="text-link">Undo</Link>.
+                {isOwner && (
+                  <button className="st-btn" disabled={busy === t.name} onClick={() => act(t.name, "run")}>Try now</button>
+                )}
               </div>
-              {d.fixes.length === 0 && <div className="comment-meta">No automatic changes this week.</div>}
-              {d.fixes.map((f, i) => (
-                <div key={i} className="review-row nix-row">
-                  <div style={{ minWidth: 0 }}>
-                    <div className="review-row-title">{f.label}</div>
-                    <div className="review-row-meta">
-                      <span>{ago(f.at)}</span>
-                      <span>{n(f.changes)} change{f.changes === 1 ? "" : "s"}</span>
-                      {f.undone && <span className="feature-tag">undone</span>}
+            ))}
+            {paused.length > 0 && (
+              <p className="comment-meta" style={{ marginTop: 10 }}>
+                Paused on purpose: {paused.map((t, i) => (
+                  <span key={t.name}>
+                    {i > 0 && ", "}{t.name}
+                    {isOwner && <> (<button className="inline-link-btn" disabled={busy === t.name} onClick={() => act(t.name, "resume")}>resume</button>)</>}
+                  </span>
+                ))}.
+              </p>
+            )}
+            {failures.length > 0 && (
+              <>
+                <div className="cr-sub">Failed runs (24 h)</div>
+                {failures.slice(0, 8).map((f, i) => (
+                  <div key={i} className="review-row nix-row">
+                    <div style={{ minWidth: 0 }}>
+                      <div className="review-row-title">{f.name} <span className="comment-meta">· {ago(f.at)}</span></div>
+                      <div className="review-row-meta nix-wrap"><span>{f.error.slice(0, 200)}</span></div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </section>
-          </div>
+                ))}
+              </>
+            )}
+          </section>
 
+          <section className="cr-box">
+            <div className="section-label">What NIX fixed</div>
+            <div className="comment-meta" style={{ marginBottom: 6 }}>
+              Automatic changes in the last 7 days. Every one can be undone on <Link href="/admin/batches" className="text-link">Undo</Link>.
+            </div>
+            {d.fixes.length === 0 && <div className="comment-meta">No automatic changes this week.</div>}
+            {d.fixes.map((f, i) => (
+              <div key={i} className="review-row nix-row">
+                <div style={{ minWidth: 0 }}>
+                  <div className="review-row-title">{f.label}</div>
+                  <div className="review-row-meta">
+                    <span>{ago(f.at)}</span>
+                    <span>{n(f.changes)} change{f.changes === 1 ? "" : "s"}</span>
+                    {f.undone && <span className="feature-tag">undone</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+              </div>
+              <Scoreboard jobs={jobs} />
+            </>
+          )}
+
+          {tab === "ai" && (
+            <>
+              <NixPanel />
+              <PcStatus ai={ai} jobs={jobs} />
+              <div className="cr-grid">
+                <Switches jobs={jobs} />
+                <Spend spend={spend} />
+              </div>
+            </>
+          )}
+
+          {tab === "jobs" && (
+            <>
           <section className="cr-box">
             <div className="section-label">What NIX did</div>
             <div className="comment-meta" style={{ marginBottom: 6 }}>Latest runs that found something to do.</div>
@@ -309,6 +369,15 @@ export default function NixPage() {
               </div>
             ))}
           </section>
+            </>
+          )}
+
+          {tab === "learning" && (
+            <>
+              <Teaching jobs={jobs} />
+              <Learning />
+            </>
+          )}
         </>
       )}
     </div>

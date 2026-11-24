@@ -17,3 +17,4 @@
 .nix-sug-check { font-family: var(--font-mono), monospace; font-size: 0.72rem; overflow-wrap: anywhere; padding-left: 8px; border-left: 2px solid var(--smoke); color: var(--bone); }
 .nix-sug-check-agree { border-left-color: #22C55E; }
 .nix-sug-check-disagree { border-left-color: #F59E0B; }
+.nix-sug-pile-corrected.is-on { border-color: #38BDF8; }
