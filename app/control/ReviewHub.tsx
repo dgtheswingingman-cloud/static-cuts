@@ -621,6 +621,7 @@ export default function ReviewHub({ mode = "hub" }: { mode?: "hub" | "suggestion
           ...(isAdmin ? [{ href: "/review/titles", title: "Archive checks", blurb: "Cut-off and garbled titles, and dates in the wrong place: found across the whole archive." }] : []),
           ...(isAdmin ? [{ href: "/review/eras", title: "Tracker eras", blurb: "Era names from trackers sitting on released songs as their album: keep the real ones, clear the rest." }] : []),
           ...(isAdmin ? [{ href: "/review/takedowns", title: "Takedowns", n: counts?.takedowns ?? undefined, blurb: "Requests from rights holders to remove a song." }] : []),
+          { href: "/review/links", title: "Found links", blurb: "Possible listen links the search jobs found for songs, sorted by NIX and Claude into right link, wrong version or song, and unsure. Use or remove." },
           { href: "/review/nix", title: "NIX suggestions", n: nixOpen ?? undefined, blurb: "What NIX found reading the archive on the owner's PC: facts from song notes, eras, versions linked wrongly, messy titles. Accept or dismiss." },
           { href: "/review/duplicates", title: "Duplicates", n: counts?.duplicates, blurb: "The same song entered twice: pick one to keep and merge." },
           { href: "/review/cleanup", title: "Clean-up", n: counts?.cleanup, blurb: "Entries that aren't songs (interviews, full-album uploads, tracklists), empty placeholders" + (counts?.wrong_links ? `, and ${counts.wrong_links} Spotify link${counts.wrong_links === 1 ? "" : "s"} that may be the wrong song.` : ".") },
