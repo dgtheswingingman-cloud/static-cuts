@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 export type NixNoteData = {
   verdict: string | null; note: string | null; model: string | null;
   check?: "agree" | "disagree" | "unsure" | null; check_answer?: string | null; check_note?: string | null;
+  final_side?: "nix" | "checker" | "neither" | "unsure" | null; final_answer?: string | null; final_note?: string | null;
 };
 
 // The notes for the items on screen, keyed by item (reloads when the keys change).
@@ -53,6 +54,15 @@ export function NixNote({ n, deezer }: { n?: NixNoteData; deezer?: boolean }) {
             ? <>, says {((deezer && DEEZER[n.check_answer]) || SAYS[n.check_answer] || [n.check_answer])[0]}</>
             : null}
           {n.check_note ? <span>: {n.check_note}</span> : null}
+        </div>
+      )}
+      {n.final_side && n.final_side !== "unsure" && (
+        <div className={`nix-note-check nix-note-check-${n.final_side === "nix" ? "agree" : "disagree"}`}>
+          <b>Final say:</b> {n.final_side === "nix" ? "NIX was right" : (() => {
+            const a = n.final_answer ?? "";
+            return <>{((deezer && DEEZER[a]) || SAYS[a] || [a || "NIX was wrong"])[0]}</>;
+          })()}
+          {n.final_note ? <span>: {n.final_note}</span> : null}
         </div>
       )}
     </div>

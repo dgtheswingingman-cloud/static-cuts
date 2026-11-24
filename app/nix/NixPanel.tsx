@@ -33,7 +33,7 @@ export default function NixPanel() {
       <label className="nix-switch">
         <input type="checkbox" checked={s.on} disabled={!s.allowed || st?.appTooOld} onChange={(e) => nixTurnOn(e.target.checked)} />
         <span>
-          <b>Run NIX on {st?.pc ?? "this PC"}</b>: NIX&apos;s AI jobs (sub-version checks, album of the week blurbs) run here on
+          <b>Run NIX on {st?.pc ?? "this PC"}</b>: NIX&apos;s AI work (review notes, suggestions, sub-version checks, blurbs) runs here on
           your own model, for free, instead of Claude. It keeps going on any page and in the tray.
         </span>
       </label>

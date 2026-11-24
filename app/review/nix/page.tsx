@@ -20,12 +20,13 @@ type Kind = "notes" | "eras" | "audit" | "titles";
 type Item = {
   id: number; track_id: string; title: string; artist_id: string; artist: string | null; status: string | null;
   field: string; current: string | null; suggested: string; note: string | null; model: string | null; sure: string | null;
-  check: "agree" | "disagree" | "unsure" | null; check_answer: string | null; check_note: string | null;
+  check: "agree" | "corrected" | "disagree" | "unsure" | null; check_answer: string | null; check_note: string | null;
+  corrected: string | null; final_side: "nix" | "checker" | "neither" | "unsure" | null; final_note: string | null;
 };
-type Pile = "agree" | "disagree" | "unsure" | "unchecked";
+type Pile = "agree" | "corrected" | "disagree" | "unsure" | "unchecked";
 type Data = { counts: Record<string, number>; left: Record<string, number>; piles: Record<Pile, number>; items: Item[] };
 const PILES: { key: Pile; label: string }[] = [
-  { key: "agree", label: "Claude agrees" }, { key: "disagree", label: "Claude disagrees" },
+  { key: "agree", label: "Claude agrees" }, { key: "corrected", label: "Claude corrected" }, { key: "disagree", label: "Claude disagrees" },
   { key: "unsure", label: "Claude unsure" }, { key: "unchecked", label: "Not checked yet" },
 ];
 
@@ -147,19 +148,28 @@ export default function NixSuggestionsPage() {
               <b>{FIELD[i.field] ?? i.field}:</b>{" "}
               {i.field === "parent"
                 ? <>unlink from &ldquo;{i.current ?? "?"}&rdquo;</>
+                : i.corrected
+                ? <>{i.current ? <s>{i.current}</s> : <em>empty</em>} → <s>{i.suggested}</s> <strong>{i.corrected}</strong></>
                 : <>{i.current ? <s>{i.current}</s> : <em>empty</em>} → <strong>{i.suggested}</strong></>}
             </span>
             {i.note && <span className="nix-sug-note">NIX: {i.note}</span>}
-            {i.check && (
+            {i.final_side && i.final_side !== "unsure" ? (
+              // The final say on a disagreement replaces the first check.
+              <span className={`nix-sug-check nix-sug-check-${i.final_side === "nix" ? "agree" : "disagree"}`}>
+                Final say: {i.final_side === "nix" ? "NIX was right" : i.corrected ? `should be “${i.corrected}”` : "NIX was wrong"}
+                {i.final_note ? <> ({i.final_note})</> : null}
+              </span>
+            ) : i.check && (
               <span className={`nix-sug-check nix-sug-check-${i.check}`}>
                 Claude {i.check === "agree" ? "agrees" : i.check === "disagree" ? "disagrees" : "isn't sure"}
                 {i.check === "disagree" && i.check_answer ? <>: {i.check_answer}</> : null}
                 {i.check_note ? <> ({i.check_note})</> : null}
+                {i.check === "disagree" && i.final_side === "unsure" ? " · final say couldn't tell" : null}
               </span>
             )}
           </>}
           actions={<>
-            <ModButton kind="approve" busy={busy} onClick={() => decide([i.id], true)}>accept</ModButton>
+            <ModButton kind="approve" busy={busy} onClick={() => decide([i.id], true)}>{i.corrected ? "accept corrected" : "accept"}</ModButton>
             <ModButton busy={busy} onClick={() => decide([i.id], false)}>dismiss</ModButton>
           </>}
         />

@@ -23,9 +23,38 @@
 
 /* Job progress table (NIX on your PC box) */
 .nix-page .nix-jobs { margin: 6px 0 12px; font-family: var(--font-mono), monospace; font-size: 0.74rem; }
-.nix-page .nix-jobs-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1.3fr 0.8fr 0.7fr 0.8fr 1fr 0.9fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+.nix-page .nix-jobs-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1fr 1fr 0.8fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
 .nix-page .nix-jobs-head { color: var(--smoke); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.66rem; }
 @media (max-width: 760px) {
   .nix-page .nix-jobs-row { grid-template-columns: 1fr 1fr; }
   .nix-page .nix-jobs-head { display: none; }
 }
+
+/* Control room tabs */
+.nix-page .nix-tabs { display: flex; gap: 4px; border-bottom: 1.5px solid var(--hair-strong); margin: 4px 0 16px; overflow-x: auto; }
+.nix-page .nix-tab { position: relative; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1.5px; padding: 10px 14px; color: var(--smoke); font: inherit; font-size: 0.86rem; cursor: pointer; white-space: nowrap; }
+.nix-page .nix-tab:hover { color: var(--bone); }
+.nix-page .nix-tab.is-on { color: var(--bone); border-bottom-color: var(--accent); }
+.nix-page .nix-tab-dot { position: absolute; top: 9px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+
+/* How NIX is doing: one card per AI job */
+.nix-page .nix-score { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.nix-page .nix-score-card { border: 1.5px solid var(--hair); border-radius: 6px; padding: 12px; min-width: 0; }
+.nix-page .nix-score-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.86rem; }
+.nix-page .nix-score-big { font-family: var(--font-mono), monospace; font-size: 1.5rem; margin: 8px 0 6px; }
+.nix-page .nix-score-big span { font-size: 0.72rem; color: var(--smoke); }
+.nix-page .nix-score-bar { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--bone) 12%, transparent); overflow: hidden; }
+.nix-page .nix-score-bar i { display: block; height: 100%; background: var(--accent); }
+.nix-page .nix-tone-good .nix-score-bar i { background: #22C55E; }
+.nix-page .nix-tone-warn .nix-score-bar i { background: #F59E0B; }
+.nix-page .nix-tone-bad .nix-score-bar i { background: var(--red); }
+.nix-page .nix-score-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; font-size: 0.74rem; color: var(--smoke); }
+.nix-page .nix-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--hair-strong); color: var(--smoke); white-space: nowrap; margin-left: 6px; }
+.nix-page .nix-pill-good { border-color: #22C55E; color: #22C55E; }
+.nix-page .nix-pill-warn { border-color: #F59E0B; color: #F59E0B; }
+.nix-page .nix-pill-bad { border-color: var(--red); color: var(--red); }
+
+/* What NIX works on / is being taught */
+.nix-page .nix-switch-row { padding: 8px 0; border-bottom: 1px solid var(--hair); }
+.nix-page .nix-switch-row:last-of-type { border-bottom: 0; }
+.nix-page .nix-lessons { margin: 10px 0 0; padding: 12px; border: 1px solid var(--hair); border-radius: 4px; background: color-mix(in srgb, var(--bone) 4%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; }
