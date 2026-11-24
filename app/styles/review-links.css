@@ -1,0 +1,6 @@
+/* ===================== Found links (/review/links) ===================== */
+.rl-link { overflow-wrap: anywhere; color: var(--bone); text-decoration: underline; text-decoration-color: var(--hair-strong); text-underline-offset: 2px; }
+.rl-link:hover { text-decoration-color: var(--bone); }
+.rl-say { font-family: var(--font-mono), monospace; font-size: 0.72rem; overflow-wrap: anywhere; padding-left: 8px; border-left: 2px solid var(--smoke); color: var(--bone); }
+.rl-say-agree { border-left-color: #22C55E; }
+.rl-say-disagree { border-left-color: #F59E0B; }

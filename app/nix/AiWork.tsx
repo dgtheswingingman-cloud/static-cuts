@@ -26,7 +26,7 @@ export type Ai = {
 };
 
 const JOB_LINK: Record<string, string> = {
-  duplicates: "/review/duplicates", cleanup: "/review/cleanup", mixups: "/review/cleanup", deezer: "/review/deezer",
+  links: "/review/links", duplicates: "/review/duplicates", cleanup: "/review/cleanup", mixups: "/review/cleanup", deezer: "/review/deezer",
   titles: "/review/nix", audit: "/review/nix", notes: "/review/nix", eras: "/review/nix",
 };
 const SUGGEST_KINDS = ["titles", "audit", "notes", "eras"];
