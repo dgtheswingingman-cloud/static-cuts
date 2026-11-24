@@ -4,7 +4,9 @@ import "../styles/control.css";
 // The Control room: one place for running the site, shaped by who you are.
 //   Work         (moderators, admins, owner) every list waiting for a decision
 //                and the tools (spreadsheets, tracklists, artist queue, undo)
-//   Site health  (admins, owner) the workings: jobs, outside services, links
+//   Site health  (admins, owner) the workings: outside services, links, imports
+//   NIX          (admins, owner) the archivist: every automatic job, its AI
+//                work on the owner's PC, Claude's checking, what it's learning
 //   People       (admins, owner) sign-ups, how checked artists are, searches
 //   Owner        (owner) the team, API keys, auto-approve, leak file links
 
@@ -19,8 +21,9 @@ import ReviewHub from "./ReviewHub";
 import HealthPanel from "./HealthPanel";
 import OwnerPanel from "./OwnerPanel";
 import LivePanel from "./LivePanel";
+import NixRoom from "../nix/NixRoom";
 
-type Tab = "todo" | "health" | "people" | "owner";
+type Tab = "todo" | "health" | "nix" | "people" | "owner";
 
 function Card({ href, title, blurb }: { href: string; title: string; blurb: string }) {
   return (
@@ -44,7 +47,7 @@ function ControlInner() {
 
   const tabs: [Tab, string][] = [
     ["todo", "Work"],
-    ...(isAdmin ? ([["health", "Site health"], ["people", "People"]] as [Tab, string][]) : []),
+    ...(isAdmin ? ([["health", "Site health"], ["nix", "NIX"], ["people", "People"]] as [Tab, string][]) : []),
     ...(isOwner ? ([["owner", "Owner"]] as [Tab, string][]) : []),
   ];
   const asked = (params.get("tab") ?? "todo") as Tab;
@@ -69,18 +72,15 @@ function ControlInner() {
       {tab === "todo" && <ReviewHub />}
       {tab === "health" && (
         <>
-          <div className="mod-grid cr-owner-cards">
-            <Card href="/nix" title="NIX" blurb="Every automatic job, what it did and fixed, what it's learning, and running its AI free on your own PC." />
-          </div>
           <section className="cr-box cr-live"><LivePanel /></section>
           <HealthPanel part="health" />
         </>
       )}
+      {tab === "nix" && <NixRoom />}
       {tab === "people" && <HealthPanel part="people" />}
       {tab === "owner" && (
         <>
           <div className="mod-grid cr-owner-cards">
-            <Card href="/nix" title="NIX" blurb="Every automatic job: what it did, what it fixed, what's stuck. Pause or run one now." />
             <Card href="/admin/moderators" title="Team" blurb="Choose admins and moderators, and see what they've done." />
             <Card href="/admin/api-keys" title="API keys" blurb="Read-only access for other fan sites and bots." />
             <Card href="/admin/auto-approve" title="Auto-approve" blurb="Rules for adding trusted finds without review." />

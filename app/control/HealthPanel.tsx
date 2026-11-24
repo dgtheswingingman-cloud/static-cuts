@@ -373,7 +373,7 @@ export default function HealthPanel({ part }: { part: "health" | "people" }) {
                 : `${nix.problems.length} of ${nix.jobs} jobs need a look: ${nix.problems.join(", ")}.`}
             </div>
           )}
-          <Link href="/nix" className="text-link">Open NIX: every job, what it did, what it fixed, what&apos;s stuck</Link>
+          <Link href="/control?tab=nix" className="text-link">Open NIX: every job, what it did, what it fixed, what&apos;s stuck</Link>
           </section>
 
           <section className="cr-box">

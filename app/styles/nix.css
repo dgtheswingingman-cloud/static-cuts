@@ -58,3 +58,4 @@
 .nix-page .nix-switch-row { padding: 8px 0; border-bottom: 1px solid var(--hair); }
 .nix-page .nix-switch-row:last-of-type { border-bottom: 0; }
 .nix-page .nix-lessons { margin: 10px 0 0; padding: 12px; border: 1px solid var(--hair); border-radius: 4px; background: color-mix(in srgb, var(--bone) 4%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; }
+.nix-page .nix-lead { margin: 0 0 4px; }
