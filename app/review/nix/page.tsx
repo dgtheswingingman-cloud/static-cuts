@@ -83,7 +83,7 @@ export default function NixSuggestionsPage() {
         and sorts them by whether it agrees. Your accepts and dismissals, and Claude&apos;s disagreements,
         teach NIX: recent ones go into its next prompts. Nothing changes until you accept;
         accepted ones go in as one batch you can undo from the <UndoHistoryLink />. NIX keeps working through the
-        archive while the PC is on, so these lists keep growing. <Link href="/nix" className="text-link">NIX</Link>
+        archive while the PC is on, so these lists keep growing. <Link href="/control?tab=nix" className="text-link">NIX</Link>
       </>}
     >
       <ModToolbar

@@ -979,7 +979,7 @@ export default function LocalCutsPage() {
           {deskErr && <p className="lc-desk-err">{deskErr}</p>}
           {deskLog.length > 0 && <ul className="lc-desk-log">{deskLog.map((l, i) => <li key={i}>{l}</li>)}</ul>}
           {isRealAdmin && (
-            <p className="lc-desk-nix">NIX on this PC (free AI for NIX&apos;s jobs): switch on Admin mode, then <Link className="text-link" href="/nix">Control room → NIX</Link>. Once it&apos;s on it keeps running with Admin mode off.</p>
+            <p className="lc-desk-nix">NIX on this PC (free AI for NIX&apos;s jobs): switch on Admin mode, then <Link className="text-link" href="/control?tab=nix&view=ai">Control room → NIX</Link>. Once it&apos;s on it keeps running with Admin mode off.</p>
           )}
         </div>
       )}
