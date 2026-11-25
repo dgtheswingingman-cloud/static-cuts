@@ -27,9 +27,9 @@ export type Ai = {
 
 const JOB_LINK: Record<string, string> = {
   links: "/review/links", duplicates: "/review/duplicates", cleanup: "/review/cleanup", mixups: "/review/cleanup", deezer: "/review/deezer",
-  titles: "/review/nix", audit: "/review/nix", notes: "/review/nix", eras: "/review/nix",
+  titles: "/review/nix", audit: "/review/nix", notes: "/review/nix", eras: "/review/nix", status: "/review/nix",
 };
-const SUGGEST_KINDS = ["titles", "audit", "notes", "eras"];
+const SUGGEST_KINDS = ["titles", "audit", "notes", "eras", "status"];
 const n = (x: number | undefined) => (x ?? 0).toLocaleString("en-GB");
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : "—");
 
@@ -210,6 +210,7 @@ const ABOUT: Record<string, string> = {
   audit: "Looks for songs filed as versions of the wrong song.",
   notes: "Reads song notes for leak dates, producers, features and other names.",
   eras: "Guesses the era of unreleased songs from their dates and notes.",
+  status: "Gives songs with no status one (released, leaked, snippet), or spots that they're a copy or version of a song already on the page.",
 };
 
 export function Switches({ jobs }: { jobs: Job[] }) {

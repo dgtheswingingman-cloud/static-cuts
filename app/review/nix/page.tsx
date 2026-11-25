@@ -16,7 +16,7 @@ import { useIsModerator } from "../../useIsAdmin";
 import NoAccess, { UndoHistoryLink } from "../../components/NoAccess";
 import { ModPage, ModToolbar, ModTabs, ModRow, ModButton, ModTag, ModBulkBar, ModNotice, ModLoading, ModEmpty } from "../../components/Mod";
 
-type Kind = "notes" | "eras" | "audit" | "titles";
+type Kind = "notes" | "eras" | "audit" | "titles" | "status";
 type Item = {
   id: number; track_id: string; title: string; artist_id: string; artist: string | null; status: string | null;
   field: string; current: string | null; suggested: string; note: string | null; model: string | null; sure: string | null;
@@ -32,13 +32,14 @@ const PILES: { key: Pile; label: string }[] = [
 
 const FIELD: Record<string, string> = {
   leak_date: "Leak date", producers: "Producers", featured_artists: "Featuring", aliases: "Also known as",
-  album: "Era", title: "Title", parent: "Version of",
+  album: "Era", title: "Title", parent: "Version of", release_status: "Status", copy_of: "Copy",
 };
 const ABOUT: Record<Kind, string> = {
   notes: "Facts NIX found written in a song's notes, for fields that are empty. Only what the notes actually say.",
   eras: "Unreleased songs with no era: the era NIX thinks they belong to, picked only from the artist's existing eras.",
   audit: "Sub-versions Claude linked automatically that NIX thinks are a different song. Accepting unlinks it from that main song.",
   titles: "Titles with leftovers ([CDQ], (prod. X), .mp3): the clean title, with the old one kept as another name.",
+  status: "Songs on the main artists' pages with no status: the status NIX thinks they have, or the song already on the page they're a copy of. Accepting a \"same song\" merges it into that song; a \"version\" files it under that song.",
 };
 
 export default function NixSuggestionsPage() {
@@ -107,6 +108,7 @@ export default function NixSuggestionsPage() {
             { key: "audit", label: "Version audit", count: d ? count("audit") : null },
             { key: "notes", label: "From notes", count: d ? count("notes") : null },
             { key: "eras", label: "Eras", count: d ? count("eras") : null },
+            { key: "status", label: "Status & copies", count: d ? count("status") : null },
           ]}
         />
       </ModToolbar>
@@ -148,6 +150,9 @@ export default function NixSuggestionsPage() {
               <b>{FIELD[i.field] ?? i.field}:</b>{" "}
               {i.field === "parent"
                 ? <>unlink from &ldquo;{i.current ?? "?"}&rdquo;</>
+                : i.field === "copy_of"
+                ? <>{(i.corrected ?? i.suggested) === "same song" ? "same song as" : "a version of"} &ldquo;{i.current ?? "?"}&rdquo;
+                    {i.corrected && i.corrected !== i.suggested && <> (NIX said <s>{i.suggested}</s>)</>}</>
                 : i.corrected
                 ? <>{i.current ? <s>{i.current}</s> : <em>empty</em>} → <s>{i.suggested}</s> <strong>{i.corrected}</strong></>
                 : <>{i.current ? <s>{i.current}</s> : <em>empty</em>} → <strong>{i.suggested}</strong></>}
