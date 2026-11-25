@@ -51,7 +51,7 @@ export default function Completeness({ artistId, artistName, refreshKey }: { art
             );
           })}
           <div className="health-tile" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
-            <Link href="/help" className="text-link">help fill it in →</Link>
+            <Link href={`/help?artist=${encodeURIComponent(artistId)}`} className="text-link">help fill it in →</Link>
             <Link href={`/sources?artist=${encodeURIComponent(artistName ?? "")}#send`} className="text-link">
               know a fan tracker for this artist? →
             </Link>
