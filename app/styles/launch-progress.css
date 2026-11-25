@@ -1,0 +1,19 @@
+/* ===================== Control room: main artists' progress ===================== */
+.lp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; }
+.lp-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--hair-strong); border-radius: 6px; color: inherit; text-decoration: none; min-width: 0; transition: border-color 0.15s; }
+.lp-card:hover, .lp-card:focus-visible { border-color: var(--accent); }
+.lp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; min-width: 0; }
+.lp-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; background: var(--hair); }
+.lp-name { font-weight: 700; color: var(--bone); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lp-songs { margin-left: auto; font-size: 0.75rem; color: var(--smoke); white-space: nowrap; font-family: var(--font-mono), monospace; }
+.lp-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) 38px 30px; align-items: center; gap: 8px; font-size: 0.8rem; }
+.lp-label { color: var(--smoke); }
+.lp-bar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.lp-bar > span { display: block; height: 100%; background: var(--bone); border-radius: 3px; }
+.lp-row.is-weak .lp-label, .lp-row.is-weak .lp-pct { color: var(--accent); }
+.lp-row.is-weak .lp-bar > span { background: var(--accent); }
+.lp-pct { text-align: right; font-family: var(--font-mono), monospace; color: var(--bone); }
+.lp-diff { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--smoke); }
+.lp-diff.up { color: #4caf7a; }
+.lp-diff.down { color: var(--red); }
+.lp-gap { margin-top: 2px; font-size: 0.75rem; color: var(--smoke); }
