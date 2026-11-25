@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     if (!batch) break; // nothing waiting
     const judging = (batch as any).stage === "judge";
     // A careful pass can take a while: only start one with time to finish.
-    if (judging && Date.now() - started > 25_000) break; // claims expire in 5 minutes
+    if ((judging || (batch as any).effort === "medium") && Date.now() - started > 25_000) break; // claims expire in 5 minutes
     const keys = (batch as any).keys as string[];
     if (!done.kinds.includes((batch as any).kind)) done.kinds.push((batch as any).kind);
     const { data: ticket } = await db.rpc("sc_api_allow", { p_service: "claude", p_want: 1 });
@@ -107,12 +107,13 @@ Deno.serve(async (req) => {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      // Titles, version audit, duplicates and clean-up: thinking off, a quick
-      // call per item. Eras, reading notes, bios and Deezer: a little thinking
-      // (low effort), because answering straight off got those wrong too often.
+      // Titles, duplicates and clean-up: thinking off, a quick call per item.
+      // Reading notes, status, bios and Deezer: a little thinking (low effort).
+      // Eras and version audit: more care (medium), because quick "agrees"
+      // there were often wrong (25 Nov sample).
       body: JSON.stringify({
         model: AI_MODEL, messages: [{ role: "user", content: (batch as any).prompt }],
-        ...(judging
+        ...(judging || (batch as any).effort === "medium"
           ? { max_tokens: 16000, output_config: { effort: "medium" } }
           : (batch as any).think
           ? { max_tokens: 8000, output_config: { effort: "low" } }
