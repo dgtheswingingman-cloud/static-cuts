@@ -43,8 +43,8 @@ export default function LaunchProgress() {
       {!rows && <div className="comment-meta">loading…</div>}
       <div className="lp-grid">
         {rows?.map((r) => {
-          const scored = PARTS.map((p) => ({ ...p, n: r.now[p.key], of: r.now[p.of] as number, v: pct(r.now[p.key], r.now[p.of] as number) }));
-          const weakest = scored.filter((s) => s.v !== null && s.of >= 5).sort((a, b) => (a.v ?? 0) - (b.v ?? 0))[0];
+          const scored = PARTS.map((p) => ({ ...p, n: r.now[p.key], total: r.now[p.of], v: pct(r.now[p.key], r.now[p.of]) }));
+          const weakest = scored.filter((s) => s.v !== null && s.total >= 5).sort((a, b) => (a.v ?? 0) - (b.v ?? 0))[0];
           return (
             <Link key={r.artist_id} href={`/artist/${r.artist_id}`} className="lp-card">
               <span className="lp-head">
@@ -53,10 +53,10 @@ export default function LaunchProgress() {
                 <span className="lp-songs">{r.now.songs.toLocaleString("en-GB")} songs</span>
               </span>
               {scored.map((s) => {
-                const before = r.then ? pct(r.then[s.key], r.then[s.of] as number) : null;
+                const before = r.then ? pct(r.then[s.key], r.then[s.of]) : null;
                 const diff = s.v !== null && before !== null ? s.v - before : null;
                 return (
-                  <span key={s.key} className={`lp-row${weakest?.key === s.key ? " is-weak" : ""}`} title={`${s.n.toLocaleString("en-GB")} of ${s.of.toLocaleString("en-GB")} ${s.what}`}>
+                  <span key={s.key} className={`lp-row${weakest?.key === s.key ? " is-weak" : ""}`} title={`${s.n.toLocaleString("en-GB")} of ${s.total.toLocaleString("en-GB")} ${s.what}`}>
                     <span className="lp-label">{s.label}</span>
                     <span className="lp-bar"><span style={{ width: `${s.v ?? 0}%` }} /></span>
                     <span className="lp-pct">{s.v === null ? "—" : `${s.v}%`}</span>
@@ -67,7 +67,7 @@ export default function LaunchProgress() {
                 );
               })}
               <span className="lp-gap">
-                {weakest ? <>Weakest: {(weakest.of - weakest.n).toLocaleString("en-GB")} {weakest.gap}</> : "Nothing big missing"}
+                {weakest ? <>Weakest: {(weakest.total - weakest.n).toLocaleString("en-GB")} {weakest.gap}</> : "Nothing big missing"}
               </span>
             </Link>
           );
