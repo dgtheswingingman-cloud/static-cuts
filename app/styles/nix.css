@@ -59,3 +59,8 @@
 .nix-page .nix-switch-row:last-of-type { border-bottom: 0; }
 .nix-page .nix-lessons { margin: 10px 0 0; padding: 12px; border: 1px solid var(--hair); border-radius: 4px; background: color-mix(in srgb, var(--bone) 4%, transparent); font-family: var(--font-mono), monospace; font-size: 0.72rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; }
 .nix-page .nix-lead { margin: 0 0 4px; }
+
+/* NIX's week (weekly summary) */
+.nix-page .nix-week-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nix-page .nix-week-lines { margin: 8px 0 0; padding-left: 18px; font-size: 0.86rem; line-height: 1.6; }
+.nix-page .nix-week-lines li { overflow-wrap: anywhere; }

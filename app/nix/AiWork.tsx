@@ -75,6 +75,33 @@ export function verdict(j: Job): { label: string; tone: "good" | "warn" | "bad" 
   return { label: "often wrong", tone: "bad" };
 }
 
+type Week = { week_start: string; lines: string[] };
+
+// The weekly summary (sc_nix_weekly_build, Mondays): the latest one, with
+// the previous weeks a click away. The owner also gets it as a notification.
+export function ThisWeek() {
+  const [weeks, setWeeks] = useState<Week[] | null>(null);
+  const [i, setI] = useState(0);
+  useEffect(() => { supabase.rpc("admin_nix_weekly").then(({ data }) => setWeeks((data as Week[]) ?? [])); }, []);
+  if (!weeks || weeks.length === 0) return null;
+  const w = weeks[Math.min(i, weeks.length - 1)];
+  const label = new Date(w.week_start + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return (
+    <section className="cr-box nix-week">
+      <div className="nix-week-head">
+        <div className="section-label">NIX&apos;s week · from {label}</div>
+        {weeks.length > 1 && (
+          <div className="nix-actions">
+            <button className="st-btn" disabled={i >= weeks.length - 1} onClick={() => setI(i + 1)}>Earlier</button>
+            <button className="st-btn" disabled={i === 0} onClick={() => setI(i - 1)}>Later</button>
+          </div>
+        )}
+      </div>
+      <ul className="nix-week-lines">{w.lines.map((l, k) => <li key={k}>{l}</li>)}</ul>
+    </section>
+  );
+}
+
 export function Scoreboard({ jobs }: { jobs: Job[] }) {
   if (!jobs.length) return null;
   return (

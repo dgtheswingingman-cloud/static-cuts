@@ -17,7 +17,7 @@ import { useIsAdmin, useIsOwner } from "../useIsAdmin";
 import { CALENDAR, JOB_GROUPS, KNOWN_JOBS } from "./jobs";
 import NixPanel from "./NixPanel";
 import Learning from "./Learning";
-import { PcStatus, Scoreboard, Spend, Switches, Teaching, trust, useAiData } from "./AiWork";
+import { PcStatus, Scoreboard, Spend, Switches, Teaching, ThisWeek, trust, useAiData } from "./AiWork";
 
 type Tab = "overview" | "ai" | "jobs" | "learning";
 const TABS: { key: Tab; label: string }[] = [
@@ -193,6 +193,7 @@ export default function NixRoom() {
 
           {tab === "overview" && (
             <>
+              <ThisWeek />
               <div className="cr-grid">
           <section className="cr-box">
             <div className="section-label">Needs a look</div>
