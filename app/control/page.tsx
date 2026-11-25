@@ -2,7 +2,8 @@
 import "../styles/control.css";
 
 // The Control room: one place for running the site, shaped by who you are.
-//   Work         (moderators, admins, owner) every list waiting for a decision
+//   Work         (moderators, admins, owner) how complete the main artists'
+//                pages are, every list waiting for a decision
 //                and the tools (spreadsheets, tracklists, artist queue, undo)
 //   Site health  (admins, owner) the workings: outside services, links, imports
 //   NIX          (admins, owner) the archivist: every automatic job, its AI
@@ -22,6 +23,7 @@ import HealthPanel from "./HealthPanel";
 import OwnerPanel from "./OwnerPanel";
 import LivePanel from "./LivePanel";
 import NixRoom from "../nix/NixRoom";
+import LaunchProgress from "./LaunchProgress";
 
 type Tab = "todo" | "health" | "nix" | "people" | "owner";
 
@@ -69,7 +71,7 @@ function ControlInner() {
         ))}
       </div>
 
-      {tab === "todo" && <ReviewHub />}
+      {tab === "todo" && <><LaunchProgress /><ReviewHub /></>}
       {tab === "health" && (
         <>
           <section className="cr-box cr-live"><LivePanel /></section>
