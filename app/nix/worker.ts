@@ -101,16 +101,18 @@ async function work(g: number) {
   while (g === generation) {
     const m = state.model;
     if (!m) { await sleep(20000); continue; }
-    const { data: job, error } = await supabase.rpc("nix_ai_claim", { p_worker: state.status?.pc ?? "this PC", p_model: m });
+    const { data: job, error } = await supabase.rpc("nix_ai_claim", { p_worker: state.status?.pc ?? "this PC", p_model: m, p_picks: true });
     if (g !== generation) break;
     if (error) { set({ err: error.message }); await sleep(30000); continue; }
     if (!job) { set({ doing: null }); await sleep(20000); continue; }
-    const j = job as { id: number; kind: string; prompt: string; json: boolean };
+    const j = job as { id: number; kind: string; prompt: string; json: boolean; model?: string | null };
+    // A job can ask for one of this PC's other models (model trials).
+    const use = j.model && state.status?.models?.includes(j.model) ? j.model : m;
     set({ doing: j.kind });
     const t0 = Date.now();
     let output: string | null = null;
     let failed: string | null = null;
-    try { output = await desktop.aiGenerate(m, j.prompt, j.json); } catch (e) { failed = String(e).slice(0, 400); }
+    try { output = await desktop.aiGenerate(use, j.prompt, j.json); } catch (e) { failed = String(e).slice(0, 400); }
     // Hand it back even if it was switched off meanwhile, so the job isn't stuck.
     await supabase.rpc("nix_ai_finish", { p_id: j.id, p_output: output, p_error: failed, p_ms: Date.now() - t0 });
     set(failed ? { err: failed, doing: null } : { err: null, done: state.done + 1, doing: null });
