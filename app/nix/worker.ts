@@ -96,9 +96,28 @@ async function checkIn(g: number) {
   }
 }
 
+// The site build this window is running, and when it was last compared
+// with the live one: a PC left running NIX reloads itself (between jobs)
+// when the site has been updated, so it always has the latest NIX.
+let myVersion: string | null = null;
+let lastVersionCheck = 0;
+async function liveVersion() {
+  try { return ((await (await fetch("/api/version", { cache: "no-store" })).json()) as { version?: string }).version ?? null; }
+  catch { return null; }
+}
+async function reloadIfUpdated() {
+  if (Date.now() - lastVersionCheck < 30 * 60 * 1000) return;
+  lastVersionCheck = Date.now();
+  const v = await liveVersion();
+  if (!v) return;
+  if (!myVersion) { myVersion = v; return; }
+  if (v !== myVersion) window.location.reload();
+}
+
 async function work(g: number) {
   await sleep(2000);
   while (g === generation) {
+    await reloadIfUpdated();
     const m = state.model;
     if (!m) { await sleep(20000); continue; }
     const { data: job, error } = await supabase.rpc("nix_ai_claim", { p_worker: state.status?.pc ?? "this PC", p_model: m, p_picks: true });
