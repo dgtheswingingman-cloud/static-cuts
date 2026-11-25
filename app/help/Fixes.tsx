@@ -60,6 +60,53 @@ export function InfoFill({ who, trackId, artistId, missing, onDone }: {
   );
 }
 
+// Leak or snippet missing a leak date and/or era: a box for each missing one.
+// Suggestions go in as a correction a moderator checks (approve_submission).
+export function LeakFill({ who, trackId, artistId, missing, onDone }: {
+  who: Who; trackId: string; artistId: string; missing: string[]; onDone: (msg: string) => void;
+}) {
+  const [date, setDate] = useState("");
+  const [era, setEra] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const needDate = missing.includes("leak date");
+  const needEra = missing.includes("era");
+
+  async function save() {
+    if (!date && !era.trim()) return;
+    setBusy(true); setError(null);
+    const { error: err } = who === "admin"
+      ? await supabase.rpc("admin_help_leak", { p_track_id: trackId, p_leak_date: date || null, p_album: era.trim() || null })
+      : await supabase.from("submissions").insert({
+          type: "correction", artist_id: artistId, submitted_by: who.userId,
+          payload: { track_id: trackId, ...(date ? { leak_date: date } : {}), ...(era.trim() ? { album: era.trim() } : {}), via: "help_wanted" },
+        });
+    setBusy(false);
+    if (err) { setError(err.message); return; }
+    const what = [date && "leak date", era.trim() && "era"].filter(Boolean).join(" and ");
+    onDone(who === "admin" ? `${what} saved` : `${what} sent for review. Thanks!`);
+  }
+
+  return (
+    <div className="hw-fill">
+      {needDate && (
+        <label className="hw-fill-field"><small>Leak date</small>
+          <DateDropdownPicker value={date} onChange={setDate} idPrefix={`lf-date-${trackId}`} />
+        </label>
+      )}
+      {needEra && (
+        <label className="hw-fill-field"><small>Era</small>
+          <AlbumAutocomplete value={era} onChange={setEra} artistId={artistId} idPrefix={`lf-era-${trackId}`} />
+        </label>
+      )}
+      <button className="ms-say hw-act" disabled={busy || (!date && !era.trim())} onClick={save}>
+        {busy ? "Saving…" : who === "admin" ? "Save//" : "Send//"}
+      </button>
+      {error && <span className="sb-error">{error}</span>}
+    </div>
+  );
+}
+
 // Leak or snippet with no artwork: paste the picture's link. Suggestions also
 // need the page it was found on, so a moderator can check it.
 export function CoverFill({ who, trackId, onDone }: { who: Who; trackId: string; onDone: (msg: string) => void }) {

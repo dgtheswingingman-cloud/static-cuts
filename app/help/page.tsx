@@ -2,7 +2,8 @@
 
 // Help wanted: small jobs anyone can do, busiest artists first. Your impact
 // at the top, a quick yes/no question, then the jobs: check links, fill in
-// missing info, set a status, add art for leaks, add songs to thin pages.
+// missing info, set a status, date leaks, add art for leaks, add songs to
+// thin pages. The main (launch) artists come first in every list.
 // Everyone fills in on the row itself (date, album, cover) instead of going
 // to a form; "Skip" hides a row you can't help with (remembered on this
 // device). If you follow artists, it starts on just theirs. "Pick an artist"
@@ -18,12 +19,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import { useIsAdmin, usePersonalUser } from "../useIsAdmin";
 import VersionQuestions from "./VersionQuestions";
-import { InfoFill, CoverFill } from "./Fixes";
+import { InfoFill, LeakFill, CoverFill } from "./Fixes";
 import ArtistPick, { type PickedArtist } from "./ArtistPick";
 import { local } from "@/lib/safeStorage";
 import { thumb } from "@/lib/thumb";
 
-type Kind = "links" | "info" | "status" | "covers" | "thin";
+type Kind = "links" | "info" | "status" | "leaks" | "covers" | "thin";
 type Counts = Record<Kind, number>;
 type LinkItem = {
   id: string; track_id: string; url: string; link_title: string | null; source_domain: string | null;
@@ -42,6 +43,8 @@ const TABS: { kind: Kind; label: string; title: string; blurb: string; icon: Rea
     icon: I(<><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>) },
   { kind: "status", label: "Unknown status", title: "Unknown status", blurb: "Songs nobody has marked yet. Tap what it is now; a moderator checks it.",
     icon: I(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" /></>) },
+  { kind: "leaks", label: "Leak dates", title: "Leak dates", blurb: "Leaks and snippets missing when they leaked or which era they're from. Know it? Fill it in; a moderator checks it.",
+    icon: I(<><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>) },
   { kind: "covers", label: "Missing covers", title: "Missing covers", blurb: "Leaks and snippets with no artwork. Know the art that went with one? Add it on the song's page.",
     icon: I(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></>) },
   { kind: "thin", label: "Thin pages", title: "Thin pages", blurb: "Artists with 10 songs or fewer. Add the ones you know.",
@@ -244,7 +247,7 @@ export default function HelpWantedPage() {
   return (
     <div className="wrap hw-page">
       <h1 className="ls-title hw-title">HELP WANTED<span>//</span></h1>
-      <p className="sb-lead">Quick jobs that make the archive better. The artists people follow most come first.</p>
+      <p className="sb-lead">Quick jobs that make the archive better. The main artists come first, then the ones people follow most.</p>
 
       {stats && (
         <div className="hw-impact">
@@ -363,6 +366,24 @@ export default function HelpWantedPage() {
               )}
             </div>
             {!fixed[s.id] && !sent[s.id] && <Skip x={s} />}
+          </div>
+        ))}
+
+        {kind === "leaks" && (visible as SongItem[] | null)?.map((s) => (
+          <div key={s.id} className="hw-row">
+            <Cover id={s.id} />
+            <div className="hw-main">
+              <Link href={`/song/${s.id}`} className="hw-song">{s.title}</Link>
+              <Link href={`/artist/${s.artist_id}`} className="hw-artist">{s.artist}</Link>
+              <span className="hw-missing">
+                {s.status && <span className={`feature-tag st st-${s.status}`}>{s.status}</span>}
+                <small>Missing:</small>{(s.missing ?? []).map((m) => <span key={m} className="hw-chip">{m}</span>)}
+              </span>
+              {fixed[s.id] ? <span className="hw-sent hw-fixed">✓ {fixed[s.id]}</span>
+                : who ? <LeakFill who={who} trackId={s.id} artistId={s.artist_id} missing={s.missing ?? []} onDone={(m) => markFixed(s.id, rowKey("leaks", s), m)} />
+                : <Link href="/login" className="ms-say hw-act hw-login">Log in to fill in//</Link>}
+            </div>
+            {!fixed[s.id] && <Skip x={s} />}
           </div>
         ))}
 
