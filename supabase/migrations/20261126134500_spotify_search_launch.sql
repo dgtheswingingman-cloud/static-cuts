@@ -26,14 +26,16 @@ as $function$
     cross join lim
     cross join lateral (
       select t.id, t.title, t.release_status, t.album, t.release_date, t.artist_id,
-             row_number() over (order by (t.parent_track_id is null) desc, t.id) turn
+             row_number() over (order by (t.parent_track_id is null) desc, (t.release_status = 'released') desc, t.id) turn
       from tracks t
       where t.artist_id = ar.id
         and t.spotify_url is null and t.spotify_search_attempted_at is null
         and coalesce(t.release_status, '') not in ('leaked', 'snippet', 'announced', 'rumored', 'teased')
         -- Main artists (who have a Spotify profile): main songs only.
         and (not ar.launch or t.parent_track_id is null)
-      order by (t.parent_track_id is null) desc, t.id
+      -- Released songs before unconfirmed ones (26 Nov: the first runs spent
+      -- Spotify's small allowance on unconfirmed songs it didn't have).
+      order by (t.parent_track_id is null) desc, (t.release_status = 'released') desc, t.id
       limit lim.n
     ) x
   )
