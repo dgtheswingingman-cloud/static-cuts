@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Privacy & terms · Static-Cuts//" };
 
 export default function LegalPage() {
   return (
-    <InfoShell title="PRIVACY & TERMS" here="/legal" intro="How your data is used and the rules for using Static-Cuts//. Last updated 11 November 2026."
+    <InfoShell title="PRIVACY & TERMS" here="/legal" intro="How your data is used and the rules for using Static-Cuts//. Last updated 26 November 2026."
       sections={[["plain", "In plain English"], ["privacy", "Privacy"], ["terms", "Terms"], ["premium", "Premium & payments"]]}>
       <InfoSection id="plain" title="In plain English" className="if-plain">
         <p className="if-p">
@@ -53,8 +53,16 @@ export default function LegalPage() {
         <p>
           The site runs on Supabase (database, accounts, file storage) and is hosted on Vercel. If
           you log in with Spotify, Spotify handles that authentication directly — we only receive
-          what&apos;s needed to identify your account. Search-assist tooling used behind the scenes
-          (for finding official links) doesn&apos;t touch your personal data at all.
+          what&apos;s needed to identify your account.
+        </p>
+        <p>
+          To find listen links for songs that don&apos;t have one, Static-Cuts// uses YouTube API Services: our server
+          searches YouTube for the song and keeps the video&apos;s link, title and channel name so a moderator can check
+          it. This doesn&apos;t involve your account or any of your personal data, and we never download or re-host
+          YouTube videos. When you open or play a YouTube link, you&apos;re using YouTube, under the{" "}
+          <a href="https://www.youtube.com/t/terms" className="text-link" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>{" "}
+          and the{" "}
+          <a href="https://policies.google.com/privacy" className="text-link" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.
         </p>
         <p>
           Some song information (titles, release dates, albums and links) comes from Spotify, Genius and Last.fm,
@@ -101,7 +109,11 @@ export default function LegalPage() {
           links to where a track can legitimately be found) for official and unreleased material
           alike, without popularity bias. <b className="text-link">This site does not
           host, store, or distribute audio files.</b> Every link points to a real external platform
-          (Spotify, and similar) — we track information about music, not the music itself.
+          (Spotify, YouTube, and similar) — we track information about music, not the music itself.
+        </p>
+        <p>
+          Static-Cuts// uses YouTube API Services to find links. By using Static-Cuts// you also agree to be bound by the{" "}
+          <a href="https://www.youtube.com/t/terms" className="text-link" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>.
         </p>
             </div>
           </details>
