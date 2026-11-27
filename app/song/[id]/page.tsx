@@ -57,6 +57,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `/song/${id}` },
+    ...(isEmptySong(song) ? { robots: { index: false, follow: true } } : {}),
     openGraph: { title, description, type: "music.song" },
     twitter: { card: "summary_large_image", title, description },
   };
@@ -64,6 +65,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function day(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// A song we know almost nothing about (no status, album, dates, credits or
+// other versions). Google flagged ~1,800 of these as "soft 404" (a page that
+// looks empty), which drags on the rest of the site, so they're kept out of
+// search (their links are still followed) until there's something to show.
+function isEmptySong(song: Basic) {
+  const t = song.track;
+  if (!t) return true;
+  const status = t.release_status ?? (t.is_official ? "released" : "unconfirmed");
+  return status === "unconfirmed" && !t.album && !t.release_date && !t.leak_date && !t.producers && !t.writers
+    && (song.family?.length ?? 0) <= 1 && (song.appears_on?.length ?? 0) === 0;
+}
+
+// One plain sentence about the song, so the page has real text for search
+// engines before the full page loads: "Nice Guy is a released song by
+// Benny V, from Nice Guy EP, released 16 November 2018."
+function summary(song: Basic) {
+  const t = song.track!;
+  const status = t.release_status ?? (t.is_official ? "released" : "unconfirmed");
+  const what: Record<string, string> = {
+    released: "a released song", leaked: "an unreleased song that leaked", snippet: "an unreleased song only heard in snippets",
+    rumored: "a rumoured song", teased: "a teased song", announced: "an announced song", unconfirmed: "a song",
+  };
+  const bits = [`${t.title} is ${what[status] ?? `a ${status} song`}${song.artist ? ` by ${song.artist.name}` : ""}`];
+  if (t.album) bits.push(status === "released" ? `from ${t.album}` : `from the ${t.album} era`);
+  if (t.release_date && status === "released") bits.push(`released ${day(t.release_date)}`);
+  if (t.leak_date && status !== "released") bits.push(`leaked ${day(t.leak_date)}`);
+  let s = bits.join(", ") + ".";
+  if (t.producers) s += ` Produced by ${t.producers}.`;
+  const others = Math.max(0, (song.family?.length ?? 0) - 1);
+  if (others) s += ` Static-Cuts// lists ${others} other version${others === 1 ? "" : "s"} of it.`;
+  return s;
 }
 
 export default async function SongPage({ params }: Props) {
@@ -106,6 +140,7 @@ export default async function SongPage({ params }: Props) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
         <h1>{t.title}</h1>
         {artist && <p>by <Link href={`/artist/${artist.id}`}>{artist.name}</Link></p>}
+        <p>{summary(song)}</p>
         <dl>
           {facts.map(([k, v]) => (<div key={k}><dt>{k}</dt><dd>{v}</dd></div>))}
         </dl>
