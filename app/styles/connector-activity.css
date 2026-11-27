@@ -1,0 +1,20 @@
+/* ===================== Control room: connector activity ===================== */
+.ca-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 10px; color: var(--bone); }
+.ca-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+.ca-err { color: var(--red); }
+.ca-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; border-top: 1px solid var(--hair); }
+.ca-list li { border-bottom: 1px solid var(--hair); }
+.ca-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 120px) 64px; gap: 8px; width: 100%; padding: 6px 2px;
+  background: none; border: 0; color: inherit; font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; }
+.ca-row:hover, .ca-row:focus-visible { background: var(--hair); }
+.ca-when, .ca-ms { color: var(--smoke); font-family: var(--font-mono), monospace; font-size: 0.75rem; }
+.ca-ms { text-align: right; }
+.ca-tool { color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-who { color: var(--smoke); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-list li.is-err .ca-tool, .ca-list li.is-err .ca-ms { color: var(--red); }
+.ca-detail { padding: 4px 2px 10px; font-size: 0.75rem; }
+.ca-detail pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; color: var(--smoke); font-family: var(--font-mono), monospace; }
+@media (max-width: 560px) {
+  .ca-row { grid-template-columns: 90px minmax(0, 1fr) 56px; }
+  .ca-who { display: none; }
+}

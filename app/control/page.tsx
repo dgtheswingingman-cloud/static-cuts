@@ -5,7 +5,8 @@ import "../styles/control.css";
 //   Work         (moderators, admins, owner) how complete the main artists'
 //                pages are, every list waiting for a decision
 //                and the tools (spreadsheets, tracklists, artist queue, undo)
-//   Site health  (admins, owner) the workings: outside services, links, imports
+//   Site health  (admins, owner) the workings: outside services, links, imports,
+//                what connected apps (ChatGPT) have been doing
 //   NIX          (admins, owner) the archivist: every automatic job, its AI
 //                work on the owner's PC, Claude's checking, what it's learning
 //   People       (admins, owner) sign-ups, how checked artists are, searches
@@ -24,6 +25,7 @@ import OwnerPanel from "./OwnerPanel";
 import LivePanel from "./LivePanel";
 import NixRoom from "../nix/NixRoom";
 import LaunchProgress from "./LaunchProgress";
+import ConnectorActivity from "./ConnectorActivity";
 
 type Tab = "todo" | "health" | "nix" | "people" | "owner";
 
@@ -76,6 +78,7 @@ function ControlInner() {
         <>
           <section className="cr-box cr-live"><LivePanel /></section>
           <HealthPanel part="health" />
+          <ConnectorActivity />
         </>
       )}
       {tab === "nix" && <NixRoom />}

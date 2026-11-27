@@ -11,7 +11,7 @@ import { SERVER_INSTRUCTIONS, TOOLS } from "@/lib/mcp/tools";
 export const dynamic = "force-dynamic";
 
 const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_INFO = { name: "static-cuts", title: "Static-Cuts", version: "0.6.2" };
+const SERVER_INFO = { name: "static-cuts", title: "Static-Cuts", version: "0.7.0" };
 
 type JsonRpcRequest = {
   jsonrpc: "2.0";
@@ -79,8 +79,16 @@ async function handle(msg: JsonRpcRequest, auth: NonNullable<Awaited<ReturnType<
     case "tools/call": {
       const tool = TOOLS.find((t) => t.name === params?.name);
       if (!tool) return rpcError(id, -32602, `Unknown tool: ${params?.name}`);
+      const started = Date.now();
+      // Every call is recorded (tool, who, app, ok/error, a trimmed copy of the
+      // arguments) for the control room. Logging never blocks or breaks a call.
+      const log = (ok: boolean, error: string | null) =>
+        auth.db.rpc("rpc_log_mcp_call", {
+          p_tool: tool.name, p_ok: ok, p_error: error, p_args: params?.arguments ?? {}, p_ms: Date.now() - started,
+        }).then(() => undefined, () => undefined);
       try {
         const data = await tool.run(auth.db, params?.arguments ?? {});
+        await log(true, null);
         return {
           jsonrpc: "2.0",
           id,
@@ -91,6 +99,7 @@ async function handle(msg: JsonRpcRequest, auth: NonNullable<Awaited<ReturnType<
           },
         };
       } catch (e: any) {
+        await log(false, e?.message ?? String(e));
         // Tool errors are reported to the model, not as protocol errors, so
         // it can correct its input and retry.
         return {

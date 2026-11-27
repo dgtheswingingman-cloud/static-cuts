@@ -191,3 +191,38 @@ SPOTIFY_CLIENT_SECRET, GENIUS_ACCESS_TOKEN, LASTFM_API_KEY.
   and press Refresh after the server changes.
 - **Research plan size.** `get_research_plan` returns 8 artists by default (max 25);
   the routine calls it again after `finish_run` for the next batch.
+
+## Oversight tools (20261126230000_connector_oversight.sql, connector 0.7.0)
+
+From the AI tooling handover (26 Nov): ChatGPT audits NIX and the catalogue
+through the same connector, instead of separate database or GitHub access.
+
+| Tool | Who | What |
+|---|---|---|
+| `get_nix_overview` | owner's account | Laptop online/model, jobs, work left, switches, Claude budget, open piles, accuracy per job, owner decisions, weekly summary, task schedule, learned rules |
+| `get_nix_findings` | owner's account | NIX's suggestions and review notes with Claude's check, final say and corrected values; filter by source, kind, pile, artist, state |
+| `get_nix_failures` | owner's account | Failed/stuck laptop jobs, tasks that errored or are overdue, job errors, stalled checking |
+| `review_nix_finding` | owner's account | Second opinion on one finding (agree / disagree + answer / unsure, note, source). Shown on /review/nix next to Claude's check; never applied by itself |
+| `get_catalogue_integrity` | anyone signed in | Dead links, leak date after release, unreleased with a release date, released with no date, unknown status, leaks with no cover, tracker disagreements, duplicate groups |
+| `get_artist_completeness` | anyone signed in | Status / link / date / era / cover coverage per artist, with last week's numbers |
+| `get_research_coverage` | owner's account | Research per artist, YouTube and Spotify search results, runs per app, submission outcomes, rejection reasons, source reliability |
+
+Safeguards:
+- Connected apps still can't act as admin or moderator (`is_admin` /
+  `is_moderator` refuse OAuth clients). "Owner's account" is
+  `sc_is_owner_account()`: the signed-in user is `owner_user_id` in
+  `sc_private_settings`. It only unlocks the read tools above and second
+  opinions.
+- Every catalogue change still goes through review; the only new write is
+  `nix_second_opinions`.
+- Every connector call is logged in `mcp_calls` (tool, user, app, ok/error,
+  trimmed arguments, time taken; kept 90 days). Admins see it in the control
+  room (Site health, Connector activity).
+- No keys or emails are returned by any tool.
+
+Not added, on purpose: direct Supabase or GitHub write access for ChatGPT
+(it would bypass review, undo batches and the OAuth admin lock; use
+ChatGPT's own GitHub connector read-only for code review), and Spotify,
+YouTube, SoundCloud, Reddit, Discord, Sentry, Cloudflare or PostHog
+integrations (ChatGPT can browse those sites; the site runs on Vercel and
+Supabase and the site's own Spotify/YouTube jobs already run here).

@@ -22,6 +22,8 @@ type Item = {
   field: string; current: string | null; suggested: string; note: string | null; model: string | null; sure: string | null;
   check: "agree" | "corrected" | "disagree" | "unsure" | null; check_answer: string | null; check_note: string | null;
   corrected: string | null; final_side: "nix" | "checker" | "neither" | "unsure" | null; final_note: string | null;
+  // A second opinion from ChatGPT through the connector (review_nix_finding).
+  second: { verdict: "agree" | "disagree" | "unsure"; answer: string | null; note: string | null; source_url: string | null } | null;
 };
 type Pile = "agree" | "corrected" | "disagree" | "unsure" | "unchecked";
 type Data = { counts: Record<string, number>; left: Record<string, number>; piles: Record<Pile, number>; items: Item[] };
@@ -170,6 +172,14 @@ export default function NixSuggestionsPage() {
                 {i.check === "disagree" && i.check_answer ? <>: {i.check_answer}</> : null}
                 {i.check_note ? <> ({i.check_note})</> : null}
                 {i.check === "disagree" && i.final_side === "unsure" ? " · final say couldn't tell" : null}
+              </span>
+            )}
+            {i.second && (
+              <span className={`nix-sug-check nix-sug-check-${i.second.verdict}`}>
+                ChatGPT {i.second.verdict === "agree" ? "agrees" : i.second.verdict === "disagree" ? "disagrees" : "isn't sure"}
+                {i.second.verdict === "disagree" && i.second.answer ? <>: {i.second.answer}</> : null}
+                {i.second.note ? <> ({i.second.note})</> : null}
+                {i.second.source_url ? <> · <a href={i.second.source_url} target="_blank" rel="noopener noreferrer" className="text-link">source</a></> : null}
               </span>
             )}
           </>}
