@@ -9,6 +9,7 @@ import Plans from "./Plans";
 export const metadata: Metadata = {
   title: "Premium · Static-Cuts//",
   description: "Static-Cuts// Premium: Local Cuts for tidying, tagging and organising your music files, a premium profile and the ◆ supporter badge.",
+  alternates: { canonical: "/premium" },
 };
 
 const PERKS: [string, string, string, string?][] = [

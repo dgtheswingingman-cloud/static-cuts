@@ -8,6 +8,7 @@ import InfoShell, { InfoSection } from "../components/info/InfoShell";
 export const metadata: Metadata = {
   title: "FAQ · Static-Cuts//",
   description: "How Static-Cuts// works: what's in the archive, how songs get added, and how to help.",
+  alternates: { canonical: "/faq" },
 };
 
 type QA = { id?: string; q: string; a: React.ReactNode };

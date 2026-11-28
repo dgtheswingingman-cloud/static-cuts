@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!l?.list) return { title: "List · Static-Cuts//" };
   const title = `${l.list.title} · a list by ${l.owner?.name ?? "someone"} · Static-Cuts//`;
   const description = l.list.description || `${l.items?.length ?? 0} songs, picked by ${l.owner?.name ?? "someone"} on Static-Cuts//.`;
-  return { title, description, openGraph: { title, description } };
+  return { title, description, alternates: { canonical: `/list/${id}` }, openGraph: { title, description } };
 }
 
 export default async function ListPage({ params }: Props) {

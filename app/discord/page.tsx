@@ -6,6 +6,7 @@ import InfoShell, { InfoSection } from "../components/info/InfoShell";
 export const metadata: Metadata = {
   title: "Discord bot · Static-Cuts//",
   description: "Add Static-Cuts// to your Discord server: song of the day, album of the week, and new leaks, snippets and releases from the artists you care about.",
+  alternates: { canonical: "/discord" },
 };
 
 // Discord's "add this bot to a server" page (view channels, send messages, embed links; slash commands).
