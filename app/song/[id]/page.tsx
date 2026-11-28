@@ -34,6 +34,8 @@ type Basic = {
   artist?: { id: string; name: string } | null;
   family?: { id: string; title: string; release_status: string | null; is_main: boolean }[];
   appears_on?: { id: string; name: string }[];
+  // Up to 12 other songs by the same artist (released and leaked first).
+  more?: { id: string; title: string; release_status: string | null }[];
 };
 
 // Asked once per request, shared by the title and the page.
@@ -158,6 +160,18 @@ export default async function SongPage({ params }: Props) {
           <p>Also features: {(song.appears_on ?? []).map((a, i) => (
             <span key={a.id}>{i > 0 && ", "}<Link href={`/artist/${a.id}`}>{a.name}</Link></span>
           ))}</p>
+        )}
+        {/* Links to other songs, so search engines can move between them. */}
+        {artist && (song.more ?? []).length > 0 && (
+          <>
+            <h2>More from {artist.name}</h2>
+            <ul>
+              {(song.more ?? []).map((m) => (
+                <li key={m.id}><Link href={`/song/${m.id}`}>{m.title}</Link>{m.release_status ? ` (${m.release_status})` : ""}</li>
+              ))}
+            </ul>
+            <p><Link href={`/artist/${artist.id}`}>Every {artist.name} song</Link></p>
+          </>
         )}
         <p className="empty-state">loading…</p>
       </div>
