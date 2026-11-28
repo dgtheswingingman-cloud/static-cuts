@@ -115,7 +115,9 @@ function SearchInner() {
           href: `/artist/${p.artist_id}/eras#${encodeURIComponent(`album:${p.name.toLowerCase()}`)}` })),
       ]);
     });
-    supabase.from("tracks").select("producers").ilike("producers", `%${words}%`).limit(500).then(({ data }) => {
+    // Kept so an "artist missing" note isn't logged for a producer (F1lthy has
+    // a producer page, not an artist page).
+    const producerHits = supabase.from("tracks").select("producers").ilike("producers", `%${words}%`).limit(500).then(({ data }) => {
       const w = words.toLowerCase();
       const c = new Map<string, { name: string; songs: number }>();
       for (const t of (data ?? []) as { producers: string | null }[]) {
@@ -127,6 +129,7 @@ function SearchInner() {
         }
       }
       setProducers([...c.values()].sort((a, b) => b.songs - a.songs).slice(0, 30));
+      return c.size;
     });
     supabase.from("profiles").select("id, display_name, avatar_url").ilike("display_name", `%${words}%`).limit(6)
       .then(({ data }) => setPeople((data as typeof people) ?? []));
@@ -158,7 +161,9 @@ function SearchInner() {
         supabase.rpc("rpc_similar_artists", { p_artist: top.id, p_limit: 10 }).then(({ data }) => setRelated((data as typeof related) ?? []));
       }
       // An artist people look for that isn't here: counted, so they get added sooner.
-      if (list.length === 0 && words.length >= 3) supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "artists" }).then(() => {});
+      if (list.length === 0 && words.length >= 3) {
+        producerHits.then((n) => { if (!n) supabase.rpc("rpc_log_search_miss", { p_query: words, p_kind: "artists" }).then(() => {}); });
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.get("q")]);
