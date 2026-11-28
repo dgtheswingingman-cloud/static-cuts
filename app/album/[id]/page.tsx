@@ -42,6 +42,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// One plain sentence about the album, so search engines have real text to
+// read before the full page loads: "Die Lit is an album by Playboi Carti,
+// released 11 May 2018 on AWGE / Interscope. It has 19 songs and runs 1 hour
+// 4 minutes."
+function summary(a: Album) {
+  const kind = a.kind === "ep" ? "an EP" : "an album";
+  let s = `${a.title} is ${kind} by ${a.artist.name}`;
+  if (a.date) {
+    const d = new Date(a.date);
+    s += a.date.length >= 10 && !isNaN(d.getTime())
+      ? `, released ${d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}`
+      : `, released in ${a.date.slice(0, 4)}`;
+  }
+  if (a.label) s += ` on ${a.label}`;
+  s += ".";
+  const n = a.tracks.length || a.songs || 0;
+  const secs = a.length ?? a.tracks.reduce((x, t) => x + (t.duration ?? 0), 0);
+  if (n) {
+    const mins = Math.round(secs / 60), h = Math.floor(mins / 60), m = mins % 60;
+    const runs = secs ? ` and runs ${h ? `${h} hour${h === 1 ? "" : "s"} ` : ""}${m} minute${m === 1 ? "" : "s"}` : "";
+    s += ` It has ${n} song${n === 1 ? "" : "s"}${runs}.`;
+  }
+  return s;
+}
+
 const mmss = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
 
 export default async function AlbumPage({ params }: Props) {
@@ -71,6 +96,7 @@ export default async function AlbumPage({ params }: Props) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
         <h1>{a.title}</h1>
         <p>{kind} by <Link href={`/artist/${a.artist.id}`}>{a.artist.name}</Link>{a.date ? `, ${a.date.slice(0, 4)}` : ""}{a.label ? ` · ${a.label}` : ""}</p>
+        <p>{summary(a)}</p>
         <h2>Tracklist ({a.tracks.length})</h2>
         <ol>
           {a.tracks.map((t, i) => (
