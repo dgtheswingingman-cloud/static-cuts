@@ -7,6 +7,7 @@ import InfoShell, { InfoSection } from "../components/info/InfoShell";
 export const metadata: Metadata = {
   title: "How to listen · Static-Cuts//",
   description: "Where the listen links come from, why some songs have none, and how to play your own files in Spotify.",
+  alternates: { canonical: "/listen" },
 };
 
 const SERVICES: { name: string; text: string; icon: React.ReactNode }[] = [

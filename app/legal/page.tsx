@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import InfoShell, { InfoSection } from "../components/info/InfoShell";
 
-export const metadata: Metadata = { title: "Privacy & terms · Static-Cuts//" };
+export const metadata: Metadata = { title: "Privacy & terms · Static-Cuts//", alternates: { canonical: "/legal" } };
 
 export default function LegalPage() {
   return (
